@@ -10,11 +10,13 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: COLORS.card,
     color: COLORS.text,
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
+    fontSize: 16,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#334155'
+    borderColor: '#334155',
+    minHeight: 50
   }
 });
 

@@ -1,105 +1,440 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Alert, Modal } from 'react-native';
 import Button from '../components/Button';
 import Input from '../components/Input';
+import AnswerFeedback from '../components/AnswerFeedback';
+import ResultsModal from '../components/ResultsModal';
 import { COLORS, SPACING } from '../utils/constants';
 import { GameScreenProps } from '../types/navigation';
+import { useGame } from '../contexts/GameContext';
+import { useAuth } from '../contexts/AuthContext';
+import { formatTime } from '../utils/gameHelpers';
 
 const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   const { roomId, categoryId } = route.params;
-  const [currentQuestion, setCurrentQuestion] = useState(1);
-  const [totalQuestions] = useState(10);
-  const [timeLeft, setTimeLeft] = useState(30);
-  const [answer, setAnswer] = useState('');
-  const [score, setScore] = useState(0);
-  const [players] = useState([
-    { name: 'You', score: 0 },
-    { name: 'Player 2', score: 0 }
-  ]);
+  const { 
+    gameState, 
+    currentAnswer, 
+    setAnswer, 
+    submitAnswer, 
+    nextQuestion, 
+    getGameResults, 
+    getCurrentQuestion, 
+    getPlayerScore, 
+    getGameProgress: getProgress,
+    resetGame
+  } = useGame();
+  const { user, signOut } = useAuth();
+
+  const [timeLeft, setTimeLeft] = useState(60);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [feedbackData, setFeedbackData] = useState<any>(null);
+  const [showResults, setShowResults] = useState(false);
+  const [isAnswerSubmitted, setIsAnswerSubmitted] = useState(false);
+  const [submittedAnswers, setSubmittedAnswers] = useState<string[]>([]);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showEditProfile, setShowEditProfile] = useState(false);
+  const [newDisplayName, setNewDisplayName] = useState(user?.displayName || '');
+  const [newEmail, setNewEmail] = useState(user?.email || '');
+  
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const startTimeRef = useRef<number>(Date.now());
+
+  const currentQuestion = getCurrentQuestion();
+  const progress = getProgress();
 
   useEffect(() => {
-    const timer = setInterval(() => {
+    if (gameState && gameState.gamePhase === 'question') {
+      startTimer();
+      startTimeRef.current = Date.now();
+    }
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, [gameState?.currentRound]);
+
+  const startTimer = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+    
+    setTimeLeft(gameState?.timeRemaining || 60);
+    setIsAnswerSubmitted(false);
+    setSubmittedAnswers([]);
+    
+    timerRef.current = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
-          // Time's up, submit answer
-          submitAnswer();
-          return 30; // Reset for next question
+          // Time's up, auto-submit
+          handleTimeUp();
+          return 0;
         }
         return prev - 1;
       });
     }, 1000);
+  };
 
-    return () => clearInterval(timer);
-  }, []);
-
-  const submitAnswer = () => {
-    if (answer.trim()) {
-      setScore(score + 10);
-      setAnswer('');
-      setCurrentQuestion(currentQuestion + 1);
-      setTimeLeft(30);
+  const handleTimeUp = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+    
+    if (!isAnswerSubmitted && currentAnswer.trim()) {
+      handleSubmitAnswer();
+    } else if (!isAnswerSubmitted) {
+      // No answer submitted, move to next question
+      handleNextQuestion();
     }
   };
 
-  const exitGame = () => {
-    navigation.navigate('Home');
+  const handleSubmitAnswer = () => {
+    if (!currentAnswer.trim()) return;
+    
+    // Check if this answer was already submitted
+    if (submittedAnswers.includes(currentAnswer.trim().toLowerCase())) {
+      Alert.alert('Duplicate Answer', 'You have already submitted this answer.');
+      return;
+    }
+    
+    // Add to submitted answers
+    setSubmittedAnswers([...submittedAnswers, currentAnswer.trim().toLowerCase()]);
+    
+    const timeTaken = gameState?.timeRemaining || 60 - timeLeft;
+    submitAnswer('You', currentAnswer, timeLeft);
+    
+    // Show feedback
+    const currentRound = gameState?.rounds[gameState.currentRound - 1];
+    if (currentRound && currentRound.playerAnswers.length > 0) {
+      const lastAnswer = currentRound.playerAnswers[currentRound.playerAnswers.length - 1];
+      setFeedbackData({
+        isCorrect: lastAnswer.isCorrect,
+        correctAnswer: currentQuestion?.answers[0]?.text,
+        pointsEarned: lastAnswer.points,
+        rank: lastAnswer.rank,
+        userAnswer: currentAnswer
+      });
+      setShowFeedback(true);
+    }
+    
+    // Clear the input for next answer
+    setAnswer('');
   };
+
+  const handleNextQuestion = () => {
+    setShowFeedback(false);
+    setFeedbackData(null);
+    setAnswer('');
+    
+    if ((gameState?.currentRound || 0) >= (gameState?.totalRounds || 10)) {
+      // Game finished
+      setShowResults(true);
+    } else {
+      nextQuestion();
+    }
+  };
+
+  const handleExitGame = () => {
+    Alert.alert(
+      'Exit Game',
+      'Are you sure you want to exit? Your progress will be lost.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Exit', 
+          style: 'destructive',
+          onPress: () => {
+            resetGame();
+            // Go back to the previous screen
+            if (navigation.canGoBack()) {
+              navigation.goBack();
+            } else {
+              // fallback if no previous screen exists
+              navigation.navigate('Categories');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handlePlayAgain = () => {
+    setShowResults(false);
+    resetGame();
+    navigation.navigate('Categories');
+  };
+
+  const handleBackToCategories = () => {
+    setShowResults(false);
+    resetGame();
+    navigation.navigate('Categories');
+  };
+
+  const handleProfileMenuToggle = () => {
+    setShowProfileMenu(!showProfileMenu);
+  };
+
+  const handleEditProfile = () => {
+    setShowProfileMenu(false);
+    setShowEditProfile(true);
+  };
+
+  const handleSaveProfile = () => {
+    // TODO: Implement profile update functionality
+    Alert.alert('Success', 'Profile updated successfully!');
+    setShowEditProfile(false);
+  };
+
+  const handleSignOut = () => {
+    Alert.alert(
+      'Sign Out',
+      'Are you sure you want to sign out?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Sign Out', style: 'destructive', onPress: signOut }
+      ]
+    );
+  };
+
+  const handleHelp = () => {
+    Alert.alert(
+      '🎯 How to Play TOP 10',
+      '📝 READ: Read the question carefully and think about the top 10 answers\n\n✍️ ANSWER: Type your answer and submit - you can submit multiple answers!\n\n🏆 SCORE: The closer your answer is to #1, the more points you get\n\n⏱️ TIME: You have 30-90 seconds per question\n\n💡 TIP: Think broadly and submit as many relevant answers as possible!\n\nGood luck! 🍀',
+      [{ text: 'Got it! 🎮' }]
+    );
+  };
+
+  const handleShowGameRules = () => {
+    Alert.alert(
+      '📋 Game Rules',
+      '🎯 OBJECTIVE: Guess the top 10 answers to each question\n\n🏆 SCORING:\n• #1 answer = 100 points\n• #2 answer = 90 points\n• #3 answer = 80 points\n• And so on...\n\n⏱️ TIMER: 30-90 seconds per question\n\n✅ MULTIPLE ANSWERS: Submit as many as you can!\n\n🎮 PROGRESS: Complete all questions to see your final score',
+      [{ text: 'Understood! 👍' }]
+    );
+  };
+
+  if (!gameState || !currentQuestion) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading game...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={exitGame}>
+        <TouchableOpacity onPress={handleProfileMenuToggle} style={styles.profileButton}>
+          <Text style={styles.profileButtonText}>
+            {(user?.displayName || user?.email || 'U').charAt(0).toUpperCase()}
+          </Text>
+        </TouchableOpacity>
+        <View style={styles.headerCenter}>
+          <Text style={styles.title}>
+            Question {gameState.currentRound}/{gameState.totalRounds}
+          </Text>
+          <Text style={[
+            styles.timer,
+            timeLeft <= 10 && styles.timerWarning
+          ]}>
+            {formatTime(timeLeft)}
+          </Text>
+        </View>
+        <TouchableOpacity onPress={handleExitGame}>
           <Text style={styles.exitButton}>Exit</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Question {currentQuestion}/{totalQuestions}</Text>
-        <Text style={styles.timer}>{timeLeft}s</Text>
+      </View>
+
+      {/* Progress Bar */}
+      <View style={styles.progressContainer}>
+        <View style={styles.progressBar}>
+          <View 
+            style={[
+              styles.progressFill, 
+              { width: `${progress}%` }
+            ]} 
+          />
+        </View>
+        <Text style={styles.progressText}>{Math.round(progress)}%</Text>
       </View>
 
       <ScrollView style={styles.content}>
+        {/* Question Section */}
         <View style={styles.questionSection}>
-          <Text style={styles.questionTitle}>Top 10 in Category</Text>
-          <Text style={styles.questionText}>
-            What is the #1 item in this category?
+          <Text style={styles.questionTitle}>{currentQuestion.title}</Text>
+          <Text style={styles.questionHint}>
+            Type your answer below. The closer you are to #1, the more points you get!
           </Text>
         </View>
 
+        {/* Answer Section */}
         <View style={styles.answerSection}>
           <Text style={styles.answerLabel}>Your Answer:</Text>
-          <Input 
-            placeholder="Enter your answer..." 
-            value={answer} 
-            onChangeText={setAnswer}
-            style={styles.answerInput}
-          />
-          <Button 
-            title="Submit Answer" 
-            onPress={submitAnswer}
-            disabled={!answer.trim()}
-          />
+                     <Input 
+             placeholder="Enter your answer..." 
+             value={currentAnswer} 
+             onChangeText={setAnswer}
+             style={styles.answerInput}
+             editable={true}
+           />
+           <Button 
+             title="Submit Answer" 
+             onPress={handleSubmitAnswer}
+             disabled={!currentAnswer.trim()}
+             style={styles.submitButton}
+           />
         </View>
 
-        <View style={styles.scoreSection}>
-          <Text style={styles.scoreTitle}>Your Score: {score}</Text>
-        </View>
+                 {/* Submitted Answers Section */}
+         {submittedAnswers.length > 0 && (
+           <View style={styles.submittedAnswersSection}>
+             <Text style={styles.submittedAnswersTitle}>Your Answers:</Text>
+             {submittedAnswers.map((answer, index) => (
+               <Text key={index} style={styles.submittedAnswer}>
+                 • {answer}
+               </Text>
+             ))}
+           </View>
+         )}
 
-        <View style={styles.playersSection}>
-          <Text style={styles.playersTitle}>Players</Text>
-          {players.map((player, index) => (
-            <View key={index} style={styles.playerRow}>
-              <Text style={styles.playerName}>{player.name}</Text>
-              <Text style={styles.playerScore}>{player.score}</Text>
-            </View>
-          ))}
-        </View>
+         {/* Score Section */}
+         <View style={styles.scoreSection}>
+           <Text style={styles.scoreTitle}>Your Score: {getPlayerScore('You')}</Text>
+         </View>
+
+                 {/* Next Question Button */}
+         {timeLeft === 0 && (
+           <View style={styles.nextQuestionSection}>
+             <Button 
+               title={gameState.currentRound >= gameState.totalRounds ? "Finish Game" : "Next Question"}
+               onPress={handleNextQuestion}
+               style={styles.nextButton}
+             />
+           </View>
+         )}
       </ScrollView>
-    </SafeAreaView>
-  );
-};
+
+             {/* Answer Feedback Modal */}
+       <AnswerFeedback
+         visible={showFeedback}
+         isCorrect={feedbackData?.isCorrect || false}
+         correctAnswer={feedbackData?.correctAnswer}
+         pointsEarned={feedbackData?.pointsEarned}
+         rank={feedbackData?.rank}
+         userAnswer={feedbackData?.userAnswer || ''}
+         onAnimationComplete={() => {
+           // Wait 2 seconds before moving to next question
+           setTimeout(() => {
+             setShowFeedback(false);
+             if (timeLeft === 0) {
+               handleNextQuestion();
+             }
+           }, 2000);
+         }}
+       />
+
+             {/* Results Modal */}
+       <ResultsModal
+         visible={showResults}
+         gameResults={getGameResults()}
+         onClose={() => setShowResults(false)}
+         onPlayAgain={handlePlayAgain}
+         onBackToCategories={handleBackToCategories}
+       />
+
+       {/* Profile Menu */}
+       {showProfileMenu && (
+         <View style={styles.profileMenu}>
+           <TouchableOpacity 
+             style={styles.profileMenuItem}
+             onPress={handleEditProfile}
+           >
+             <Text style={styles.profileMenuItemText}>Edit Profile</Text>
+           </TouchableOpacity>
+           
+           <TouchableOpacity 
+             style={styles.profileMenuItem}
+             onPress={handleHelp}
+           >
+             <Text style={styles.profileMenuItemText}>Help</Text>
+           </TouchableOpacity>
+           
+           <View style={styles.profileMenuDivider} />
+           
+           <TouchableOpacity 
+             style={styles.profileMenuItem}
+             onPress={handleSignOut}
+           >
+             <Text style={[styles.profileMenuItemText, { color: '#dc2626' }]}>Sign Out</Text>
+           </TouchableOpacity>
+         </View>
+       )}
+
+       {/* Edit Profile Modal */}
+       <Modal
+         visible={showEditProfile}
+         transparent={true}
+         animationType="fade"
+         onRequestClose={() => setShowEditProfile(false)}
+       >
+         <View style={styles.editProfileModal}>
+           <View style={styles.editProfileContent}>
+             <Text style={styles.editProfileTitle}>Edit Profile</Text>
+             
+             <View style={styles.editProfileField}>
+               <Text style={styles.editProfileLabel}>Display Name</Text>
+               <Input
+                 placeholder="Enter display name"
+                 value={newDisplayName}
+                 onChangeText={setNewDisplayName}
+               />
+             </View>
+             
+             <View style={styles.editProfileField}>
+               <Text style={styles.editProfileLabel}>Email</Text>
+               <Input
+                 placeholder="Enter email"
+                 value={newEmail}
+                 onChangeText={setNewEmail}
+                 keyboardType="email-address"
+                 autoCapitalize="none"
+               />
+             </View>
+             
+             <View style={styles.editProfileButtons}>
+               <Button
+                 title="Cancel"
+                 onPress={() => setShowEditProfile(false)}
+                 style={{ backgroundColor: COLORS.muted }}
+               />
+               <Button
+                 title="Save"
+                 onPress={handleSaveProfile}
+               />
+             </View>
+           </View>
+         </View>
+       </Modal>
+     </SafeAreaView>
+   );
+ };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: COLORS.text,
+    fontSize: 18,
   },
   header: {
     flexDirection: 'row',
@@ -125,6 +460,35 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600'
   },
+  timerWarning: {
+    color: '#dc2626',
+    fontWeight: '700'
+  },
+  progressContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    gap: SPACING.md
+  },
+  progressBar: {
+    flex: 1,
+    height: 8,
+    backgroundColor: COLORS.card,
+    borderRadius: 4,
+    overflow: 'hidden'
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: COLORS.primary,
+    borderRadius: 4
+  },
+  progressText: {
+    color: COLORS.muted,
+    fontSize: 12,
+    fontWeight: '600',
+    minWidth: 40
+  },
   content: {
     flex: 1,
     padding: SPACING.lg
@@ -140,11 +504,12 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontSize: 20,
     fontWeight: '700',
-    marginBottom: SPACING.md
+    marginBottom: SPACING.md,
+    textAlign: 'center'
   },
-  questionText: {
+  questionHint: {
     color: COLORS.muted,
-    fontSize: 16,
+    fontSize: 14,
     textAlign: 'center'
   },
   answerSection: {
@@ -162,6 +527,9 @@ const styles = StyleSheet.create({
   answerInput: {
     marginBottom: SPACING.sm
   },
+  submitButton: {
+    marginTop: SPACING.sm
+  },
   scoreSection: {
     backgroundColor: COLORS.card,
     borderRadius: 12,
@@ -174,32 +542,119 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '800'
   },
-  playersSection: {
+  nextQuestionSection: {
+    marginBottom: SPACING.xl
+  },
+  nextButton: {
+    backgroundColor: '#10B981'
+  },
+  submittedAnswersSection: {
     backgroundColor: COLORS.card,
     borderRadius: 12,
     padding: SPACING.lg,
-    gap: SPACING.md
+    marginBottom: SPACING.xl,
+    gap: SPACING.sm
   },
-  playersTitle: {
+  submittedAnswersTitle: {
     color: COLORS.text,
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '600',
     marginBottom: SPACING.sm
   },
-  playerRow: {
+  submittedAnswer: {
+    color: COLORS.text,
+    fontSize: 14,
+    paddingLeft: SPACING.sm
+  },
+  profileButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SPACING.sm
+  },
+  profileButtonText: {
+    color: COLORS.background,
+    fontSize: 18,
+    fontWeight: '700'
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  profileMenu: {
+    position: 'absolute',
+    top: 80,
+    left: SPACING.lg,
+    backgroundColor: COLORS.card,
+    borderRadius: 12,
+    padding: SPACING.md,
+    minWidth: 200,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    zIndex: 1000
+  },
+  profileMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderRadius: 8,
+    marginBottom: SPACING.xs
+  },
+  profileMenuItemText: {
+    color: COLORS.text,
+    fontSize: 16,
+    marginLeft: SPACING.sm
+  },
+  profileMenuDivider: {
+    height: 1,
+    backgroundColor: COLORS.muted,
+    marginVertical: SPACING.sm
+  },
+  editProfileModal: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.lg
+  },
+  editProfileContent: {
+    backgroundColor: COLORS.card,
+    borderRadius: 12,
+    padding: SPACING.lg,
+    width: '100%',
+    maxWidth: 400
+  },
+  editProfileTitle: {
+    color: COLORS.text,
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: SPACING.lg,
+    textAlign: 'center'
+  },
+  editProfileField: {
+    marginBottom: SPACING.lg
+  },
+  editProfileLabel: {
+    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: SPACING.sm
+  },
+  editProfileButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: SPACING.xs
-  },
-  playerName: {
-    color: COLORS.text,
-    fontSize: 14
-  },
-  playerScore: {
-    color: COLORS.primary,
-    fontSize: 14,
-    fontWeight: '600'
+    marginTop: SPACING.lg
   }
 });
 

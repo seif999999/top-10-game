@@ -12,8 +12,8 @@ export type MainStackParamList = {
   Home: undefined;
   Profile: undefined;
   Categories: undefined;
-  GameLobby: { categoryId: string; categoryName: string };
-  GameScreen: { roomId: string; categoryId: string };
+  GameLobby: { categoryId: string; categoryName: string; selectedQuestion?: any };
+  GameScreen: { roomId: string; categoryId: string; categoryName?: string };
 };
 
 // Combined Root Stack Types

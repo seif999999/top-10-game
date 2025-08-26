@@ -45,6 +45,63 @@ export type Question = {
   difficulty: 'easy' | 'medium' | 'hard';
 };
 
+export interface QuestionAnswer {
+  text: string;
+  rank: number;
+  points: number;
+}
+
+export interface GameQuestion {
+  id: string;
+  category: string;
+  title: string;
+  answers: QuestionAnswer[];
+  difficulty: 'easy' | 'medium' | 'hard';
+}
+
+export interface PlayerAnswer {
+  playerId: string;
+  answer: string;
+  timeTaken: number;
+  isCorrect: boolean;
+  rank?: number;
+  points?: number;
+  similarity?: number;
+}
+
+export interface GameRound {
+  question: GameQuestion;
+  playerAnswers: PlayerAnswer[];
+  roundNumber: number;
+  timeLimit: number;
+}
+
+export interface GameState {
+  gameId: string;
+  category: string;
+  players: string[];
+  currentRound: number;
+  totalRounds: number;
+  rounds: GameRound[];
+  scores: { [playerId: string]: number };
+  gamePhase: 'lobby' | 'question' | 'answered' | 'results' | 'finished';
+  timeRemaining: number;
+  currentQuestion?: GameQuestion;
+  roundStartTime?: number;
+}
+
+export interface GameResults {
+  gameId: string;
+  category: string;
+  players: string[];
+  finalScores: { [playerId: string]: number };
+  roundResults: GameRound[];
+  winner: string;
+  totalTime: number;
+  averageScore: number;
+  bestAnswer?: PlayerAnswer;
+}
+
 export type AuthContextType = {
   user: User | null;
   loading: boolean;
