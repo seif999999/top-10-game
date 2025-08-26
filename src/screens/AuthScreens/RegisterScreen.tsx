@@ -9,38 +9,33 @@ import { RegisterScreenProps } from '../../types/navigation';
 type Props = RegisterScreenProps;
 
 const RegisterScreen: React.FC<Props> = ({ navigation }) => {
-  const { signUp, loading, user } = useAuth();
+  const { signUp, loading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [localLoading, setLocalLoading] = useState(false);
+  const [errors, setErrors] = useState<{ displayName?: string; email?: string; password?: string; confirmPassword?: string }>({});
+
+  const validate = () => {
+    const next: { displayName?: string; email?: string; password?: string; confirmPassword?: string } = {};
+    if (!displayName.trim()) next.displayName = 'Display name is required';
+    if (!email.trim()) next.email = 'Email is required';
+    else if (!/[^@\s]+@[^@\s]+\.[^@\s]+/.test(email.trim())) next.email = 'Enter a valid email';
+    if (!password) next.password = 'Password is required';
+    else if (password.length < 6) next.password = 'Minimum 6 characters';
+    if (!confirmPassword) next.confirmPassword = 'Confirm your password';
+    else if (password !== confirmPassword) next.confirmPassword = 'Passwords do not match';
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  };
 
   const handleSignUp = async () => {
-    // Validation
-    if (!email.trim() || !password || !confirmPassword || !displayName.trim()) {
-      Alert.alert('Error', 'Please fill in all fields');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
-      return;
-    }
-
-    if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters long');
-      return;
-    }
-
+    if (!validate()) return;
     setLocalLoading(true);
     try {
-      console.log('Attempting to sign up...');
       await signUp(email.trim(), password, displayName.trim());
-      console.log('Sign up completed, user state:', user);
-      Alert.alert('Success', 'Registration successful! You should be redirected.');
     } catch (error) {
-      console.error('Registration error:', error);
       Alert.alert('Registration Failed', error instanceof Error ? error.message : 'An error occurred');
     } finally {
       setLocalLoading(false);
@@ -60,6 +55,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
         onChangeText={setDisplayName}
         editable={!isLoading}
       />
+      {errors.displayName ? <Text style={styles.error}>{errors.displayName}</Text> : null}
       <Input 
         placeholder="Email" 
         autoCapitalize="none" 
@@ -68,6 +64,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
         onChangeText={setEmail}
         editable={!isLoading}
       />
+      {errors.email ? <Text style={styles.error}>{errors.email}</Text> : null}
       <Input 
         placeholder="Password" 
         secureTextEntry 
@@ -75,6 +72,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
         onChangeText={setPassword}
         editable={!isLoading}
       />
+      {errors.password ? <Text style={styles.error}>{errors.password}</Text> : null}
       <Input 
         placeholder="Confirm Password" 
         secureTextEntry 
@@ -82,6 +80,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
         onChangeText={setConfirmPassword}
         editable={!isLoading}
       />
+      {errors.confirmPassword ? <Text style={styles.error}>{errors.confirmPassword}</Text> : null}
       
       <Button 
         title={isLoading ? 'Creating account…' : 'Create Account'} 
@@ -94,12 +93,6 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
         <TouchableOpacity onPress={() => navigation.navigate('Login')} disabled={isLoading}>
           <Text style={[styles.linkText, isLoading && styles.disabledText]}>Sign in</Text>
         </TouchableOpacity>
-      </View>
-
-      {/* Debug info */}
-      <View style={styles.debugNote}>
-        <Text style={styles.debugText}>Current user: {user ? user.email : 'None'}</Text>
-        <Text style={styles.debugText}>Loading: {isLoading ? 'Yes' : 'No'}</Text>
       </View>
     </View>
   );
@@ -126,6 +119,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: SPACING.xl
   },
+  error: {
+    color: '#f87171'
+  },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -143,20 +139,6 @@ const styles = StyleSheet.create({
   },
   disabledText: {
     opacity: 0.5
-  },
-  debugNote: {
-    marginTop: SPACING.xl,
-    padding: SPACING.md,
-    backgroundColor: COLORS.card,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: COLORS.muted
-  },
-  debugText: {
-    color: COLORS.muted,
-    fontSize: 12,
-    textAlign: 'center',
-    marginBottom: SPACING.xs
   }
 });
 

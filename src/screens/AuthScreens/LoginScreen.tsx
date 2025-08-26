@@ -9,35 +9,37 @@ import { LoginScreenProps } from '../../types/navigation';
 type Props = LoginScreenProps;
 
 const LoginScreen: React.FC<Props> = ({ navigation }) => {
-  const { signIn, loading, user } = useAuth();
+  const { signIn, loading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [localLoading, setLocalLoading] = useState(false);
+  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [firebaseError, setFirebaseError] = useState<string | null>(null);
+
+  const validate = () => {
+    const next: { email?: string; password?: string } = {};
+    if (!email.trim()) next.email = 'Email is required';
+    else if (!/[^@\s]+@[^@\s]+\.[^@\s]+/.test(email.trim())) next.email = 'Enter a valid email';
+    if (!password.trim()) next.password = 'Password is required';
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  };
 
   const handleSignIn = async () => {
-    if (!email.trim() || !password.trim()) {
-      Alert.alert('Error', 'Please fill in all fields');
-      return;
-    }
-
+    // Clear previous Firebase errors
+    setFirebaseError(null);
+    
+    if (!validate()) return;
     setLocalLoading(true);
     try {
-      console.log('Attempting to sign in...');
       await signIn(email.trim(), password);
-      console.log('Sign in completed, user state:', user);
-      Alert.alert('Success', 'Login successful! You should be redirected.');
     } catch (error) {
-      console.error('Login error:', error);
-      Alert.alert('Login Failed', error instanceof Error ? error.message : 'An error occurred');
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred';
+      setFirebaseError(errorMessage);
+      console.error('Login error:', errorMessage);
     } finally {
       setLocalLoading(false);
     }
-  };
-
-  const testNavigation = () => {
-    Alert.alert('Test', 'Testing direct navigation...');
-    // This will be handled by the test mode in AuthContext
-    signIn('test@test.com', 'test123');
   };
 
   const isLoading = loading || localLoading;
@@ -55,6 +57,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
         onChangeText={setEmail}
         editable={!isLoading}
       />
+      {errors.email ? <Text style={styles.error}>{errors.email}</Text> : null}
       <Input 
         placeholder="Password" 
         secureTextEntry 
@@ -62,26 +65,24 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
         onChangeText={setPassword}
         editable={!isLoading}
       />
+      {errors.password ? <Text style={styles.error}>{errors.password}</Text> : null}
+      
+      {firebaseError ? <Text style={styles.firebaseError}>{firebaseError}</Text> : null}
       
       <Button 
         title={isLoading ? 'Signing in…' : 'Sign In'} 
         onPress={handleSignIn}
         disabled={isLoading}
       />
+
+      <TouchableOpacity style={styles.linkCenter} onPress={() => navigation.navigate('ForgotPassword')} disabled={isLoading}>
+        <Text style={styles.linkText}>Forgot password?</Text>
+      </TouchableOpacity>
       
       <View style={styles.footer}>
         <Text style={styles.footerText}>Don't have an account? </Text>
         <TouchableOpacity onPress={() => navigation.navigate('Register')} disabled={isLoading}>
           <Text style={[styles.linkText, isLoading && styles.disabledText]}>Sign up</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Test credentials note */}
-      <View style={styles.testNote}>
-        <Text style={styles.testText}>Test: test@test.com / test123</Text>
-        <Text style={styles.testText}>Current user: {user ? user.email : 'None'}</Text>
-        <TouchableOpacity style={styles.testButton} onPress={testNavigation}>
-          <Text style={styles.testButtonText}>Test Navigation</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -109,6 +110,22 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: SPACING.xl
   },
+  error: {
+    color: '#f87171',
+    fontSize: 12,
+    marginTop: 4
+  },
+  firebaseError: {
+    color: '#f87171',
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 8,
+    paddingHorizontal: 16
+  },
+  linkCenter: {
+    alignItems: 'center',
+    marginTop: SPACING.sm
+  },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -126,32 +143,6 @@ const styles = StyleSheet.create({
   },
   disabledText: {
     opacity: 0.5
-  },
-  testNote: {
-    marginTop: SPACING.xl,
-    padding: SPACING.md,
-    backgroundColor: COLORS.card,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: COLORS.muted
-  },
-  testText: {
-    color: COLORS.muted,
-    fontSize: 12,
-    textAlign: 'center',
-    marginBottom: SPACING.xs
-  },
-  testButton: {
-    backgroundColor: COLORS.primary,
-    padding: SPACING.sm,
-    borderRadius: 6,
-    marginTop: SPACING.sm
-  },
-  testButtonText: {
-    color: COLORS.text,
-    fontSize: 12,
-    textAlign: 'center',
-    fontWeight: '600'
   }
 });
 

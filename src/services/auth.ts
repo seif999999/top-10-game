@@ -4,6 +4,7 @@ import {
   signOut,
   updateProfile,
   onAuthStateChanged,
+  sendPasswordResetEmail,
   User as FirebaseUser,
   AuthError
 } from 'firebase/auth';
@@ -19,11 +20,9 @@ export const signUpWithEmail = async (
 ): Promise<User> => {
   try {
     const cred = await createUserWithEmailAndPassword(auth, email, password);
-    
     if (displayName) {
       await updateProfile(cred.user, { displayName });
     }
-    
     return mapFirebaseUser(cred.user);
   } catch (error) {
     const err = error as AuthError | Error;
@@ -35,6 +34,15 @@ export const signInWithEmail = async (email: string, password: string): Promise<
   try {
     const cred = await signInWithEmailAndPassword(auth, email, password);
     return mapFirebaseUser(cred.user);
+  } catch (error) {
+    const err = error as AuthError | Error;
+    throw new Error(getFriendlyAuthMessage(err));
+  }
+};
+
+export const resetPassword = async (email: string): Promise<void> => {
+  try {
+    await sendPasswordResetEmail(auth, email);
   } catch (error) {
     const err = error as AuthError | Error;
     throw new Error(getFriendlyAuthMessage(err));
@@ -72,18 +80,47 @@ const mapFirebaseUser = (fbUser: FirebaseUser): User => {
 };
 
 const getFriendlyAuthMessage = (error: AuthError | Error): string => {
-  const message = 'Authentication failed. Please check your details and try again.';
   if ((error as AuthError).code) {
     const code = (error as AuthError).code;
-    if (code.includes('auth/invalid-credential')) return 'Invalid email or password.';
-    if (code.includes('auth/email-already-in-use')) return 'Email already in use.';
-    if (code.includes('auth/weak-password')) return 'Password is too weak.';
-    if (code.includes('auth/network-request-failed')) return 'Network error. Try again later.';
-    if (code.includes('auth/invalid-email')) return 'Invalid email format.';
-    if (code.includes('auth/user-not-found')) return 'No account found with this email.';
-    if (code.includes('auth/wrong-password')) return 'Incorrect password.';
+    
+    // Login-specific errors
+    if (code === 'auth/invalid-credential') {
+      return 'Invalid email or password. Please check your credentials and try again.';
+    }
+    if (code === 'auth/user-not-found') {
+      return 'No account found with this email address. Please check your email or create a new account.';
+    }
+    if (code === 'auth/wrong-password') {
+      return 'Incorrect password. Please try again.';
+    }
+    if (code === 'auth/invalid-email') {
+      return 'Invalid email format. Please enter a valid email address.';
+    }
+    if (code === 'auth/user-disabled') {
+      return 'This account has been disabled. Please contact support.';
+    }
+    if (code === 'auth/too-many-requests') {
+      return 'Too many failed login attempts. Please try again later.';
+    }
+    
+    // Registration-specific errors
+    if (code === 'auth/email-already-in-use') {
+      return 'An account with this email already exists. Please sign in instead.';
+    }
+    if (code === 'auth/weak-password') {
+      return 'Password is too weak. Please choose a stronger password (at least 6 characters).';
+    }
+    
+    // General errors
+    if (code === 'auth/network-request-failed') {
+      return 'Network error. Please check your internet connection and try again.';
+    }
+    if (code === 'auth/operation-not-allowed') {
+      return 'Email/password sign-in is not enabled. Please contact support.';
+    }
   }
-  return message;
+  
+  return 'Authentication failed. Please check your details and try again.';
 };
 
 
