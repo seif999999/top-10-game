@@ -34,7 +34,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
         <View style={styles.buttonContainer}>
           <Button title="Play Game" onPress={() => navigation.navigate('Categories')} />
-          <Button title="Profile" onPress={() => {}} style={styles.secondaryButton} />
+          <Button title="Profile" onPress={() => navigation.navigate('Profile')} style={styles.secondaryButton} />
           <Button title="Sign Out" onPress={signOut} style={styles.signOutButton} />
         </View>
       </View>

@@ -7,6 +7,7 @@ import { RootStackParamList } from '../types/navigation';
 import LoginScreen from '../screens/AuthScreens/LoginScreen';
 import RegisterScreen from '../screens/AuthScreens/RegisterScreen';
 import HomeScreen from '../screens/HomeScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 import CategoriesScreen from '../screens/CategoriesScreen';
 import GameLobbyScreen from '../screens/GameLobbyScreen';
 import GameScreen from '../screens/GameScreen';
@@ -28,15 +29,14 @@ const AppNavigator: React.FC = () => {
       }}
     >
       {user ? (
-        // Authenticated Stack
         <>
           <Stack.Screen name="Home" component={HomeScreen} />
+          <Stack.Screen name="Profile" component={ProfileScreen} />
           <Stack.Screen name="Categories" component={CategoriesScreen} />
           <Stack.Screen name="GameLobby" component={GameLobbyScreen} />
           <Stack.Screen name="GameScreen" component={GameScreen} />
         </>
       ) : (
-        // Auth Stack
         <>
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Register" component={RegisterScreen} />
