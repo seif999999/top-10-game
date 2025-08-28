@@ -89,8 +89,16 @@ export const processAnswer = (
     throw new Error('Game is not in question phase');
   }
   
+  console.log(`\n🎮 PROCESSING ANSWER:`);
+  console.log(`   Player: ${playerId}`);
+  console.log(`   Answer: "${answer}"`);
+  console.log(`   Question: "${gameState.currentQuestion.title}"`);
+  console.log(`   Available answers:`, gameState.currentQuestion.answers.map(a => `${a.text} (rank: ${a.rank}, points: ${a.points})`));
+  
   const timeTaken = gameState.timeRemaining - timeRemaining;
   const validation = validateAnswer(answer, gameState.currentQuestion.answers);
+  
+  console.log(`   Validation result:`, validation);
   
   const playerAnswer: PlayerAnswer = {
     playerId,
@@ -98,25 +106,34 @@ export const processAnswer = (
     timeTaken,
     isCorrect: validation.isCorrect,
     rank: validation.rank,
-    points: validation.points,
+    points: 0, // We'll set this based on rank
     similarity: validation.similarity
   };
   
-  // Calculate final score using new scoring system
-  if (validation.isCorrect && validation.rank) {
-    const score = calculateScore({
-      rank: validation.rank,
-      timeTaken,
-      totalTime: gameState.timeRemaining,
-      difficulty: gameState.currentQuestion.difficulty
-    });
-    
-    playerAnswer.points = score;
-    gameState.scores[playerId] += score;
-  }
-  
   // Update game state
   const updatedState = { ...gameState };
+  
+  // SIMPLE SCORING: Just use the rank as points
+  if (validation.isCorrect && validation.rank) {
+    const score = validation.rank; // Rank 1 = 1 point, Rank 10 = 10 points
+    
+    playerAnswer.points = score;
+    
+    // Simple score addition
+    if (!updatedState.scores[playerId]) {
+      updatedState.scores[playerId] = 0;
+    }
+    const previousScore = updatedState.scores[playerId];
+    updatedState.scores[playerId] += score;
+    
+    console.log(`🎯 SIMPLE SCORE: Player ${playerId}`);
+    console.log(`   Previous Score: ${previousScore}`);
+    console.log(`   Points Earned: ${score} (rank ${validation.rank})`);
+    console.log(`   New Total Score: ${updatedState.scores[playerId]}`);
+    console.log(`   Updated state scores:`, updatedState.scores);
+  } else {
+    console.log(`❌ No points awarded - validation failed`);
+  }
   
   // Add answer to current round
   if (!updatedState.rounds[updatedState.currentRound - 1]) {
@@ -130,6 +147,9 @@ export const processAnswer = (
   
   updatedState.rounds[updatedState.currentRound - 1].playerAnswers.push(playerAnswer);
   
+  // Keep the game in 'question' phase to allow multiple answers
+  // Only change to 'answered' when time runs out or manually triggered
+  
   return { updatedState, answerResult: playerAnswer };
 };
 
@@ -138,6 +158,8 @@ export const processAnswer = (
  */
 export const nextQuestion = (gameState: GameState): GameState => {
   const updatedState = { ...gameState };
+  
+  console.log(`🔄 Next Question - Current scores:`, updatedState.scores);
   
   if (updatedState.currentRound >= updatedState.totalRounds) {
     // Game finished
@@ -155,6 +177,8 @@ export const nextQuestion = (gameState: GameState): GameState => {
   const questions = getQuestionsByCategory(updatedState.category);
   const shuffledQuestions = shuffleQuestions(questions);
   updatedState.currentQuestion = shuffledQuestions[updatedState.currentRound - 1];
+  
+  console.log(`🔄 Next Question - Scores after update:`, updatedState.scores);
   
   return updatedState;
 };

@@ -61,32 +61,43 @@ const gameReducer = (state: GameContextState, action: GameAction): GameContextSt
         currentAnswer: action.payload
       };
 
-    case 'SUBMIT_ANSWER':
-      try {
-        if (!state.gameState) throw new Error('No active game');
-        
-        const { playerId, answer, timeRemaining } = action.payload;
-        const { updatedState, answerResult } = processAnswer(
-          state.gameState,
-          playerId,
-          answer,
-          timeRemaining
-        );
-        
-        updatedState.gamePhase = 'answered';
-        
-        return {
-          ...state,
-          gameState: updatedState,
-          currentAnswer: '',
-          suggestions: []
-        };
-      } catch (error) {
-        return {
-          ...state,
-          error: 'Failed to submit answer'
-        };
-      }
+          case 'SUBMIT_ANSWER':
+        try {
+          if (!state.gameState) throw new Error('No active game');
+
+          console.log(`\n📝 SUBMIT_ANSWER ACTION:`);
+          console.log(`   Player: ${action.payload.playerId}`);
+          console.log(`   Answer: "${action.payload.answer}"`);
+          console.log(`   Time Remaining: ${action.payload.timeRemaining}`);
+          console.log(`   Current scores before:`, state.gameState.scores);
+
+          const { playerId, answer, timeRemaining } = action.payload;
+          const { updatedState, answerResult } = processAnswer(
+            state.gameState,
+            playerId,
+            answer,
+            timeRemaining
+          );
+
+          // Keep the game in 'question' phase to allow multiple answers
+          // updatedState.gamePhase = 'answered';
+
+          console.log('🔄 SUBMIT_ANSWER - Updated scores:', updatedState.scores);
+          console.log('🔄 SUBMIT_ANSWER - Answer result:', answerResult);
+
+          return {
+            ...state,
+            gameState: updatedState,
+            currentAnswer: '',
+            suggestions: []
+          };
+        } catch (error) {
+          console.error('❌ SUBMIT_ANSWER Error:', error);
+          return {
+            ...state,
+            error: 'Failed to submit answer'
+          };
+        }
 
     case 'NEXT_QUESTION':
       try {
@@ -207,7 +218,10 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
   }, [state.gameState]);
 
   const getPlayerScore = useCallback((playerId: string): number => {
-    return state.gameState?.scores[playerId] || 0;
+    const score = state.gameState?.scores[playerId] || 0;
+    console.log(`📊 getPlayerScore(${playerId}): ${score}`);
+    console.log(`📊 All scores:`, state.gameState?.scores);
+    return score;
   }, [state.gameState]);
 
   const getGameProgress = useCallback((): number => {

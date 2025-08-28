@@ -21,7 +21,8 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     getCurrentQuestion, 
     getPlayerScore, 
     getGameProgress: getProgress,
-    resetGame
+    resetGame,
+    startGame
   } = useGame();
   const { user, signOut } = useAuth();
 
@@ -38,6 +39,25 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
 
   const currentQuestion = getCurrentQuestion();
   const progress = getProgress();
+  const currentScore = getPlayerScore('You');
+  
+  // Force re-render when scores change
+  const [scoreUpdateTrigger, setScoreUpdateTrigger] = useState(0);
+  
+  // Initialize game if not already started
+  useEffect(() => {
+    if (!gameState) {
+      console.log('🎮 No game state found, starting new game...');
+      // Start a new game with the category from route params
+      startGame(categoryId || 'Sports', ['You'], 60);
+    }
+    // Don't restart the game if it's in 'answered' phase - let it complete naturally
+  }, [gameState, categoryId, startGame]);
+  
+  // Update score display when trigger changes
+  useEffect(() => {
+    // This will force the component to re-render and show updated score
+  }, [scoreUpdateTrigger]);
 
   useEffect(() => {
     if (gameState && gameState.gamePhase === 'question') {
@@ -99,6 +119,11 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     
     const timeTaken = gameState?.timeRemaining || 60 - timeLeft;
     submitAnswer('You', currentAnswer, timeLeft);
+    
+    // Force score update
+    setTimeout(() => {
+      setScoreUpdateTrigger(prev => prev + 1);
+    }, 100);
     
     // Show feedback
     const currentRound = gameState?.rounds[gameState.currentRound - 1];
@@ -200,11 +225,22 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     );
   };
 
+  // Debug logging
+  useEffect(() => {
+    console.log('🎮 GameScreen Debug:');
+    console.log('   gameState:', gameState ? 'exists' : 'null');
+    console.log('   gamePhase:', gameState?.gamePhase);
+    console.log('   currentQuestion:', currentQuestion ? 'exists' : 'null');
+    console.log('   categoryId:', categoryId);
+  }, [gameState, currentQuestion, categoryId]);
+
   if (!gameState || !currentQuestion) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Loading game...</Text>
+          <Text style={styles.loadingText}>Game State: {gameState ? 'exists' : 'null'}</Text>
+          <Text style={styles.loadingText}>Question: {currentQuestion ? 'exists' : 'null'}</Text>
         </View>
       </SafeAreaView>
     );
@@ -233,6 +269,18 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
         <TouchableOpacity onPress={handleExitGame}>
           <Text style={styles.exitButton}>Exit</Text>
         </TouchableOpacity>
+        {__DEV__ && (
+          <TouchableOpacity 
+            onPress={() => {
+              console.log('🧪 TEST: Current game state:', gameState);
+              console.log('🧪 TEST: Current question:', currentQuestion);
+              console.log('🧪 TEST: Current score:', getPlayerScore('You'));
+            }}
+            style={styles.debugButton}
+          >
+            <Text style={styles.debugButtonText}>Debug</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Progress Bar */}
@@ -288,10 +336,15 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
            </View>
          )}
 
-         {/* Score Section */}
-         <View style={styles.scoreSection}>
-           <Text style={styles.scoreTitle}>Your Score: {getPlayerScore('You')}</Text>
-         </View>
+                   {/* Score Section */}
+          <View style={styles.scoreSection}>
+            <Text style={styles.scoreTitle}>Your Score: {currentScore}</Text>
+            {__DEV__ && (
+              <Text style={styles.debugText}>
+                Debug: Scores = {JSON.stringify(gameState.scores)}
+              </Text>
+            )}
+          </View>
 
                  {/* Next Question Button */}
          {timeLeft === 0 && (
@@ -458,6 +511,12 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '800'
   },
+  debugText: {
+    fontSize: 12,
+    color: COLORS.muted,
+    textAlign: 'center',
+    marginTop: SPACING.sm
+  },
   nextQuestionSection: {
     marginBottom: SPACING.xl
   },
@@ -500,6 +559,18 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center'
+  },
+  debugButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    marginLeft: 8
+  },
+  debugButtonText: {
+    color: COLORS.white,
+    fontSize: 12,
+    fontWeight: '600'
   },
 
 });

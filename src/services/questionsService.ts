@@ -114,6 +114,8 @@ export const validateAnswer = (userAnswer: string, correctAnswers: QuestionAnswe
   }
   
   const normalizedUserAnswer = normalizeAnswer(userAnswer);
+  console.log(`🔍 Validating: "${userAnswer}" -> normalized: "${normalizedUserAnswer}"`);
+  
   let bestMatch: QuestionAnswer | undefined;
   let bestSimilarity = 0;
   let matchType: 'exact' | 'alias' | 'fuzzy_high' | 'fuzzy_low' | 'none' = 'none';
@@ -122,6 +124,7 @@ export const validateAnswer = (userAnswer: string, correctAnswers: QuestionAnswe
   for (const answer of correctAnswers) {
     // Check exact match with normalized answer
     if (answer.normalized && normalizedUserAnswer === answer.normalized) {
+      console.log(`✅ EXACT MATCH: "${answer.text}" (rank ${answer.rank}, points ${answer.points})`);
       return {
         isCorrect: true,
         matchedAnswer: answer,
@@ -136,6 +139,7 @@ export const validateAnswer = (userAnswer: string, correctAnswers: QuestionAnswe
       for (const alias of answer.aliases) {
         const normalizedAlias = normalizeAnswer(alias);
         if (normalizedUserAnswer === normalizedAlias) {
+          console.log(`✅ ALIAS MATCH: "${alias}" -> "${answer.text}" (rank ${answer.rank}, points ${answer.points})`);
           return {
             isCorrect: true,
             matchedAnswer: answer,
@@ -182,29 +186,16 @@ export const validateAnswer = (userAnswer: string, correctAnswers: QuestionAnswe
 };
 
 /**
- * Calculate score based on rank, time taken, and difficulty
- * NEW SCORING: rank position = points (rank 1 = 1 point, rank 10 = 10 points)
+ * Calculate score based on rank only
+ * SIMPLIFIED SCORING: rank position = points (rank 1 = 1 point, rank 10 = 10 points)
  */
 export const calculateScore = (params: ScoreCalculationParams): number => {
-  const { rank, timeTaken, totalTime, difficulty } = params;
+  const { rank } = params;
   
   // Base points from rank (direct relationship: rank 1 = 1 point, rank 10 = 10 points)
-  let basePoints = rank;
+  const basePoints = rank;
   
-  // Time bonus: faster answers get more points (up to 50 bonus points)
-  const timeRatio = timeTaken / totalTime;
-  const maxSpeedBonus = 50;
-  const speedBonus = Math.floor((1 - timeRatio) * maxSpeedBonus);
-  
-  // Difficulty multiplier
-  const difficultyMultiplier = {
-    easy: 1,
-    medium: 1.2,
-    hard: 1.5
-  }[difficulty];
-  
-  const finalScore = Math.round((basePoints + speedBonus) * difficultyMultiplier);
-  return Math.max(1, finalScore); // Minimum 1 point
+  return basePoints; // No speed bonus, no difficulty multiplier
 };
 
 /**
