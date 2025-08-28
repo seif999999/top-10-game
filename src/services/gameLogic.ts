@@ -102,7 +102,7 @@ export const processAnswer = (
     similarity: validation.similarity
   };
   
-  // Calculate final score
+  // Calculate final score using new scoring system
   if (validation.isCorrect && validation.rank) {
     const score = calculateScore({
       rank: validation.rank,

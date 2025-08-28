@@ -2,6 +2,8 @@ export interface QuestionAnswer {
   text: string;
   rank: number;
   points: number;
+  normalized?: string; // Pre-normalized for better matching
+  aliases?: string[]; // Alternative spellings/names
 }
 
 export interface GameQuestion {
@@ -20,16 +22,16 @@ export const sampleQuestions: GameQuestion[] = [
     title: 'Top 10 highest paid athletes in 2024',
     difficulty: 'medium',
     answers: [
-      { text: 'Cristiano Ronaldo', rank: 1, points: 10 },
-      { text: 'Lionel Messi', rank: 2, points: 9 },
-      { text: 'LeBron James', rank: 3, points: 8 },
-      { text: 'Giannis Antetokounmpo', rank: 4, points: 7 },
-      { text: 'Stephen Curry', rank: 5, points: 6 },
-      { text: 'Kevin Durant', rank: 6, points: 5 },
-      { text: 'Roger Federer', rank: 7, points: 4 },
-      { text: 'Canelo Alvarez', rank: 8, points: 3 },
-      { text: 'Dak Prescott', rank: 9, points: 2 },
-      { text: 'Tom Brady', rank: 10, points: 1 }
+      { text: 'Cristiano Ronaldo', rank: 1, points: 1, normalized: 'cristiano ronaldo', aliases: ['ronaldo', 'cr7'] },
+      { text: 'Lionel Messi', rank: 2, points: 2, normalized: 'lionel messi', aliases: ['messi'] },
+      { text: 'LeBron James', rank: 3, points: 3, normalized: 'lebron james', aliases: ['lebron', 'king james'] },
+      { text: 'Giannis Antetokounmpo', rank: 4, points: 4, normalized: 'giannis antetokounmpo', aliases: ['giannis', 'greek freak'] },
+      { text: 'Stephen Curry', rank: 5, points: 5, normalized: 'stephen curry', aliases: ['curry', 'steph'] },
+      { text: 'Kevin Durant', rank: 6, points: 6, normalized: 'kevin durant', aliases: ['durant', 'kd'] },
+      { text: 'Roger Federer', rank: 7, points: 7, normalized: 'roger federer', aliases: ['federer'] },
+      { text: 'Canelo Alvarez', rank: 8, points: 8, normalized: 'canelo alvarez', aliases: ['canelo'] },
+      { text: 'Dak Prescott', rank: 9, points: 9, normalized: 'dak prescott', aliases: ['dak'] },
+      { text: 'Tom Brady', rank: 10, points: 10, normalized: 'tom brady', aliases: ['brady'] }
     ]
   },
   {
@@ -38,16 +40,16 @@ export const sampleQuestions: GameQuestion[] = [
     title: 'Top 10 fastest animals in the world',
     difficulty: 'easy',
     answers: [
-      { text: 'Cheetah', rank: 1, points: 10 },
-      { text: 'Pronghorn Antelope', rank: 2, points: 9 },
-      { text: 'Springbok', rank: 3, points: 8 },
-      { text: 'Wildebeest', rank: 4, points: 7 },
-      { text: 'Lion', rank: 5, points: 6 },
-      { text: 'Thomson\'s Gazelle', rank: 6, points: 5 },
-      { text: 'Quarter Horse', rank: 7, points: 4 },
-      { text: 'Cape Hunting Dog', rank: 8, points: 3 },
-      { text: 'Elk', rank: 9, points: 2 },
-      { text: 'Coyote', rank: 10, points: 1 }
+      { text: 'Cheetah', rank: 1, points: 1, normalized: 'cheetah' },
+      { text: 'Pronghorn Antelope', rank: 2, points: 2, normalized: 'pronghorn antelope', aliases: ['pronghorn'] },
+      { text: 'Springbok', rank: 3, points: 3, normalized: 'springbok' },
+      { text: 'Wildebeest', rank: 4, points: 4, normalized: 'wildebeest' },
+      { text: 'Lion', rank: 5, points: 5, normalized: 'lion' },
+      { text: 'Thomson\'s Gazelle', rank: 6, points: 6, normalized: 'thomsons gazelle', aliases: ['gazelle'] },
+      { text: 'Quarter Horse', rank: 7, points: 7, normalized: 'quarter horse', aliases: ['quarterhorse'] },
+      { text: 'Cape Hunting Dog', rank: 8, points: 8, normalized: 'cape hunting dog', aliases: ['hunting dog'] },
+      { text: 'Elk', rank: 9, points: 9, normalized: 'elk' },
+      { text: 'Coyote', rank: 10, points: 10, normalized: 'coyote' }
     ]
   },
   {

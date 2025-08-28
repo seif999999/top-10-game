@@ -105,21 +105,23 @@ export const calculateSimilarity = (str1: string, str2: string): number => {
 };
 
 /**
- * Validate user answer against correct answers with fuzzy matching
+ * Validate user answer against correct answers with improved matching
+ * NEW: Uses normalized answers and aliases for better matching
  */
 export const validateAnswer = (userAnswer: string, correctAnswers: QuestionAnswer[]): AnswerValidationResult => {
   if (!userAnswer.trim()) {
     return { isCorrect: false };
   }
   
+  const normalizedUserAnswer = normalizeAnswer(userAnswer);
   let bestMatch: QuestionAnswer | undefined;
   let bestSimilarity = 0;
+  let matchType: 'exact' | 'alias' | 'fuzzy_high' | 'fuzzy_low' | 'none' = 'none';
   
-  // Check for exact matches first
+  // Check for exact matches first (normalized)
   for (const answer of correctAnswers) {
-    const similarity = calculateSimilarity(userAnswer, answer.text);
-    
-    if (similarity === 1) {
+    // Check exact match with normalized answer
+    if (answer.normalized && normalizedUserAnswer === answer.normalized) {
       return {
         isCorrect: true,
         matchedAnswer: answer,
@@ -129,6 +131,25 @@ export const validateAnswer = (userAnswer: string, correctAnswers: QuestionAnswe
       };
     }
     
+    // Check aliases
+    if (answer.aliases) {
+      for (const alias of answer.aliases) {
+        const normalizedAlias = normalizeAnswer(alias);
+        if (normalizedUserAnswer === normalizedAlias) {
+          return {
+            isCorrect: true,
+            matchedAnswer: answer,
+            rank: answer.rank,
+            points: answer.points,
+            similarity: 1
+          };
+        }
+      }
+    }
+    
+    // Check fuzzy matching
+    const similarity = calculateSimilarity(normalizedUserAnswer, answer.normalized || answer.text);
+    
     if (similarity > bestSimilarity) {
       bestSimilarity = similarity;
       bestMatch = answer;
@@ -136,7 +157,18 @@ export const validateAnswer = (userAnswer: string, correctAnswers: QuestionAnswe
   }
   
   // Check if best match meets threshold
-  if (bestSimilarity >= SIMILARITY_THRESHOLD && bestMatch) {
+  if (bestSimilarity >= 0.92 && bestMatch) {
+    return {
+      isCorrect: true,
+      matchedAnswer: bestMatch,
+      rank: bestMatch.rank,
+      points: bestMatch.points,
+      similarity: bestSimilarity
+    };
+  }
+  
+  // Lower threshold for probable matches
+  if (bestSimilarity >= 0.85 && bestMatch) {
     return {
       isCorrect: true,
       matchedAnswer: bestMatch,
@@ -151,16 +183,18 @@ export const validateAnswer = (userAnswer: string, correctAnswers: QuestionAnswe
 
 /**
  * Calculate score based on rank, time taken, and difficulty
+ * NEW SCORING: rank position = points (rank 1 = 1 point, rank 10 = 10 points)
  */
 export const calculateScore = (params: ScoreCalculationParams): number => {
   const { rank, timeTaken, totalTime, difficulty } = params;
   
-  // Base points from rank (inverse relationship)
+  // Base points from rank (direct relationship: rank 1 = 1 point, rank 10 = 10 points)
   let basePoints = rank;
   
-  // Time bonus: faster answers get more points
+  // Time bonus: faster answers get more points (up to 50 bonus points)
   const timeRatio = timeTaken / totalTime;
-  const timeBonus = Math.max(0, (1 - timeRatio) * 2); // Up to 2 bonus points
+  const maxSpeedBonus = 50;
+  const speedBonus = Math.floor((1 - timeRatio) * maxSpeedBonus);
   
   // Difficulty multiplier
   const difficultyMultiplier = {
@@ -169,7 +203,7 @@ export const calculateScore = (params: ScoreCalculationParams): number => {
     hard: 1.5
   }[difficulty];
   
-  const finalScore = Math.round((basePoints + timeBonus) * difficultyMultiplier);
+  const finalScore = Math.round((basePoints + speedBonus) * difficultyMultiplier);
   return Math.max(1, finalScore); // Minimum 1 point
 };
 
