@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import Input from '../../components/Input';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput } from 'react-native';
 import Button from '../../components/Button';
 import { useAuth } from '../../contexts/AuthContext';
 import { COLORS, SPACING } from '../../utils/constants';
@@ -49,21 +48,25 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
       <Text style={styles.title}>Welcome back</Text>
       <Text style={styles.subtitle}>Sign in to continue playing</Text>
       
-      <Input 
+      <TextInput 
         placeholder="Email" 
+        placeholderTextColor={COLORS.muted}
         autoCapitalize="none" 
         keyboardType="email-address"
         value={email} 
         onChangeText={setEmail}
         editable={!isLoading}
+        style={styles.input}
       />
       {errors.email ? <Text style={styles.error}>{errors.email}</Text> : null}
-      <Input 
+      <TextInput 
         placeholder="Password" 
+        placeholderTextColor={COLORS.muted}
         secureTextEntry 
         value={password} 
         onChangeText={setPassword}
         editable={!isLoading}
+        style={styles.input}
       />
       {errors.password ? <Text style={styles.error}>{errors.password}</Text> : null}
       
@@ -143,6 +146,17 @@ const styles = StyleSheet.create({
   },
   disabledText: {
     opacity: 0.5
+  },
+  input: {
+    backgroundColor: COLORS.card,
+    color: COLORS.text,
+    fontSize: 16,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#334155',
+    minHeight: 50
   }
 });
 

@@ -1,18 +1,39 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Alert, ScrollView, TextInput } from 'react-native';
 import Button from '../components/Button';
-import Input from '../components/Input';
 import { COLORS, SPACING } from '../utils/constants';
 import { ProfileScreenProps } from '../types/navigation';
 import { useAuth } from '../contexts/AuthContext';
 
+
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const { user, signOut } = useAuth();
   const [displayName, setDisplayName] = useState(user?.displayName || '');
+  const [updatedDisplayName, setUpdatedDisplayName] = useState(user?.displayName || '');
   const [isEditing, setIsEditing] = useState(false);
+  const [currentStreak, setCurrentStreak] = useState(0);
+  const [bestStreak, setBestStreak] = useState(0);
+
+  useEffect(() => {
+    // For now, use mock data until localStorage is properly set up
+    setCurrentStreak(3);
+    setBestStreak(5);
+  }, []);
 
   const handleSaveProfile = () => {
-    // TODO: Implement profile update functionality
+    // Validate input
+    if (!displayName || displayName.trim() === '') {
+      Alert.alert('Error', 'Display name cannot be empty');
+      return;
+    }
+    
+    if (displayName.trim().length < 2) {
+      Alert.alert('Error', 'Display name must be at least 2 characters long');
+      return;
+    }
+    
+    // Update the local state to show the change
+    setUpdatedDisplayName(displayName.trim());
     Alert.alert('Success', 'Profile updated successfully!');
     setIsEditing(false);
   };
@@ -28,6 +49,14 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     );
   };
 
+  const handleAchievements = () => {
+    Alert.alert('Coming Soon', 'Achievements system will be available soon!');
+  };
+
+  const handleLeaderboard = () => {
+    Alert.alert('Coming Soon', 'Global leaderboard will be available soon!');
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -38,7 +67,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         <View style={styles.placeholder} />
       </View>
 
-      <View style={styles.content}>
+      <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.profileSection}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>
@@ -46,7 +75,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             </Text>
           </View>
           
-          <Text style={styles.userName}>{user?.displayName || 'User'}</Text>
+          <Text style={styles.userName}>{updatedDisplayName || user?.displayName || 'User'}</Text>
           <Text style={styles.userEmail}>{user?.email}</Text>
           
           {user?.createdAt && (
@@ -60,20 +89,30 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           <Text style={styles.sectionTitle}>Game Statistics</Text>
           <View style={styles.statsGrid}>
             <View style={styles.statCard}>
+              <Text style={styles.statIcon}>🎮</Text>
               <Text style={styles.statNumber}>0</Text>
               <Text style={styles.statLabel}>Games Played</Text>
             </View>
             <View style={styles.statCard}>
+              <Text style={styles.statIcon}>🏆</Text>
               <Text style={styles.statNumber}>0</Text>
               <Text style={styles.statLabel}>Wins</Text>
             </View>
             <View style={styles.statCard}>
+              <Text style={styles.statIcon}>📊</Text>
               <Text style={styles.statNumber}>0</Text>
               <Text style={styles.statLabel}>Total Score</Text>
             </View>
             <View style={styles.statCard}>
+              <Text style={styles.statIcon}>📈</Text>
               <Text style={styles.statNumber}>0</Text>
               <Text style={styles.statLabel}>Avg Score</Text>
+            </View>
+            
+            <View style={styles.statCard}>
+              <Text style={styles.statIcon}>🔥</Text>
+              <Text style={styles.statNumber}>{bestStreak}</Text>
+              <Text style={styles.statLabel}>Best Streak</Text>
             </View>
           </View>
         </View>
@@ -83,10 +122,12 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           
           {isEditing ? (
             <View style={styles.editForm}>
-              <Input
+              <TextInput
                 placeholder="Display Name"
+                placeholderTextColor={COLORS.muted}
                 value={displayName}
                 onChangeText={setDisplayName}
+                style={styles.input}
               />
               <View style={styles.editButtons}>
                 <Button 
@@ -113,12 +154,24 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           )}
           
           <Button 
+            title="🏆 Achievements" 
+            onPress={handleAchievements}
+            style={styles.achievementsButton}
+          />
+          
+          <Button 
+            title="🏅 Leaderboard" 
+            onPress={handleLeaderboard}
+            style={styles.leaderboardButton}
+          />
+          
+          <Button 
             title="Sign Out" 
             onPress={handleSignOut}
             style={styles.signOutButton}
           />
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -154,7 +207,7 @@ const styles = StyleSheet.create({
     width: 50
   },
   content: {
-    flex: 1,
+    flexGrow: 1,
     padding: SPACING.lg
   },
   profileSection: {
@@ -212,6 +265,10 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: '45%'
   },
+  statIcon: {
+    fontSize: 24,
+    marginBottom: SPACING.sm
+  },
   statNumber: {
     color: COLORS.primary,
     fontSize: 24,
@@ -225,6 +282,17 @@ const styles = StyleSheet.create({
   },
   settingsSection: {
     gap: SPACING.md
+  },
+  input: {
+    backgroundColor: COLORS.card,
+    color: COLORS.text,
+    fontSize: 16,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#334155',
+    minHeight: 50
   },
   editForm: {
     gap: SPACING.md
@@ -241,6 +309,12 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.card
   },
   editButton: {
+    backgroundColor: COLORS.card
+  },
+  achievementsButton: {
+    backgroundColor: COLORS.card
+  },
+  leaderboardButton: {
     backgroundColor: COLORS.card
   },
   signOutButton: {

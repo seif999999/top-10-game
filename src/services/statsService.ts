@@ -11,6 +11,8 @@ export interface GamePerformance {
   bestCategory: string;
   mostPlayedCategory: string;
   recentPerformance: 'improving' | 'declining' | 'stable';
+  currentStreak: number;
+  bestStreak: number;
 }
 
 export interface CategoryStats {
@@ -74,6 +76,74 @@ export const calculateAverageScore = (gameHistory: GameHistory[]): number => {
   
   const totalScore = gameHistory.reduce((sum, game) => sum + game.score, 0);
   return Math.round(totalScore / gameHistory.length);
+};
+
+/**
+ * Calculate current and best streaks from game history
+ */
+export const calculateStreaks = (gameHistory: GameHistory[]): { currentStreak: number; bestStreak: number } => {
+  if (gameHistory.length === 0) return { currentStreak: 0, bestStreak: 0 };
+
+  // Sort games by date (most recent first)
+  const sortedGames = [...gameHistory].sort((a, b) => 
+    new Date(b.date).getTime() - new Date(a.date).getTime()
+  );
+
+  let currentStreak = 0;
+  let bestStreak = 0;
+  let tempStreak = 0;
+
+  // Calculate streaks (assuming a win is when score > 0)
+  for (let i = 0; i < sortedGames.length; i++) {
+    const game = sortedGames[i];
+    
+    if (game.score > 0) {
+      // This is a win
+      if (i === 0) {
+        // Most recent game - start current streak
+        currentStreak = 1;
+        tempStreak = 1;
+      } else {
+        // Check if this is consecutive with previous game
+        const prevGame = sortedGames[i - 1];
+        const timeDiff = new Date(game.date).getTime() - new Date(prevGame.date).getTime();
+        const daysDiff = timeDiff / (1000 * 60 * 60 * 24);
+        
+        if (daysDiff <= 1) {
+          // Consecutive days
+          tempStreak++;
+          if (i === 0) {
+            currentStreak = tempStreak;
+          }
+        } else {
+          // Streak broken
+          if (tempStreak > bestStreak) {
+            bestStreak = tempStreak;
+          }
+          tempStreak = 1;
+          if (i === 0) {
+            currentStreak = 1;
+          }
+        }
+      }
+    } else {
+      // This is a loss - streak broken
+      if (tempStreak > bestStreak) {
+        bestStreak = tempStreak;
+      }
+      tempStreak = 0;
+      if (i === 0) {
+        currentStreak = 0;
+      }
+    }
+  }
+
+  // Check if tempStreak is better than bestStreak
+  if (tempStreak > bestStreak) {
+    bestStreak = tempStreak;
+  }
+
+  return { currentStreak, bestStreak };
 };
 
 /**

@@ -1,34 +1,22 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Alert, Modal, ScrollView, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Alert, ScrollView, Dimensions } from 'react-native';
 import Button from '../components/Button';
-import Input from '../components/Input';
 import { COLORS, SPACING } from '../utils/constants';
 import { HomeScreenProps } from '../types/navigation';
 import { useAuth } from '../contexts/AuthContext';
+
 
 const { width } = Dimensions.get('window');
 
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const { user, signOut } = useAuth();
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const [showEditProfile, setShowEditProfile] = useState(false);
-  const [newDisplayName, setNewDisplayName] = useState(user?.displayName || '');
-  const [newEmail, setNewEmail] = useState(user?.email || '');
+  const [currentStreak, setCurrentStreak] = useState(3);
 
-  const handleProfileMenuToggle = () => {
-    setShowProfileMenu(!showProfileMenu);
+  const handleProfileNavigation = () => {
+    navigation.navigate('Profile');
   };
 
-  const handleEditProfile = () => {
-    setShowProfileMenu(false);
-    setShowEditProfile(true);
-  };
 
-  const handleSaveProfile = () => {
-    // TODO: Implement profile update functionality
-    Alert.alert('Success', 'Profile updated successfully!');
-    setShowEditProfile(false);
-  };
 
   const handleSignOut = () => {
     Alert.alert(
@@ -49,13 +37,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     );
   };
 
-  const handleQuickPlay = () => {
-    navigation.navigate('Categories');
-  };
 
-  const handleDailyChallenge = () => {
-    Alert.alert('Coming Soon', 'Daily challenges will be available soon!');
-  };
+
+
 
   const handleLeaderboard = () => {
     Alert.alert('Coming Soon', 'Global leaderboard will be available soon!');
@@ -69,17 +53,22 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     <SafeAreaView style={styles.container}>
       {/* Header with Profile Button */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleProfileMenuToggle} style={styles.profileButton}>
+        <TouchableOpacity onPress={handleProfileNavigation} style={styles.profileButton}>
           <Text style={styles.profileButtonText}>
             {(user?.displayName || user?.email || 'U').charAt(0).toUpperCase()}
           </Text>
         </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>TOP 10</Text>
+                 <View style={styles.headerCenter}>
+         </View>
+        <View style={styles.headerRight}>
+          <TouchableOpacity style={styles.streakButton}>
+            <Text style={styles.streakIcon}>🔥</Text>
+            <Text style={styles.streakText}>{currentStreak}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.notificationButton}>
+            <Text style={styles.notificationIcon}>🔔</Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.notificationButton}>
-          <Text style={styles.notificationIcon}>🔔</Text>
-        </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
@@ -95,49 +84,13 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           <Text style={styles.heroSubtitle}>Test your knowledge and compete for the top spot!</Text>
         </View>
 
-        {/* Quick Actions */}
-        <View style={styles.quickActionsContainer}>
-          <Text style={styles.sectionTitle}>Quick Play</Text>
-          <View style={styles.quickActionsRow}>
-            <TouchableOpacity style={styles.quickActionCard} onPress={handleQuickPlay}>
-              <Text style={styles.quickActionIcon}>🎯</Text>
-              <Text style={styles.quickActionTitle}>Quick Play</Text>
-              <Text style={styles.quickActionSubtitle}>Random questions</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.quickActionCard} onPress={handleDailyChallenge}>
-              <Text style={styles.quickActionIcon}>⭐</Text>
-              <Text style={styles.quickActionTitle}>Daily Challenge</Text>
-              <Text style={styles.quickActionSubtitle}>New every day</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Stats Section */}
-        <View style={styles.statsContainer}>
-          <Text style={styles.sectionTitle}>Your Progress</Text>
-          <View style={styles.statsGrid}>
-            <View style={styles.statCard}>
-              <Text style={styles.statIcon}>🎮</Text>
-              <Text style={styles.statNumber}>0</Text>
-              <Text style={styles.statLabel}>Games Played</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statIcon}>🏆</Text>
-              <Text style={styles.statNumber}>0</Text>
-              <Text style={styles.statLabel}>Wins</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statIcon}>📊</Text>
-              <Text style={styles.statNumber}>0</Text>
-              <Text style={styles.statLabel}>Avg Score</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statIcon}>🔥</Text>
-              <Text style={styles.statNumber}>0</Text>
-              <Text style={styles.statLabel}>Streak</Text>
-            </View>
-          </View>
+        {/* Main Play Button */}
+        <View style={styles.mainPlaySection}>
+          <TouchableOpacity style={styles.mainPlayButton} onPress={() => navigation.navigate('Categories')}>
+            <Text style={styles.mainPlayIcon}>🎮</Text>
+            <Text style={styles.mainPlayTitle}>Start Playing</Text>
+            <Text style={styles.mainPlaySubtitle}>Choose your category and begin!</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Features Section */}
@@ -156,10 +109,10 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               <Text style={styles.featureSubtitle}>Unlock badges</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.featureCard} onPress={() => navigation.navigate('Categories')}>
-              <Text style={styles.featureIcon}>📚</Text>
-              <Text style={styles.featureTitle}>Categories</Text>
-              <Text style={styles.featureSubtitle}>Choose topics</Text>
+            <TouchableOpacity style={styles.featureCard} onPress={() => {}}>
+              <Text style={styles.featureIcon}>🏆</Text>
+              <Text style={styles.featureTitle}>Wins</Text>
+              <Text style={styles.featureSubtitle}>Your victories</Text>
             </TouchableOpacity>
             
             <TouchableOpacity style={styles.featureCard} onPress={handleHelp}>
@@ -169,90 +122,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             </TouchableOpacity>
           </View>
         </View>
-
-        {/* Main Play Button */}
-        <View style={styles.mainPlaySection}>
-          <TouchableOpacity style={styles.mainPlayButton} onPress={() => navigation.navigate('Categories')}>
-            <Text style={styles.mainPlayIcon}>🎮</Text>
-            <Text style={styles.mainPlayTitle}>Start Playing</Text>
-            <Text style={styles.mainPlaySubtitle}>Choose your category and begin!</Text>
-          </TouchableOpacity>
-        </View>
       </ScrollView>
 
-      {/* Profile Menu */}
-      {showProfileMenu && (
-        <View style={styles.profileMenu}>
-          <TouchableOpacity 
-            style={styles.profileMenuItem}
-            onPress={handleEditProfile}
-          >
-            <Text style={styles.profileMenuItemText}>Edit Profile</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.profileMenuItem}
-            onPress={handleHelp}
-          >
-            <Text style={styles.profileMenuItemText}>Help</Text>
-          </TouchableOpacity>
-          
-          <View style={styles.profileMenuDivider} />
-          
-          <TouchableOpacity 
-            style={styles.profileMenuItem}
-            onPress={handleSignOut}
-          >
-            <Text style={[styles.profileMenuItemText, { color: '#dc2626' }]}>Sign Out</Text>
-          </TouchableOpacity>
-        </View>
-      )}
 
-      {/* Edit Profile Modal */}
-      <Modal
-        visible={showEditProfile}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowEditProfile(false)}
-      >
-        <View style={styles.editProfileModal}>
-          <View style={styles.editProfileContent}>
-            <Text style={styles.editProfileTitle}>Edit Profile</Text>
-            
-            <View style={styles.editProfileField}>
-              <Text style={styles.editProfileLabel}>Display Name</Text>
-              <Input
-                placeholder="Enter display name"
-                value={newDisplayName}
-                onChangeText={setNewDisplayName}
-              />
-            </View>
-            
-            <View style={styles.editProfileField}>
-              <Text style={styles.editProfileLabel}>Email</Text>
-              <Input
-                placeholder="Enter email"
-                value={newEmail}
-                onChangeText={setNewEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-            </View>
-            
-            <View style={styles.editProfileButtons}>
-              <Button
-                title="Cancel"
-                onPress={() => setShowEditProfile(false)}
-                style={{ backgroundColor: COLORS.muted }}
-              />
-              <Button
-                title="Save"
-                onPress={handleSaveProfile}
-              />
-            </View>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 };
@@ -295,11 +167,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center'
   },
-  headerTitle: {
+  
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm
+  },
+  streakButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 165, 0, 0.2)',
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 165, 0, 0.3)'
+  },
+  streakIcon: {
+    fontSize: 16,
+    marginRight: SPACING.xs
+  },
+  streakText: {
     color: COLORS.text,
-    fontSize: 20,
-    fontWeight: '800',
-    letterSpacing: 1
+    fontSize: 14,
+    fontWeight: '700'
   },
   notificationButton: {
     width: 40,
@@ -361,80 +252,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     marginBottom: SPACING.lg,
-    textAlign: 'center'
-  },
-  quickActionsContainer: {
-    paddingHorizontal: SPACING.lg,
-    marginBottom: SPACING.xl
-  },
-  quickActionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: SPACING.md
-  },
-  quickActionCard: {
-    flex: 1,
-    backgroundColor: COLORS.card,
-    borderRadius: 16,
-    padding: SPACING.lg,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3
-  },
-  quickActionIcon: {
-    fontSize: 32,
-    marginBottom: SPACING.sm
-  },
-  quickActionTitle: {
-    color: COLORS.text,
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: SPACING.xs,
-    textAlign: 'center'
-  },
-  quickActionSubtitle: {
-    color: COLORS.muted,
-    fontSize: 12,
-    textAlign: 'center'
-  },
-  statsContainer: {
-    paddingHorizontal: SPACING.lg,
-    marginBottom: SPACING.xl
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: SPACING.md
-  },
-  statCard: {
-    width: (width - SPACING.lg * 2 - SPACING.md) / 2,
-    backgroundColor: COLORS.card,
-    borderRadius: 16,
-    padding: SPACING.lg,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3
-  },
-  statIcon: {
-    fontSize: 24,
-    marginBottom: SPACING.sm
-  },
-  statNumber: {
-    color: COLORS.primary,
-    fontSize: 28,
-    fontWeight: '800',
-    marginBottom: SPACING.xs
-  },
-  statLabel: {
-    color: COLORS.muted,
-    fontSize: 12,
     textAlign: 'center'
   },
   featuresContainer: {
@@ -505,77 +322,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     opacity: 0.9
   },
-  profileMenu: {
-    position: 'absolute',
-    top: 80,
-    left: SPACING.lg,
-    backgroundColor: COLORS.card,
-    borderRadius: 12,
-    padding: SPACING.md,
-    minWidth: 200,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-    zIndex: 1000
-  },
-  profileMenuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    borderRadius: 8,
-    marginBottom: SPACING.xs
-  },
-  profileMenuItemText: {
-    color: COLORS.text,
-    fontSize: 16,
-    marginLeft: SPACING.sm
-  },
-  profileMenuDivider: {
-    height: 1,
-    backgroundColor: COLORS.muted,
-    marginVertical: SPACING.sm
-  },
-  editProfileModal: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: SPACING.lg
-  },
-  editProfileContent: {
-    backgroundColor: COLORS.card,
-    borderRadius: 12,
-    padding: SPACING.lg,
-    width: '100%',
-    maxWidth: 400
-  },
-  editProfileTitle: {
-    color: COLORS.text,
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: SPACING.lg,
-    textAlign: 'center'
-  },
-  editProfileField: {
-    marginBottom: SPACING.lg
-  },
-  editProfileLabel: {
-    color: COLORS.text,
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: SPACING.sm
-  },
-  editProfileButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: SPACING.lg
-  }
+
 });
 
 export default HomeScreen;

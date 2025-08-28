@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import Input from '../../components/Input';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput } from 'react-native';
 import Button from '../../components/Button';
 import { useAuth } from '../../contexts/AuthContext';
 import { COLORS, SPACING } from '../../utils/constants';
@@ -37,13 +36,15 @@ const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation 
       <Text style={styles.title}>Reset Password</Text>
       <Text style={styles.subtitle}>Enter your email to receive reset instructions.</Text>
 
-      <Input
+      <TextInput
         placeholder="Email"
+        placeholderTextColor={COLORS.muted}
         autoCapitalize="none"
         keyboardType="email-address"
         value={email}
         onChangeText={setEmail}
         editable={!loading}
+        style={styles.input}
       />
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -93,6 +94,17 @@ const styles = StyleSheet.create({
   linkText: {
     color: COLORS.primary,
     fontWeight: '600'
+  },
+  input: {
+    backgroundColor: COLORS.card,
+    color: COLORS.text,
+    fontSize: 16,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#334155',
+    minHeight: 50
   }
 });
 

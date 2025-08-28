@@ -279,3 +279,16 @@ export const sortByProperty = <T, K extends keyof T>(
     return 0;
   });
 };
+
+/**
+ * Get player ranking from scores
+ */
+export const getPlayerRanking = (scores: { [playerId: string]: number }): Array<{ playerId: string; score: number; rank: number }> => {
+  const players = Object.entries(scores).map(([playerId, score]) => ({ playerId, score }));
+  players.sort((a, b) => b.score - a.score); // Sort by score descending
+  
+  return players.map((player, index) => ({
+    ...player,
+    rank: index + 1
+  }));
+};

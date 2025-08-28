@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Alert, Modal } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Alert, TextInput } from 'react-native';
 import Button from '../components/Button';
-import Input from '../components/Input';
 import AnswerFeedback from '../components/AnswerFeedback';
 import ResultsModal from '../components/ResultsModal';
 import { COLORS, SPACING } from '../utils/constants';
@@ -32,10 +31,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   const [showResults, setShowResults] = useState(false);
   const [isAnswerSubmitted, setIsAnswerSubmitted] = useState(false);
   const [submittedAnswers, setSubmittedAnswers] = useState<string[]>([]);
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const [showEditProfile, setShowEditProfile] = useState(false);
-  const [newDisplayName, setNewDisplayName] = useState(user?.displayName || '');
-  const [newEmail, setNewEmail] = useState(user?.email || '');
+
   
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number>(Date.now());
@@ -171,20 +167,11 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     navigation.navigate('Categories');
   };
 
-  const handleProfileMenuToggle = () => {
-    setShowProfileMenu(!showProfileMenu);
+  const handleProfileNavigation = () => {
+    navigation.navigate('Profile');
   };
 
-  const handleEditProfile = () => {
-    setShowProfileMenu(false);
-    setShowEditProfile(true);
-  };
 
-  const handleSaveProfile = () => {
-    // TODO: Implement profile update functionality
-    Alert.alert('Success', 'Profile updated successfully!');
-    setShowEditProfile(false);
-  };
 
   const handleSignOut = () => {
     Alert.alert(
@@ -227,7 +214,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleProfileMenuToggle} style={styles.profileButton}>
+        <TouchableOpacity onPress={handleProfileNavigation} style={styles.profileButton}>
           <Text style={styles.profileButtonText}>
             {(user?.displayName || user?.email || 'U').charAt(0).toUpperCase()}
           </Text>
@@ -273,13 +260,14 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
         {/* Answer Section */}
         <View style={styles.answerSection}>
           <Text style={styles.answerLabel}>Your Answer:</Text>
-                     <Input 
-             placeholder="Enter your answer..." 
-             value={currentAnswer} 
-             onChangeText={setAnswer}
-             style={styles.answerInput}
-             editable={true}
-           />
+          <TextInput 
+            placeholder="Enter your answer..." 
+            placeholderTextColor={COLORS.muted}
+            value={currentAnswer} 
+            onChangeText={setAnswer}
+            style={styles.answerInput}
+            editable={true}
+          />
            <Button 
              title="Submit Answer" 
              onPress={handleSubmitAnswer}
@@ -345,79 +333,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
          onBackToCategories={handleBackToCategories}
        />
 
-       {/* Profile Menu */}
-       {showProfileMenu && (
-         <View style={styles.profileMenu}>
-           <TouchableOpacity 
-             style={styles.profileMenuItem}
-             onPress={handleEditProfile}
-           >
-             <Text style={styles.profileMenuItemText}>Edit Profile</Text>
-           </TouchableOpacity>
-           
-           <TouchableOpacity 
-             style={styles.profileMenuItem}
-             onPress={handleHelp}
-           >
-             <Text style={styles.profileMenuItemText}>Help</Text>
-           </TouchableOpacity>
-           
-           <View style={styles.profileMenuDivider} />
-           
-           <TouchableOpacity 
-             style={styles.profileMenuItem}
-             onPress={handleSignOut}
-           >
-             <Text style={[styles.profileMenuItemText, { color: '#dc2626' }]}>Sign Out</Text>
-           </TouchableOpacity>
-         </View>
-       )}
 
-       {/* Edit Profile Modal */}
-       <Modal
-         visible={showEditProfile}
-         transparent={true}
-         animationType="fade"
-         onRequestClose={() => setShowEditProfile(false)}
-       >
-         <View style={styles.editProfileModal}>
-           <View style={styles.editProfileContent}>
-             <Text style={styles.editProfileTitle}>Edit Profile</Text>
-             
-             <View style={styles.editProfileField}>
-               <Text style={styles.editProfileLabel}>Display Name</Text>
-               <Input
-                 placeholder="Enter display name"
-                 value={newDisplayName}
-                 onChangeText={setNewDisplayName}
-               />
-             </View>
-             
-             <View style={styles.editProfileField}>
-               <Text style={styles.editProfileLabel}>Email</Text>
-               <Input
-                 placeholder="Enter email"
-                 value={newEmail}
-                 onChangeText={setNewEmail}
-                 keyboardType="email-address"
-                 autoCapitalize="none"
-               />
-             </View>
-             
-             <View style={styles.editProfileButtons}>
-               <Button
-                 title="Cancel"
-                 onPress={() => setShowEditProfile(false)}
-                 style={{ backgroundColor: COLORS.muted }}
-               />
-               <Button
-                 title="Save"
-                 onPress={handleSaveProfile}
-               />
-             </View>
-           </View>
-         </View>
-       </Modal>
      </SafeAreaView>
    );
  };
@@ -585,77 +501,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center'
   },
-  profileMenu: {
-    position: 'absolute',
-    top: 80,
-    left: SPACING.lg,
-    backgroundColor: COLORS.card,
-    borderRadius: 12,
-    padding: SPACING.md,
-    minWidth: 200,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-    zIndex: 1000
-  },
-  profileMenuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    borderRadius: 8,
-    marginBottom: SPACING.xs
-  },
-  profileMenuItemText: {
-    color: COLORS.text,
-    fontSize: 16,
-    marginLeft: SPACING.sm
-  },
-  profileMenuDivider: {
-    height: 1,
-    backgroundColor: COLORS.muted,
-    marginVertical: SPACING.sm
-  },
-  editProfileModal: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: SPACING.lg
-  },
-  editProfileContent: {
-    backgroundColor: COLORS.card,
-    borderRadius: 12,
-    padding: SPACING.lg,
-    width: '100%',
-    maxWidth: 400
-  },
-  editProfileTitle: {
-    color: COLORS.text,
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: SPACING.lg,
-    textAlign: 'center'
-  },
-  editProfileField: {
-    marginBottom: SPACING.lg
-  },
-  editProfileLabel: {
-    color: COLORS.text,
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: SPACING.sm
-  },
-  editProfileButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: SPACING.lg
-  }
+
 });
 
 export default GameScreen;

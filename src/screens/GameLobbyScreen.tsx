@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, TextInput } from 'react-native';
 import Button from '../components/Button';
-import Input from '../components/Input';
 import { COLORS, SPACING } from '../utils/constants';
 import { GameLobbyScreenProps } from '../types/navigation';
 import { useGame } from '../contexts/GameContext';
@@ -116,10 +115,12 @@ const GameLobbyScreen: React.FC<GameLobbyScreenProps> = ({ navigation, route }) 
 
             <View style={styles.joinSection}>
               <Text style={styles.optionTitle}>Join Existing Room</Text>
-              <Input 
+              <TextInput 
                 placeholder="Enter room code" 
+                placeholderTextColor={COLORS.muted}
                 value={roomCode} 
                 onChangeText={setRoomCode}
+                style={styles.input}
               />
               <Button title="Join Room" onPress={joinRoom} />
             </View>
@@ -315,6 +316,17 @@ const styles = StyleSheet.create({
     color: COLORS.muted,
     fontSize: 14,
     textAlign: 'center'
+  },
+  input: {
+    backgroundColor: COLORS.background,
+    color: COLORS.text,
+    fontSize: 16,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#334155',
+    minHeight: 50
   }
 });
 
