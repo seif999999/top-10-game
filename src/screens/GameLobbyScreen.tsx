@@ -12,7 +12,6 @@ const GameLobbyScreen: React.FC<GameLobbyScreenProps> = ({ navigation, route }) 
   const [roomCode, setRoomCode] = useState('');
   const [isHost, setIsHost] = useState(false);
   const [players, setPlayers] = useState(['You']);
-  const [timeLimit, setTimeLimit] = useState(60);
   const [sampleQuestion, setSampleQuestion] = useState<any>(null);
 
   useEffect(() => {
@@ -38,7 +37,7 @@ const GameLobbyScreen: React.FC<GameLobbyScreenProps> = ({ navigation, route }) 
   };
 
   const handleStartGame = () => {
-    startGame(categoryName, players, timeLimit, selectedQuestion);
+    startGame(categoryName, players, selectedQuestion);
     navigation.navigate('GameScreen', {
       roomId: 'demo-room',
       categoryId: categoryId
@@ -66,26 +65,13 @@ const GameLobbyScreen: React.FC<GameLobbyScreenProps> = ({ navigation, route }) 
           <Text style={styles.sectionTitle}>Game Settings</Text>
           
           <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>Timer Duration:</Text>
-            <View style={styles.timerOptions}>
-              {[30, 60, 90, -1].map((time) => (
-                <TouchableOpacity
-                  key={time}
-                  style={[
-                    styles.timerOption,
-                    timeLimit === time && styles.timerOptionSelected
-                  ]}
-                  onPress={() => setTimeLimit(time)}
-                >
-                  <Text style={[
-                    styles.timerOptionText,
-                    timeLimit === time && styles.timerOptionTextSelected
-                  ]}>
-                    {time === -1 ? '∞' : `${time}s`}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <Text style={styles.settingLabel}>Game Mode:</Text>
+            <Text style={styles.settingValue}>Single Player - No Time Limit</Text>
+          </View>
+          
+          <View style={styles.settingRow}>
+            <Text style={styles.settingLabel}>Objective:</Text>
+            <Text style={styles.settingValue}>Find all 10 correct answers per question</Text>
           </View>
         </View>
 
@@ -98,56 +84,20 @@ const GameLobbyScreen: React.FC<GameLobbyScreenProps> = ({ navigation, route }) 
             <View style={styles.questionPreview}>
               <Text style={styles.questionTitle}>{sampleQuestion.title}</Text>
               <Text style={styles.questionHint}>
-                {selectedQuestion ? 'Single question mode' : 'Try to guess the #1 answer!'}
+                Find the top 10 answers to this question!
               </Text>
             </View>
           </View>
         )}
 
-        {!isHost && players.length === 1 ? (
-          <View style={styles.roomOptions}>
-            <Text style={styles.sectionTitle}>Join or Create Room</Text>
-            
-            <View style={styles.createSection}>
-              <Text style={styles.optionTitle}>Create New Room</Text>
-              <Button title="Create Room" onPress={createRoom} />
-            </View>
-
-            <View style={styles.joinSection}>
-              <Text style={styles.optionTitle}>Join Existing Room</Text>
-              <TextInput 
-                placeholder="Enter room code" 
-                placeholderTextColor={COLORS.muted}
-                value={roomCode} 
-                onChangeText={setRoomCode}
-                style={styles.input}
-              />
-              <Button title="Join Room" onPress={joinRoom} />
-            </View>
-          </View>
-        ) : (
-          <View style={styles.roomInfo}>
-            <Text style={styles.sectionTitle}>Room Info</Text>
-            <Text style={styles.roomCode}>Room Code: {roomCode || 'ABC123'}</Text>
-            
-            <View style={styles.playersSection}>
-              <Text style={styles.playersTitle}>Players ({players.length})</Text>
-              {players.map((player, index) => (
-                <Text key={index} style={styles.playerName}>
-                  {player} {index === 0 ? '(You)' : ''}
-                </Text>
-              ))}
-            </View>
-
-            {isHost && (
-              <Button 
-                title="Start Game" 
-                onPress={handleStartGame}
-                disabled={players.length < 1}
-              />
-            )}
-          </View>
-        )}
+        {/* Start Game Button */}
+        <View style={styles.startSection}>
+          <Button 
+            title="Start Game" 
+            onPress={handleStartGame}
+            style={styles.startButton}
+          />
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -174,11 +124,11 @@ const styles = StyleSheet.create({
   },
   title: {
     color: COLORS.text,
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700'
   },
   placeholder: {
-    width: 50
+    width: 60
   },
   content: {
     flex: 1,
@@ -194,139 +144,72 @@ const styles = StyleSheet.create({
   categoryTitle: {
     color: COLORS.text,
     fontSize: 24,
-    fontWeight: '800'
+    fontWeight: '800',
+    marginBottom: SPACING.sm
   },
   categorySubtitle: {
     color: COLORS.muted,
-    fontSize: 14,
-    marginTop: SPACING.xs
-  },
-  roomOptions: {
-    gap: SPACING.xl
-  },
-  sectionTitle: {
-    color: COLORS.text,
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: SPACING.md
-  },
-  createSection: {
-    backgroundColor: COLORS.card,
-    borderRadius: 12,
-    padding: SPACING.lg,
-    gap: SPACING.md
-  },
-  joinSection: {
-    backgroundColor: COLORS.card,
-    borderRadius: 12,
-    padding: SPACING.lg,
-    gap: SPACING.md
-  },
-  optionTitle: {
-    color: COLORS.text,
-    fontSize: 16,
-    fontWeight: '600'
-  },
-  roomInfo: {
-    backgroundColor: COLORS.card,
-    borderRadius: 12,
-    padding: SPACING.lg,
-    gap: SPACING.md
-  },
-  roomCode: {
-    color: COLORS.primary,
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center'
-  },
-  playersSection: {
-    gap: SPACING.sm
-  },
-  playersTitle: {
-    color: COLORS.text,
-    fontSize: 16,
-    fontWeight: '600'
-  },
-  playerName: {
-    color: COLORS.muted,
-    fontSize: 14,
-    paddingLeft: SPACING.md
+    fontSize: 16
   },
   settingsSection: {
     backgroundColor: COLORS.card,
     borderRadius: 12,
     padding: SPACING.lg,
-    marginBottom: SPACING.xl,
-    gap: SPACING.md
+    marginBottom: SPACING.xl
+  },
+  sectionTitle: {
+    color: COLORS.text,
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: SPACING.lg
   },
   settingRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    justifyContent: 'space-between'
+    marginBottom: SPACING.md
   },
   settingLabel: {
     color: COLORS.text,
     fontSize: 16,
     fontWeight: '600'
   },
-  timerOptions: {
-    flexDirection: 'row',
-    gap: SPACING.sm
-  },
-  timerOption: {
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: COLORS.muted
-  },
-  timerOptionSelected: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary
-  },
-  timerOptionText: {
+  settingValue: {
     color: COLORS.muted,
     fontSize: 14,
-    fontWeight: '600'
-  },
-  timerOptionTextSelected: {
-    color: COLORS.text
+    textAlign: 'right',
+    flex: 1,
+    marginLeft: SPACING.md
   },
   previewSection: {
     backgroundColor: COLORS.card,
     borderRadius: 12,
     padding: SPACING.lg,
-    marginBottom: SPACING.xl,
-    gap: SPACING.md
+    marginBottom: SPACING.xl
   },
   questionPreview: {
-    alignItems: 'center',
-    padding: SPACING.lg,
     backgroundColor: COLORS.background,
-    borderRadius: 8
+    borderRadius: 8,
+    padding: SPACING.lg,
+    alignItems: 'center'
   },
   questionTitle: {
     color: COLORS.text,
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
-    marginBottom: SPACING.sm
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: SPACING.md,
+    textAlign: 'center'
   },
   questionHint: {
     color: COLORS.muted,
     fontSize: 14,
     textAlign: 'center'
   },
-  input: {
-    backgroundColor: COLORS.background,
-    color: COLORS.text,
-    fontSize: 16,
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.lg,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#334155',
-    minHeight: 50
+  startSection: {
+    marginBottom: SPACING.xl
+  },
+  startButton: {
+    backgroundColor: COLORS.primary
   }
 });
 

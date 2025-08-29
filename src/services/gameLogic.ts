@@ -15,7 +15,7 @@ export interface GameRound {
   question: GameQuestion;
   playerAnswers: PlayerAnswer[];
   roundNumber: number;
-  timeLimit: number;
+  correctAnswersFound: number; // Track correct answers found for this question
 }
 
 export interface GameState {
@@ -27,8 +27,6 @@ export interface GameState {
   rounds: GameRound[];
   scores: { [playerId: string]: number };
   gamePhase: 'lobby' | 'question' | 'answered' | 'results' | 'finished';
-  timeRemaining: number;
-  isUnlimitedTime: boolean;
   currentQuestion?: GameQuestion;
   roundStartTime?: number;
 }
@@ -51,13 +49,10 @@ export interface GameResults {
 export const startNewGame = (
   category: string, 
   players: string[], 
-  totalRounds: number = 10,
-  timeLimit: number = 60
+  totalRounds: number = 10
 ): GameState => {
   const questions = getQuestionsByCategory(category);
   const shuffledQuestions = shuffleQuestions(questions).slice(0, totalRounds);
-  
-  const isUnlimitedTime = timeLimit === -1;
   
   const gameState: GameState = {
     gameId: generateGameId(),
@@ -71,8 +66,6 @@ export const startNewGame = (
       return acc;
     }, {} as { [playerId: string]: number }),
     gamePhase: 'lobby',
-    timeRemaining: isUnlimitedTime ? 999999 : timeLimit, // Use a large number for unlimited time
-    isUnlimitedTime,
     currentQuestion: shuffledQuestions[0],
     roundStartTime: Date.now()
   };
@@ -87,7 +80,7 @@ export const processAnswer = (
   gameState: GameState,
   playerId: string,
   answer: string,
-  timeRemaining: number
+  timeRemaining: number = 0 // Keep parameter for compatibility but ignore it
 ): { updatedState: GameState; answerResult: PlayerAnswer } => {
   if (!gameState.currentQuestion || gameState.gamePhase !== 'question') {
     throw new Error('Game is not in question phase');
@@ -99,15 +92,8 @@ export const processAnswer = (
   console.log(`   Question: "${gameState.currentQuestion.title}"`);
   console.log(`   Available answers:`, gameState.currentQuestion.answers.map(a => `${a.text} (rank: ${a.rank}, points: ${a.points})`));
   
-  let timeTaken: number;
-
-  if (gameState.isUnlimitedTime) {
-    // In infinite mode, calculate actual elapsed time since the round started
-    timeTaken = Math.floor((Date.now() - (gameState.roundStartTime || Date.now())) / 1000);
-  } else {
-    // Normal countdown mode
-    timeTaken = gameState.timeRemaining - timeRemaining;
-  }
+  // Calculate time taken since round started
+  const timeTaken = Math.floor((Date.now() - (gameState.roundStartTime || Date.now())) / 1000);
   
   const validation = validateAnswer(answer, gameState.currentQuestion.answers);
   
@@ -154,16 +140,51 @@ export const processAnswer = (
       question: gameState.currentQuestion,
       playerAnswers: [],
       roundNumber: updatedState.currentRound,
-      timeLimit: gameState.timeRemaining
+      correctAnswersFound: 0
     };
   }
   
   updatedState.rounds[updatedState.currentRound - 1].playerAnswers.push(playerAnswer);
   
+  // Update correct answers count if this is a correct answer AND it's a new unique person
+  if (validation.isCorrect && validation.matchedAnswer) {
+    const currentRound = updatedState.rounds[updatedState.currentRound - 1];
+    const existingAnswers = currentRound.playerAnswers.slice(0, -1); // All answers except the current one
+    
+    // Check if this person was already submitted before
+    let isNewPerson = true;
+    for (const existingAnswer of existingAnswers) {
+      if (existingAnswer.isCorrect && existingAnswer.rank === validation.rank) {
+        // This person was already submitted
+        isNewPerson = false;
+        break;
+      }
+    }
+    
+    if (isNewPerson) {
+      currentRound.correctAnswersFound += 1;
+      console.log(`✅ New unique person found! Total correct answers: ${currentRound.correctAnswersFound}`);
+    } else {
+      console.log(`⚠️ Person already submitted before. Correct answers count unchanged: ${currentRound.correctAnswersFound}`);
+    }
+  }
+  
   // Keep the game in 'question' phase to allow multiple answers
-  // Only change to 'answered' when time runs out or manually triggered
+  // Only change to 'answered' when all 10 correct answers are found
   
   return { updatedState, answerResult: playerAnswer };
+};
+
+/**
+ * Check if current question is complete (all 10 correct answers found)
+ */
+export const isQuestionComplete = (gameState: GameState): boolean => {
+  if (!gameState.currentQuestion) return false;
+  
+  const currentRound = gameState.rounds[gameState.currentRound - 1];
+  if (!currentRound) return false;
+  
+  return currentRound.correctAnswersFound >= 10;
 };
 
 /**
@@ -183,7 +204,6 @@ export const nextQuestion = (gameState: GameState): GameState => {
   // Move to next round
   updatedState.currentRound += 1;
   updatedState.gamePhase = 'question';
-  updatedState.timeRemaining = updatedState.rounds[0]?.timeLimit || 60;
   updatedState.roundStartTime = Date.now();
   
   // Get next question

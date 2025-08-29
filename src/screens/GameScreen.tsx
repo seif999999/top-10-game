@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Alert, TextInput, Platform } from 'react-native';
 import Button from '../components/Button';
-import AnswerFeedback from '../components/AnswerFeedback';
 import ResultsModal from '../components/ResultsModal';
 import { COLORS, SPACING } from '../utils/constants';
 import { GameScreenProps } from '../types/navigation';
 import { useGame } from '../contexts/GameContext';
 import { useAuth } from '../contexts/AuthContext';
-import { formatTime } from '../utils/gameHelpers';
 
 const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   const { roomId, categoryId } = route.params;
@@ -21,144 +19,103 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     getCurrentQuestion, 
     getPlayerScore, 
     getGameProgress: getProgress,
+    isQuestionComplete,
+    getCorrectAnswersFound,
     resetGame,
     startGame
   } = useGame();
   const { user, signOut } = useAuth();
 
-  const [timeLeft, setTimeLeft] = useState(60);
-  const [showFeedback, setShowFeedback] = useState(false);
-  const [feedbackData, setFeedbackData] = useState<any>(null);
   const [showResults, setShowResults] = useState(false);
   const [isAnswerSubmitted, setIsAnswerSubmitted] = useState(false);
   const [submittedAnswers, setSubmittedAnswers] = useState<string[]>([]);
-
-  
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const startTimeRef = useRef<number>(Date.now());
+  const [showQuestionComplete, setShowQuestionComplete] = useState(false);
 
   const currentQuestion = getCurrentQuestion();
   const progress = getProgress();
   const currentScore = getPlayerScore('You');
-  
-  // Force re-render when scores change
-  const [scoreUpdateTrigger, setScoreUpdateTrigger] = useState(0);
+  const correctAnswersFound = getCorrectAnswersFound();
+  const questionIsComplete = isQuestionComplete();
   
   // Initialize game if not already started
   useEffect(() => {
     if (!gameState) {
       console.log('🎮 No game state found, starting new game...');
       // Start a new game with the category from route params
-      startGame(categoryId || 'Sports', ['You'], 60);
+      startGame(categoryId || 'Sports', ['You']);
     }
-    // Don't restart the game if it's in 'answered' phase - let it complete naturally
   }, [gameState, categoryId, startGame]);
-  
-  // Update score display when trigger changes
-  useEffect(() => {
-    // This will force the component to re-render and show updated score
-  }, [scoreUpdateTrigger]);
 
+  // Check if question is complete and show success message
   useEffect(() => {
-    if (gameState && gameState.gamePhase === 'question') {
-      startTimer();
-      startTimeRef.current = Date.now();
+    if (questionIsComplete && !showQuestionComplete) {
+      setShowQuestionComplete(true);
     }
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
+  }, [questionIsComplete, showQuestionComplete]);
+
+  // Helper function to check if answer is a duplicate (including aliases)
+  const isDuplicateAnswer = (newAnswer: string): boolean => {
+    if (!currentQuestion) return false;
+    
+    const normalizedNewAnswer = newAnswer.trim().toLowerCase();
+    
+    // Check against already submitted answers
+    for (const submittedAnswer of submittedAnswers) {
+      if (submittedAnswer === normalizedNewAnswer) {
+        return true;
       }
-    };
-  }, [gameState?.currentRound]);
-
-  const startTimer = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
     }
     
-    setTimeLeft(gameState?.timeRemaining || 60);
-    setIsAnswerSubmitted(false);
-    setSubmittedAnswers([]);
-    
-    // Don't start timer if unlimited time mode
-    if (gameState?.isUnlimitedTime) {
-      return;
-    }
-    
-    timerRef.current = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          // Time's up, auto-submit
-          handleTimeUp();
-          return 0;
+    // Check against correct answers and their aliases to prevent duplicate persons
+    for (const correctAnswer of currentQuestion.answers) {
+      const normalizedCorrect = correctAnswer.text.toLowerCase();
+      const normalizedAliases = correctAnswer.aliases?.map(alias => alias.toLowerCase()) || [];
+      
+      // Check if this answer matches any already submitted correct answer
+      if (normalizedNewAnswer === normalizedCorrect || normalizedAliases.includes(normalizedNewAnswer)) {
+        // Check if this person was already submitted
+        for (const submittedAnswer of submittedAnswers) {
+          if (submittedAnswer === normalizedCorrect || normalizedAliases.includes(submittedAnswer)) {
+            return true; // This person was already submitted
+          }
         }
-        return prev - 1;
-      });
-    }, 1000);
-  };
-
-  const handleTimeUp = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
+      }
     }
     
-    if (!isAnswerSubmitted && currentAnswer.trim()) {
-      handleSubmitAnswer();
-    } else if (!isAnswerSubmitted) {
-      // No answer submitted, move to next question
-      handleNextQuestion();
-    }
+    return false;
   };
 
   const handleSubmitAnswer = () => {
     if (!currentAnswer.trim()) return;
     
-    // Check if this answer was already submitted
-    if (submittedAnswers.includes(currentAnswer.trim().toLowerCase())) {
-      Alert.alert('Duplicate Answer', 'You have already submitted this answer.');
+    // Check if question is already complete
+    if (questionIsComplete) {
+      Alert.alert('Question Complete', 'You have already found all 10 correct answers for this question!');
+      return;
+    }
+    
+    // Check if this answer was already submitted (including aliases)
+    if (isDuplicateAnswer(currentAnswer)) {
+      Alert.alert('Duplicate Answer', 'You have already submitted this person/answer.');
       return;
     }
     
     // Add to submitted answers
     setSubmittedAnswers([...submittedAnswers, currentAnswer.trim().toLowerCase()]);
     
-    const timeTaken = gameState?.timeRemaining || 60 - timeLeft;
-    submitAnswer('You', currentAnswer, timeLeft);
-    
-    // Force score update
-    setTimeout(() => {
-      setScoreUpdateTrigger(prev => prev + 1);
-    }, 100);
-    
-    // Show feedback
-    const currentRound = gameState?.rounds[gameState.currentRound - 1];
-    if (currentRound && currentRound.playerAnswers.length > 0) {
-      const lastAnswer = currentRound.playerAnswers[currentRound.playerAnswers.length - 1];
-      setFeedbackData({
-        isCorrect: lastAnswer.isCorrect,
-        correctAnswer: currentQuestion?.answers[0]?.text,
-        pointsEarned: lastAnswer.points,
-        rank: lastAnswer.rank,
-        userAnswer: currentAnswer
-      });
-      setShowFeedback(true);
-    }
+    submitAnswer('You', currentAnswer);
     
     // Clear the input for next answer
     setAnswer('');
   };
 
   const handleNextQuestion = () => {
-    setShowFeedback(false);
-    setFeedbackData(null);
+    setShowQuestionComplete(false);
     setAnswer('');
+    setSubmittedAnswers([]);
     
-    if ((gameState?.currentRound || 0) >= (gameState?.totalRounds || 10)) {
-      // Game finished
-      setShowResults(true);
-    } else {
-      nextQuestion();
-    }
+    // Always go to next question immediately, no questions asked
+    nextQuestion();
   };
 
   const handleExitGame = () => {
@@ -209,8 +166,6 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     navigation.navigate('Profile');
   };
 
-
-
   const handleSignOut = () => {
     Alert.alert(
       'Sign Out',
@@ -225,7 +180,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   const handleHelp = () => {
     Alert.alert(
       '🎯 How to Play TOP 10',
-      '📝 READ: Read the question carefully and think about the top 10 answers\n\n✍️ ANSWER: Type your answer and submit - you can submit multiple answers!\n\n🏆 SCORE: The closer your answer is to #1, the more points you get\n\n⏱️ TIME: You have 30-90 seconds per question\n\n💡 TIP: Think broadly and submit as many relevant answers as possible!\n\nGood luck! 🍀',
+      '📝 READ: Read the question carefully and think about the top 10 answers\n\n✍️ ANSWER: Type your answer and submit - you can submit multiple answers!\n\n🏆 SCORE: The closer your answer is to #1, the more points you get\n\n💡 TIP: Think broadly and submit as many relevant answers as possible!\n\nFind all 10 correct answers to complete each question!\n\nGood luck! 🍀',
       [{ text: 'Got it! 🎮' }]
     );
   };
@@ -233,19 +188,18 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   const handleShowGameRules = () => {
     Alert.alert(
       '📋 Game Rules',
-      '🎯 OBJECTIVE: Guess the top 10 answers to each question\n\n🏆 SCORING:\n• #1 answer = 100 points\n• #2 answer = 90 points\n• #3 answer = 80 points\n• And so on...\n\n⏱️ TIMER: 30-90 seconds per question\n\n✅ MULTIPLE ANSWERS: Submit as many as you can!\n\n🎮 PROGRESS: Complete all questions to see your final score',
-      [{ text: 'Understood! 👍' }]
+      '🎯 OBJECTIVE: Guess the top 10 answers to each question\n\n🏆 SCORING:\n• #1 answer = 1 point\n• #2 answer = 2 points\n• #3 answer = 3 points\n• And so on...\n\n✅ MULTIPLE ANSWERS: Submit as many as you can!\n\n🎮 PROGRESS: Find all 10 correct answers to complete each question',
+      [{ text: 'Understood! ��' }]
     );
   };
 
-  // Debug logging
-  useEffect(() => {
-    console.log('🎮 GameScreen Debug:');
-    console.log('   gameState:', gameState ? 'exists' : 'null');
-    console.log('   gamePhase:', gameState?.gamePhase);
-    console.log('   currentQuestion:', currentQuestion ? 'exists' : 'null');
-    console.log('   categoryId:', categoryId);
-  }, [gameState, currentQuestion, categoryId]);
+  const handleShowAnswerRules = () => {
+    Alert.alert(
+      '📝 Answer Acceptance Rules',
+      '✅ ANSWERS ARE ACCEPTED IF:\n\n• Exact match (perfect spelling)\n• Close match (75%+ similarity)\n• Probable match (65%+ similarity)\n• Close match (55%+ similarity)\n\n💡 TIPS FOR BETTER MATCHING:\n• Don\'t worry about perfect spelling\n• Common typos are usually accepted\n• Articles (the, a, an) are ignored\n• Punctuation is ignored\n• Case doesn\'t matter\n\n🎯 The system is very forgiving for typos!',
+      [{ text: 'Got it! 🎮' }]
+    );
+  };
 
   if (!gameState || !currentQuestion) {
     return (
@@ -272,41 +226,13 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
           <Text style={styles.title}>
             Question {gameState.currentRound}/{gameState.totalRounds}
           </Text>
-                     <Text style={[
-             styles.timer,
-             timeLeft <= 10 && !gameState?.isUnlimitedTime && styles.timerWarning
-           ]}>
-             {formatTime(timeLeft)}
-           </Text>
+          <Text style={styles.answersProgress}>
+            {correctAnswersFound}/10 answers found
+          </Text>
         </View>
         <TouchableOpacity onPress={handleExitGame}>
           <Text style={styles.exitButton}>Exit</Text>
         </TouchableOpacity>
-        {__DEV__ && (
-          <TouchableOpacity 
-            onPress={() => {
-              console.log('🧪 TEST: Current game state:', gameState);
-              console.log('🧪 TEST: Current question:', currentQuestion);
-              console.log('🧪 TEST: Current score:', getPlayerScore('You'));
-            }}
-            style={styles.debugButton}
-          >
-            <Text style={styles.debugButtonText}>Debug</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Progress Bar */}
-      <View style={styles.progressContainer}>
-        <View style={styles.progressBar}>
-          <View 
-            style={[
-              styles.progressFill, 
-              { width: `${progress}%` }
-            ]} 
-          />
-        </View>
-        <Text style={styles.progressText}>{Math.round(progress)}%</Text>
       </View>
 
       <ScrollView style={styles.content}>
@@ -316,93 +242,76 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
           <Text style={styles.questionHint}>
             Type your answer below. The closer you are to #1, the more points you get!
           </Text>
+          <TouchableOpacity onPress={handleShowAnswerRules} style={styles.helpButton}>
+            <Text style={styles.helpButtonText}>ℹ️ Answer Rules</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Answer Section */}
-        <View style={styles.answerSection}>
-          <Text style={styles.answerLabel}>Your Answer:</Text>
-          <TextInput 
-            placeholder="Enter your answer..." 
-            placeholderTextColor={COLORS.muted}
-            value={currentAnswer} 
-            onChangeText={setAnswer}
-            style={styles.answerInput}
-            editable={true}
-          />
-           <Button 
-             title="Submit Answer" 
-             onPress={handleSubmitAnswer}
-             disabled={!currentAnswer.trim()}
-             style={styles.submitButton}
-           />
-        </View>
-
-                 {/* Submitted Answers Section */}
-         {submittedAnswers.length > 0 && (
-           <View style={styles.submittedAnswersSection}>
-             <Text style={styles.submittedAnswersTitle}>Your Answers:</Text>
-             {submittedAnswers.map((answer, index) => (
-               <Text key={index} style={styles.submittedAnswer}>
-                 • {answer}
-               </Text>
-             ))}
-           </View>
-         )}
-
-                   {/* Score Section */}
-          <View style={styles.scoreSection}>
-            <Text style={styles.scoreTitle}>Your Score: {currentScore}</Text>
-            {__DEV__ && (
-              <Text style={styles.debugText}>
-                Debug: Scores = {JSON.stringify(gameState.scores)}
-              </Text>
-            )}
+        {/* Question Complete Success Message */}
+        {showQuestionComplete && (
+          <View style={styles.successSection}>
+            <Text style={styles.successTitle}>🎉 Question Complete!</Text>
+            <Text style={styles.successMessage}>
+              You found all 10 correct answers for this question!
+            </Text>
+            <Button 
+              title="Next Question"
+              onPress={handleNextQuestion}
+              style={styles.nextButton}
+            />
           </View>
+        )}
 
-                 {/* Next Question Button */}
-         {(timeLeft === 0 || gameState?.isUnlimitedTime) && (
-           <View style={styles.nextQuestionSection}>
-             <Button 
-               title={gameState.currentRound >= gameState.totalRounds ? "Finish Game" : "Next Question"}
-               onPress={handleNextQuestion}
-               style={styles.nextButton}
-             />
-           </View>
-         )}
+        {/* Answer Section - Only show if question is not complete */}
+        {!questionIsComplete && (
+          <View style={styles.answerSection}>
+            <Text style={styles.answerLabel}>Your Answer:</Text>
+            <TextInput 
+              placeholder="Enter your answer..." 
+              placeholderTextColor={COLORS.muted}
+              value={currentAnswer} 
+              onChangeText={setAnswer}
+              style={styles.answerInput}
+              editable={true}
+            />
+            <Button 
+              title="Submit Answer" 
+              onPress={handleSubmitAnswer}
+              disabled={!currentAnswer.trim()}
+              style={styles.submitButton}
+            />
+          </View>
+        )}
+
+        {/* Submitted Answers Section */}
+        {submittedAnswers.length > 0 && (
+          <View style={styles.submittedAnswersSection}>
+            <Text style={styles.submittedAnswersTitle}>Your Answers:</Text>
+            {submittedAnswers.map((answer, index) => (
+              <Text key={index} style={styles.submittedAnswer}>
+                • {answer}
+              </Text>
+            ))}
+          </View>
+        )}
+
+        {/* Score Section */}
+        <View style={styles.scoreSection}>
+          <Text style={styles.scoreTitle}>Your Score: {currentScore}</Text>
+        </View>
       </ScrollView>
 
-             {/* Answer Feedback Modal */}
-       <AnswerFeedback
-         visible={showFeedback}
-         isCorrect={feedbackData?.isCorrect || false}
-         correctAnswer={feedbackData?.correctAnswer}
-         pointsEarned={feedbackData?.pointsEarned}
-         rank={feedbackData?.rank}
-         userAnswer={feedbackData?.userAnswer || ''}
-         onAnimationComplete={() => {
-           // Wait 2 seconds before moving to next question
-           setTimeout(() => {
-             setShowFeedback(false);
-             if (timeLeft === 0 || gameState?.isUnlimitedTime) {
-               handleNextQuestion();
-             }
-           }, 2000);
-         }}
-       />
-
-             {/* Results Modal */}
-       <ResultsModal
-         visible={showResults}
-         gameResults={getGameResults()}
-         onClose={() => setShowResults(false)}
-         onPlayAgain={handlePlayAgain}
-         onBackToCategories={handleBackToCategories}
-       />
-
-
-     </SafeAreaView>
-   );
- };
+      {/* Results Modal */}
+      <ResultsModal
+        visible={showResults}
+        gameResults={getGameResults()}
+        onClose={() => setShowResults(false)}
+        onPlayAgain={handlePlayAgain}
+        onBackToCategories={handleBackToCategories}
+      />
+    </SafeAreaView>
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -437,39 +346,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700'
   },
-  timer: {
+  answersProgress: {
     color: COLORS.primary,
-    fontSize: 16,
-    fontWeight: '600'
-  },
-  timerWarning: {
-    color: '#dc2626',
-    fontWeight: '700'
-  },
-  progressContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.sm,
-    gap: SPACING.md
-  },
-  progressBar: {
-    flex: 1,
-    height: 8,
-    backgroundColor: COLORS.card,
-    borderRadius: 4,
-    overflow: 'hidden'
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: COLORS.primary,
-    borderRadius: 4
-  },
-  progressText: {
-    color: COLORS.muted,
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
-    minWidth: 40
+    marginTop: 4
   },
   content: {
     flex: 1,
@@ -493,6 +374,25 @@ const styles = StyleSheet.create({
     color: COLORS.muted,
     fontSize: 14,
     textAlign: 'center'
+  },
+  successSection: {
+    backgroundColor: '#10B981',
+    borderRadius: 12,
+    padding: SPACING.lg,
+    marginBottom: SPACING.xl,
+    alignItems: 'center'
+  },
+  successTitle: {
+    color: 'white',
+    fontSize: 24,
+    fontWeight: '800',
+    marginBottom: SPACING.sm
+  },
+  successMessage: {
+    color: 'white',
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: SPACING.lg
   },
   answerSection: {
     backgroundColor: COLORS.card,
@@ -524,17 +424,10 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '800'
   },
-  debugText: {
-    fontSize: 12,
-    color: COLORS.muted,
-    textAlign: 'center',
-    marginTop: SPACING.sm
-  },
-  nextQuestionSection: {
-    marginBottom: SPACING.xl
-  },
   nextButton: {
-    backgroundColor: '#10B981'
+    backgroundColor: 'white',
+    borderWidth: 2,
+    borderColor: 'white'
   },
   submittedAnswersSection: {
     backgroundColor: COLORS.card,
@@ -573,19 +466,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center'
   },
-  debugButton: {
+  helpButton: {
+    marginTop: SPACING.md,
     backgroundColor: COLORS.primary,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    marginLeft: 8
+    borderRadius: 8,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    alignSelf: 'center'
   },
-  debugButtonText: {
-    color: COLORS.text,
-    fontSize: 12,
+  helpButtonText: {
+    color: COLORS.background,
+    fontSize: 14,
     fontWeight: '600'
-  },
-
+  }
 });
 
 export default GameScreen;

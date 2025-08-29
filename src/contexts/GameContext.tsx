@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
-import { GameState, GameResults, PlayerAnswer, startNewGame, processAnswer, nextQuestion, generateGameResults } from '../services/gameLogic';
+import { GameState, GameResults, PlayerAnswer, startNewGame, processAnswer, nextQuestion, generateGameResults, isQuestionComplete as checkQuestionComplete } from '../services/gameLogic';
 import { GameQuestion } from '../data/sampleQuestions';
 
 export type GamePhase = 'lobby' | 'question' | 'answered' | 'results' | 'finished';
@@ -13,9 +13,9 @@ interface GameContextState {
 }
 
 type GameAction =
-  | { type: 'START_GAME'; payload: { category: string; players: string[]; timeLimit?: number; selectedQuestion?: any } }
+  | { type: 'START_GAME'; payload: { category: string; players: string[]; selectedQuestion?: any } }
   | { type: 'SET_ANSWER'; payload: string }
-  | { type: 'SUBMIT_ANSWER'; payload: { playerId: string; answer: string; timeRemaining: number } }
+  | { type: 'SUBMIT_ANSWER'; payload: { playerId: string; answer: string } }
   | { type: 'NEXT_QUESTION' }
   | { type: 'END_GAME' }
   | { type: 'SET_LOADING'; payload: boolean }
@@ -35,8 +35,8 @@ const gameReducer = (state: GameContextState, action: GameAction): GameContextSt
   switch (action.type) {
     case 'START_GAME':
       try {
-        const { category, players, timeLimit = 60, selectedQuestion } = action.payload;
-        const newGameState = startNewGame(category, players, selectedQuestion ? 1 : 10, timeLimit);
+        const { category, players, selectedQuestion } = action.payload;
+        const newGameState = startNewGame(category, players, selectedQuestion ? 1 : 10);
         if (selectedQuestion) {
           newGameState.currentQuestion = selectedQuestion;
         }
@@ -61,43 +61,38 @@ const gameReducer = (state: GameContextState, action: GameAction): GameContextSt
         currentAnswer: action.payload
       };
 
-          case 'SUBMIT_ANSWER':
-        try {
-          if (!state.gameState) throw new Error('No active game');
+    case 'SUBMIT_ANSWER':
+      try {
+        if (!state.gameState) throw new Error('No active game');
 
-          console.log(`\n📝 SUBMIT_ANSWER ACTION:`);
-          console.log(`   Player: ${action.payload.playerId}`);
-          console.log(`   Answer: "${action.payload.answer}"`);
-          console.log(`   Time Remaining: ${action.payload.timeRemaining}`);
-          console.log(`   Current scores before:`, state.gameState.scores);
+        console.log(`\n📝 SUBMIT_ANSWER ACTION:`);
+        console.log(`   Player: ${action.payload.playerId}`);
+        console.log(`   Answer: "${action.payload.answer}"`);
+        console.log(`   Current scores before:`, state.gameState.scores);
 
-          const { playerId, answer, timeRemaining } = action.payload;
-          const { updatedState, answerResult } = processAnswer(
-            state.gameState,
-            playerId,
-            answer,
-            timeRemaining
-          );
+        const { playerId, answer } = action.payload;
+        const { updatedState, answerResult } = processAnswer(
+          state.gameState,
+          playerId,
+          answer
+        );
 
-          // Keep the game in 'question' phase to allow multiple answers
-          // updatedState.gamePhase = 'answered';
+        console.log('🔄 SUBMIT_ANSWER - Updated scores:', updatedState.scores);
+        console.log('🔄 SUBMIT_ANSWER - Answer result:', answerResult);
 
-          console.log('🔄 SUBMIT_ANSWER - Updated scores:', updatedState.scores);
-          console.log('🔄 SUBMIT_ANSWER - Answer result:', answerResult);
-
-          return {
-            ...state,
-            gameState: updatedState,
-            currentAnswer: '',
-            suggestions: []
-          };
-        } catch (error) {
-          console.error('❌ SUBMIT_ANSWER Error:', error);
-          return {
-            ...state,
-            error: 'Failed to submit answer'
-          };
-        }
+        return {
+          ...state,
+          gameState: updatedState,
+          currentAnswer: '',
+          suggestions: []
+        };
+      } catch (error) {
+        console.error('❌ SUBMIT_ANSWER Error:', error);
+        return {
+          ...state,
+          error: 'Failed to submit answer'
+        };
+      }
 
     case 'NEXT_QUESTION':
       try {
@@ -152,8 +147,8 @@ const gameReducer = (state: GameContextState, action: GameAction): GameContextSt
 };
 
 interface GameContextType extends GameContextState {
-  startGame: (category: string, players: string[], timeLimit?: number, selectedQuestion?: any) => void;
-  submitAnswer: (playerId: string, answer: string, timeRemaining: number) => void;
+  startGame: (category: string, players: string[], selectedQuestion?: any) => void;
+  submitAnswer: (playerId: string, answer: string) => void;
   nextQuestion: () => void;
   endGame: () => void;
   setAnswer: (answer: string) => void;
@@ -161,6 +156,8 @@ interface GameContextType extends GameContextState {
   getCurrentQuestion: () => GameQuestion | null;
   getPlayerScore: (playerId: string) => number;
   getGameProgress: () => number;
+  isQuestionComplete: () => boolean;
+  getCorrectAnswersFound: () => number;
   resetGame: () => void;
 }
 
@@ -181,10 +178,10 @@ interface GameProviderProps {
 export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
   const [state, dispatch] = useReducer(gameReducer, initialState);
 
-  const startGame = useCallback((category: string, players: string[], timeLimit: number = 60, selectedQuestion?: any) => {
+  const startGame = useCallback((category: string, players: string[], selectedQuestion?: any) => {
     dispatch({ type: 'SET_LOADING', payload: true });
     try {
-      dispatch({ type: 'START_GAME', payload: { category, players, timeLimit, selectedQuestion } });
+      dispatch({ type: 'START_GAME', payload: { category, players, selectedQuestion } });
     } catch (error) {
       dispatch({ type: 'SET_ERROR', payload: 'Failed to start game' });
     } finally {
@@ -192,8 +189,8 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     }
   }, []);
 
-  const submitAnswer = useCallback((playerId: string, answer: string, timeRemaining: number) => {
-    dispatch({ type: 'SUBMIT_ANSWER', payload: { playerId, answer, timeRemaining } });
+  const submitAnswer = useCallback((playerId: string, answer: string) => {
+    dispatch({ type: 'SUBMIT_ANSWER', payload: { playerId, answer } });
   }, []);
 
   const nextQuestion = useCallback(() => {
@@ -229,6 +226,17 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     return (state.gameState.currentRound / state.gameState.totalRounds) * 100;
   }, [state.gameState]);
 
+  const isQuestionComplete = useCallback((): boolean => {
+    if (!state.gameState) return false;
+    return checkQuestionComplete(state.gameState);
+  }, [state.gameState]);
+
+  const getCorrectAnswersFound = useCallback((): number => {
+    if (!state.gameState) return 0;
+    const currentRound = state.gameState.rounds[state.gameState.currentRound - 1];
+    return currentRound?.correctAnswersFound || 0;
+  }, [state.gameState]);
+
   const resetGame = useCallback(() => {
     dispatch({ type: 'RESET_GAME' });
   }, []);
@@ -244,6 +252,8 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     getCurrentQuestion,
     getPlayerScore,
     getGameProgress,
+    isQuestionComplete,
+    getCorrectAnswersFound,
     resetGame
   };
 

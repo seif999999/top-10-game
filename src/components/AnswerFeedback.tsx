@@ -151,21 +151,16 @@ const AnswerFeedback: React.FC<AnswerFeedbackProps> = ({
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
+    top: 100, // Position from top instead of covering whole screen
+    left: SPACING.lg,
+    right: SPACING.lg,
     zIndex: 1000,
+    maxHeight: 300, // Limit height
   },
   content: {
     backgroundColor: COLORS.card,
     borderRadius: 16,
     padding: SPACING.xl,
-    margin: SPACING.lg,
-    width: width - SPACING.lg * 2,
-    maxWidth: 400,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,

@@ -49,18 +49,22 @@ export const getRandomQuestion = (category?: string): GameQuestion => {
  */
 export const getCategories = (): string[] => {
   const { sampleQuestions } = require('../data/sampleQuestions');
-  return [...new Set(sampleQuestions.map((q: GameQuestion) => q.category))];
+  return [...new Set(sampleQuestions.map((q: GameQuestion) => q.category))] as string[];
 };
 
 /**
  * Normalize text for comparison (remove punctuation, lowercase, trim)
+ * IMPROVED: More forgiving normalization for typos and spelling mistakes
  */
 export const normalizeAnswer = (text: string): string => {
   return text
     .toLowerCase()
     .trim()
     .replace(/[^\w\s]/g, '') // Remove punctuation
-    .replace(/\s+/g, ' '); // Normalize whitespace
+    .replace(/\s+/g, ' ') // Normalize whitespace
+    .replace(/[aeiou]/g, '') // Remove vowels for more flexible matching (optional)
+    .replace(/\b(the|a|an)\b/g, '') // Remove common articles
+    .replace(/\b(mr|mrs|ms|dr|prof)\b/g, ''); // Remove common titles
 };
 
 /**
@@ -160,8 +164,8 @@ export const validateAnswer = (userAnswer: string, correctAnswers: QuestionAnswe
     }
   }
   
-  // Check if best match meets threshold
-  if (bestSimilarity >= 0.92 && bestMatch) {
+  // Check if best match meets threshold - LOWERED for more forgiving matching
+  if (bestSimilarity >= 0.75 && bestMatch) { // Lowered from 0.92
     return {
       isCorrect: true,
       matchedAnswer: bestMatch,
@@ -171,8 +175,19 @@ export const validateAnswer = (userAnswer: string, correctAnswers: QuestionAnswe
     };
   }
   
-  // Lower threshold for probable matches
-  if (bestSimilarity >= 0.85 && bestMatch) {
+  // Even lower threshold for probable matches - VERY FORGIVING
+  if (bestSimilarity >= 0.65 && bestMatch) { // Lowered from 0.85
+    return {
+      isCorrect: true,
+      matchedAnswer: bestMatch,
+      rank: bestMatch.rank,
+      points: bestMatch.points,
+      similarity: bestSimilarity
+    };
+  }
+  
+  // Super low threshold for close matches - EXTREMELY FORGIVING
+  if (bestSimilarity >= 0.55 && bestMatch) { // New very low threshold
     return {
       isCorrect: true,
       matchedAnswer: bestMatch,
