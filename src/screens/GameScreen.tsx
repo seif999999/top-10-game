@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Alert, TextInput } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Alert, TextInput, Platform } from 'react-native';
 import Button from '../components/Button';
 import AnswerFeedback from '../components/AnswerFeedback';
 import ResultsModal from '../components/ResultsModal';
@@ -80,6 +80,11 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     setIsAnswerSubmitted(false);
     setSubmittedAnswers([]);
     
+    // Don't start timer if unlimited time mode
+    if (gameState?.isUnlimitedTime) {
+      return;
+    }
+    
     timerRef.current = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
@@ -157,27 +162,35 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   };
 
   const handleExitGame = () => {
-    Alert.alert(
-      'Exit Game',
-      'Are you sure you want to exit? Your progress will be lost.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Exit', 
-          style: 'destructive',
-          onPress: () => {
-            resetGame();
-            // Go back to the previous screen
-            if (navigation.canGoBack()) {
-              navigation.goBack();
-            } else {
-              // fallback if no previous screen exists
-              navigation.navigate('Categories');
+    // Check if running on web first
+    if (Platform.OS === 'web') {
+      // For web, always navigate to categories
+      resetGame();
+      navigation.navigate('Categories');
+    } else {
+      // For mobile, show confirmation dialog
+      Alert.alert(
+        'Exit Game',
+        'Are you sure you want to exit? Your progress will be lost.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Exit', 
+            style: 'destructive',
+            onPress: () => {
+              resetGame();
+              // For mobile, use the same way the back button is used
+              if (navigation.canGoBack()) {
+                navigation.goBack();
+              } else {
+                // fallback if no previous screen exists
+                navigation.navigate('Categories');
+              }
             }
           }
-        }
-      ]
-    );
+        ]
+      );
+    }
   };
 
   const handlePlayAgain = () => {
@@ -259,12 +272,12 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
           <Text style={styles.title}>
             Question {gameState.currentRound}/{gameState.totalRounds}
           </Text>
-          <Text style={[
-            styles.timer,
-            timeLeft <= 10 && styles.timerWarning
-          ]}>
-            {formatTime(timeLeft)}
-          </Text>
+                     <Text style={[
+             styles.timer,
+             timeLeft <= 10 && !gameState?.isUnlimitedTime && styles.timerWarning
+           ]}>
+             {formatTime(timeLeft)}
+           </Text>
         </View>
         <TouchableOpacity onPress={handleExitGame}>
           <Text style={styles.exitButton}>Exit</Text>
@@ -347,7 +360,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
           </View>
 
                  {/* Next Question Button */}
-         {timeLeft === 0 && (
+         {(timeLeft === 0 || gameState?.isUnlimitedTime) && (
            <View style={styles.nextQuestionSection}>
              <Button 
                title={gameState.currentRound >= gameState.totalRounds ? "Finish Game" : "Next Question"}
@@ -370,7 +383,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
            // Wait 2 seconds before moving to next question
            setTimeout(() => {
              setShowFeedback(false);
-             if (timeLeft === 0) {
+             if (timeLeft === 0 || gameState?.isUnlimitedTime) {
                handleNextQuestion();
              }
            }, 2000);
@@ -568,7 +581,7 @@ const styles = StyleSheet.create({
     marginLeft: 8
   },
   debugButtonText: {
-    color: COLORS.white,
+    color: COLORS.text,
     fontSize: 12,
     fontWeight: '600'
   },

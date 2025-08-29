@@ -58,6 +58,11 @@ export const fuzzyMatch = (str1: string, str2: string): number => {
  * Format time in seconds to MM:SS format
  */
 export const formatTime = (seconds: number): string => {
+  // Handle unlimited time (represented by a very large number)
+  if (seconds >= 999999) {
+    return '∞';
+  }
+  
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;

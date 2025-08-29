@@ -68,7 +68,7 @@ const GameLobbyScreen: React.FC<GameLobbyScreenProps> = ({ navigation, route }) 
           <View style={styles.settingRow}>
             <Text style={styles.settingLabel}>Timer Duration:</Text>
             <View style={styles.timerOptions}>
-              {[30, 60, 90].map((time) => (
+              {[30, 60, 90, -1].map((time) => (
                 <TouchableOpacity
                   key={time}
                   style={[
@@ -81,7 +81,7 @@ const GameLobbyScreen: React.FC<GameLobbyScreenProps> = ({ navigation, route }) 
                     styles.timerOptionText,
                     timeLimit === time && styles.timerOptionTextSelected
                   ]}>
-                    {time}s
+                    {time === -1 ? '∞' : `${time}s`}
                   </Text>
                 </TouchableOpacity>
               ))}

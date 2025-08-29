@@ -28,6 +28,7 @@ export interface GameState {
   scores: { [playerId: string]: number };
   gamePhase: 'lobby' | 'question' | 'answered' | 'results' | 'finished';
   timeRemaining: number;
+  isUnlimitedTime: boolean;
   currentQuestion?: GameQuestion;
   roundStartTime?: number;
 }
@@ -56,6 +57,8 @@ export const startNewGame = (
   const questions = getQuestionsByCategory(category);
   const shuffledQuestions = shuffleQuestions(questions).slice(0, totalRounds);
   
+  const isUnlimitedTime = timeLimit === -1;
+  
   const gameState: GameState = {
     gameId: generateGameId(),
     category,
@@ -68,7 +71,8 @@ export const startNewGame = (
       return acc;
     }, {} as { [playerId: string]: number }),
     gamePhase: 'lobby',
-    timeRemaining: timeLimit,
+    timeRemaining: isUnlimitedTime ? 999999 : timeLimit, // Use a large number for unlimited time
+    isUnlimitedTime,
     currentQuestion: shuffledQuestions[0],
     roundStartTime: Date.now()
   };
@@ -95,7 +99,16 @@ export const processAnswer = (
   console.log(`   Question: "${gameState.currentQuestion.title}"`);
   console.log(`   Available answers:`, gameState.currentQuestion.answers.map(a => `${a.text} (rank: ${a.rank}, points: ${a.points})`));
   
-  const timeTaken = gameState.timeRemaining - timeRemaining;
+  let timeTaken: number;
+
+  if (gameState.isUnlimitedTime) {
+    // In infinite mode, calculate actual elapsed time since the round started
+    timeTaken = Math.floor((Date.now() - (gameState.roundStartTime || Date.now())) / 1000);
+  } else {
+    // Normal countdown mode
+    timeTaken = gameState.timeRemaining - timeRemaining;
+  }
+  
   const validation = validateAnswer(answer, gameState.currentQuestion.answers);
   
   console.log(`   Validation result:`, validation);
