@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput } from 'react-native';
 import Button from '../../components/Button';
+import GoogleSignInButton from '../../components/GoogleSignInButton';
 import { useAuth } from '../../contexts/AuthContext';
 import { COLORS, SPACING } from '../../utils/constants';
 import { LoginScreenProps } from '../../types/navigation';
@@ -45,6 +46,12 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
+      {/* TOP 10 Logo */}
+      <View style={styles.logoContainer}>
+        <Text style={styles.logoTop}>TOP</Text>
+        <Text style={styles.logoNumber}>10</Text>
+      </View>
+      
       <Text style={styles.title}>Welcome back</Text>
       <Text style={styles.subtitle}>Sign in to continue playing</Text>
       
@@ -78,6 +85,14 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
         disabled={isLoading}
       />
 
+      <View style={styles.divider}>
+        <View style={styles.dividerLine} />
+        <Text style={styles.dividerText}>or</Text>
+        <View style={styles.dividerLine} />
+      </View>
+
+      <GoogleSignInButton />
+
       <TouchableOpacity style={styles.linkCenter} onPress={() => navigation.navigate('ForgotPassword')} disabled={isLoading}>
         <Text style={styles.linkText}>Forgot password?</Text>
       </TouchableOpacity>
@@ -99,6 +114,22 @@ const styles = StyleSheet.create({
     padding: SPACING.xl,
     gap: SPACING.lg,
     justifyContent: 'center'
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: SPACING.lg
+  },
+  logoTop: {
+    color: COLORS.primary,
+    fontSize: 36,
+    fontWeight: 'bold',
+    marginBottom: SPACING.sm
+  },
+  logoNumber: {
+    color: COLORS.primary,
+    fontSize: 36,
+    fontWeight: 'bold',
+    marginBottom: SPACING.sm
   },
   title: {
     color: COLORS.text,
@@ -124,6 +155,22 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
     paddingHorizontal: 16
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: SPACING.md,
+    marginHorizontal: SPACING.sm
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#334155'
+  },
+  dividerText: {
+    color: COLORS.muted,
+    fontSize: 14,
+    marginHorizontal: SPACING.sm
   },
   linkCenter: {
     alignItems: 'center',

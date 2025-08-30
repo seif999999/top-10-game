@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput } from 'react-native';
 import Button from '../../components/Button';
+import GoogleSignInButton from '../../components/GoogleSignInButton';
 import { useAuth } from '../../contexts/AuthContext';
 import { COLORS, SPACING } from '../../utils/constants';
 import { RegisterScreenProps } from '../../types/navigation';
@@ -45,6 +46,12 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
+      {/* TOP 10 Logo */}
+      <View style={styles.logoContainer}>
+        <Text style={styles.logoTop}>TOP</Text>
+        <Text style={styles.logoNumber}>10</Text>
+      </View>
+      
       <Text style={styles.title}>Create account</Text>
       <Text style={styles.subtitle}>Join the Top 10 game community</Text>
       
@@ -94,6 +101,14 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
         onPress={handleSignUp}
         disabled={isLoading}
       />
+
+      <View style={styles.divider}>
+        <View style={styles.dividerLine} />
+        <Text style={styles.dividerText}>or</Text>
+        <View style={styles.dividerLine} />
+      </View>
+
+      <GoogleSignInButton />
       
       <View style={styles.footer}>
         <Text style={styles.footerText}>Already have an account? </Text>
@@ -113,6 +128,20 @@ const styles = StyleSheet.create({
     gap: SPACING.lg,
     justifyContent: 'center'
   },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: SPACING.lg
+  },
+  logoTop: {
+    color: COLORS.primary,
+    fontSize: 40,
+    fontWeight: 'bold'
+  },
+  logoNumber: {
+    color: COLORS.primary,
+    fontSize: 40,
+    fontWeight: 'bold'
+  },
   title: {
     color: COLORS.text,
     fontSize: 28,
@@ -128,6 +157,22 @@ const styles = StyleSheet.create({
   },
   error: {
     color: '#f87171'
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: SPACING.md,
+    marginBottom: SPACING.md
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#334155'
+  },
+  dividerText: {
+    color: COLORS.muted,
+    fontSize: 14,
+    marginHorizontal: SPACING.sm
   },
   footer: {
     flexDirection: 'row',
