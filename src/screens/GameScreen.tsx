@@ -213,6 +213,34 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     );
   }
 
+  // Check if game is finished
+  if (gameState.gamePhase === 'finished') {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>🎉 Game Complete!</Text>
+          <Text style={styles.loadingText}>Final Score: {currentScore}</Text>
+          <Button 
+            title="Play Again"
+            onPress={() => {
+              resetGame();
+              navigation.navigate('Categories');
+            }}
+            style={styles.nextButton}
+          />
+          <Button 
+            title="Back to Categories"
+            onPress={() => {
+              resetGame();
+              navigation.navigate('Categories');
+            }}
+            style={[styles.nextButton, { marginTop: SPACING.md }] as any}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}

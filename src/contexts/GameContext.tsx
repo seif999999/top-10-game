@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
-import { GameState, GameResults, PlayerAnswer, startNewGame, processAnswer, nextQuestion, generateGameResults, isQuestionComplete as checkQuestionComplete } from '../services/gameLogic';
+import { GameState, GameResults, PlayerAnswer, startNewGame, processAnswer, nextQuestion, generateGameResults, isQuestionComplete } from '../services/gameLogic';
 import { GameQuestion } from '../data/sampleQuestions';
 
 export type GamePhase = 'lobby' | 'question' | 'answered' | 'results' | 'finished';
@@ -36,10 +36,7 @@ const gameReducer = (state: GameContextState, action: GameAction): GameContextSt
     case 'START_GAME':
       try {
         const { category, players, selectedQuestion } = action.payload;
-        const newGameState = startNewGame(category, players, selectedQuestion ? 1 : 10);
-        if (selectedQuestion) {
-          newGameState.currentQuestion = selectedQuestion;
-        }
+        const newGameState = startNewGame(category, players, selectedQuestion);
         newGameState.gamePhase = 'question';
         return {
           ...state,
@@ -226,9 +223,9 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     return (state.gameState.currentRound / state.gameState.totalRounds) * 100;
   }, [state.gameState]);
 
-  const isQuestionComplete = useCallback((): boolean => {
+  const checkQuestionComplete = useCallback((): boolean => {
     if (!state.gameState) return false;
-    return checkQuestionComplete(state.gameState);
+    return isQuestionComplete(state.gameState);
   }, [state.gameState]);
 
   const getCorrectAnswersFound = useCallback((): number => {
@@ -252,7 +249,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     getCurrentQuestion,
     getPlayerScore,
     getGameProgress,
-    isQuestionComplete,
+    isQuestionComplete: checkQuestionComplete,
     getCorrectAnswersFound,
     resetGame
   };

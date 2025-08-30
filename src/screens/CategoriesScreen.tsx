@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, FlatList, StyleSheet, SafeAreaView, Text, TouchableOpacity, ActivityIndicator, ScrollView, Dimensions } from 'react-native';
+import { View, FlatList, StyleSheet, SafeAreaView, Text, TouchableOpacity, ActivityIndicator, ScrollView, Dimensions, Alert } from 'react-native';
 import CategoryCard from '../components/CategoryCard';
 import { Category } from '../types';
 import { COLORS, SPACING } from '../utils/constants';
@@ -79,6 +79,14 @@ const CategoriesScreen: React.FC<CategoriesScreenProps> = ({ navigation }) => {
     });
   };
 
+  const handleHelp = () => {
+    Alert.alert(
+      '🎯 How to Play TOP 10',
+      'Game Rules:\n\n1. Choose a category and question\n2. Type your answers in the input field\n3. Submit multiple answers - find all 10 correct ones!\n4. Scoring: Rank 1 = 1 point, Rank 10 = 10 points\n5. No time pressure - take your time!\n6. Game ends when you find all 10 correct answers\n7. Each question is scored independently\n\nGood luck! 🏆',
+      [{ text: 'OK' }]
+    );
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -101,39 +109,12 @@ const CategoriesScreen: React.FC<CategoriesScreenProps> = ({ navigation }) => {
           <Text style={styles.headerTitle}>Categories</Text>
           <Text style={styles.headerSubtitle}>Choose your challenge</Text>
         </View>
-        <TouchableOpacity style={styles.helpButton}>
+        <TouchableOpacity style={styles.helpButton} onPress={handleHelp}>
           <Text style={styles.helpIcon}>❓</Text>
         </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Game Instructions */}
-        <View style={styles.instructionsSection}>
-          <Text style={styles.instructionsTitle}>🎯 How to Play</Text>
-          <View style={styles.instructionsGrid}>
-            <View style={styles.instructionCard}>
-              <Text style={styles.instructionIcon}>📝</Text>
-              <Text style={styles.instructionTitle}>Read Carefully</Text>
-              <Text style={styles.instructionText}>Read the question and think about the top 10 answers</Text>
-            </View>
-            <View style={styles.instructionCard}>
-              <Text style={styles.instructionIcon}>✍️</Text>
-              <Text style={styles.instructionTitle}>Type Answers</Text>
-              <Text style={styles.instructionText}>Submit multiple answers - the more the better!</Text>
-            </View>
-            <View style={styles.instructionCard}>
-              <Text style={styles.instructionIcon}>🏆</Text>
-              <Text style={styles.instructionTitle}>Score Points</Text>
-              <Text style={styles.instructionText}>Closer to #1 = more points. Time matters too!</Text>
-            </View>
-            <View style={styles.instructionCard}>
-              <Text style={styles.instructionIcon}>⏱️</Text>
-              <Text style={styles.instructionTitle}>Beat the Clock</Text>
-              <Text style={styles.instructionText}>You have 30-90 seconds per question</Text>
-            </View>
-          </View>
-        </View>
-
         {/* Categories List */}
         <View style={styles.categoriesSection}>
           <Text style={styles.sectionTitle}>Available Categories</Text>
@@ -292,53 +273,7 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1
   },
-  instructionsSection: {
-    padding: SPACING.lg,
-    backgroundColor: COLORS.card,
-    marginBottom: SPACING.lg
-  },
-  instructionsTitle: {
-    color: COLORS.text,
-    fontSize: 22,
-    fontWeight: '800',
-    textAlign: 'center',
-    marginBottom: SPACING.lg
-  },
-  instructionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: SPACING.md
-  },
-  instructionCard: {
-    width: (width - SPACING.lg * 2 - SPACING.md) / 2,
-    backgroundColor: COLORS.background,
-    borderRadius: 16,
-    padding: SPACING.lg,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3
-  },
-  instructionIcon: {
-    fontSize: 28,
-    marginBottom: SPACING.sm
-  },
-  instructionTitle: {
-    color: COLORS.text,
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: SPACING.xs,
-    textAlign: 'center'
-  },
-  instructionText: {
-    color: COLORS.muted,
-    fontSize: 11,
-    textAlign: 'center',
-    lineHeight: 16
-  },
+
   categoriesSection: {
     paddingHorizontal: SPACING.lg,
     marginBottom: SPACING.xl

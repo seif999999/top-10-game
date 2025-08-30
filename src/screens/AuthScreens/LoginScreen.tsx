@@ -46,12 +46,6 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      {/* TOP 10 Logo */}
-      <View style={styles.logoContainer}>
-        <Text style={styles.logoTop}>TOP</Text>
-        <Text style={styles.logoNumber}>10</Text>
-      </View>
-      
       <Text style={styles.title}>Welcome back</Text>
       <Text style={styles.subtitle}>Sign in to continue playing</Text>
       
@@ -115,22 +109,7 @@ const styles = StyleSheet.create({
     gap: SPACING.lg,
     justifyContent: 'center'
   },
-  logoContainer: {
-    alignItems: 'center',
-    marginBottom: SPACING.lg
-  },
-  logoTop: {
-    color: COLORS.primary,
-    fontSize: 36,
-    fontWeight: 'bold',
-    marginBottom: SPACING.sm
-  },
-  logoNumber: {
-    color: COLORS.primary,
-    fontSize: 36,
-    fontWeight: 'bold',
-    marginBottom: SPACING.sm
-  },
+
   title: {
     color: COLORS.text,
     fontSize: 28,

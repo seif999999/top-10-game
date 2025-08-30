@@ -29,6 +29,7 @@ export interface GameState {
   gamePhase: 'lobby' | 'question' | 'answered' | 'results' | 'finished';
   currentQuestion?: GameQuestion;
   roundStartTime?: number;
+  selectedQuestion?: GameQuestion; // Store the initially selected question
 }
 
 export interface GameResults {
@@ -49,24 +50,29 @@ export interface GameResults {
 export const startNewGame = (
   category: string, 
   players: string[], 
-  totalRounds: number = 10
+  selectedQuestion?: GameQuestion
 ): GameState => {
   const questions = getQuestionsByCategory(category);
-  const shuffledQuestions = shuffleQuestions(questions).slice(0, totalRounds);
+  const shuffledQuestions = shuffleQuestions(questions);
+  
+  // Always set totalRounds to the actual number of questions available
+  // This allows players to continue to other questions even when starting with a specific one
+  const actualTotalRounds = questions.length;
   
   const gameState: GameState = {
     gameId: generateGameId(),
     category,
     players,
     currentRound: 1,
-    totalRounds,
+    totalRounds: actualTotalRounds,
     rounds: [],
     scores: players.reduce((acc, playerId) => {
       acc[playerId] = 0;
       return acc;
     }, {} as { [playerId: string]: number }),
     gamePhase: 'lobby',
-    currentQuestion: shuffledQuestions[0],
+    currentQuestion: selectedQuestion || shuffledQuestions[0],
+    selectedQuestion: selectedQuestion,
     roundStartTime: Date.now()
   };
   
@@ -209,7 +215,25 @@ export const nextQuestion = (gameState: GameState): GameState => {
   // Get next question
   const questions = getQuestionsByCategory(updatedState.category);
   const shuffledQuestions = shuffleQuestions(questions);
-  updatedState.currentQuestion = shuffledQuestions[updatedState.currentRound - 1];
+  
+  // Check if we have a question available for this round
+  if (updatedState.currentRound - 1 < shuffledQuestions.length) {
+    updatedState.currentQuestion = shuffledQuestions[updatedState.currentRound - 1];
+    
+    // Initialize the new round if it doesn't exist
+    if (!updatedState.rounds[updatedState.currentRound - 1]) {
+      updatedState.rounds[updatedState.currentRound - 1] = {
+        question: updatedState.currentQuestion,
+        playerAnswers: [],
+        roundNumber: updatedState.currentRound,
+        correctAnswersFound: 0
+      };
+    }
+  } else {
+    // No more questions available, end the game
+    updatedState.gamePhase = 'finished';
+    console.log(`🔄 No more questions available, ending game`);
+  }
   
   console.log(`🔄 Next Question - Scores after update:`, updatedState.scores);
   

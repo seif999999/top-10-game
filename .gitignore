@@ -35,4 +35,7 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# Firebase configuration (contains sensitive API keys)
+app.config.js
+
 app-example

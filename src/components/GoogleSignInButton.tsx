@@ -65,7 +65,7 @@ const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
         <ActivityIndicator color={COLORS.background} size="small" />
       ) : (
         <>
-          <Text style={[styles.icon, textStyle]}>🔍</Text>
+          <Text style={[styles.icon, textStyle]}>G</Text>
           <Text style={[styles.text, textStyle]}>
             Sign in with Google
           </Text>
@@ -95,11 +95,13 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   icon: {
-    fontSize: 20,
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'white',
     marginRight: SPACING.sm,
   },
   text: {
-    color: COLORS.background,
+    color: 'white',
     fontSize: 16,
     fontWeight: '600',
   },

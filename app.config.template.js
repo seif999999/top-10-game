@@ -1,5 +1,6 @@
-// Expo app configuration with Firebase env wiring
-// Populate values from process.env; provide empty defaults for .env.example
+// Expo app configuration template for Firebase
+// Copy this file to app.config.js and fill in your Firebase credentials
+// IMPORTANT: Never commit app.config.js to version control!
 
 module.exports = () => ({
   expo: {
@@ -23,5 +24,3 @@ module.exports = () => ({
     }
   }
 });
-
-
