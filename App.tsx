@@ -7,6 +7,7 @@ import { MultiplayerProvider } from './src/contexts/MultiplayerContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { View, Text } from 'react-native';
 
+
 // Error Boundary Component
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; message?: string }> {
   constructor(props: { children: React.ReactNode }) {
@@ -44,6 +45,7 @@ export default function App() {
             <NavigationContainer>
               <StatusBar style="auto" />
               <AppNavigator />
+               
             </NavigationContainer>
           </MultiplayerProvider>
         </GameProvider>

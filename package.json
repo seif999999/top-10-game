@@ -33,7 +33,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.0.10",
-    "expo": "^53.0.20",
+    "expo": "^53.0.22",
     "typescript": "~5.8.3"
   }
 }
