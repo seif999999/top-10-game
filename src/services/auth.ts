@@ -6,7 +6,9 @@ import {
   onAuthStateChanged,
   sendPasswordResetEmail,
   User as FirebaseUser,
-  AuthError
+  AuthError,
+  GoogleAuthProvider,
+  signInWithCredential
 } from 'firebase/auth';
 import { auth } from './firebase';
 import { User } from '../types';
@@ -33,6 +35,17 @@ export const signUpWithEmail = async (
 export const signInWithEmail = async (email: string, password: string): Promise<User> => {
   try {
     const cred = await signInWithEmailAndPassword(auth, email, password);
+    return mapFirebaseUser(cred.user);
+  } catch (error) {
+    const err = error as AuthError | Error;
+    throw new Error(getFriendlyAuthMessage(err));
+  }
+};
+
+export const signInWithGoogle = async (idToken: string): Promise<User> => {
+  try {
+    const credential = GoogleAuthProvider.credential(idToken);
+    const cred = await signInWithCredential(auth, credential);
     return mapFirebaseUser(cred.user);
   } catch (error) {
     const err = error as AuthError | Error;

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { AuthContextType, User } from '../types';
-import { signInWithEmail, signUpWithEmail, signOutUser, subscribeToAuthChanges, resetPassword as resetPasswordService } from '../services/auth';
+import { signInWithEmail, signUpWithEmail, signOutUser, subscribeToAuthChanges, resetPassword as resetPasswordService, signInWithGoogle } from '../services/auth';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { View } from 'react-native';
 
@@ -23,6 +23,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setPendingAction(true);
     try {
       await signInWithEmail(email, password);
+    } finally {
+      setPendingAction(false);
+    }
+  };
+
+  const signInWithGoogleAuth = async (idToken: string) => {
+    setPendingAction(true);
+    try {
+      await signInWithGoogle(idToken);
     } finally {
       setPendingAction(false);
     }
@@ -57,7 +66,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const value = useMemo<AuthContextType>(
-    () => ({ user, loading: loading || pendingAction, signIn, signUp, signOut, resetPassword }),
+    () => ({ user, loading: loading || pendingAction, signIn, signUp, signOut, resetPassword, signInWithGoogle: signInWithGoogleAuth }),
     [user, loading, pendingAction]
   );
 
