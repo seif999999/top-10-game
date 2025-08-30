@@ -65,14 +65,19 @@ const CategoriesScreen: React.FC<CategoriesScreenProps> = ({ navigation }) => {
   };
 
   const handleStartGame = (category: Category) => {
-    navigation.navigate('GameLobby', {
+    console.log('🎮 Starting game for category:', category.name);
+    console.log('🎮 Navigating to GameMode with params:', {
+      categoryId: category.id,
+      categoryName: category.name
+    });
+    navigation.navigate('GameMode', {
       categoryId: category.id,
       categoryName: category.name
     });
   };
 
   const handleQuestionSelect = (category: Category, question: any) => {
-    navigation.navigate('GameLobby', {
+    navigation.navigate('GameMode', {
       categoryId: category.id,
       categoryName: category.name,
       selectedQuestion: question

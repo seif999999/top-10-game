@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { GameProvider } from './src/contexts/GameContext';
+import { MultiplayerProvider } from './src/contexts/MultiplayerContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { View, Text } from 'react-native';
 
@@ -39,10 +40,12 @@ export default function App() {
     <ErrorBoundary>
       <AuthProvider>
         <GameProvider>
-          <NavigationContainer>
-            <StatusBar style="auto" />
-            <AppNavigator />
-          </NavigationContainer>
+          <MultiplayerProvider>
+            <NavigationContainer>
+              <StatusBar style="auto" />
+              <AppNavigator />
+            </NavigationContainer>
+          </MultiplayerProvider>
         </GameProvider>
       </AuthProvider>
     </ErrorBoundary>

@@ -13,7 +13,7 @@ module.exports = () => ({
     
     // Deep linking configuration for Google Sign-In
     plugins: [
-      'expo-auth-session'
+      
     ],
     
     // Platform-specific configurations

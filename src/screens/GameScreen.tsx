@@ -2,13 +2,18 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Alert, TextInput, Platform } from 'react-native';
 import Button from '../components/Button';
 import ResultsModal from '../components/ResultsModal';
+import MultiplayerLeaderboard from '../components/MultiplayerLeaderboard';
 import { COLORS, SPACING } from '../utils/constants';
 import { GameScreenProps } from '../types/navigation';
 import { useGame } from '../contexts/GameContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useMultiplayer } from '../contexts/MultiplayerContext';
+
+
+
 
 const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
-  const { roomId, categoryId } = route.params;
+  const { roomId, categoryId, isMultiplayer } = route.params;
   const { 
     gameState, 
     currentAnswer, 
@@ -26,21 +31,60 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     endGame
   } = useGame();
   const { user } = useAuth();
+  
+  // Multiplayer context
+  const {
+    state: multiplayerState,
+    joinRoom,
+    startGame: startMultiplayerGame,
+    submitAnswer: submitMultiplayerAnswer,
+    nextQuestion: nextMultiplayerQuestion,
+    endGame: endMultiplayerGame,
+    leaveRoom,
+    setCurrentAnswer: setMultiplayerAnswer,
+    resetMultiplayer,
+    getPlayerScore: getMultiplayerScore,
+    getLeaderboard,
+    isQuestionComplete: isMultiplayerQuestionComplete,
+    getCorrectAnswersFound: getMultiplayerCorrectAnswersFound
+  } = useMultiplayer();
 
   const [showResults, setShowResults] = useState(false);
   const [isAnswerSubmitted, setIsAnswerSubmitted] = useState(false);
   const [submittedAnswers, setSubmittedAnswers] = useState<string[]>([]);
   const [showQuestionComplete, setShowQuestionComplete] = useState(false);
   const [showAnswers, setShowAnswers] = useState(false);
+ 
+  
 
-  const currentQuestion = getCurrentQuestion();
-  const progress = getProgress();
-  const currentScore = getPlayerScore('You');
-  const correctAnswersFound = getCorrectAnswersFound();
-  const questionIsComplete = isQuestionComplete();
+  // Determine if we're in multiplayer mode
+  const isMultiplayerMode = isMultiplayer === true;
+  
+  // Get current game state based on mode
+  const currentQuestion = isMultiplayerMode 
+    ? multiplayerState.gameState?.currentQuestion 
+    : getCurrentQuestion();
+  const progress = isMultiplayerMode 
+    ? { current: multiplayerState.gameState?.currentRound || 1, total: multiplayerState.gameState?.totalRounds || 3 }
+    : getProgress();
+  
+  // Ensure progress is always an object
+  const gameProgress = typeof progress === 'number' ? { current: 1, total: 10 } : progress;
+  const currentScore = isMultiplayerMode 
+    ? getMultiplayerScore(multiplayerState.playerId || '')
+    : getPlayerScore('You');
+  const correctAnswersFound = isMultiplayerMode 
+    ? getMultiplayerCorrectAnswersFound()
+    : getCorrectAnswersFound();
+  const questionIsComplete = isMultiplayerMode 
+    ? isMultiplayerQuestionComplete()
+    : isQuestionComplete();
   
   // Get submitted answers for the current round
   const getCurrentRoundAnswers = () => {
+    if (isMultiplayerMode) {
+      return multiplayerState.submittedAnswers;
+    }
     if (!gameState || !gameState.rounds[gameState.currentRound - 1]) return [];
     return gameState.rounds[gameState.currentRound - 1].playerAnswers
       .filter(answer => answer.playerId === 'You')
@@ -49,14 +93,24 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   
   const currentRoundAnswers = getCurrentRoundAnswers();
 
-  // Initialize game if not already started
+  // Initialize game based on mode
   useEffect(() => {
-    if (!gameState) {
-      console.log('🎮 No game state found, starting new game...');
-      // Start a new game with the category from route params
-      startGame(categoryId || 'Sports', ['You']);
+    if (isMultiplayerMode) {
+      // Initialize multiplayer game
+      if (!multiplayerState.roomId && roomId !== 'single-player') {
+        console.log('🎮 Initializing multiplayer game...');
+        const playerName = user?.displayName || user?.email || 'Player';
+        const playerId = user?.email || `player_${Date.now()}`;
+        joinRoom(roomId, playerId, playerName, categoryId || 'Sports');
+      }
+    } else {
+      // Initialize single-player game
+      if (!gameState) {
+        console.log('🎮 No game state found, starting new single-player game...');
+        startGame(categoryId || 'Sports', ['You']);
+      }
     }
-  }, [gameState, categoryId, startGame]);
+  }, [isMultiplayerMode, multiplayerState.roomId, gameState, roomId, categoryId, startGame, joinRoom, user]);
 
   // Check if question is complete and show success message
   useEffect(() => {
@@ -77,44 +131,84 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
         { 
           text: 'Exit', 
           style: 'destructive', 
-          onPress: () => {
-            resetGame();
-            navigation.navigate('Categories');
-          }
+                     onPress: () => {
+             if (isMultiplayerMode) {
+               leaveRoom();
+               resetMultiplayer();
+             } else {
+               resetGame();
+             }
+             navigation.navigate('MainMenu');
+           }
         }
       ]
     );
   };
+  
+  
+  
+  
 
-  const handleEndGame = () => {
+  
+
+const handleEndGame = () => {
+  if (Platform.OS === 'web') {
+    // Web version
+    const confirmed = window.confirm(
+      "Are you sure you want to end the game? You'll see your final results."
+    );
+    if (confirmed) {
+      if (isMultiplayerMode) {
+        endMultiplayerGame();
+      } else {
+        endGame();
+      }
+      setShowResults(true);
+    }
+  } else {
+    // Mobile version
     Alert.alert(
       'End Game',
-      'Are you sure you want to end the game? You\'ll see your final results.',
+      "Are you sure you want to end the game? You'll see your final results.",
       [
         { text: 'Cancel', style: 'cancel' },
         { 
           text: 'End Game', 
           style: 'destructive', 
           onPress: () => {
-            endGame();
+            if (isMultiplayerMode) {
+              endMultiplayerGame();
+            } else {
+              endGame();
+            }
             setShowResults(true);
           }
         }
       ]
     );
-  };
+  }
+};
 
-  const handlePlayAgain = () => {
-    setShowResults(false);
-    resetGame();
-    navigation.navigate('Categories');
-  };
 
-  const handleBackToCategories = () => {
-    setShowResults(false);
-    resetGame();
-    navigation.navigate('Categories');
-  };
+     const handlePlayAgain = () => {
+     setShowResults(false);
+     if (isMultiplayerMode) {
+       resetMultiplayer();
+     } else {
+       resetGame();
+     }
+     navigation.navigate('MainMenu');
+   };
+
+     const handleBackToCategories = () => {
+     setShowResults(false);
+     if (isMultiplayerMode) {
+       resetMultiplayer();
+     } else {
+       resetGame();
+     }
+     navigation.navigate('MainMenu');
+   };
 
   const handleProfileNavigation = () => {
     navigation.navigate('Profile');
@@ -148,9 +242,14 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     if (!currentAnswer.trim()) return;
 
     try {
-      submitAnswer('You', currentAnswer.trim());
+      if (isMultiplayerMode) {
+        submitMultiplayerAnswer(currentAnswer.trim());
+        setMultiplayerAnswer('');
+      } else {
+        submitAnswer('You', currentAnswer.trim());
+        setAnswer('');
+      }
       setSubmittedAnswers(prev => [...prev, currentAnswer.trim()]);
-      setAnswer('');
       setIsAnswerSubmitted(true);
       
       setTimeout(() => {
@@ -162,19 +261,44 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   };
 
   const handleNextQuestion = () => {
-    if (gameState && gameState.currentRound >= gameState.totalRounds) {
-      // Game finished, show results
-      setShowResults(true);
+    if (isMultiplayerMode) {
+      if (multiplayerState.gameState && multiplayerState.gameState.currentRound >= multiplayerState.gameState.totalRounds) {
+        // Game finished, show results
+        setShowResults(true);
+      } else {
+        nextMultiplayerQuestion();
+      }
     } else {
-      nextQuestion();
+      if (gameState && gameState.currentRound >= gameState.totalRounds) {
+        // Game finished, show results
+        setShowResults(true);
+      } else {
+        nextQuestion();
+      }
     }
   };
 
-  if (!gameState || !currentQuestion) {
+  console.log('🎮 GameScreen render state:', {
+    isMultiplayerMode,
+    gameState: gameState ? 'exists' : 'null',
+    multiplayerState: multiplayerState.gameState ? 'exists' : 'null',
+    currentQuestion: currentQuestion ? 'exists' : 'null',
+    gamePhase: multiplayerState.gameState?.gamePhase
+  });
+
+  if ((!isMultiplayerMode && (!gameState || !currentQuestion)) || 
+      (isMultiplayerMode && (!multiplayerState.gameState || !currentQuestion))) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading game...</Text>
+          <Text style={styles.loadingText}>
+            {isMultiplayerMode ? 'Connecting to multiplayer game...' : 'Loading game...'}
+          </Text>
+          {isMultiplayerMode && (
+            <Text style={styles.connectionStatus}>
+              Status: {multiplayerState.connectionStatus}
+            </Text>
+          )}
         </View>
       </SafeAreaView>
     );
@@ -191,11 +315,16 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.title}>
-            Question {gameState.currentRound}/{gameState.totalRounds}
+            Question {gameProgress.current}/{gameProgress.total}
           </Text>
           <Text style={styles.answersProgress}>
             {correctAnswersFound}/10 answers found
           </Text>
+          {isMultiplayerMode && (
+            <Text style={styles.multiplayerIndicator}>
+              👥 Multiplayer
+            </Text>
+          )}
         </View>
         <View style={styles.headerRight}>
           <TouchableOpacity onPress={handleEndGame} style={styles.endGameButton}>
@@ -208,6 +337,36 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
       </View>
 
       <ScrollView style={styles.content}>
+        {/* Multiplayer Leaderboard */}
+        {isMultiplayerMode && (
+          <>
+            <MultiplayerLeaderboard
+              leaderboard={getLeaderboard()}
+              currentPlayerId={multiplayerState.playerId || ''}
+              maxHeight={150}
+            />
+            
+            {/* Start Game Button for Multiplayer */}
+            {multiplayerState.gameState?.gamePhase === 'lobby' && (
+              <View style={styles.startGameSection}>
+                <Text style={styles.startGameTitle}>
+                  Waiting for players... ({multiplayerState.gameState.players.length} joined)
+                </Text>
+                <Button 
+                  title="🎮 Start Game" 
+                  onPress={() => {
+                    console.log('🎮 Manual start game pressed');
+                    startMultiplayerGame();
+                  }}
+                  style={styles.startGameButton}
+                />
+              </View>
+            )}
+          </>
+        )}
+
+
+
         {/* Question Section */}
         <View style={styles.questionSection}>
           <Text style={styles.questionTitle}>{currentQuestion.title}</Text>
@@ -239,7 +398,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
             {showAnswers && currentQuestion && (
               <View style={styles.answersList}>
                 <Text style={styles.answersListTitle}>All Correct Answers:</Text>
-                {currentQuestion.answers.map((answer, index) => {
+                {currentQuestion.answers.map((answer: { text: string; rank: number; points: number }, index: number) => {
                   const isCorrect = currentRoundAnswers.some(submitted => 
                     submitted.toLowerCase().trim() === answer.text.toLowerCase().trim()
                   );
@@ -285,21 +444,23 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
         )}
 
         {/* Answer Section - Only show if question is not complete AND game is not finished */}
-        {!questionIsComplete && gameState?.gamePhase !== 'finished' && (
+        {!questionIsComplete && 
+         ((isMultiplayerMode && multiplayerState.gameState?.gamePhase !== 'finished') ||
+          (!isMultiplayerMode && gameState?.gamePhase !== 'finished')) && (
           <View style={styles.answerSection}>
             <Text style={styles.answerLabel}>Your Answer:</Text>
             <TextInput 
               placeholder="Enter your answer..." 
               placeholderTextColor={COLORS.muted}
-              value={currentAnswer} 
-              onChangeText={setAnswer}
+              value={isMultiplayerMode ? multiplayerState.currentAnswer : currentAnswer} 
+              onChangeText={isMultiplayerMode ? setMultiplayerAnswer : setAnswer}
               style={styles.answerInput}
               editable={true}
             />
             <Button 
               title="Submit Answer" 
               onPress={handleSubmitAnswer}
-              disabled={!currentAnswer.trim()}
+              disabled={!(isMultiplayerMode ? multiplayerState.currentAnswer : currentAnswer).trim()}
               style={styles.submitButton}
             />
           </View>
@@ -348,6 +509,11 @@ const styles = StyleSheet.create({
   loadingText: {
     color: COLORS.text,
     fontSize: 18,
+  },
+  connectionStatus: {
+    color: COLORS.muted,
+    fontSize: 14,
+    marginTop: SPACING.sm,
   },
   header: {
     flexDirection: 'row',
@@ -399,6 +565,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     marginTop: 4
+  },
+  multiplayerIndicator: {
+    color: '#8B5CF6',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 2
   },
   content: {
     flex: 1,
@@ -616,7 +788,26 @@ const styles = StyleSheet.create({
   playAgainButton: {
     marginTop: SPACING.lg,
     backgroundColor: COLORS.primary
-  }
+  },
+  
+   startGameSection: {
+     backgroundColor: COLORS.card,
+     borderRadius: 12,
+     padding: SPACING.lg,
+     marginBottom: SPACING.lg,
+     alignItems: 'center'
+   },
+   startGameTitle: {
+     color: COLORS.text,
+     fontSize: 18,
+     fontWeight: '600',
+     marginBottom: SPACING.md,
+     textAlign: 'center'
+   },
+   startGameButton: {
+     backgroundColor: COLORS.primary,
+     paddingHorizontal: SPACING.xl
+   }
 });
 
 export default GameScreen;

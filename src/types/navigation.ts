@@ -10,10 +10,12 @@ export type AuthStackParamList = {
 // Main Stack Navigation Types  
 export type MainStackParamList = {
   Home: undefined;
+  MainMenu: undefined;
   Profile: undefined;
-  Categories: undefined;
+  Categories: { gameMode: 'single' | 'multiplayer' };
   GameLobby: { categoryId: string; categoryName: string; selectedQuestion?: any };
-  GameScreen: { roomId: string; categoryId: string; categoryName?: string };
+  GameMode: { categoryId: string; categoryName: string; selectedQuestion?: any };
+  GameScreen: { roomId: string; categoryId: string; categoryName?: string; selectedQuestion?: any; isMultiplayer?: boolean };
 };
 
 // Combined Root Stack Types
@@ -25,6 +27,8 @@ export type RegisterScreenProps = NativeStackScreenProps<RootStackParamList, 'Re
 export type ForgotPasswordScreenProps = NativeStackScreenProps<RootStackParamList, 'ForgotPassword'>;
 export type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
 export type ProfileScreenProps = NativeStackScreenProps<RootStackParamList, 'Profile'>;
+export type MainMenuScreenProps = NativeStackScreenProps<RootStackParamList, 'MainMenu'>;
 export type CategoriesScreenProps = NativeStackScreenProps<RootStackParamList, 'Categories'>;
 export type GameLobbyScreenProps = NativeStackScreenProps<RootStackParamList, 'GameLobby'>;
+export type GameModeScreenProps = NativeStackScreenProps<RootStackParamList, 'GameMode'>;
 export type GameScreenProps = NativeStackScreenProps<RootStackParamList, 'GameScreen'>;
