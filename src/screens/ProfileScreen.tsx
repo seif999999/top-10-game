@@ -7,7 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
-  const { user, signOut } = useAuth();
+  const { user, signOut, updateUserProfile } = useAuth();
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [updatedDisplayName, setUpdatedDisplayName] = useState(user?.displayName || '');
   const [isEditing, setIsEditing] = useState(false);
@@ -20,7 +20,15 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     setBestStreak(5);
   }, []);
 
-  const handleSaveProfile = () => {
+  // Sync displayName state with user object changes
+  useEffect(() => {
+    if (user?.displayName) {
+      setDisplayName(user.displayName);
+      setUpdatedDisplayName(user.displayName);
+    }
+  }, [user?.displayName]);
+
+  const handleSaveProfile = async () => {
     // Validate input
     if (!displayName || displayName.trim() === '') {
       Alert.alert('Error', 'Display name cannot be empty');
@@ -32,10 +40,18 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       return;
     }
     
-    // Update the local state to show the change
-    setUpdatedDisplayName(displayName.trim());
-    Alert.alert('Success', 'Profile updated successfully!');
-    setIsEditing(false);
+    try {
+      // Update user profile through AuthContext
+      await updateUserProfile(displayName.trim());
+      
+      // Update local state to show the change
+      setUpdatedDisplayName(displayName.trim());
+      Alert.alert('Success', 'Profile updated successfully!');
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      Alert.alert('Error', 'Failed to update profile. Please try again.');
+    }
   };
 
   const handleSignOut = () => {

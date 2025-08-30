@@ -3,6 +3,8 @@ import { AuthContextType, User } from '../types';
 import { signInWithEmail, signUpWithEmail, signOutUser, subscribeToAuthChanges, resetPassword as resetPasswordService, signInWithGoogle } from '../services/auth';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { View } from 'react-native';
+import { updateProfile } from 'firebase/auth';
+import { auth } from '../services/firebase';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -65,8 +67,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const updateUserProfile = async (displayName: string) => {
+    setPendingAction(true);
+    try {
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        await updateProfile(currentUser, { displayName });
+        // Force refresh the user data
+        await currentUser.reload();
+        // Update local user state
+        setUser(prevUser => prevUser ? { ...prevUser, displayName } : null);
+      }
+    } finally {
+      setPendingAction(false);
+    }
+  };
+
   const value = useMemo<AuthContextType>(
-    () => ({ user, loading: loading || pendingAction, signIn, signUp, signOut, resetPassword, signInWithGoogle: signInWithGoogleAuth }),
+    () => ({ 
+      user, 
+      loading: loading || pendingAction, 
+      signIn, 
+      signUp, 
+      signOut, 
+      resetPassword, 
+      signInWithGoogle: signInWithGoogleAuth,
+      updateUserProfile
+    }),
     [user, loading, pendingAction]
   );
 

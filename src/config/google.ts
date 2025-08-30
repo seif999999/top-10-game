@@ -1,5 +1,6 @@
 // Google OAuth Configuration
 // You need to get these credentials from Google Cloud Console
+// Replace the placeholder values with your actual credentials
 
 export const GOOGLE_CONFIG = {
   // Web Client ID (for web platform)
@@ -27,10 +28,15 @@ export const GOOGLE_CONFIG = {
 
 // Helper function to get the appropriate client ID for the current platform
 export const getGoogleClientId = (): string => {
-  // You can implement platform-specific logic here
   // For now, return the web client ID as default
+  // In a real app, you'd detect the platform and return the appropriate ID
   return GOOGLE_CONFIG.WEB_CLIENT_ID;
 };
+
+// Platform-specific client ID getters
+export const getWebClientId = (): string => GOOGLE_CONFIG.WEB_CLIENT_ID;
+export const getIOSClientId = (): string => GOOGLE_CONFIG.IOS_CLIENT_ID;
+export const getAndroidClientId = (): string => GOOGLE_CONFIG.ANDROID_CLIENT_ID;
 
 // Helper function to get the redirect URI
 export const getGoogleRedirectUri = (): string => {

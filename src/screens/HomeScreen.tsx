@@ -31,8 +31,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
   const handleHelp = () => {
     Alert.alert(
-      'Help',
-      'How to play:\n\n1. Read the question carefully\n2. Type your answer in the input field\n3. Submit your answer\n4. You can submit multiple answers per question\n5. The closer your answer is to #1, the more points you get!\n\nGood luck!',
+      '🎯 How to Play TOP 10',
+      'Game Rules:\n\n1. Choose a category and question\n2. Type your answers in the input field\n3. Submit multiple answers - find all 10 correct ones!\n4. Scoring: Rank 1 = 1 point, Rank 10 = 10 points\n5. No time pressure - take your time!\n6. Game ends when you find all 10 correct answers\n7. Each question is scored independently\n\nGood luck! 🏆',
       [{ text: 'OK' }]
     );
   };
