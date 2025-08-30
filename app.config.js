@@ -10,6 +10,47 @@ module.exports = () => ({
     orientation: 'portrait',
     platforms: ['ios', 'android', 'web'],
     assetBundlePatterns: ['**/*'],
+    
+    // Deep linking configuration for Google Sign-In
+    plugins: [
+      'expo-auth-session'
+    ],
+    
+    // Platform-specific configurations
+    ios: {
+      bundleIdentifier: 'com.top10game.app',
+      googleServicesFile: './GoogleService-Info.plist',
+      infoPlist: {
+        CFBundleURLTypes: [
+          {
+            CFBundleURLName: 'Google Sign-In',
+            CFBundleURLSchemes: ['top10game']
+          }
+        ]
+      }
+    },
+    
+    android: {
+      package: 'com.top10game.app',
+      googleServicesFile: './google-services.json',
+      intentFilters: [
+        {
+          action: 'VIEW',
+          data: [
+            {
+              scheme: 'top10game'
+            }
+          ],
+          category: ['BROWSABLE', 'DEFAULT']
+        }
+      ]
+    },
+    
+    // Web configuration
+    web: {
+      bundler: 'metro'
+    },
+    
     extra: {
       firebase: {
         apiKey: 'AIzaSyAu096CybNo1NMFCHVLi1PtPfy4cXgpTgQ',

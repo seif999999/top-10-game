@@ -9,7 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 const { width } = Dimensions.get('window');
 
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const [currentStreak, setCurrentStreak] = useState(3);
 
   const handleProfileNavigation = () => {
@@ -17,17 +17,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   };
 
 
-
-  const handleSignOut = () => {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Sign Out', style: 'destructive', onPress: signOut }
-      ]
-    );
-  };
 
   const handleHelp = () => {
     Alert.alert(
@@ -58,8 +47,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             {(user?.displayName || user?.email || 'U').charAt(0).toUpperCase()}
           </Text>
         </TouchableOpacity>
-                 <View style={styles.headerCenter}>
-         </View>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>TOP 10</Text>
+        </View>
         <View style={styles.headerRight}>
           <TouchableOpacity style={styles.streakButton}>
             <Text style={styles.streakIcon}>🔥</Text>
@@ -167,7 +157,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center'
   },
-  
+  headerTitle: {
+    color: COLORS.text,
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: 2
+  },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',

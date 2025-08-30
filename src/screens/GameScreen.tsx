@@ -22,14 +22,16 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     isQuestionComplete,
     getCorrectAnswersFound,
     resetGame,
-    startGame
+    startGame,
+    endGame
   } = useGame();
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
 
   const [showResults, setShowResults] = useState(false);
   const [isAnswerSubmitted, setIsAnswerSubmitted] = useState(false);
   const [submittedAnswers, setSubmittedAnswers] = useState<string[]>([]);
   const [showQuestionComplete, setShowQuestionComplete] = useState(false);
+  const [showAnswers, setShowAnswers] = useState(false);
 
   const currentQuestion = getCurrentQuestion();
   const progress = getProgress();
@@ -37,6 +39,16 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   const correctAnswersFound = getCorrectAnswersFound();
   const questionIsComplete = isQuestionComplete();
   
+  // Get submitted answers for the current round
+  const getCurrentRoundAnswers = () => {
+    if (!gameState || !gameState.rounds[gameState.currentRound - 1]) return [];
+    return gameState.rounds[gameState.currentRound - 1].playerAnswers
+      .filter(answer => answer.playerId === 'You')
+      .map(answer => answer.answer);
+  };
+  
+  const currentRoundAnswers = getCurrentRoundAnswers();
+
   // Initialize game if not already started
   useEffect(() => {
     if (!gameState) {
@@ -50,104 +62,46 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   useEffect(() => {
     if (questionIsComplete && !showQuestionComplete) {
       setShowQuestionComplete(true);
+      setTimeout(() => {
+        setShowQuestionComplete(false);
+      }, 3000);
     }
   }, [questionIsComplete, showQuestionComplete]);
 
-  // Helper function to check if answer is a duplicate (including aliases)
-  const isDuplicateAnswer = (newAnswer: string): boolean => {
-    if (!currentQuestion) return false;
-    
-    const normalizedNewAnswer = newAnswer.trim().toLowerCase();
-    
-    // Check against already submitted answers
-    for (const submittedAnswer of submittedAnswers) {
-      if (submittedAnswer === normalizedNewAnswer) {
-        return true;
-      }
-    }
-    
-    // Check against correct answers and their aliases to prevent duplicate persons
-    for (const correctAnswer of currentQuestion.answers) {
-      const normalizedCorrect = correctAnswer.text.toLowerCase();
-      const normalizedAliases = correctAnswer.aliases?.map(alias => alias.toLowerCase()) || [];
-      
-      // Check if this answer matches any already submitted correct answer
-      if (normalizedNewAnswer === normalizedCorrect || normalizedAliases.includes(normalizedNewAnswer)) {
-        // Check if this person was already submitted
-        for (const submittedAnswer of submittedAnswers) {
-          if (submittedAnswer === normalizedCorrect || normalizedAliases.includes(submittedAnswer)) {
-            return true; // This person was already submitted
+  const handleExitGame = () => {
+    Alert.alert(
+      'Exit Game',
+      'Are you sure you want to exit? Your progress will be lost.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Exit', 
+          style: 'destructive', 
+          onPress: () => {
+            resetGame();
+            navigation.navigate('Categories');
           }
         }
-      }
-    }
-    
-    return false;
+      ]
+    );
   };
 
-  const handleSubmitAnswer = () => {
-    if (!currentAnswer.trim()) return;
-    
-    // Check if question is already complete
-    if (questionIsComplete) {
-      Alert.alert('Question Complete', 'You have already found all 10 correct answers for this question!');
-      return;
-    }
-    
-    // Check if this answer was already submitted (including aliases)
-    if (isDuplicateAnswer(currentAnswer)) {
-      Alert.alert('Duplicate Answer', 'You have already submitted this person/answer.');
-      return;
-    }
-    
-    // Add to submitted answers
-    setSubmittedAnswers([...submittedAnswers, currentAnswer.trim().toLowerCase()]);
-    
-    submitAnswer('You', currentAnswer);
-    
-    // Clear the input for next answer
-    setAnswer('');
-  };
-
-  const handleNextQuestion = () => {
-    setShowQuestionComplete(false);
-    setAnswer('');
-    setSubmittedAnswers([]);
-    
-    // Always go to next question immediately, no questions asked
-    nextQuestion();
-  };
-
-  const handleExitGame = () => {
-    // Check if running on web first
-    if (Platform.OS === 'web') {
-      // For web, always navigate to categories
-      resetGame();
-      navigation.navigate('Categories');
-    } else {
-      // For mobile, show confirmation dialog
-      Alert.alert(
-        'Exit Game',
-        'Are you sure you want to exit? Your progress will be lost.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Exit', 
-            style: 'destructive',
-            onPress: () => {
-              resetGame();
-              // For mobile, use the same way the back button is used
-              if (navigation.canGoBack()) {
-                navigation.goBack();
-              } else {
-                // fallback if no previous screen exists
-                navigation.navigate('Categories');
-              }
-            }
+  const handleEndGame = () => {
+    Alert.alert(
+      'End Game',
+      'Are you sure you want to end the game? You\'ll see your final results.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'End Game', 
+          style: 'destructive', 
+          onPress: () => {
+            endGame();
+            setShowResults(true);
           }
-        ]
-      );
-    }
+        }
+      ]
+    );
   };
 
   const handlePlayAgain = () => {
@@ -166,17 +120,6 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     navigation.navigate('Profile');
   };
 
-  const handleSignOut = () => {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Sign Out', style: 'destructive', onPress: signOut }
-      ]
-    );
-  };
-
   const handleHelp = () => {
     Alert.alert(
       '🎯 How to Play TOP 10',
@@ -189,16 +132,42 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     Alert.alert(
       '📋 Game Rules',
       '🎯 OBJECTIVE: Guess the top 10 answers to each question\n\n🏆 SCORING:\n• #1 answer = 1 point\n• #2 answer = 2 points\n• #3 answer = 3 points\n• And so on...\n\n✅ MULTIPLE ANSWERS: Submit as many as you can!\n\n🎮 PROGRESS: Find all 10 correct answers to complete each question',
-      [{ text: 'Understood! ��' }]
+      [{ text: 'Understood! 🎮' }]
     );
   };
 
   const handleShowAnswerRules = () => {
     Alert.alert(
-      '📝 Answer Acceptance Rules',
-      '✅ ANSWERS ARE ACCEPTED IF:\n\n• Exact match (perfect spelling)\n• Close match (75%+ similarity)\n• Probable match (65%+ similarity)\n• Close match (55%+ similarity)\n\n💡 TIPS FOR BETTER MATCHING:\n• Don\'t worry about perfect spelling\n• Common typos are usually accepted\n• Articles (the, a, an) are ignored\n• Punctuation is ignored\n• Case doesn\'t matter\n\n🎯 The system is very forgiving for typos!',
-      [{ text: 'Got it! 🎮' }]
+      '📝 Answer Rules',
+      '✅ CORRECT: Exact matches get full points\n\n🔍 SIMILAR: Close matches get partial credit\n\n❌ WRONG: Incorrect answers get 0 points\n\n💡 TIP: Try different variations and synonyms!',
+      [{ text: 'Got it! ✍️' }]
     );
+  };
+
+  const handleSubmitAnswer = async () => {
+    if (!currentAnswer.trim()) return;
+
+    try {
+      submitAnswer('You', currentAnswer.trim());
+      setSubmittedAnswers(prev => [...prev, currentAnswer.trim()]);
+      setAnswer('');
+      setIsAnswerSubmitted(true);
+      
+      setTimeout(() => {
+        setIsAnswerSubmitted(false);
+      }, 2000);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to submit answer. Please try again.');
+    }
+  };
+
+  const handleNextQuestion = () => {
+    if (gameState && gameState.currentRound >= gameState.totalRounds) {
+      // Game finished, show results
+      setShowResults(true);
+    } else {
+      nextQuestion();
+    }
   };
 
   if (!gameState || !currentQuestion) {
@@ -206,8 +175,6 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Loading game...</Text>
-          <Text style={styles.loadingText}>Game State: {gameState ? 'exists' : 'null'}</Text>
-          <Text style={styles.loadingText}>Question: {currentQuestion ? 'exists' : 'null'}</Text>
         </View>
       </SafeAreaView>
     );
@@ -230,9 +197,14 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
             {correctAnswersFound}/10 answers found
           </Text>
         </View>
-        <TouchableOpacity onPress={handleExitGame}>
-          <Text style={styles.exitButton}>Exit</Text>
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <TouchableOpacity onPress={handleEndGame} style={styles.endGameButton}>
+            <Text style={styles.endGameButtonText}>End Game</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleExitGame} style={styles.exitButton}>
+            <Text style={styles.exitButtonText}>Exit</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView style={styles.content}>
@@ -246,6 +218,56 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
             <Text style={styles.helpButtonText}>ℹ️ Answer Rules</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Results Phase - Show when game is finished */}
+        {gameState?.gamePhase === 'finished' && (
+          <View style={styles.resultsSection}>
+            <Text style={styles.resultsTitle}>🎉 Game Complete!</Text>
+            <Text style={styles.resultsSubtitle}>Final Score: {currentScore} points</Text>
+            
+            {/* Toggle Button for Show/Hide Answers */}
+            <TouchableOpacity 
+              style={styles.toggleButton} 
+              onPress={() => setShowAnswers(!showAnswers)}
+            >
+              <Text style={styles.toggleButtonText}>
+                {showAnswers ? '🙈 Hide Answers' : '👁️ Show Answers'}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Answers List - Only show when toggle is on */}
+            {showAnswers && currentQuestion && (
+              <View style={styles.answersList}>
+                <Text style={styles.answersListTitle}>All Correct Answers:</Text>
+                {currentQuestion.answers.map((answer, index) => {
+                  const isCorrect = currentRoundAnswers.some(submitted => 
+                    submitted.toLowerCase().trim() === answer.text.toLowerCase().trim()
+                  );
+                  
+                  return (
+                    <View key={index} style={[
+                      styles.answerItem,
+                      isCorrect ? styles.correctAnswer : styles.missedAnswer
+                    ]}>
+                      <Text style={styles.answerRank}>#{answer.rank}</Text>
+                      <Text style={styles.answerText}>{answer.text}</Text>
+                      <Text style={styles.answerPoints}>{answer.points} pts</Text>
+                      {isCorrect && <Text style={styles.correctIndicator}>✅</Text>}
+                      {!isCorrect && <Text style={styles.missedIndicator}>❌</Text>}
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+            
+            {/* Play Again Button */}
+            <Button 
+              title="🎮 Play Again" 
+              onPress={handlePlayAgain}
+              style={styles.playAgainButton}
+            />
+          </View>
+        )}
 
         {/* Question Complete Success Message */}
         {showQuestionComplete && (
@@ -262,8 +284,8 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
           </View>
         )}
 
-        {/* Answer Section - Only show if question is not complete */}
-        {!questionIsComplete && (
+        {/* Answer Section - Only show if question is not complete AND game is not finished */}
+        {!questionIsComplete && gameState?.gamePhase !== 'finished' && (
           <View style={styles.answerSection}>
             <Text style={styles.answerLabel}>Your Answer:</Text>
             <TextInput 
@@ -337,7 +359,33 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.card
   },
   exitButton: {
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderRadius: 8,
+    backgroundColor: 'rgba(220, 38, 38, 0.1)',
+    borderWidth: 1,
+    borderColor: '#dc2626'
+  },
+  exitButtonText: {
     color: '#dc2626',
+    fontSize: 16,
+    fontWeight: '600'
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm
+  },
+  endGameButton: {
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderRadius: 8,
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    borderWidth: 1,
+    borderColor: '#3b82f6'
+  },
+  endGameButtonText: {
+    color: '#3b82f6',
     fontSize: 16,
     fontWeight: '600'
   },
@@ -478,6 +526,96 @@ const styles = StyleSheet.create({
     color: COLORS.background,
     fontSize: 14,
     fontWeight: '600'
+  },
+  resultsSection: {
+    backgroundColor: COLORS.card,
+    borderRadius: 12,
+    padding: SPACING.lg,
+    marginBottom: SPACING.xl,
+    alignItems: 'center'
+  },
+  resultsTitle: {
+    color: COLORS.text,
+    fontSize: 24,
+    fontWeight: '800',
+    marginBottom: SPACING.sm
+  },
+  resultsSubtitle: {
+    color: COLORS.muted,
+    fontSize: 18,
+    marginBottom: SPACING.lg
+  },
+  toggleButton: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 8,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    alignSelf: 'center'
+  },
+  toggleButtonText: {
+    color: COLORS.background,
+    fontSize: 16,
+    fontWeight: '600'
+  },
+  answersList: {
+    width: '100%',
+    marginTop: SPACING.md,
+    gap: SPACING.sm
+  },
+  answersListTitle: {
+    color: COLORS.text,
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: SPACING.sm
+  },
+  answerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderRadius: 8,
+    backgroundColor: COLORS.card
+  },
+  answerRank: {
+    color: COLORS.primary,
+    fontSize: 16,
+    fontWeight: '700'
+  },
+  answerText: {
+    flex: 1,
+    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: '500'
+  },
+  answerPoints: {
+    color: COLORS.primary,
+    fontSize: 16,
+    fontWeight: '700'
+  },
+  correctAnswer: {
+    backgroundColor: '#E0F2F7', // Light blue background for correct
+    borderColor: '#57B846',
+    borderWidth: 1
+  },
+  missedAnswer: {
+    backgroundColor: '#FDECEC', // Light red background for missed
+    borderColor: '#DC2626',
+    borderWidth: 1
+  },
+  correctIndicator: {
+    color: '#57B846',
+    fontSize: 20,
+    marginLeft: SPACING.sm
+  },
+  missedIndicator: {
+    color: '#DC2626',
+    fontSize: 20,
+    marginLeft: SPACING.sm
+  },
+  playAgainButton: {
+    marginTop: SPACING.lg,
+    backgroundColor: COLORS.primary
   }
 });
 

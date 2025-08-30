@@ -38,15 +38,18 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     setIsEditing(false);
   };
 
-  const handleSignOut = () => {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Sign Out', style: 'destructive', onPress: signOut }
-      ]
-    );
+  const handleSignOut = async () => {
+    try {
+      console.log('🚪 ProfileScreen: Starting sign-out...');
+      await signOut();
+      console.log('✅ ProfileScreen: Sign-out completed successfully');
+    } catch (error) {
+      console.error('💥 ProfileScreen: Sign-out error:', error);
+      Alert.alert(
+        'Sign-Out Error', 
+        error instanceof Error ? error.message : 'Failed to sign out. Please try again.'
+      );
+    }
   };
 
   const handleAchievements = () => {
@@ -166,10 +169,11 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           />
           
           <Button 
-            title="Sign Out" 
+            title="🚪 Sign Out" 
             onPress={handleSignOut}
             style={styles.signOutButton}
           />
+          
         </View>
       </ScrollView>
     </SafeAreaView>

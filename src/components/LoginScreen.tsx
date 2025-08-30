@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import GoogleSignInButton from './GoogleSignInButton';
+import GoogleConfigChecker from './GoogleConfigChecker';
 import { COLORS, SPACING } from '../utils/constants';
 
 interface LoginScreenProps {
@@ -25,6 +26,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
 }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showConfigChecker, setShowConfigChecker] = useState(false);
   const { signIn, loading } = useAuth();
 
   const handleEmailSignIn = async () => {
@@ -48,6 +50,10 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
 
   const handleGoogleSignInError = (error: string) => {
     Alert.alert('Google Sign-In Error', error);
+  };
+
+  const toggleConfigChecker = () => {
+    setShowConfigChecker(!showConfigChecker);
   };
 
   return (
@@ -123,6 +129,21 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
             onError={handleGoogleSignInError}
             style={styles.googleButton}
           />
+
+          {/* Configuration Checker Toggle */}
+          <TouchableOpacity
+            style={styles.configToggleButton}
+            onPress={toggleConfigChecker}
+          >
+            <Text style={styles.configToggleText}>
+              {showConfigChecker ? 'Hide' : 'Show'} Google Sign-In Setup
+            </Text>
+          </TouchableOpacity>
+
+          {/* Google Configuration Checker */}
+          {showConfigChecker && (
+            <GoogleConfigChecker />
+          )}
 
           {/* Sign Up Link */}
           <View style={styles.signUpContainer}>
@@ -225,6 +246,16 @@ const styles = StyleSheet.create({
   },
   googleButton: {
     marginBottom: SPACING.lg,
+  },
+  configToggleButton: {
+    alignSelf: 'center',
+    marginTop: SPACING.md,
+    marginBottom: SPACING.lg,
+  },
+  configToggleText: {
+    color: COLORS.primary,
+    fontSize: 14,
+    fontWeight: '600',
   },
   signUpContainer: {
     flexDirection: 'row',

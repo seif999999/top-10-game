@@ -10,10 +10,94 @@ import {
   GoogleAuthProvider,
   signInWithCredential
 } from 'firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import { auth } from './firebase';
 import { User } from '../types';
 
 export type AuthListenerUnsubscribe = () => void;
+
+// Storage keys for auth-related data
+const AUTH_STORAGE_KEYS = {
+  USER_DATA: 'auth_user_data',
+  AUTH_TOKEN: 'auth_token',
+  REFRESH_TOKEN: 'auth_refresh_token',
+  GOOGLE_TOKENS: 'auth_google_tokens',
+  REMEMBER_ME: 'auth_remember_me'
+};
+
+/**
+ * Clear all authentication-related data from storage
+ */
+const clearAuthStorage = async (): Promise<void> => {
+  try {
+    console.log('🧹 Clearing auth storage...');
+    
+    // Clear all auth-related keys
+    const keysToRemove = Object.values(AUTH_STORAGE_KEYS);
+    
+    if (Platform.OS === 'web') {
+      // On web, use localStorage
+      keysToRemove.forEach(key => {
+        localStorage.removeItem(key);
+        console.log(`🗑️ Removed from localStorage: ${key}`);
+      });
+    } else {
+      // On mobile, use AsyncStorage
+      await AsyncStorage.multiRemove(keysToRemove);
+      console.log(`🗑️ Removed from AsyncStorage: ${keysToRemove.join(', ')}`);
+    }
+    
+    console.log('✅ Auth storage cleared successfully');
+  } catch (error) {
+    console.error('❌ Error clearing auth storage:', error);
+    // Don't throw here - we still want to sign out from Firebase
+  }
+};
+
+/**
+ * Clear all user data and game progress
+ */
+const clearUserData = async (): Promise<void> => {
+  try {
+    console.log('🧹 Clearing user data...');
+    
+    if (Platform.OS === 'web') {
+      // On web, clear localStorage
+      const keys = Object.keys(localStorage);
+      const userDataKeys = keys.filter(key => 
+        key.startsWith('game_') || 
+        key.startsWith('user_') || 
+        key.startsWith('stats_') ||
+        key.startsWith('history_')
+      );
+      
+      userDataKeys.forEach(key => {
+        localStorage.removeItem(key);
+        console.log(`🗑️ Removed user data from localStorage: ${key}`);
+      });
+    } else {
+      // On mobile, clear AsyncStorage
+      const keys = await AsyncStorage.getAllKeys();
+      const userDataKeys = keys.filter(key => 
+        key.startsWith('game_') || 
+        key.startsWith('user_') || 
+        key.startsWith('stats_') ||
+        key.startsWith('history_')
+      );
+      
+      if (userDataKeys.length > 0) {
+        await AsyncStorage.multiRemove(userDataKeys);
+        console.log(`🗑️ Removed user data from AsyncStorage: ${userDataKeys.join(', ')}`);
+      }
+    }
+    
+    console.log('✅ User data cleared successfully');
+  } catch (error) {
+    console.error('❌ Error clearing user data:', error);
+    // Don't throw here - we still want to sign out from Firebase
+  }
+};
 
 export const signUpWithEmail = async (
   email: string,
@@ -64,10 +148,39 @@ export const resetPassword = async (email: string): Promise<void> => {
 
 export const signOutUser = async (): Promise<void> => {
   try {
+    console.log('🚪 Starting sign-out process...');
+    console.log(`📱 Platform: ${Platform.OS}`);
+    
+    // Step 1: Sign out from Firebase
+    console.log('🔥 Signing out from Firebase...');
     await signOut(auth);
+    console.log('✅ Firebase sign-out successful');
+    
+    // Step 2: Clear auth storage
+    console.log('🧹 Clearing authentication storage...');
+    await clearAuthStorage();
+    
+    // Step 3: Clear user data
+    console.log('🗑️ Clearing user data...');
+    await clearUserData();
+    
+    console.log('✅ Sign-out process completed successfully');
   } catch (error) {
+    console.error('💥 Sign-out error:', error);
+    
+    // Even if there's an error, try to clear storage
+    try {
+      console.log('🔄 Attempting to clear storage despite error...');
+      await clearAuthStorage();
+      await clearUserData();
+      console.log('✅ Storage cleared despite sign-out error');
+    } catch (storageError) {
+      console.error('❌ Failed to clear storage:', storageError);
+    }
+    
+    // Re-throw the original error
     const err = error as AuthError | Error;
-    throw new Error(getFriendlyAuthMessage(err));
+    throw new Error(`Sign-out failed: ${getFriendlyAuthMessage(err)}`);
   }
 };
 

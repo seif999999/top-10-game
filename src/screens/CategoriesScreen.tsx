@@ -92,18 +92,15 @@ const CategoriesScreen: React.FC<CategoriesScreenProps> = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Text style={styles.backButtonText}>←</Text>
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>Categories</Text>
-          <Text style={styles.headerSubtitle}>Choose your challenge</Text>
+          <Text style={styles.headerSubtitle}>Choose your game</Text>
         </View>
-        <TouchableOpacity style={styles.helpButton}>
-          <Text style={styles.helpIcon}>❓</Text>
-        </TouchableOpacity>
+        <View style={styles.placeholder} />
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
@@ -277,17 +274,6 @@ const styles = StyleSheet.create({
     color: COLORS.muted,
     fontSize: 12,
     marginTop: 2
-  },
-  helpButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center'
-  },
-  helpIcon: {
-    fontSize: 18
   },
   scrollView: {
     flex: 1
@@ -494,6 +480,9 @@ const styles = StyleSheet.create({
     color: COLORS.muted,
     fontSize: 12,
     textAlign: 'center'
+  },
+  placeholder: {
+    width: 40, // Adjust as needed for spacing
   }
 });
 

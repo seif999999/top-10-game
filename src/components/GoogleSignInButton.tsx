@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TouchableOpacity, Text, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, Alert, ActivityIndicator, View } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { signInWithGoogle as googleAuth } from '../services/googleAuth';
 import { COLORS, SPACING } from '../utils/constants';
@@ -62,10 +62,12 @@ const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
       activeOpacity={0.8}
     >
       {isLoading ? (
-        <ActivityIndicator color={COLORS.background} size="small" />
+        <ActivityIndicator color="#5F6368" size="small" />
       ) : (
         <>
-          <Text style={[styles.icon, textStyle]}>🔍</Text>
+          <View style={styles.googleIcon}>
+            <Text style={styles.googleIconText}>G</Text>
+          </View>
           <Text style={[styles.text, textStyle]}>
             Sign in with Google
           </Text>
@@ -80,28 +82,40 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#4285F4', // Google Blue
+    backgroundColor: '#FFFFFF',
     borderRadius: 8,
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.lg,
     marginVertical: SPACING.sm,
+    borderWidth: 1,
+    borderColor: '#DADCE0',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.1,
     shadowRadius: 3.84,
-    elevation: 5,
+    elevation: 3,
   },
-  icon: {
-    fontSize: 20,
+  googleIcon: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#4285F4',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: SPACING.sm,
   },
+  googleIconText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
   text: {
-    color: COLORS.background,
+    color: '#5F6368',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '500',
   },
 });
 

@@ -13,6 +13,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const unsub = subscribeToAuthChanges((u) => {
+      console.log('🔄 Auth state changed:', u ? `User: ${u.email}` : 'No user');
       setUser(u);
       setLoading(false);
     });
@@ -58,8 +59,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOut = async () => {
     setPendingAction(true);
     try {
+      console.log('🚪 AuthContext: Starting sign-out process...');
+      
+      // Call the auth service to sign out
       await signOutUser();
+      
+      // Clear local user state
+      console.log('🧹 AuthContext: Clearing local user state...');
       setUser(null);
+      
+      console.log('✅ AuthContext: Sign-out completed successfully');
+    } catch (error) {
+      console.error('💥 AuthContext: Sign-out error:', error);
+      
+      // Even if there's an error, clear the local user state
+      // This ensures the user is redirected to login screen
+      console.log('🔄 AuthContext: Clearing user state despite error...');
+      setUser(null);
+      
+      // Re-throw the error for the UI to handle
+      throw error;
     } finally {
       setPendingAction(false);
     }
