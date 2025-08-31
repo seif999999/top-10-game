@@ -565,6 +565,174 @@ export const sampleQuestions: GameQuestion[] = [
       { text: 'Congo', rank: 9, points: 9 },
       { text: 'Amur', rank: 10, points: 10 }
     ]
+  },
+
+  // Movies & TV Category
+  {
+    id: 'movies-1',
+    category: 'Movies & TV',
+    title: 'Top 10 highest-grossing movies of all time',
+    difficulty: 'medium',
+    answers: [
+      { text: 'Avatar', rank: 1, points: 1, normalized: 'avatar' },
+      { text: 'Avengers: Endgame', rank: 2, points: 2, aliases: ['endgame', 'avengers endgame'] },
+      { text: 'Titanic', rank: 3, points: 3, normalized: 'titanic' },
+      { text: 'Star Wars: The Force Awakens', rank: 4, points: 4, aliases: ['force awakens', 'star wars 7'] },
+      { text: 'Avengers: Infinity War', rank: 5, points: 5, aliases: ['infinity war', 'avengers 3'] },
+      { text: 'Spider-Man: No Way Home', rank: 6, points: 6, aliases: ['no way home', 'spiderman 3'] },
+      { text: 'Jurassic World', rank: 7, points: 7, aliases: ['jurassic world'] },
+      { text: 'The Lion King', rank: 8, points: 8, aliases: ['lion king'] },
+      { text: 'The Avengers', rank: 9, points: 9, aliases: ['avengers'] },
+      { text: 'Furious 7', rank: 10, points: 10, aliases: ['fast 7', 'fast and furious 7'] }
+    ]
+  },
+  {
+    id: 'movies-2',
+    category: 'Movies & TV',
+    title: 'Top 10 most popular TV shows of all time',
+    difficulty: 'medium',
+    answers: [
+      { text: 'Friends', rank: 1, points: 1, normalized: 'friends' },
+      { text: 'Game of Thrones', rank: 2, points: 2, aliases: ['got', 'game of thrones'] },
+      { text: 'Breaking Bad', rank: 3, points: 3, aliases: ['breaking bad'] },
+      { text: 'The Office', rank: 4, points: 4, aliases: ['office'] },
+      { text: 'Stranger Things', rank: 5, points: 5, aliases: ['stranger things'] },
+      { text: 'The Walking Dead', rank: 6, points: 6, aliases: ['walking dead'] },
+      { text: 'Modern Family', rank: 7, points: 7, aliases: ['modern family'] },
+      { text: 'The Big Bang Theory', rank: 8, points: 8, aliases: ['big bang theory', 'tbbt'] },
+      { text: 'Grey\'s Anatomy', rank: 9, points: 9, aliases: ['greys anatomy', 'greys'] },
+      { text: 'The Simpsons', rank: 10, points: 10, aliases: ['simpsons'] }
+    ]
+  },
+  {
+    id: 'movies-3',
+    category: 'Movies & TV',
+    title: 'Top 10 best-selling video games of all time',
+    difficulty: 'medium',
+    answers: [
+      { text: 'Minecraft', rank: 1, points: 1, normalized: 'minecraft' },
+      { text: 'Grand Theft Auto V', rank: 2, points: 2, aliases: ['gta 5', 'gta v', 'grand theft auto 5'] },
+      { text: 'Tetris', rank: 3, points: 3, normalized: 'tetris' },
+      { text: 'Wii Sports', rank: 4, points: 4, aliases: ['wii sports'] },
+      { text: 'PUBG: Battlegrounds', rank: 5, points: 5, aliases: ['pubg', 'playerunknowns battlegrounds'] },
+      { text: 'Super Mario Bros.', rank: 6, points: 6, aliases: ['mario bros', 'super mario'] },
+      { text: 'Pokemon Red/Green/Blue', rank: 7, points: 7, aliases: ['pokemon red', 'pokemon blue', 'pokemon green'] },
+      { text: 'Red Dead Redemption 2', rank: 8, points: 8, aliases: ['red dead 2', 'rdr2'] },
+      { text: 'The Witcher 3', rank: 9, points: 9, aliases: ['witcher 3', 'wild hunt'] },
+      { text: 'Call of Duty: Modern Warfare', rank: 10, points: 10, aliases: ['modern warfare', 'cod mw'] }
+    ]
+  },
+
+  // Food & Drink Category
+  {
+    id: 'food-1',
+    category: 'Food & Drink',
+    title: 'Top 10 most popular fast food chains in the world',
+    difficulty: 'easy',
+    answers: [
+      { text: 'McDonald\'s', rank: 1, points: 1, aliases: ['mcdonalds', 'mcd'] },
+      { text: 'KFC', rank: 2, points: 2, normalized: 'kfc' },
+      { text: 'Subway', rank: 3, points: 3, normalized: 'subway' },
+      { text: 'Burger King', rank: 4, points: 4, aliases: ['bk'] },
+      { text: 'Pizza Hut', rank: 5, points: 5, aliases: ['pizzahut'] },
+      { text: 'Domino\'s', rank: 6, points: 6, aliases: ['dominos'] },
+      { text: 'Starbucks', rank: 7, points: 7, normalized: 'starbucks' },
+      { text: 'Taco Bell', rank: 8, points: 8, aliases: ['tacobell'] },
+      { text: 'Wendy\'s', rank: 9, points: 9, aliases: ['wendys'] },
+      { text: 'Dunkin\'', rank: 10, points: 10, aliases: ['dunkin donuts', 'dunkin'] }
+    ]
+  },
+  {
+    id: 'food-2',
+    category: 'Food & Drink',
+    title: 'Top 10 most popular pizza toppings',
+    difficulty: 'easy',
+    answers: [
+      { text: 'Pepperoni', rank: 1, points: 1, normalized: 'pepperoni' },
+      { text: 'Mushrooms', rank: 2, points: 2, normalized: 'mushrooms' },
+      { text: 'Extra Cheese', rank: 3, points: 3, aliases: ['cheese', 'extra cheese'] },
+      { text: 'Sausage', rank: 4, points: 4, normalized: 'sausage' },
+      { text: 'Onions', rank: 5, points: 5, normalized: 'onions' },
+      { text: 'Black Olives', rank: 6, points: 6, aliases: ['olives', 'black olives'] },
+      { text: 'Green Peppers', rank: 7, points: 7, aliases: ['peppers', 'green peppers'] },
+      { text: 'Bacon', rank: 8, points: 8, normalized: 'bacon' },
+      { text: 'Ham', rank: 9, points: 9, normalized: 'ham' },
+      { text: 'Pineapple', rank: 10, points: 10, normalized: 'pineapple' }
+    ]
+  },
+  {
+    id: 'food-3',
+    category: 'Food & Drink',
+    title: 'Top 10 most consumed beverages in the world',
+    difficulty: 'medium',
+    answers: [
+      { text: 'Water', rank: 1, points: 1, normalized: 'water' },
+      { text: 'Tea', rank: 2, points: 2, normalized: 'tea' },
+      { text: 'Coffee', rank: 3, points: 3, normalized: 'coffee' },
+      { text: 'Beer', rank: 4, points: 4, normalized: 'beer' },
+      { text: 'Milk', rank: 5, points: 5, normalized: 'milk' },
+      { text: 'Orange Juice', rank: 6, points: 6, aliases: ['oj', 'orange juice'] },
+      { text: 'Wine', rank: 7, points: 7, normalized: 'wine' },
+      { text: 'Soda/Pop', rank: 8, points: 8, aliases: ['soda', 'pop', 'soft drinks'] },
+      { text: 'Lemonade', rank: 9, points: 9, normalized: 'lemonade' },
+      { text: 'Hot Chocolate', rank: 10, points: 10, aliases: ['hot chocolate', 'cocoa'] }
+    ]
+  },
+
+  // Technology Category
+  {
+    id: 'tech-1',
+    category: 'Technology',
+    title: 'Top 10 most valuable technology companies in 2024',
+    difficulty: 'medium',
+    answers: [
+      { text: 'Apple', rank: 1, points: 1, normalized: 'apple' },
+      { text: 'Microsoft', rank: 2, points: 2, normalized: 'microsoft' },
+      { text: 'Alphabet (Google)', rank: 3, points: 3, aliases: ['google', 'alphabet'] },
+      { text: 'Amazon', rank: 4, points: 4, normalized: 'amazon' },
+      { text: 'NVIDIA', rank: 5, points: 5, normalized: 'nvidia' },
+      { text: 'Meta (Facebook)', rank: 6, points: 6, aliases: ['facebook', 'meta'] },
+      { text: 'Tesla', rank: 7, points: 7, normalized: 'tesla' },
+      { text: 'Berkshire Hathaway', rank: 8, points: 8, aliases: ['berkshire'] },
+      { text: 'UnitedHealth Group', rank: 9, points: 9, aliases: ['unitedhealth'] },
+      { text: 'Johnson & Johnson', rank: 10, points: 10, aliases: ['jnj', 'johnson and johnson'] }
+    ]
+  },
+  {
+    id: 'tech-2',
+    category: 'Technology',
+    title: 'Top 10 most popular social media platforms',
+    difficulty: 'easy',
+    answers: [
+      { text: 'Facebook', rank: 1, points: 1, normalized: 'facebook' },
+      { text: 'YouTube', rank: 2, points: 2, normalized: 'youtube' },
+      { text: 'WhatsApp', rank: 3, points: 3, normalized: 'whatsapp' },
+      { text: 'Instagram', rank: 4, points: 4, normalized: 'instagram' },
+      { text: 'TikTok', rank: 5, points: 5, normalized: 'tiktok' },
+      { text: 'Twitter/X', rank: 6, points: 6, aliases: ['twitter', 'x'] },
+      { text: 'LinkedIn', rank: 7, points: 7, normalized: 'linkedin' },
+      { text: 'Snapchat', rank: 8, points: 8, normalized: 'snapchat' },
+      { text: 'Pinterest', rank: 9, points: 9, normalized: 'pinterest' },
+      { text: 'Reddit', rank: 10, points: 10, normalized: 'reddit' }
+    ]
+  },
+  {
+    id: 'tech-3',
+    category: 'Technology',
+    title: 'Top 10 most popular programming languages in 2024',
+    difficulty: 'hard',
+    answers: [
+      { text: 'Python', rank: 1, points: 1, normalized: 'python' },
+      { text: 'JavaScript', rank: 2, points: 2, aliases: ['js', 'javascript'] },
+      { text: 'Java', rank: 3, points: 3, normalized: 'java' },
+      { text: 'C++', rank: 4, points: 4, aliases: ['cpp', 'c plus plus'] },
+      { text: 'C#', rank: 5, points: 5, aliases: ['csharp', 'c sharp'] },
+      { text: 'PHP', rank: 6, points: 6, normalized: 'php' },
+      { text: 'TypeScript', rank: 7, points: 7, aliases: ['ts', 'typescript'] },
+      { text: 'Go', rank: 8, points: 8, normalized: 'go' },
+      { text: 'Rust', rank: 9, points: 9, normalized: 'rust' },
+      { text: 'Swift', rank: 10, points: 10, normalized: 'swift' }
+    ]
   }
 ];
 

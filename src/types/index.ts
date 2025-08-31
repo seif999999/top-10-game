@@ -49,6 +49,8 @@ export interface QuestionAnswer {
   text: string;
   rank: number;
   points: number;
+  normalized?: string;
+  aliases?: string[];
 }
 
 export interface GameQuestion {

@@ -13,13 +13,25 @@ export const isQuestionComplete = (round: GameRound): boolean => {
 };
 
 // Check if current question is complete (alias for compatibility)
-export const checkQuestionComplete = (gameState: GameState): boolean => {
+export const checkQuestionComplete = (gameState: GameState): boolean => { 
   if (!gameState.currentQuestion) return false;
   
-  const currentRound = gameState.rounds.find(r => r.roundNumber === gameState.currentRound);
-  if (!currentRound || !currentRound.playerAnswers || !Array.isArray(currentRound.playerAnswers)) return false;
+  console.log(`🔍 checkQuestionComplete - Debug:`, {
+    currentRound: gameState.currentRound,
+    roundsLength: gameState.rounds?.length,
+    rounds: gameState.rounds?.map(r => ({ roundNumber: r.roundNumber, answersCount: r.playerAnswers?.length || 0 }))
+  });
   
-  return currentRound.playerAnswers.length >= 10;
+  const currentRound = gameState.rounds.find(r => r.roundNumber === gameState.currentRound);
+  if (!currentRound || !currentRound.playerAnswers || !Array.isArray(currentRound.playerAnswers)) {
+    console.log(`🔍 No current round found or no player answers`);
+    return false;
+  }
+  
+  const isComplete = currentRound.playerAnswers.length >= 10;
+  console.log(`🔍 Question complete check: ${currentRound.playerAnswers.length}/10 answers - ${isComplete ? 'YES' : 'NO'}`);
+  
+  return isComplete;
 };
 
 // Process a player's answer
@@ -51,7 +63,22 @@ export const processAnswer = (
   }
   
   const correctAnswer = gameState.currentQuestion.answers.find(
-    a => a.text.toLowerCase().trim() === answer.toLowerCase().trim()
+    a => {
+      const normalizedAnswer = answer.toLowerCase().trim();
+      const normalizedText = a.text.toLowerCase().trim();
+      const normalizedAlias = a.normalized || normalizedText;
+      
+      // Check exact match first
+      if (normalizedText === normalizedAnswer) return true;
+      if (normalizedAlias === normalizedAnswer) return true;
+      
+      // Check aliases
+      if (a.aliases && Array.isArray(a.aliases)) {
+        return a.aliases.some(alias => alias.toLowerCase().trim() === normalizedAnswer);
+      }
+      
+      return false;
+    }
   );
   
   if (!correctAnswer) {
@@ -75,20 +102,22 @@ export const processAnswer = (
     updatedState.rounds = [];
   }
   
-  if (!updatedState.rounds[updatedState.currentRound - 1]) {
-    updatedState.rounds[updatedState.currentRound - 1] = {
+  // Ensure the rounds array is large enough
+  while (updatedState.rounds.length < updatedState.currentRound) {
+    updatedState.rounds.push({
       question: gameState.currentQuestion,
       playerAnswers: [],
-      roundNumber: updatedState.currentRound,
+      roundNumber: updatedState.rounds.length + 1,
       timeLimit: 0
-    };
+    });
   }
   
-  if (!updatedState.rounds[updatedState.currentRound - 1].playerAnswers) {
-    updatedState.rounds[updatedState.currentRound - 1].playerAnswers = [];
+  const currentRoundIndex = updatedState.currentRound - 1;
+  if (!updatedState.rounds[currentRoundIndex].playerAnswers) {
+    updatedState.rounds[currentRoundIndex].playerAnswers = [];
   }
   
-  updatedState.rounds[updatedState.currentRound - 1].playerAnswers.push(playerAnswer);
+  updatedState.rounds[currentRoundIndex].playerAnswers.push(playerAnswer);
   
   // Update scores
   if (!updatedState.scores) {
@@ -101,14 +130,37 @@ export const processAnswer = (
   updatedState.scores[playerId] += correctAnswer.points;
   
   console.log(`🎯 Score updated for player ${playerId}: ${updatedState.scores[playerId]}`);
+  console.log(`🎯 Points awarded: ${correctAnswer.points} for answer "${correctAnswer.text}" (rank ${correctAnswer.rank})`);
+  
+  // Check if all 10 answers have been found
+  const currentRound = updatedState.rounds[updatedState.currentRound - 1];
+  if (currentRound && currentRound.playerAnswers && currentRound.playerAnswers.length >= 10) {
+    console.log(`🎉 All 10 answers found! Ending game...`);
+    updatedState.gamePhase = 'finished';
+  }
   
   return { updatedState, answerResult: playerAnswer };
 };
 
 // Generate game results
 export const generateGameResults = (gameState: GameState): GameResults => {
-  if (!gameState.rounds || !Array.isArray(gameState.rounds) || !gameState.players || !Array.isArray(gameState.players)) {
-    throw new Error('Invalid game state: missing rounds or players arrays');
+  console.log(`🎮 generateGameResults called with:`, {
+    hasRounds: !!gameState.rounds,
+    roundsLength: gameState.rounds?.length,
+    hasPlayers: !!gameState.players,
+    playersLength: gameState.players?.length,
+    scores: gameState.scores
+  });
+  
+  // Handle case where rounds might be empty or undefined
+  if (!gameState.rounds || !Array.isArray(gameState.rounds)) {
+    console.log(`⚠️ No rounds found, creating empty rounds array`);
+    gameState.rounds = [];
+  }
+  
+  if (!gameState.players || !Array.isArray(gameState.players)) {
+    console.log(`⚠️ No players found, creating default player array`);
+    gameState.players = ['You'];
   }
   
   const totalTime = gameState.rounds.reduce((total, round) => {
@@ -118,8 +170,8 @@ export const generateGameResults = (gameState: GameState): GameResults => {
     }, 0);
   }, 0);
   
-  const totalScore = Object.values(gameState.scores).reduce((sum, score) => sum + score, 0);
-  const averageScore = totalScore / gameState.players.length;
+  const totalScore = Object.values(gameState.scores || {}).reduce((sum, score) => sum + score, 0);
+  const averageScore = totalScore / Math.max(gameState.players.length, 1);
   
   // Find best answer (highest points in shortest time)
   let bestAnswer: PlayerAnswer | undefined;
@@ -140,37 +192,41 @@ export const generateGameResults = (gameState: GameState): GameResults => {
   let winner = '';
   let highestScore = -1;
   
-  Object.entries(gameState.scores).forEach(([playerId, score]) => {
+  Object.entries(gameState.scores || {}).forEach(([playerId, score]) => {
     if (score > highestScore) {
       highestScore = score;
       winner = playerId;
     }
   });
   
-  return {
+  const results: GameResults = {
     gameId: gameState.gameId,
     category: gameState.category,
     players: gameState.players,
-    finalScores: gameState.scores,
+    finalScores: gameState.scores || {},
     roundResults: gameState.rounds,
     winner,
     totalTime,
     averageScore,
     bestAnswer
   };
+  
+  console.log(`🎮 Generated game results:`, results);
+  return results;
 };
 
 // Start a new game
 export const startNewGame = (
   category: string,
   players: string[],
-  totalRounds: number = 10
+  totalRounds: number = 10,
+  selectedQuestion?: any
 ): GameState => {
   if (!players || !Array.isArray(players) || players.length === 0) {
     throw new Error('Invalid players parameter: must be a non-empty array');
   }
   
-  console.log(`🎮 startNewGame called with category: "${category}", players: ${players}, totalRounds: ${totalRounds}`);
+  console.log(`🎮 startNewGame called with category: "${category}", players: ${players}, totalRounds: ${totalRounds}, selectedQuestion: ${selectedQuestion ? 'YES' : 'NO'}`);
   
   // Get questions for this specific category
   const questions = getQuestionsByCategory(category);
@@ -186,17 +242,28 @@ export const startNewGame = (
     throw new Error(`No questions found for category: ${category}`);
   }
   
-  // Shuffle questions once and store them
-  const shuffledQuestions = shuffleQuestions(questions);
-  if (!shuffledQuestions || !Array.isArray(shuffledQuestions)) {
-    console.error(`❌ Failed to shuffle questions for category: ${category}`);
-    throw new Error(`Failed to shuffle questions for category: ${category}`);
+  let shuffledQuestions;
+  let currentQuestion;
+  
+  if (selectedQuestion) {
+    // If a specific question is selected, use it directly
+    console.log(`🎮 Using selected question: "${selectedQuestion.title}"`);
+    currentQuestion = selectedQuestion;
+    shuffledQuestions = [selectedQuestion]; // Only one question for single question mode
+    totalRounds = 1; // Force single question mode
+  } else {
+    // Shuffle questions for random selection mode
+    shuffledQuestions = shuffleQuestions(questions);
+    if (!shuffledQuestions || !Array.isArray(shuffledQuestions)) {
+      console.error(`❌ Failed to shuffle questions for category: ${category}`);
+      throw new Error(`Failed to shuffle questions for category: ${category}`);
+    }
+    currentQuestion = shuffledQuestions[0] || null;
+    console.log(`🎮 Shuffled questions for "${category}":`, shuffledQuestions.map(q => q.title));
   }
   
-  console.log(`🎮 Shuffled questions for "${category}":`, shuffledQuestions.map(q => q.title));
-  
   // Adjust totalRounds to match available questions
-  const actualTotalRounds = Math.min(totalRounds, questions.length);
+  const actualTotalRounds = Math.min(totalRounds, shuffledQuestions.length);
   console.log(`🎮 Adjusted totalRounds from ${totalRounds} to ${actualTotalRounds}`);
   
   const gameState: GameState = {
@@ -212,13 +279,14 @@ export const startNewGame = (
     }, {} as { [playerId: string]: number }),
     gamePhase: 'lobby',
     timeRemaining: 0,
-    currentQuestion: shuffledQuestions[0] || null,
+    currentQuestion: currentQuestion,
     roundStartTime: Date.now()
   };
   
   console.log(`🎮 Game state created successfully`);
   if (gameState.currentQuestion) {
     console.log(`🎮 First question: "${gameState.currentQuestion.title}"`);
+    console.log(`🎮 Available answers:`, gameState.currentQuestion.answers.map(a => `${a.text} (rank: ${a.rank}, points: ${a.points})`));
   } else {
     console.log(`🎮 First question: null`);
   }

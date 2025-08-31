@@ -13,7 +13,7 @@ import { useMultiplayer } from '../contexts/MultiplayerContext';
 
 
 const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
-  const { roomId, categoryId, isMultiplayer } = route.params;
+  const { roomId, categoryId, isMultiplayer, selectedQuestion } = route.params;
   const { 
     gameState, 
     currentAnswer, 
@@ -69,8 +69,8 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     ? { current: multiplayerState.gameState?.currentRound || 1, total: multiplayerState.gameState?.totalRounds || 3 }
     : getProgress();
   
-  // Ensure progress is always an object
-  const gameProgress = typeof progress === 'number' ? { current: 1, total: 10 } : progress;
+  // Progress is now always an object
+  const gameProgress = progress;
   const currentScore = isMultiplayerMode 
     ? getMultiplayerScore(multiplayerState.playerId || '')
     : getPlayerScore('You');
@@ -134,13 +134,14 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
         console.log('🎮 Starting new single-player game...');
         console.log('🎮 Previous category:', gameState?.category);
         console.log('🎮 New category:', categoryId);
+        console.log('🎮 Selected question:', selectedQuestion?.title || 'None');
         
         // Reset any existing game first
         if (gameState) {
           resetGame();
         }
         
-        startGame(categoryId || 'Sports', ['You']);
+        startGame(categoryId || 'Sports', ['You'], selectedQuestion);
       }
     }
   }, [isMultiplayerMode, multiplayerState.roomId, gameState, roomId, categoryId, startGame, joinRoom, user, resetGame]);
@@ -154,6 +155,14 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
       }, 3000);
     }
   }, [questionIsComplete, showQuestionComplete]);
+
+  // Check if game is finished and show results
+  useEffect(() => {
+    if (gameState?.gamePhase === 'finished' && !showResults) {
+      console.log('🎉 Game finished! Showing results...');
+      setShowResults(true);
+    }
+  }, [gameState?.gamePhase, showResults]);
 
   const handleExitGame = () => {
     Alert.alert(
@@ -290,11 +299,13 @@ const handleEndGame = () => {
         console.log('📝 Submitting multiplayer answer:', answerToSubmit.trim());
         submitMultiplayerAnswer(answerToSubmit.trim());
         setMultiplayerAnswer('');
-      } else {
-        console.log('📝 Submitting single-player answer:', answerToSubmit.trim());
-        submitAnswer('You', answerToSubmit.trim());
-        setAnswer('');
-      }
+             } else {
+         console.log('📝 Submitting single-player answer:', answerToSubmit.trim());
+         console.log('📝 Before submission - Score:', getPlayerScore('You'));
+         submitAnswer('You', answerToSubmit.trim());
+         console.log('📝 After submission - Score:', getPlayerScore('You'));
+         setAnswer('');
+       }
       setSubmittedAnswers(prev => [...prev, answerToSubmit.trim()]);
       setIsAnswerSubmitted(true);
       
@@ -330,7 +341,10 @@ const handleEndGame = () => {
     gameState: gameState ? 'exists' : 'null',
     multiplayerState: multiplayerState.gameState ? 'exists' : 'null',
     currentQuestion: currentQuestion ? 'exists' : 'null',
-    gamePhase: multiplayerState.gameState?.gamePhase
+    gamePhase: multiplayerState.gameState?.gamePhase,
+    currentScore,
+    correctAnswersFound,
+    gameProgress
   });
 
   if ((!isMultiplayerMode && (!gameState || !currentQuestion)) || 
@@ -533,14 +547,26 @@ const handleEndGame = () => {
         </View>
       </ScrollView>
 
-      {/* Results Modal */}
-      <ResultsModal
-        visible={showResults}
-        gameResults={getGameResults()}
-        onClose={() => setShowResults(false)}
-        onPlayAgain={handlePlayAgain}
-        onBackToCategories={handleBackToCategories}
-      />
+             {/* Results Modal */}
+       <ResultsModal
+         visible={showResults}
+         gameResults={getGameResults()}
+         onClose={() => setShowResults(false)}
+         onPlayAgain={handlePlayAgain}
+         onBackToCategories={handleBackToCategories}
+       />
+       
+       {/* Debug Info */}
+       {__DEV__ && (
+         <View style={styles.debugSection}>
+           <Text style={styles.debugText}>Debug Info:</Text>
+           <Text style={styles.debugText}>Game Phase: {gameState?.gamePhase}</Text>
+           <Text style={styles.debugText}>Question Complete: {questionIsComplete ? 'Yes' : 'No'}</Text>
+           <Text style={styles.debugText}>Correct Answers: {correctAnswersFound}/10</Text>
+           <Text style={styles.debugText}>Current Score: {currentScore}</Text>
+           <Text style={styles.debugText}>Show Results: {showResults ? 'Yes' : 'No'}</Text>
+         </View>
+       )}
     </SafeAreaView>
   );
 };
@@ -853,10 +879,23 @@ const styles = StyleSheet.create({
      marginBottom: SPACING.md,
      textAlign: 'center'
    },
-   startGameButton: {
-     backgroundColor: COLORS.primary,
-     paddingHorizontal: SPACING.xl
-   }
+       startGameButton: {
+      backgroundColor: COLORS.primary,
+      paddingHorizontal: SPACING.xl
+    },
+    debugSection: {
+      backgroundColor: '#f0f0f0',
+      padding: SPACING.md,
+      margin: SPACING.md,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: '#ccc'
+    },
+    debugText: {
+      color: '#666',
+      fontSize: 12,
+      fontFamily: 'monospace'
+    }
 });
 
 export default GameScreen;
