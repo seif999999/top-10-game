@@ -1,4 +1,4 @@
-import { GameQuestion, QuestionAnswer } from '../data/sampleQuestions';
+import { GameQuestion, QuestionAnswer, sampleQuestions } from '../data/sampleQuestions';
 
 export interface AnswerValidationResult {
   isCorrect: boolean;
@@ -23,23 +23,54 @@ export interface UserQuestionData {
   submittedBy: string;
 }
 
-// Fuzzy matching threshold (0-1, higher = more strict)
-const SIMILARITY_THRESHOLD = 0.7;
-
 /**
- * Get questions by category
+ * Get questions by category - SIMPLE AND DIRECT
  */
 export const getQuestionsByCategory = (category: string): GameQuestion[] => {
-  const { sampleQuestions } = require('../data/sampleQuestions');
-  return sampleQuestions.filter((question: GameQuestion) => question.category === category);
+  console.log(`🔍 getQuestionsByCategory("${category}") called`);
+  
+  // Add safety check for sampleQuestions
+  if (!sampleQuestions || !Array.isArray(sampleQuestions)) {
+    console.error(`❌ sampleQuestions is not available or not an array`);
+    return [];
+  }
+  
+  console.log(`🔍 Total questions in data: ${sampleQuestions.length}`);
+  console.log(`🔍 Available categories:`, [...new Set(sampleQuestions.map(q => q.category))]);
+  
+  const filteredQuestions = sampleQuestions.filter(question => question.category === category);
+  
+  console.log(`🔍 Found ${filteredQuestions.length} questions for "${category}":`);
+  filteredQuestions.forEach((q, index) => {
+    console.log(`   ${index + 1}. ${q.title}`);
+  });
+  
+  console.log(`🔍 DEBUG: Category filtering details:`, {
+    requestedCategory: category,
+    totalQuestions: sampleQuestions.length,
+    filteredCount: filteredQuestions.length,
+    allCategories: [...new Set(sampleQuestions.map(q => q.category))],
+    firstFilteredQuestion: filteredQuestions[0]?.title || 'none'
+  });
+  
+  return filteredQuestions;
 };
 
 /**
- * Get a random question from a category or all questions
+ * Get a random question from a category
  */
 export const getRandomQuestion = (category?: string): GameQuestion => {
-  const { sampleQuestions } = require('../data/sampleQuestions');
+  // Add safety check for sampleQuestions
+  if (!sampleQuestions || !Array.isArray(sampleQuestions)) {
+    console.error(`❌ sampleQuestions is not available or not an array`);
+    return {} as GameQuestion; // Return empty object as fallback
+  }
+  
   const questions = category ? getQuestionsByCategory(category) : sampleQuestions;
+  if (questions.length === 0) {
+    console.error(`❌ No questions found for category: ${category}`);
+    return sampleQuestions[0] || {} as GameQuestion; // Fallback
+  }
   const randomIndex = Math.floor(Math.random() * questions.length);
   return questions[randomIndex];
 };
@@ -48,27 +79,31 @@ export const getRandomQuestion = (category?: string): GameQuestion => {
  * Get all available categories
  */
 export const getCategories = (): string[] => {
-  const { sampleQuestions } = require('../data/sampleQuestions');
-  return [...new Set(sampleQuestions.map((q: GameQuestion) => q.category))] as string[];
+  // Add safety check for sampleQuestions
+  if (!sampleQuestions || !Array.isArray(sampleQuestions)) {
+    console.error(`❌ sampleQuestions is not available or not an array`);
+    return [];
+  }
+  
+  return [...new Set(sampleQuestions.map(q => q.category))];
 };
 
 /**
- * Normalize text for comparison (remove punctuation, lowercase, trim)
- * IMPROVED: More forgiving normalization for typos and spelling mistakes
+ * Normalize text for comparison
  */
 export const normalizeAnswer = (text: string): string => {
   return text
     .toLowerCase()
     .trim()
-    .replace(/[^\w\s]/g, '') // Remove punctuation
-    .replace(/\s+/g, ' ') // Normalize whitespace
-    .replace(/[aeiou]/g, '') // Remove vowels for more flexible matching (optional)
-    .replace(/\b(the|a|an)\b/g, '') // Remove common articles
-    .replace(/\b(mr|mrs|ms|dr|prof)\b/g, ''); // Remove common titles
+    .replace(/[^\w\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/[aeiou]/g, '')
+    .replace(/\b(the|a|an)\b/g, '')
+    .replace(/\b(mr|mrs|ms|dr|prof)\b/g, '');
 };
 
 /**
- * Calculate similarity between two strings using Levenshtein distance
+ * Calculate similarity between two strings
  */
 export const calculateSimilarity = (str1: string, str2: string): number => {
   const normalized1 = normalizeAnswer(str1);
@@ -95,9 +130,9 @@ export const calculateSimilarity = (str1: string, str2: string): number => {
         matrix[i][j] = matrix[i - 1][j - 1];
       } else {
         matrix[i][j] = Math.min(
-          matrix[i - 1][j - 1] + 1, // substitution
-          matrix[i][j - 1] + 1,     // insertion
-          matrix[i - 1][j] + 1      // deletion
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
         );
       }
     }
@@ -109,8 +144,7 @@ export const calculateSimilarity = (str1: string, str2: string): number => {
 };
 
 /**
- * Validate user answer against correct answers with improved matching
- * NEW: Uses normalized answers and aliases for better matching
+ * Validate user answer
  */
 export const validateAnswer = (userAnswer: string, correctAnswers: QuestionAnswer[]): AnswerValidationResult => {
   if (!userAnswer.trim()) {
@@ -122,11 +156,9 @@ export const validateAnswer = (userAnswer: string, correctAnswers: QuestionAnswe
   
   let bestMatch: QuestionAnswer | undefined;
   let bestSimilarity = 0;
-  let matchType: 'exact' | 'alias' | 'fuzzy_high' | 'fuzzy_low' | 'none' = 'none';
   
-  // Check for exact matches first (normalized)
+  // Check for exact matches first
   for (const answer of correctAnswers) {
-    // Check exact match with normalized answer
     if (answer.normalized && normalizedUserAnswer === answer.normalized) {
       console.log(`✅ EXACT MATCH: "${answer.text}" (rank ${answer.rank}, points ${answer.points})`);
       return {
@@ -164,8 +196,8 @@ export const validateAnswer = (userAnswer: string, correctAnswers: QuestionAnswe
     }
   }
   
-  // Check if best match meets threshold - LOWERED for more forgiving matching
-  if (bestSimilarity >= 0.75 && bestMatch) { // Lowered from 0.92
+  // Check if best match meets threshold
+  if (bestSimilarity >= 0.75 && bestMatch) {
     return {
       isCorrect: true,
       matchedAnswer: bestMatch,
@@ -175,8 +207,7 @@ export const validateAnswer = (userAnswer: string, correctAnswers: QuestionAnswe
     };
   }
   
-  // Even lower threshold for probable matches - VERY FORGIVING
-  if (bestSimilarity >= 0.65 && bestMatch) { // Lowered from 0.85
+  if (bestSimilarity >= 0.65 && bestMatch) {
     return {
       isCorrect: true,
       matchedAnswer: bestMatch,
@@ -186,8 +217,7 @@ export const validateAnswer = (userAnswer: string, correctAnswers: QuestionAnswe
     };
   }
   
-  // Super low threshold for close matches - EXTREMELY FORGIVING
-  if (bestSimilarity >= 0.55 && bestMatch) { // New very low threshold
+  if (bestSimilarity >= 0.55 && bestMatch) {
     return {
       isCorrect: true,
       matchedAnswer: bestMatch,
@@ -201,20 +231,15 @@ export const validateAnswer = (userAnswer: string, correctAnswers: QuestionAnswe
 };
 
 /**
- * Calculate score based on rank only
- * SIMPLIFIED SCORING: rank position = points (rank 1 = 1 point, rank 10 = 10 points)
+ * Calculate score based on rank
  */
 export const calculateScore = (params: ScoreCalculationParams): number => {
   const { rank } = params;
-  
-  // Base points from rank (direct relationship: rank 1 = 1 point, rank 10 = 10 points)
-  const basePoints = rank;
-  
-  return basePoints; // No speed bonus, no difficulty multiplier
+  return rank;
 };
 
 /**
- * Get answer suggestions based on partial input
+ * Get answer suggestions
  */
 export const getAnswerSuggestions = (partialInput: string, correctAnswers: QuestionAnswer[]): string[] => {
   if (!partialInput.trim()) return [];
@@ -224,12 +249,11 @@ export const getAnswerSuggestions = (partialInput: string, correctAnswers: Quest
   
   for (const answer of correctAnswers) {
     const similarity = calculateSimilarity(partialInput, answer.text);
-    if (similarity > 0.3) { // Lower threshold for suggestions
+    if (similarity > 0.3) {
       suggestions.push({ text: answer.text, similarity });
     }
   }
   
-  // Sort by similarity and return top 5
   return suggestions
     .sort((a, b) => b.similarity - a.similarity)
     .slice(0, 5)
@@ -237,14 +261,11 @@ export const getAnswerSuggestions = (partialInput: string, correctAnswers: Quest
 };
 
 /**
- * Submit user-generated question (for future feature)
+ * Submit user-generated question
  */
 export const submitUserQuestion = async (questionData: UserQuestionData): Promise<boolean> => {
   try {
-    // TODO: Implement Firebase integration for user-generated content
     console.log('User question submitted:', questionData);
-    
-    // For now, just return success
     return true;
   } catch (error) {
     console.error('Error submitting user question:', error);
@@ -256,7 +277,17 @@ export const submitUserQuestion = async (questionData: UserQuestionData): Promis
  * Get question statistics
  */
 export const getQuestionStats = (category?: string) => {
-  const { sampleQuestions } = require('../data/sampleQuestions');
+  // Add safety check for sampleQuestions
+  if (!sampleQuestions || !Array.isArray(sampleQuestions)) {
+    console.error(`❌ sampleQuestions is not available or not an array`);
+    return {
+      totalQuestions: 0,
+      categories: [],
+      difficultyBreakdown: {},
+      averageAnswersPerQuestion: 0
+    };
+  }
+  
   const questions = category ? getQuestionsByCategory(category) : sampleQuestions;
   
   return {
@@ -274,7 +305,12 @@ export const getQuestionStats = (category?: string) => {
  * Get questions by difficulty level
  */
 export const getQuestionsByDifficulty = (difficulty: 'easy' | 'medium' | 'hard', category?: string): GameQuestion[] => {
-  const { sampleQuestions } = require('../data/sampleQuestions');
+  // Add safety check for sampleQuestions
+  if (!sampleQuestions || !Array.isArray(sampleQuestions)) {
+    console.error(`❌ sampleQuestions is not available or not an array`);
+    return [];
+  }
+  
   let questions = sampleQuestions;
   
   if (category) {

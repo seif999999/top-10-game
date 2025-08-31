@@ -72,16 +72,21 @@ const multiplayerReducer = (state: MultiplayerState, action: MultiplayerAction):
       };
 
     case 'SET_CURRENT_ANSWER':
+      console.log('🔌 MultiplayerContext: SET_CURRENT_ANSWER reducer called with:', action.payload);
       return {
         ...state,
         currentAnswer: action.payload
       };
 
     case 'ADD_SUBMITTED_ANSWER':
-      return {
+      console.log('🔌 MultiplayerContext: ADD_SUBMITTED_ANSWER reducer called with:', action.payload);
+      console.log('🔌 MultiplayerContext: Previous submittedAnswers:', state.submittedAnswers);
+      const newState = {
         ...state,
         submittedAnswers: [...state.submittedAnswers, action.payload]
       };
+      console.log('🔌 MultiplayerContext: New submittedAnswers:', newState.submittedAnswers);
+      return newState;
 
     case 'SET_LOADING':
       return {
@@ -118,6 +123,7 @@ interface MultiplayerContextType {
   leaveRoom: () => void;
   setCurrentAnswer: (answer: string) => void;
   resetMultiplayer: () => void;
+  forceDisconnect: () => void;
   getPlayerScore: (playerId: string) => number;
   getLeaderboard: () => Array<{ playerId: string; playerName: string; score: number }>;
   isQuestionComplete: () => boolean;
@@ -172,9 +178,10 @@ export const MultiplayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
        },
 
       onAnswerResult: (result) => {
-        if (result.isCorrect) {
-          dispatch({ type: 'ADD_SUBMITTED_ANSWER', payload: result.answer });
-        }
+        console.log('🔌 MultiplayerContext: onAnswerResult called with:', result);
+        // Add all submitted answers to the list, regardless of correctness
+        dispatch({ type: 'ADD_SUBMITTED_ANSWER', payload: result.answer });
+        console.log('📝 Answer result received and dispatched:', result);
       },
 
       onQuestionEnded: (gameState) => {
@@ -210,17 +217,18 @@ export const MultiplayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     console.log('🔌 MultiplayerContext: Setting up connection monitoring');
     
     const checkConnection = () => {
-      console.log('🔌 MultiplayerContext: Checking connection status...');
       const status = multiplayerService.getConnectionStatus();
-      console.log('🔌 MultiplayerContext: Connection status from service:', status);
-      console.log('🔌 MultiplayerContext: Current state connectionStatus:', state.connectionStatus);
       
-      dispatch({ type: 'SET_CONNECTION_STATUS', payload: status });
-      
-      // If disconnected, show error message
-      if (status === 'disconnected' && state.roomId) {
-        console.log('🔌 MultiplayerContext: Lost connection while in room, showing error');
-        dispatch({ type: 'SET_ERROR', payload: 'Lost connection to multiplayer server. Please try reconnecting.' });
+      // Only update if status actually changed
+      if (status !== state.connectionStatus) {
+        console.log('🔌 MultiplayerContext: Connection status changed from', state.connectionStatus, 'to', status);
+        dispatch({ type: 'SET_CONNECTION_STATUS', payload: status });
+        
+        // If disconnected, show error message only when status actually changes to disconnected
+        if (status === 'disconnected' && state.roomId) {
+          console.log('🔌 MultiplayerContext: Lost connection while in room, showing error');
+          dispatch({ type: 'SET_ERROR', payload: 'Lost connection to multiplayer server. Please try reconnecting.' });
+        }
       }
     };
 
@@ -231,7 +239,7 @@ export const MultiplayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       console.log('🔌 MultiplayerContext: Cleaning up connection monitoring');
       clearInterval(interval);
     };
-  }, [state.roomId]);
+  }, [state.roomId, state.connectionStatus]);
 
   // Join a multiplayer room
   const joinRoom = useCallback((roomId: string, playerId: string, playerName: string, categoryId: string) => {
@@ -259,16 +267,26 @@ export const MultiplayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // Submit an answer
   const submitAnswer = useCallback((answer: string) => {
+    console.log('🔌 MultiplayerContext: submitAnswer called with:', {
+      answer,
+      roomId: state.roomId,
+      playerId: state.playerId,
+      gameState: state.gameState
+    });
+    
     if (!state.roomId || !state.playerId) {
+      console.log('❌ No room or player ID');
       dispatch({ type: 'SET_ERROR', payload: 'Not in a game room' });
       return;
     }
 
     if (!answer.trim()) {
+      console.log('❌ Empty answer');
       dispatch({ type: 'SET_ERROR', payload: 'Answer cannot be empty' });
       return;
     }
 
+    console.log('📝 Calling multiplayerService.submitAnswer');
     multiplayerService.submitAnswer(state.roomId, state.playerId, answer);
     dispatch({ type: 'SET_CURRENT_ANSWER', payload: '' });
   }, [state.roomId, state.playerId]);
@@ -302,12 +320,19 @@ export const MultiplayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // Set current answer
   const setCurrentAnswer = useCallback((answer: string) => {
+    console.log('🔌 MultiplayerContext: setCurrentAnswer called with:', answer);
     dispatch({ type: 'SET_CURRENT_ANSWER', payload: answer });
   }, []);
 
   // Reset multiplayer state
   const resetMultiplayer = useCallback(() => {
     multiplayerService.leaveRoom();
+    dispatch({ type: 'RESET_MULTIPLAYER' });
+  }, []);
+
+  // Force disconnect (for when user exits game completely)
+  const forceDisconnect = useCallback(() => {
+    multiplayerService.forceDisconnect();
     dispatch({ type: 'RESET_MULTIPLAYER' });
   }, []);
 
@@ -359,6 +384,7 @@ export const MultiplayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     leaveRoom,
     setCurrentAnswer,
     resetMultiplayer,
+    forceDisconnect,
     getPlayerScore,
     getLeaderboard,
     isQuestionComplete,

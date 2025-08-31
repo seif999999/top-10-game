@@ -158,8 +158,10 @@ class MultiplayerService {
     });
 
     this.socket.on('answerResult', (result) => {
-      console.log('📝 Answer result:', result);
+      console.log('📝 Answer result received from server:', result);
+      console.log('📝 Calling onAnswerResult event handler');
       this.eventHandlers.onAnswerResult?.(result);
+      console.log('📝 onAnswerResult event handler called');
     });
 
     this.socket.on('questionEnded', (gameState) => {
@@ -190,8 +192,24 @@ class MultiplayerService {
    */
   joinRoom(roomId: string, playerId: string, playerName: string, categoryId: string) {
     if (!this.socket || !this.isConnected) {
-      console.error('❌ Socket not connected');
-      this.eventHandlers.onError?.('Not connected to server');
+      console.log('🔄 Socket not connected, attempting to reconnect...');
+      this.reconnect();
+      
+      // Wait for reconnection before joining room
+      setTimeout(() => {
+        if (this.isConnected && this.socket) {
+          console.log(`🎯 Joining room ${roomId} as ${playerName} after reconnection`);
+          this.socket.emit('joinRoom', {
+            roomId,
+            playerId,
+            playerName,
+            categoryId
+          });
+        } else {
+          console.error('❌ Failed to reconnect to server');
+          this.eventHandlers.onError?.('Failed to connect to server');
+        }
+      }, 2000); // Wait 2 seconds for reconnection
       return;
     }
 
@@ -222,6 +240,14 @@ class MultiplayerService {
    * Submit an answer in multiplayer mode
    */
   submitAnswer(roomId: string, playerId: string, answer: string) {
+    console.log('🔌 MultiplayerService: submitAnswer called with:', {
+      roomId,
+      playerId,
+      answer,
+      socketExists: !!this.socket,
+      isConnected: this.isConnected
+    });
+    
     if (!this.socket || !this.isConnected) {
       console.error('❌ Socket not connected');
       this.eventHandlers.onError?.('Not connected to server');
@@ -234,6 +260,8 @@ class MultiplayerService {
       playerId,
       answer: answer.trim()
     });
+    
+    console.log('📝 Answer submitted via socket');
   }
 
   /**
@@ -268,10 +296,10 @@ class MultiplayerService {
    * Leave the current room
    */
   leaveRoom() {
-    if (this.socket) {
-      this.socket.disconnect();
-      this.isConnected = false;
-      console.log('👋 Left multiplayer room');
+    if (this.socket && this.isConnected) {
+      // Only emit leave event, don't disconnect the socket
+      this.socket.emit('leaveRoom');
+      console.log('👋 Left multiplayer room (socket kept alive)');
     }
   }
 
@@ -299,6 +327,17 @@ class MultiplayerService {
       this.socket.disconnect();
       this.isConnected = false;
       console.log('🔌 Disconnected from multiplayer server');
+    }
+  }
+
+  /**
+   * Force disconnect (for when user exits game completely)
+   */
+  forceDisconnect() {
+    if (this.socket) {
+      this.socket.disconnect();
+      this.isConnected = false;
+      console.log('🔌 Force disconnected from multiplayer server');
     }
   }
 

@@ -568,12 +568,8 @@ export const sampleQuestions: GameQuestion[] = [
   }
 ];
 
-export const getQuestionsByCategory = (category: string): GameQuestion[] => {
-  return sampleQuestions.filter(question => question.category === category);
-};
-
 export const getRandomQuestion = (category?: string): GameQuestion => {
-  const questions = category ? getQuestionsByCategory(category) : sampleQuestions;
+  const questions = category ? sampleQuestions.filter(q => q.category === category) : sampleQuestions;
   const randomIndex = Math.floor(Math.random() * questions.length);
   return questions[randomIndex];
 };

@@ -36,7 +36,16 @@ const gameReducer = (state: GameContextState, action: GameAction): GameContextSt
     case 'START_GAME':
       try {
         const { category, players, selectedQuestion } = action.payload;
+        console.log(`🎮 START_GAME action - Category: ${category}, Players: ${players}, SelectedQuestion: ${selectedQuestion ? 'YES' : 'NO'}`);
+        
         const newGameState = startNewGame(category, players, selectedQuestion ? 1 : 10);
+        console.log(`🎮 START_GAME - New game state created:`, {
+          category: newGameState.category,
+          totalRounds: newGameState.totalRounds,
+          currentQuestion: newGameState.currentQuestion?.title,
+          shuffledQuestionsCount: newGameState.shuffledQuestions?.length
+        });
+        
         if (selectedQuestion) {
           newGameState.currentQuestion = selectedQuestion;
         }
@@ -49,6 +58,7 @@ const gameReducer = (state: GameContextState, action: GameAction): GameContextSt
           error: null
         };
       } catch (error) {
+        console.error(`❌ START_GAME error:`, error);
         return {
           ...state,
           error: 'Failed to start game'
@@ -215,14 +225,15 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
   }, [state.gameState]);
 
   const getPlayerScore = useCallback((playerId: string): number => {
-    const score = state.gameState?.scores[playerId] || 0;
+    if (!state.gameState || !state.gameState.scores) return 0;
+    const score = state.gameState.scores[playerId] || 0;
     console.log(`📊 getPlayerScore(${playerId}): ${score}`);
-    console.log(`📊 All scores:`, state.gameState?.scores);
+    console.log(`📊 All scores:`, state.gameState.scores);
     return score;
   }, [state.gameState]);
 
   const getGameProgress = useCallback((): number => {
-    if (!state.gameState) return 0;
+    if (!state.gameState || !state.gameState.currentRound || !state.gameState.totalRounds) return 0;
     return (state.gameState.currentRound / state.gameState.totalRounds) * 100;
   }, [state.gameState]);
 
@@ -232,7 +243,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
   }, [state.gameState]);
 
   const getCorrectAnswersFound = useCallback((): number => {
-    if (!state.gameState) return 0;
+    if (!state.gameState || !state.gameState.rounds || !Array.isArray(state.gameState.rounds)) return 0;
     const currentRound = state.gameState.rounds[state.gameState.currentRound - 1];
     return currentRound?.correctAnswersFound || 0;
   }, [state.gameState]);

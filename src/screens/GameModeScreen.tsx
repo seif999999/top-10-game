@@ -15,7 +15,7 @@ const GameModeScreen: React.FC<GameModeScreenProps> = ({ navigation, route }) =>
     // Navigate to single-player game
     navigation.navigate('GameScreen', {
       roomId: 'single-player',
-      categoryId,
+      categoryId: categoryName, // Use categoryName instead of categoryId for single-player
       categoryName,
       selectedQuestion
     });
@@ -30,7 +30,7 @@ const GameModeScreen: React.FC<GameModeScreenProps> = ({ navigation, route }) =>
     // Navigate to multiplayer game
     navigation.navigate('GameScreen', {
       roomId,
-      categoryId,
+      categoryId: categoryName, // Use categoryName instead of categoryId for multiplayer
       categoryName,
       selectedQuestion,
       isMultiplayer: true
