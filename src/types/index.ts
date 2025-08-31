@@ -110,6 +110,7 @@ export type AuthContextType = {
   signUp: (email: string, password: string, displayName?: string) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
+  updateUserProfile: (displayName: string) => Promise<void>;
 };
 
 

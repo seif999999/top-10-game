@@ -7,40 +7,29 @@ import Constants from 'expo-constants';
 // Note: Firebase Analytics is web-only with the JS SDK
 // We will import and init it conditionally on web to avoid native runtime errors
 
-const extra = (Constants?.expoConfig?.extra as any) ?? (Constants as any)?.manifestExtra ?? {};
-const firebaseConfig = (extra?.firebase ?? {}) as {
-  apiKey: string;
-  authDomain: string;
-  projectId: string;
-  storageBucket: string;
-  messagingSenderId: string;
-  appId: string;
-  measurementId?: string;
+// Temporary hardcoded Firebase configuration to bypass environment variable issues
+const firebaseConfig = {
+  apiKey: 'AIzaSyAu096CybNo1NMFCHVLi1PtPfy4cXgpTgQ',
+  authDomain: 'top10-game-f9219.firebaseapp.com',
+  projectId: 'top10-game-f9219',
+  storageBucket: 'top10-game-f9219.firebasestorage.app',
+  messagingSenderId: '807249280703',
+  appId: '1:807249280703:web:3706f3bbf0029ef43d500a',
+  measurementId: 'G-NCGRYEPFKZ'
 };
+
+// Debug logging to see what's actually loaded
+console.log('🔍 Firebase Config Debug:');
+console.log('Using hardcoded Firebase config:', firebaseConfig);
 
 // Check if we have the minimum required configuration
 const hasValidConfig = firebaseConfig?.apiKey && firebaseConfig?.projectId;
 
+console.log('hasValidConfig:', hasValidConfig);
+
 if (!hasValidConfig) {
-  console.error('Firebase config is missing or incomplete. Ensure env vars are set via app.config.js extra.firebase');
-  
-  // Create a mock config for development/testing
-  const mockConfig = {
-    apiKey: 'mock-api-key',
-    authDomain: 'mock-project.firebaseapp.com',
-    projectId: 'mock-project',
-    storageBucket: 'mock-project.appspot.com',
-    messagingSenderId: '123456789',
-    appId: 'mock-app-id'
-  };
-  
-  console.warn('Using mock Firebase config for development. Authentication will not work.');
-  firebaseConfig.apiKey = mockConfig.apiKey;
-  firebaseConfig.authDomain = mockConfig.authDomain;
-  firebaseConfig.projectId = mockConfig.projectId;
-  firebaseConfig.storageBucket = mockConfig.storageBucket;
-  firebaseConfig.messagingSenderId = mockConfig.messagingSenderId;
-  firebaseConfig.appId = mockConfig.appId;
+  console.error('Firebase config is missing or incomplete.');
+  throw new Error('Firebase configuration is invalid');
 }
 
 export const app = getApps().length ? getApp() : initializeApp(firebaseConfig);

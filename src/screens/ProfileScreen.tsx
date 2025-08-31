@@ -7,7 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
-  const { user, signOut } = useAuth();
+  const { user, signOut, updateUserProfile } = useAuth();
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [updatedDisplayName, setUpdatedDisplayName] = useState(user?.displayName || '');
   const [isEditing, setIsEditing] = useState(false);
@@ -20,7 +20,15 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     setBestStreak(5);
   }, []);
 
-  const handleSaveProfile = () => {
+  // Sync displayName state with user.displayName from AuthContext
+  useEffect(() => {
+    if (user?.displayName) {
+      setDisplayName(user.displayName);
+      setUpdatedDisplayName(user.displayName);
+    }
+  }, [user?.displayName]);
+
+  const handleSaveProfile = async () => {
     // Validate input
     if (!displayName || displayName.trim() === '') {
       Alert.alert('Error', 'Display name cannot be empty');
@@ -32,10 +40,18 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       return;
     }
     
-    // Update the local state to show the change
-    setUpdatedDisplayName(displayName.trim());
-    Alert.alert('Success', 'Profile updated successfully!');
-    setIsEditing(false);
+    try {
+      // Call the updateUserProfile function from AuthContext
+      await updateUserProfile(displayName.trim());
+      
+      // Update the local state to show the change
+      setUpdatedDisplayName(displayName.trim());
+      Alert.alert('Success', 'Profile updated successfully!');
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Profile update error:', error);
+      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to update profile. Please try again.');
+    }
   };
 
   const handleSignOut = async () => {
@@ -74,7 +90,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         <View style={styles.profileSection}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>
-              {(user?.displayName || user?.email || 'U').charAt(0).toUpperCase()}
+              {(updatedDisplayName || user?.displayName || user?.email || 'U').charAt(0).toUpperCase()}
             </Text>
           </View>
           

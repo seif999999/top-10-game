@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { AuthContextType, User } from '../types';
-import { signInWithEmail, signUpWithEmail, signOutUser, subscribeToAuthChanges, resetPassword as resetPasswordService, signInWithGoogle } from '../services/auth';
+import { signInWithEmail, signUpWithEmail, signOutUser, subscribeToAuthChanges, resetPassword as resetPasswordService, signInWithGoogle, updateUserProfile as updateUserProfileService } from '../services/auth';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { View } from 'react-native';
 
@@ -84,8 +84,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const updateUserProfile = async (displayName: string) => {
+    setPendingAction(true);
+    try {
+      console.log('🔄 AuthContext: Updating user profile...');
+      
+      // Call the auth service to update the profile
+      const updatedUser = await updateUserProfileService(displayName);
+      
+      // Update local user state with the new data
+      console.log('✅ AuthContext: Profile updated successfully');
+      setUser(updatedUser);
+    } catch (error) {
+      console.error('💥 AuthContext: Profile update error:', error);
+      throw error;
+    } finally {
+      setPendingAction(false);
+    }
+  };
+
   const value = useMemo<AuthContextType>(
-    () => ({ user, loading: loading || pendingAction, signIn, signUp, signOut, resetPassword, signInWithGoogle: signInWithGoogleAuth }),
+    () => ({ user, loading: loading || pendingAction, signIn, signUp, signOut, resetPassword, signInWithGoogle: signInWithGoogleAuth, updateUserProfile }),
     [user, loading, pendingAction]
   );
 

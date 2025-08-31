@@ -49,13 +49,15 @@ export interface MultiplayerEvents {
 
 class MultiplayerService {
   private socket: Socket | null = null;
-  private serverUrl: string = 'http://localhost:3001'; // Change this to your server URL
+  private serverUrl: string = 'http://192.168.1.12:3001'; // Your computer's LAN IP for mobile testing
   private isConnected: boolean = false;
   private eventHandlers: MultiplayerEvents = {};
 
   constructor() {
-    // Initialize socket connection
-    this.initializeSocket();
+    // Initialize socket connection with a delay to ensure app context is ready
+    setTimeout(() => {
+      this.initializeSocket();
+    }, 2000);
   }
 
   /**
@@ -67,7 +69,7 @@ class MultiplayerService {
       console.log('🔌 Server URL:', this.serverUrl);
       
       this.socket = io(this.serverUrl, {
-        transports: ['websocket', 'polling'],
+        transports: ['websocket'], // Force WebSocket only for mobile compatibility
         timeout: 20000,
         reconnection: true,
         reconnectionAttempts: 5,
@@ -101,7 +103,32 @@ class MultiplayerService {
 
     this.socket.on('connect_error', (error) => {
       console.error('❌ Connection error:', error);
+      this.isConnected = false;
       this.eventHandlers.onError?.('Connection failed. Please check your internet connection.');
+      
+      // Retry connection after delay
+      setTimeout(() => {
+        if (!this.isConnected) {
+          console.log('🔄 Retrying connection...');
+          this.reconnect();
+        }
+      }, 3000);
+    });
+
+    this.socket.on('reconnect', () => {
+      console.log('🔄 Reconnected to multiplayer server');
+      this.isConnected = true;
+    });
+
+    this.socket.on('reconnect_error', (error) => {
+      console.error('❌ Reconnection error:', error);
+      this.isConnected = false;
+    });
+
+    this.socket.on('reconnect_failed', () => {
+      console.error('❌ Reconnection failed');
+      this.isConnected = false;
+      this.eventHandlers.onError?.('Failed to reconnect to multiplayer server');
     });
 
     // Game events

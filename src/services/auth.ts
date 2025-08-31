@@ -188,6 +188,24 @@ export const getCurrentUser = (): User | null => {
   return auth.currentUser ? mapFirebaseUser(auth.currentUser) : null;
 };
 
+export const updateUserProfile = async (displayName: string): Promise<User> => {
+  try {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error('No user is currently signed in');
+    }
+    
+    // Update the Firebase user profile
+    await updateProfile(currentUser, { displayName });
+    
+    // Return the updated user object
+    return mapFirebaseUser(currentUser);
+  } catch (error) {
+    const err = error as AuthError | Error;
+    throw new Error(`Failed to update profile: ${getFriendlyAuthMessage(err)}`);
+  }
+};
+
 export const subscribeToAuthChanges = (cb: (user: User | null) => void): AuthListenerUnsubscribe => {
   const unsub = onAuthStateChanged(auth, (fbUser) => {
     cb(fbUser ? mapFirebaseUser(fbUser) : null);

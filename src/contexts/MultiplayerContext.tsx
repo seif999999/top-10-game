@@ -207,23 +207,42 @@ export const MultiplayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // Monitor connection status
   useEffect(() => {
+    console.log('🔌 MultiplayerContext: Setting up connection monitoring');
+    
     const checkConnection = () => {
+      console.log('🔌 MultiplayerContext: Checking connection status...');
       const status = multiplayerService.getConnectionStatus();
+      console.log('🔌 MultiplayerContext: Connection status from service:', status);
+      console.log('🔌 MultiplayerContext: Current state connectionStatus:', state.connectionStatus);
+      
       dispatch({ type: 'SET_CONNECTION_STATUS', payload: status });
+      
+      // If disconnected, show error message
+      if (status === 'disconnected' && state.roomId) {
+        console.log('🔌 MultiplayerContext: Lost connection while in room, showing error');
+        dispatch({ type: 'SET_ERROR', payload: 'Lost connection to multiplayer server. Please try reconnecting.' });
+      }
     };
 
     checkConnection();
     const interval = setInterval(checkConnection, 2000);
 
-    return () => clearInterval(interval);
-  }, []);
+    return () => {
+      console.log('🔌 MultiplayerContext: Cleaning up connection monitoring');
+      clearInterval(interval);
+    };
+  }, [state.roomId]);
 
   // Join a multiplayer room
   const joinRoom = useCallback((roomId: string, playerId: string, playerName: string, categoryId: string) => {
+    console.log('🔌 MultiplayerContext: joinRoom() called with:', { roomId, playerId, playerName, categoryId });
+    console.log('🔌 MultiplayerContext: Current connection status:', state.connectionStatus);
+    
     dispatch({ type: 'SET_LOADING', payload: true });
     dispatch({ type: 'SET_ERROR', payload: null });
     dispatch({ type: 'SET_ROOM', payload: { roomId, playerId, playerName } });
     
+    console.log('🔌 MultiplayerContext: Calling multiplayerService.joinRoom()');
     multiplayerService.joinRoom(roomId, playerId, playerName, categoryId);
   }, []);
 
