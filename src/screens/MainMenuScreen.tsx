@@ -1,26 +1,88 @@
-import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Dimensions } from 'react-native';
-import { COLORS, SPACING } from '../utils/constants';
+import React, { useRef } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Dimensions, Animated } from 'react-native';
+import { COLORS, SPACING, TYPOGRAPHY, ANIMATIONS } from '../utils/constants';
 import { MainMenuScreenProps } from '../types/navigation';
 
 const { width } = Dimensions.get('window');
 
 const MainMenuScreen: React.FC<MainMenuScreenProps> = ({ navigation }) => {
+  // Animation values
+  const singlePlayerScale = useRef(new Animated.Value(1)).current;
+  const multiplayerScale = useRef(new Animated.Value(1)).current;
+  const backButtonScale = useRef(new Animated.Value(1)).current;
+
   const handleSinglePlayer = () => {
+    // Button press animation
+    Animated.sequence([
+      Animated.timing(singlePlayerScale, {
+        toValue: 0.95,
+        duration: ANIMATIONS.duration.fast,
+        useNativeDriver: true,
+      }),
+      Animated.timing(singlePlayerScale, {
+        toValue: 1,
+        duration: ANIMATIONS.duration.fast,
+        useNativeDriver: true,
+      })
+    ]).start();
+    
     navigation.navigate('Categories', { gameMode: 'single' });
   };
 
   const handleMultiplayer = () => {
+    // Button press animation
+    Animated.sequence([
+      Animated.timing(multiplayerScale, {
+        toValue: 0.95,
+        duration: ANIMATIONS.duration.fast,
+        useNativeDriver: true,
+      }),
+      Animated.timing(multiplayerScale, {
+        toValue: 1,
+        duration: ANIMATIONS.duration.fast,
+        useNativeDriver: true,
+      })
+    ]).start();
+    
     navigation.navigate('Categories', { gameMode: 'multiplayer' });
+  };
+
+  const handleBackToHome = () => {
+    // Button press animation
+    Animated.sequence([
+      Animated.timing(backButtonScale, {
+        toValue: 0.9,
+        duration: ANIMATIONS.duration.fast,
+        useNativeDriver: true,
+      }),
+      Animated.timing(backButtonScale, {
+        toValue: 1,
+        duration: ANIMATIONS.duration.fast,
+        useNativeDriver: true,
+      })
+    ]).start();
+    
+    navigation.goBack();
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>TOP 10</Text>
-          <Text style={styles.subtitle}>Trivia Challenge</Text>
+                 <View style={styles.header}>
+           <Animated.View style={{ transform: [{ scale: backButtonScale }] }}>
+             <TouchableOpacity onPress={handleBackToHome} style={styles.backButton}>
+               <View style={styles.backButtonIcon}>
+                 <Text style={styles.backButtonArrow}>‹</Text>
+               </View>
+               <Text style={styles.backButtonText}>Back</Text>
+             </TouchableOpacity>
+           </Animated.View>
+          <View style={styles.headerCenter}>
+            <Text style={styles.title}>TOP 10</Text>
+            <Text style={styles.subtitle}>Trivia Challenge</Text>
+          </View>
+          <View style={styles.placeholder} />
         </View>
 
         {/* Game Mode Selection */}
@@ -28,26 +90,30 @@ const MainMenuScreen: React.FC<MainMenuScreenProps> = ({ navigation }) => {
           <Text style={styles.modeTitle}>Choose Your Game Mode</Text>
           
           {/* Single Player Card */}
-          <TouchableOpacity style={styles.modeCard} onPress={handleSinglePlayer}>
-            <View style={styles.modeIcon}>
-              <Text style={styles.modeIconText}>🎮</Text>
-            </View>
-            <Text style={styles.modeName}>Single Player</Text>
-            <Text style={styles.modeDescription}>
-              Play solo and challenge yourself to find all the top answers
-            </Text>
-          </TouchableOpacity>
+          <Animated.View style={{ transform: [{ scale: singlePlayerScale }] }}>
+            <TouchableOpacity style={styles.modeCard} onPress={handleSinglePlayer}>
+              <View style={styles.modeIcon}>
+                <Text style={styles.modeIconText}>🎮</Text>
+              </View>
+              <Text style={styles.modeName}>Single Player</Text>
+              <Text style={styles.modeDescription}>
+                Play solo and challenge yourself to find all the top answers
+              </Text>
+            </TouchableOpacity>
+          </Animated.View>
 
           {/* Multiplayer Card */}
-          <TouchableOpacity style={styles.modeCard} onPress={handleMultiplayer}>
-            <View style={styles.modeIcon}>
-              <Text style={styles.modeIconText}>👥</Text>
-            </View>
-            <Text style={styles.modeName}>Multiplayer</Text>
-            <Text style={styles.modeDescription}>
-              Compete with friends in real-time multiplayer matches
-            </Text>
-          </TouchableOpacity>
+          <Animated.View style={{ transform: [{ scale: multiplayerScale }] }}>
+            <TouchableOpacity style={styles.modeCard} onPress={handleMultiplayer}>
+              <View style={styles.modeIcon}>
+                <Text style={styles.modeIconText}>👥</Text>
+              </View>
+              <Text style={styles.modeName}>Multiplayer</Text>
+              <Text style={styles.modeDescription}>
+                Compete with friends in real-time multiplayer matches
+              </Text>
+            </TouchableOpacity>
+          </Animated.View>
         </View>
 
         {/* Footer */}
@@ -70,81 +136,154 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   header: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginTop: SPACING.xl * 2,
+    paddingHorizontal: SPACING.lg,
   },
-  title: {
-    fontSize: 48,
-    fontWeight: '900',
-    color: COLORS.primary,
-    marginBottom: SPACING.sm,
+     backButton: {
+     flexDirection: 'row',
+     alignItems: 'center',
+     paddingHorizontal: SPACING.md,
+     paddingVertical: SPACING.sm,
+     borderRadius: 25,
+     backgroundColor: 'rgba(139, 92, 246, 0.08)',
+     borderWidth: 1.5,
+     borderColor: 'rgba(139, 92, 246, 0.3)',
+     shadowColor: COLORS.primary,
+     shadowOffset: { width: 0, height: 2 },
+     shadowOpacity: 0.1,
+     shadowRadius: 4,
+     elevation: 3,
+   },
+     backButtonIcon: {
+     width: 24,
+     height: 24,
+     borderRadius: 12,
+     backgroundColor: 'rgba(139, 92, 246, 0.2)',
+     justifyContent: 'center',
+     alignItems: 'center',
+     marginRight: SPACING.xs,
+   },
+   backButtonArrow: {
+     color: '#8B5CF6',
+     fontSize: 18,
+     fontWeight: TYPOGRAPHY.fontWeight.bold,
+     lineHeight: 20,
+   },
+   backButtonText: {
+     color: '#8B5CF6',
+     fontSize: 14,
+     fontWeight: TYPOGRAPHY.fontWeight.semibold,
+     fontFamily: TYPOGRAPHY.fontFamily.primary,
+     letterSpacing: 0.3,
+   },
+  headerCenter: {
+    alignItems: 'center',
+    flex: 1,
   },
-  subtitle: {
-    fontSize: 18,
-    color: COLORS.muted,
-    fontWeight: '500',
+  placeholder: {
+    width: 40,
   },
+     title: {
+     fontSize: 48,
+     fontWeight: TYPOGRAPHY.fontWeight.black,
+     fontFamily: TYPOGRAPHY.fontFamily.display,
+     color: COLORS.primary,
+     marginBottom: SPACING.sm,
+     letterSpacing: 2,
+     textShadowColor: 'rgba(0, 0, 0, 0.3)',
+     textShadowOffset: { width: 0, height: 2 },
+     textShadowRadius: 4,
+   },
+     subtitle: {
+     fontSize: 18,
+     color: COLORS.muted,
+     fontWeight: TYPOGRAPHY.fontWeight.medium,
+     fontFamily: TYPOGRAPHY.fontFamily.primary,
+     letterSpacing: 0.5,
+   },
   modeSelection: {
     flex: 1,
     justifyContent: 'center',
     gap: SPACING.xl,
   },
-  modeTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: COLORS.text,
-    textAlign: 'center',
-    marginBottom: SPACING.xl,
-  },
-  modeCard: {
-    backgroundColor: COLORS.card,
-    borderRadius: 20,
-    padding: SPACING.xl,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  modeIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: COLORS.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: SPACING.lg,
-  },
+     modeTitle: {
+     fontSize: 24,
+     fontWeight: TYPOGRAPHY.fontWeight.bold,
+     fontFamily: TYPOGRAPHY.fontFamily.primary,
+     color: COLORS.text,
+     textAlign: 'center',
+     marginBottom: SPACING.xl,
+     letterSpacing: 0.5,
+   },
+     modeCard: {
+     backgroundColor: COLORS.card,
+     borderRadius: 20,
+     padding: SPACING.xl,
+     alignItems: 'center',
+     shadowColor: COLORS.primary,
+     shadowOffset: {
+       width: 0,
+       height: 8,
+     },
+     shadowOpacity: 0.2,
+     shadowRadius: 16,
+     elevation: 12,
+     borderWidth: 2,
+     borderColor: 'rgba(139, 92, 246, 0.2)',
+     transform: [{ scale: 1 }],
+   },
+     modeIcon: {
+     width: 80,
+     height: 80,
+     borderRadius: 40,
+     backgroundColor: COLORS.primary,
+     justifyContent: 'center',
+     alignItems: 'center',
+     marginBottom: SPACING.lg,
+     shadowColor: COLORS.primary,
+     shadowOffset: {
+       width: 0,
+       height: 4,
+     },
+     shadowOpacity: 0.4,
+     shadowRadius: 8,
+     elevation: 6,
+   },
   modeIconText: {
     fontSize: 36,
   },
-  modeName: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: COLORS.text,
-    marginBottom: SPACING.md,
-  },
-  modeDescription: {
-    fontSize: 16,
-    color: COLORS.muted,
-    textAlign: 'center',
-    lineHeight: 24,
-  },
+     modeName: {
+     fontSize: 24,
+     fontWeight: TYPOGRAPHY.fontWeight.bold,
+     fontFamily: TYPOGRAPHY.fontFamily.primary,
+     color: COLORS.text,
+     marginBottom: SPACING.md,
+     letterSpacing: 0.5,
+   },
+     modeDescription: {
+     fontSize: 16,
+     color: COLORS.muted,
+     fontFamily: TYPOGRAPHY.fontFamily.secondary,
+     fontWeight: TYPOGRAPHY.fontWeight.regular,
+     textAlign: 'center',
+     lineHeight: 24,
+     letterSpacing: 0.2,
+   },
   footer: {
     alignItems: 'center',
     marginBottom: SPACING.xl,
   },
-  footerText: {
-    fontSize: 14,
-    color: COLORS.muted,
-    textAlign: 'center',
-  },
+     footerText: {
+     fontSize: 14,
+     color: COLORS.muted,
+     fontFamily: TYPOGRAPHY.fontFamily.secondary,
+     fontWeight: TYPOGRAPHY.fontWeight.medium,
+     textAlign: 'center',
+     letterSpacing: 0.3,
+   },
 });
 
 export default MainMenuScreen;

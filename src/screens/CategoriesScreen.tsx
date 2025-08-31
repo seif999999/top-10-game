@@ -103,7 +103,10 @@ const CategoriesScreen: React.FC<CategoriesScreenProps> = ({ navigation }) => {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backButtonText}>←</Text>
+          <View style={styles.backButtonIcon}>
+            <Text style={styles.backButtonArrow}>‹</Text>
+          </View>
+          <Text style={styles.backButtonText}>Back</Text>
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>Categories</Text>
@@ -255,19 +258,42 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.1)'
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center'
-  },
-  backButtonText: {
-    color: COLORS.text,
-    fontSize: 20,
-    fontWeight: '600'
-  },
+     backButton: {
+     flexDirection: 'row',
+     alignItems: 'center',
+     paddingHorizontal: SPACING.md,
+     paddingVertical: SPACING.sm,
+     borderRadius: 25,
+     backgroundColor: 'rgba(139, 92, 246, 0.08)',
+     borderWidth: 1.5,
+     borderColor: 'rgba(139, 92, 246, 0.3)',
+     shadowColor: '#8B5CF6',
+     shadowOffset: { width: 0, height: 2 },
+     shadowOpacity: 0.1,
+     shadowRadius: 4,
+     elevation: 3,
+   },
+     backButtonIcon: {
+     width: 24,
+     height: 24,
+     borderRadius: 12,
+     backgroundColor: 'rgba(139, 92, 246, 0.2)',
+     justifyContent: 'center',
+     alignItems: 'center',
+     marginRight: SPACING.xs,
+   },
+   backButtonArrow: {
+     color: '#8B5CF6',
+     fontSize: 18,
+     fontWeight: '700',
+     lineHeight: 20,
+   },
+   backButtonText: {
+     color: '#8B5CF6',
+     fontSize: 14,
+     fontWeight: '600',
+     letterSpacing: 0.3,
+   },
   headerCenter: {
     flex: 1,
     alignItems: 'center',

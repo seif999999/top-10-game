@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Alert, TextInput, Platform } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Alert, TextInput, Platform, Animated } from 'react-native';
 import Button from '../components/Button';
 import ResultsModal from '../components/ResultsModal';
 import MultiplayerLeaderboard from '../components/MultiplayerLeaderboard';
-import { COLORS, SPACING } from '../utils/constants';
+import RankingOverlay from '../components/RankingOverlay';
+import { COLORS, SPACING, TYPOGRAPHY, ANIMATIONS } from '../utils/constants';
 import { GameScreenProps } from '../types/navigation';
 import { useGame } from '../contexts/GameContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -55,6 +56,13 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   const [submittedAnswers, setSubmittedAnswers] = useState<string[]>([]);
   const [showQuestionComplete, setShowQuestionComplete] = useState(false);
   const [showAnswers, setShowAnswers] = useState(false);
+  const [showRankingOverlay, setShowRankingOverlay] = useState(false);
+  const [showGameEndRanking, setShowGameEndRanking] = useState(false);
+  
+  // Animation values
+  const submitButtonScale = useRef(new Animated.Value(1)).current;
+  const answerInputGlow = useRef(new Animated.Value(0)).current;
+  const [lastAnswerResult, setLastAnswerResult] = useState<'correct' | 'incorrect' | null>(null);
  
   
 
@@ -136,10 +144,12 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
         console.log('🎮 New category:', categoryId);
         console.log('🎮 Selected question:', selectedQuestion?.title || 'None');
         
-        // Reset any existing game first
-        if (gameState) {
-          resetGame();
-        }
+                 // Reset any existing game first
+         if (gameState) {
+           resetGame();
+           setShowRankingOverlay(false);
+           setShowGameEndRanking(false);
+         }
         
         startGame(categoryId || 'Sports', ['You'], selectedQuestion);
       }
@@ -160,6 +170,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   useEffect(() => {
     if (gameState?.gamePhase === 'finished' && !showResults) {
       console.log('🎉 Game finished! Showing results...');
+      setShowGameEndRanking(true);
       setShowResults(true);
     }
   }, [gameState?.gamePhase, showResults]);
@@ -232,25 +243,27 @@ const handleEndGame = () => {
 };
 
 
-     const handlePlayAgain = () => {
-     setShowResults(false);
-     if (isMultiplayerMode) {
-       forceDisconnect();
-     } else {
-       resetGame();
-     }
-     navigation.navigate('MainMenu');
-   };
+           const handlePlayAgain = () => {
+      setShowResults(false);
+      setShowGameEndRanking(false);
+      if (isMultiplayerMode) {
+        forceDisconnect();
+      } else {
+        resetGame();
+      }
+      navigation.navigate('MainMenu');
+    };
 
-     const handleBackToCategories = () => {
-     setShowResults(false);
-     if (isMultiplayerMode) {
-       forceDisconnect();
-     } else {
-       resetGame();
-     }
-     navigation.navigate('MainMenu');
-   };
+           const handleBackToCategories = () => {
+      setShowResults(false);
+      setShowGameEndRanking(false);
+      if (isMultiplayerMode) {
+        forceDisconnect();
+      } else {
+        resetGame();
+      }
+      navigation.navigate('MainMenu');
+    };
 
   const handleProfileNavigation = () => {
     navigation.navigate('Profile');
@@ -280,7 +293,7 @@ const handleEndGame = () => {
     );
   };
 
-  const handleSubmitAnswer = async () => {
+    const handleSubmitAnswer = async () => {
     const answerToSubmit = isMultiplayerMode ? multiplayerState.currentAnswer : currentAnswer;
     console.log('🎮 handleSubmitAnswer called:', {
       isMultiplayerMode,
@@ -294,23 +307,61 @@ const handleEndGame = () => {
       return;
     }
 
+    // Button press animation
+    Animated.sequence([
+      Animated.timing(submitButtonScale, {
+        toValue: 0.95,
+        duration: ANIMATIONS.duration.fast,
+        useNativeDriver: true,
+      }),
+      Animated.timing(submitButtonScale, {
+        toValue: 1,
+        duration: ANIMATIONS.duration.fast,
+        useNativeDriver: true,
+      })
+    ]).start();
+
     try {
       if (isMultiplayerMode) {
         console.log('📝 Submitting multiplayer answer:', answerToSubmit.trim());
         submitMultiplayerAnswer(answerToSubmit.trim());
         setMultiplayerAnswer('');
-             } else {
-         console.log('📝 Submitting single-player answer:', answerToSubmit.trim());
-         console.log('📝 Before submission - Score:', getPlayerScore('You'));
-         submitAnswer('You', answerToSubmit.trim());
-         console.log('📝 After submission - Score:', getPlayerScore('You'));
-         setAnswer('');
-       }
+      } else {
+        console.log('📝 Submitting single-player answer:', answerToSubmit.trim());
+        console.log('📝 Before submission - Score:', getPlayerScore('You'));
+        submitAnswer('You', answerToSubmit.trim());
+        console.log('📝 After submission - Score:', getPlayerScore('You'));
+        setAnswer('');
+      }
+      
       setSubmittedAnswers(prev => [...prev, answerToSubmit.trim()]);
       setIsAnswerSubmitted(true);
       
+      // Determine answer result and show feedback
+      const isCorrect = checkAnswerCorrectness(answerToSubmit.trim());
+      setLastAnswerResult(isCorrect ? 'correct' : 'incorrect');
+      
+      // Animate answer input based on result
+      Animated.timing(answerInputGlow, {
+        toValue: isCorrect ? 1 : -1,
+        duration: ANIMATIONS.duration.normal,
+        useNativeDriver: false,
+      }).start();
+      
+      // Show ranking overlay after correct answer
+      if (isCorrect) {
+        setShowRankingOverlay(true);
+      }
+      
+      // Reset feedback after delay
       setTimeout(() => {
         setIsAnswerSubmitted(false);
+        setLastAnswerResult(null);
+        Animated.timing(answerInputGlow, {
+          toValue: 0,
+          duration: ANIMATIONS.duration.normal,
+          useNativeDriver: false,
+        }).start();
       }, 2000);
     } catch (error) {
       console.error('❌ Error submitting answer:', error);
@@ -334,6 +385,18 @@ const handleEndGame = () => {
         nextQuestion();
       }
     }
+  };
+
+  // Helper function to check if an answer is correct
+  const checkAnswerCorrectness = (answer: string): boolean => {
+    if (!currentQuestion?.answers) return false;
+    
+    const normalizedAnswer = answer.toLowerCase().trim();
+    return currentQuestion.answers.some(correctAnswer => 
+      correctAnswer.text.toLowerCase().trim() === normalizedAnswer ||
+      correctAnswer.normalized?.toLowerCase().trim() === normalizedAnswer ||
+      correctAnswer.aliases?.some(alias => alias.toLowerCase().trim() === normalizedAnswer)
+    );
   };
 
   console.log('🎮 GameScreen render state:', {
@@ -367,13 +430,20 @@ const handleEndGame = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleProfileNavigation} style={styles.profileButton}>
-          <Text style={styles.profileButtonText}>
-            {(user?.displayName || user?.email || 'U').charAt(0).toUpperCase()}
-          </Text>
-        </TouchableOpacity>
+             {/* Header */}
+       <View style={styles.header}>
+         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+           <View style={styles.backButtonIcon}>
+             <Text style={styles.backButtonArrow}>‹</Text>
+           </View>
+           <Text style={styles.backButtonText}>Back</Text>
+         </TouchableOpacity>
+         
+         <TouchableOpacity onPress={handleProfileNavigation} style={styles.profileButton}>
+           <Text style={styles.profileButtonText}>
+             {(user?.displayName || user?.email || 'U').charAt(0).toUpperCase()}
+           </Text>
+         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.title}>
             Question {gameProgress.current}/{gameProgress.total}
@@ -512,20 +582,67 @@ const handleEndGame = () => {
           (!isMultiplayerMode && gameState?.gamePhase !== 'finished')) && (
           <View style={styles.answerSection}>
             <Text style={styles.answerLabel}>Your Answer:</Text>
-            <TextInput 
-              placeholder="Enter your answer..." 
-              placeholderTextColor={COLORS.muted}
-              value={isMultiplayerMode ? multiplayerState.currentAnswer : currentAnswer} 
-              onChangeText={isMultiplayerMode ? setMultiplayerAnswer : setAnswer}
-              style={styles.answerInput}
-              editable={true}
-            />
-            <Button 
-              title="Submit Answer" 
-              onPress={handleSubmitAnswer}
-              disabled={!(isMultiplayerMode ? multiplayerState.currentAnswer : currentAnswer).trim()}
-              style={styles.submitButton}
-            />
+                         <Animated.View style={[
+               styles.answerInputContainer,
+               {
+                 shadowColor: lastAnswerResult === 'correct' ? COLORS.success : 
+                              lastAnswerResult === 'incorrect' ? COLORS.error : COLORS.muted,
+                 shadowOpacity: answerInputGlow.interpolate({
+                   inputRange: [-1, 0, 1],
+                   outputRange: [0.6, 0.1, 0.6]
+                 }),
+                 shadowRadius: answerInputGlow.interpolate({
+                   inputRange: [-1, 0, 1],
+                   outputRange: [20, 8, 20]
+                 }),
+                 borderColor: answerInputGlow.interpolate({
+                   inputRange: [-1, 0, 1],
+                   outputRange: [COLORS.error, COLORS.muted, COLORS.success]
+                 })
+               }
+             ]}>
+               <TextInput 
+                 placeholder="Enter your answer..." 
+                 placeholderTextColor={COLORS.muted}
+                 value={isMultiplayerMode ? multiplayerState.currentAnswer : currentAnswer} 
+                 onChangeText={isMultiplayerMode ? setMultiplayerAnswer : setAnswer}
+                 style={styles.answerInput}
+                 editable={true}
+               />
+             </Animated.View>
+             
+             <Animated.View style={{ transform: [{ scale: submitButtonScale }] }}>
+               <Button 
+                 title="Submit Answer" 
+                 onPress={handleSubmitAnswer}
+                 disabled={!(isMultiplayerMode ? multiplayerState.currentAnswer : currentAnswer).trim()}
+                 style={styles.submitButton}
+               />
+             </Animated.View>
+             
+             {/* Answer Feedback Indicator */}
+             {lastAnswerResult && (
+               <Animated.View 
+                 style={[
+                   styles.feedbackIndicator,
+                   {
+                     backgroundColor: lastAnswerResult === 'correct' ? COLORS.successGlow : COLORS.errorGlow,
+                     borderColor: lastAnswerResult === 'correct' ? COLORS.success : COLORS.error,
+                     opacity: answerInputGlow.interpolate({
+                       inputRange: [-1, 0, 1],
+                       outputRange: [1, 0, 1]
+                     })
+                   }
+                 ]}
+               >
+                 <Text style={[
+                   styles.feedbackText,
+                   { color: lastAnswerResult === 'correct' ? COLORS.success : COLORS.error }
+                 ]}>
+                   {lastAnswerResult === 'correct' ? '✅ Correct!' : '❌ Try Again!'}
+                 </Text>
+               </Animated.View>
+             )}
           </View>
         )}
 
@@ -556,59 +673,124 @@ const handleEndGame = () => {
          onBackToCategories={handleBackToCategories}
        />
        
-       {/* Debug Info */}
-       {__DEV__ && (
-         <View style={styles.debugSection}>
-           <Text style={styles.debugText}>Debug Info:</Text>
-           <Text style={styles.debugText}>Game Phase: {gameState?.gamePhase}</Text>
-           <Text style={styles.debugText}>Question Complete: {questionIsComplete ? 'Yes' : 'No'}</Text>
-           <Text style={styles.debugText}>Correct Answers: {correctAnswersFound}/10</Text>
-           <Text style={styles.debugText}>Current Score: {currentScore}</Text>
-           <Text style={styles.debugText}>Show Results: {showResults ? 'Yes' : 'No'}</Text>
-         </View>
+       
+
+       {/* Ranking Overlay - Shows after each correct answer */}
+       {showRankingOverlay && (
+         <TouchableOpacity
+           style={styles.fullScreenTouchable}
+           activeOpacity={1}
+           onPress={() => setShowRankingOverlay(false)}
+         >
+           <RankingOverlay
+             visible={showRankingOverlay}
+             question={currentQuestion}
+             submittedAnswers={getCurrentRoundAnswers()}
+             onHide={() => setShowRankingOverlay(false)}
+             isGameEnd={false}
+           />
+         </TouchableOpacity>
        )}
-    </SafeAreaView>
+
+       {/* Game End Ranking Overlay - Shows at game completion */}
+       {showGameEndRanking && (
+         <TouchableOpacity
+           style={styles.fullScreenTouchable}
+           activeOpacity={1}
+           onPress={() => setShowGameEndRanking(false)}
+         >
+           <RankingOverlay
+             visible={showGameEndRanking}
+             question={currentQuestion}
+             submittedAnswers={getCurrentRoundAnswers()}
+             onHide={() => setShowGameEndRanking(false)}
+             isGameEnd={true}
+           />
+         </TouchableOpacity>
+       )}
+     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background
+    backgroundColor: '#0F172A' // Dark blue background like home screen
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#0F172A'
   },
   loadingText: {
-    color: COLORS.text,
+    color: '#E2E8F0',
     fontSize: 18,
+    fontWeight: '600'
   },
   connectionStatus: {
-    color: COLORS.muted,
+    color: '#94A3B8',
     fontSize: 14,
     marginTop: SPACING.sm,
+    fontWeight: '500'
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.card
-  },
+     header: {
+     flexDirection: 'row',
+     alignItems: 'center',
+     justifyContent: 'space-between',
+     paddingHorizontal: SPACING.lg,
+     paddingVertical: SPACING.md,
+     backgroundColor: '#0F172A',
+     borderBottomWidth: 1,
+     borderBottomColor: '#334155'
+   },
+   backButton: {
+     flexDirection: 'row',
+     alignItems: 'center',
+     paddingHorizontal: SPACING.md,
+     paddingVertical: SPACING.sm,
+     borderRadius: 25,
+     backgroundColor: 'rgba(139, 92, 246, 0.08)',
+     borderWidth: 1.5,
+     borderColor: 'rgba(139, 92, 246, 0.3)',
+     shadowColor: '#8B5CF6',
+     shadowOffset: { width: 0, height: 2 },
+     shadowOpacity: 0.1,
+     shadowRadius: 4,
+     elevation: 3,
+   },
+   backButtonIcon: {
+     width: 24,
+     height: 24,
+     borderRadius: 12,
+     backgroundColor: 'rgba(139, 92, 246, 0.2)',
+     justifyContent: 'center',
+     alignItems: 'center',
+     marginRight: SPACING.xs,
+   },
+   backButtonArrow: {
+     color: '#8B5CF6',
+     fontSize: 18,
+     fontWeight: TYPOGRAPHY.fontWeight.bold,
+     lineHeight: 20,
+   },
+   backButtonText: {
+     color: '#8B5CF6',
+     fontSize: 14,
+     fontWeight: TYPOGRAPHY.fontWeight.semibold,
+     fontFamily: TYPOGRAPHY.fontFamily.primary,
+     letterSpacing: 0.3,
+   },
   exitButton: {
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.md,
-    borderRadius: 8,
-    backgroundColor: 'rgba(220, 38, 38, 0.1)',
+    borderRadius: 12,
+    backgroundColor: '#EF4444',
     borderWidth: 1,
-    borderColor: '#dc2626'
+    borderColor: '#DC2626'
   },
   exitButtonText: {
-    color: '#dc2626',
+    color: 'white',
     fontSize: 16,
     fontWeight: '600'
   },
@@ -620,27 +802,31 @@ const styles = StyleSheet.create({
   endGameButton: {
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.md,
-    borderRadius: 8,
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    borderRadius: 12,
+    backgroundColor: '#8B5CF6',
     borderWidth: 1,
-    borderColor: '#3b82f6'
+    borderColor: '#7C3AED'
   },
   endGameButtonText: {
-    color: '#3b82f6',
+    color: 'white',
     fontSize: 16,
     fontWeight: '600'
   },
-  title: {
-    color: COLORS.text,
-    fontSize: 18,
-    fontWeight: '700'
-  },
-  answersProgress: {
-    color: COLORS.primary,
-    fontSize: 14,
-    fontWeight: '600',
-    marginTop: 4
-  },
+     title: {
+     color: '#E2E8F0',
+     fontSize: 18,
+     fontWeight: TYPOGRAPHY.fontWeight.bold,
+     fontFamily: TYPOGRAPHY.fontFamily.primary,
+     letterSpacing: 0.5
+   },
+     answersProgress: {
+     color: '#E2E8F0',
+     fontSize: 14,
+     fontWeight: TYPOGRAPHY.fontWeight.semibold,
+     fontFamily: TYPOGRAPHY.fontFamily.primary,
+     marginTop: 4,
+     letterSpacing: 0.3
+   },
   multiplayerIndicator: {
     color: '#8B5CF6',
     fontSize: 12,
@@ -649,112 +835,153 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: SPACING.lg
+    padding: SPACING.lg,
+    backgroundColor: '#0F172A'
   },
   questionSection: {
-    backgroundColor: COLORS.card,
-    borderRadius: 12,
-    padding: SPACING.lg,
+    backgroundColor: '#0F172A',
+    borderRadius: 20,
+    padding: SPACING.xl,
     marginBottom: SPACING.xl,
-    alignItems: 'center'
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#334155'
   },
   questionTitle: {
-    color: COLORS.text,
-    fontSize: 20,
-    fontWeight: '700',
+    color: '#F1F5F9',
+    fontSize: 22,
+    fontWeight: '800',
     marginBottom: SPACING.md,
-    textAlign: 'center'
+    textAlign: 'center',
+    lineHeight: 28
   },
   questionHint: {
-    color: COLORS.muted,
-    fontSize: 14,
-    textAlign: 'center'
+    color: '#94A3B8',
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 22
   },
   successSection: {
-    backgroundColor: '#10B981',
-    borderRadius: 12,
-    padding: SPACING.lg,
+    backgroundColor: '#0F172A',
+    borderRadius: 20,
+    padding: SPACING.xl,
     marginBottom: SPACING.xl,
-    alignItems: 'center'
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#334155'
   },
   successTitle: {
-    color: 'white',
-    fontSize: 24,
+    color: '#F1F5F9',
+    fontSize: 26,
     fontWeight: '800',
     marginBottom: SPACING.sm
   },
   successMessage: {
-    color: 'white',
-    fontSize: 16,
+    color: '#94A3B8',
+    fontSize: 18,
     textAlign: 'center',
-    marginBottom: SPACING.lg
+    marginBottom: SPACING.lg,
+    lineHeight: 24
   },
   answerSection: {
-    backgroundColor: COLORS.card,
-    borderRadius: 12,
-    padding: SPACING.lg,
+    backgroundColor: '#0F172A',
+    borderRadius: 20,
+    padding: SPACING.xl,
     marginBottom: SPACING.xl,
-    gap: SPACING.md
+    gap: SPACING.md,
+    borderWidth: 1,
+    borderColor: '#334155'
   },
   answerLabel: {
-    color: COLORS.text,
-    fontSize: 16,
-    fontWeight: '600'
+    color: '#F1F5F9',
+    fontSize: 18,
+    fontWeight: '700',
+    textAlign: 'center'
   },
-  answerInput: {
-    marginBottom: SPACING.sm
-  },
+     answerInputContainer: {
+     marginBottom: SPACING.sm,
+     borderRadius: 12,
+     borderWidth: 2,
+     shadowOffset: { width: 0, height: 0 },
+     elevation: 8,
+   },
+   answerInput: {
+     backgroundColor: '#1E293B',
+     borderRadius: 12,
+     borderWidth: 0,
+     paddingHorizontal: SPACING.md,
+     paddingVertical: SPACING.sm,
+     color: '#F1F5F9',
+     fontSize: 16,
+     fontFamily: TYPOGRAPHY.fontFamily.primary,
+     fontWeight: TYPOGRAPHY.fontWeight.medium,
+     letterSpacing: 0.3
+   },
   submitButton: {
-    marginTop: SPACING.sm
+    marginTop: SPACING.sm,
+    backgroundColor: '#8B5CF6',
+    borderRadius: 12,
+    paddingVertical: SPACING.md,
+    borderWidth: 1,
+    borderColor: '#7C3AED'
   },
   scoreSection: {
-    backgroundColor: COLORS.card,
-    borderRadius: 12,
-    padding: SPACING.lg,
+    backgroundColor: '#0F172A',
+    borderRadius: 20,
+    padding: SPACING.xl,
     marginBottom: SPACING.xl,
-    alignItems: 'center'
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#334155'
   },
   scoreTitle: {
-    color: COLORS.primary,
-    fontSize: 24,
+    color: '#F1F5F9',
+    fontSize: 28,
     fontWeight: '800'
   },
   nextButton: {
-    backgroundColor: 'white',
-    borderWidth: 2,
-    borderColor: 'white'
+    backgroundColor: '#8B5CF6',
+    borderWidth: 1,
+    borderColor: '#7C3AED',
+    borderRadius: 12
   },
   submittedAnswersSection: {
-    backgroundColor: COLORS.card,
-    borderRadius: 12,
-    padding: SPACING.lg,
+    backgroundColor: '#0F172A',
+    borderRadius: 20,
+    padding: SPACING.xl,
     marginBottom: SPACING.xl,
-    gap: SPACING.sm
+    gap: SPACING.sm,
+    borderWidth: 1,
+    borderColor: '#334155'
   },
   submittedAnswersTitle: {
-    color: COLORS.text,
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: SPACING.sm
+    color: '#F1F5F9',
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: SPACING.sm,
+    textAlign: 'center'
   },
   submittedAnswer: {
-    color: COLORS.text,
-    fontSize: 14,
-    paddingLeft: SPACING.sm
+    color: '#E2E8F0',
+    fontSize: 16,
+    paddingLeft: SPACING.sm,
+    fontWeight: '500'
   },
   profileButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.primary,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#8B5CF6',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: SPACING.sm
+    marginRight: SPACING.sm,
+    borderWidth: 1,
+    borderColor: '#7C3AED'
   },
   profileButtonText: {
-    color: COLORS.background,
+    color: 'white',
     fontSize: 18,
-    fontWeight: '700'
+    fontWeight: '800'
   },
   headerCenter: {
     flex: 1,
@@ -763,46 +990,53 @@ const styles = StyleSheet.create({
   },
   helpButton: {
     marginTop: SPACING.md,
-    backgroundColor: COLORS.primary,
-    borderRadius: 8,
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    alignSelf: 'center'
+    backgroundColor: '#8B5CF6',
+    borderRadius: 12,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    alignSelf: 'center',
+    borderWidth: 1,
+    borderColor: '#7C3AED'
   },
   helpButtonText: {
-    color: COLORS.background,
-    fontSize: 14,
-    fontWeight: '600'
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '700'
   },
   resultsSection: {
-    backgroundColor: COLORS.card,
-    borderRadius: 12,
-    padding: SPACING.lg,
+    backgroundColor: '#0F172A',
+    borderRadius: 20,
+    padding: SPACING.xl,
     marginBottom: SPACING.xl,
-    alignItems: 'center'
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#334155'
   },
   resultsTitle: {
-    color: COLORS.text,
-    fontSize: 24,
+    color: '#F1F5F9',
+    fontSize: 26,
     fontWeight: '800',
     marginBottom: SPACING.sm
   },
   resultsSubtitle: {
-    color: COLORS.muted,
-    fontSize: 18,
-    marginBottom: SPACING.lg
+    color: '#94A3B8',
+    fontSize: 20,
+    marginBottom: SPACING.lg,
+    fontWeight: '600'
   },
   toggleButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 8,
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    alignSelf: 'center'
+    backgroundColor: '#8B5CF6',
+    borderRadius: 12,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    alignSelf: 'center',
+    borderWidth: 1,
+    borderColor: '#7C3AED'
   },
   toggleButtonText: {
-    color: COLORS.background,
-    fontSize: 16,
-    fontWeight: '600'
+    color: 'white',
+    fontSize: 18,
+    fontWeight: '700'
   },
   answersList: {
     width: '100%',
@@ -810,92 +1044,121 @@ const styles = StyleSheet.create({
     gap: SPACING.sm
   },
   answersListTitle: {
-    color: COLORS.text,
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: SPACING.sm
+    color: '#F1F5F9',
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: SPACING.md,
+    textAlign: 'center'
   },
   answerItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    borderRadius: 8,
-    backgroundColor: COLORS.card
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: 12,
+    backgroundColor: '#1E293B',
+    borderWidth: 1,
+    borderColor: '#475569'
   },
   answerRank: {
-    color: COLORS.primary,
-    fontSize: 16,
-    fontWeight: '700'
+    color: '#F1F5F9',
+    fontSize: 18,
+    fontWeight: '800'
   },
   answerText: {
     flex: 1,
-    color: COLORS.text,
+    color: '#F1F5F9',
     fontSize: 16,
-    fontWeight: '500'
+    fontWeight: '600',
+    marginHorizontal: SPACING.md
   },
   answerPoints: {
-    color: COLORS.primary,
-    fontSize: 16,
-    fontWeight: '700'
+    color: '#F1F5F9',
+    fontSize: 18,
+    fontWeight: '800'
   },
   correctAnswer: {
-    backgroundColor: '#E0F2F7', // Light blue background for correct
-    borderColor: '#57B846',
+    backgroundColor: 'rgba(241, 245, 249, 0.1)',
+    borderColor: '#475569',
     borderWidth: 1
   },
   missedAnswer: {
-    backgroundColor: '#FDECEC', // Light red background for missed
-    borderColor: '#DC2626',
-    borderWidth: 1
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderColor: '#EF4444',
+    borderWidth: 2
   },
   correctIndicator: {
-    color: '#57B846',
-    fontSize: 20,
+    color: '#F1F5F9',
+    fontSize: 24,
     marginLeft: SPACING.sm
   },
   missedIndicator: {
-    color: '#DC2626',
-    fontSize: 20,
+    color: '#EF4444',
+    fontSize: 24,
     marginLeft: SPACING.sm
   },
   playAgainButton: {
     marginTop: SPACING.lg,
-    backgroundColor: COLORS.primary
+    backgroundColor: '#8B5CF6',
+    borderRadius: 12,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.xl,
+    borderWidth: 1,
+    borderColor: '#7C3AED'
   },
   
-   startGameSection: {
-     backgroundColor: COLORS.card,
+  startGameSection: {
+    backgroundColor: '#0F172A',
+    borderRadius: 20,
+    padding: SPACING.xl,
+    marginBottom: SPACING.lg,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#334155'
+  },
+  startGameTitle: {
+    color: '#F1F5F9',
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: SPACING.md,
+    textAlign: 'center'
+  },
+  startGameButton: {
+    backgroundColor: '#8B5CF6',
+    paddingHorizontal: SPACING.xl,
+    borderRadius: 12,
+    paddingVertical: SPACING.md,
+    borderWidth: 1,
+    borderColor: '#7C3AED'
+  },
+     fullScreenTouchable: {
+     position: 'absolute',
+     top: 0,
+     left: 0,
+     right: 0,
+     bottom: 0,
+     zIndex: 999,
+   },
+   feedbackIndicator: {
+     marginTop: SPACING.md,
+     paddingVertical: SPACING.sm,
+     paddingHorizontal: SPACING.md,
      borderRadius: 12,
-     padding: SPACING.lg,
-     marginBottom: SPACING.lg,
-     alignItems: 'center'
+     borderWidth: 2,
+     alignItems: 'center',
+     justifyContent: 'center',
+     shadowOffset: { width: 0, height: 4 },
+     shadowRadius: 8,
+     elevation: 4,
    },
-   startGameTitle: {
-     color: COLORS.text,
-     fontSize: 18,
-     fontWeight: '600',
-     marginBottom: SPACING.md,
+   feedbackText: {
+     fontSize: 16,
+     fontWeight: TYPOGRAPHY.fontWeight.semibold,
+     fontFamily: TYPOGRAPHY.fontFamily.primary,
+     letterSpacing: 0.5,
      textAlign: 'center'
-   },
-       startGameButton: {
-      backgroundColor: COLORS.primary,
-      paddingHorizontal: SPACING.xl
-    },
-    debugSection: {
-      backgroundColor: '#f0f0f0',
-      padding: SPACING.md,
-      margin: SPACING.md,
-      borderRadius: 8,
-      borderWidth: 1,
-      borderColor: '#ccc'
-    },
-    debugText: {
-      color: '#666',
-      fontSize: 12,
-      fontFamily: 'monospace'
-    }
+   }
 });
 
 export default GameScreen;
