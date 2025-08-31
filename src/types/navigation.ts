@@ -13,8 +13,8 @@ export type MainStackParamList = {
   MainMenu: undefined;
   Profile: undefined;
   Categories: { gameMode: 'single' | 'multiplayer' };
+  QuestionSelection: { categoryName: string; gameMode?: 'single' | 'multiplayer' };
   GameLobby: { categoryId: string; categoryName: string; selectedQuestion?: any };
-  GameMode: { categoryId: string; categoryName: string; selectedQuestion?: any };
   GameScreen: { roomId: string; categoryId: string; categoryName?: string; selectedQuestion?: any; isMultiplayer?: boolean };
 };
 
@@ -29,6 +29,6 @@ export type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>
 export type ProfileScreenProps = NativeStackScreenProps<RootStackParamList, 'Profile'>;
 export type MainMenuScreenProps = NativeStackScreenProps<RootStackParamList, 'MainMenu'>;
 export type CategoriesScreenProps = NativeStackScreenProps<RootStackParamList, 'Categories'>;
+export type QuestionSelectionScreenProps = NativeStackScreenProps<RootStackParamList, 'QuestionSelection'>;
 export type GameLobbyScreenProps = NativeStackScreenProps<RootStackParamList, 'GameLobby'>;
-export type GameModeScreenProps = NativeStackScreenProps<RootStackParamList, 'GameMode'>;
 export type GameScreenProps = NativeStackScreenProps<RootStackParamList, 'GameScreen'>;

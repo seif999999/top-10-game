@@ -91,24 +91,16 @@ const CategoriesCarouselScreen: React.FC<CategoriesScreenProps> = ({ navigation,
   const handleCategoryPress = (category: typeof categories[0]) => {
     setSelectedCategory(category.id);
     
-    // Navigate directly to game based on mode
-    if (gameMode === 'single') {
-      navigation.navigate('GameScreen', {
-        roomId: 'single-player',
-        categoryId: category.id,
-        categoryName: category.name,
-        isMultiplayer: false
-      });
-    } else {
-      // For multiplayer, generate room ID and navigate
-      const roomId = `room_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      navigation.navigate('GameScreen', {
-        roomId,
-        categoryId: category.id,
-        categoryName: category.name,
-        isMultiplayer: true
-      });
-    }
+    console.log('🎯 Category pressed:', category.name);
+    console.log('🎯 Navigating to QuestionSelection with params:', {
+      categoryName: category.name
+    });
+    
+    // Navigate to QuestionSelection first
+    navigation.navigate('QuestionSelection', {
+      categoryName: category.name,
+      gameMode: gameMode
+    });
   };
 
   const renderCategoryCard = ({ item, index }: { item: typeof categories[0]; index: number }) => {
@@ -138,7 +130,7 @@ const CategoriesCarouselScreen: React.FC<CategoriesScreenProps> = ({ navigation,
         {/* Play Button */}
         <View style={styles.playButton}>
           <Text style={styles.playButtonText}>
-            {gameMode === 'single' ? '🎮 Play' : '👥 Join'}
+            {gameMode === 'single' ? '🎯 Select' : '🎯 Select'}
           </Text>
         </View>
       </TouchableOpacity>

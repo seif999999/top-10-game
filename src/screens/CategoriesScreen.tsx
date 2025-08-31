@@ -66,21 +66,25 @@ const CategoriesScreen: React.FC<CategoriesScreenProps> = ({ navigation }) => {
 
   const handleStartGame = (category: Category) => {
     console.log('🎮 Starting game for category:', category.name);
-    console.log('🎮 Navigating to GameMode with params:', {
-      categoryId: category.id,
+    console.log('🎮 Navigating to QuestionSelection with params:', {
       categoryName: category.name
     });
-    navigation.navigate('GameMode', {
-      categoryId: category.id,
-      categoryName: category.name
-    });
+    
+    try {
+      navigation.navigate('QuestionSelection', {
+        categoryName: category.name,
+        gameMode: 'single'
+      });
+      console.log('✅ Navigation successful');
+    } catch (error) {
+      console.error('❌ Navigation failed:', error);
+    }
   };
 
   const handleQuestionSelect = (category: Category, question: any) => {
-    navigation.navigate('GameMode', {
-      categoryId: category.id,
+    navigation.navigate('QuestionSelection', {
       categoryName: category.name,
-      selectedQuestion: question
+      gameMode: 'single'
     });
   };
 
@@ -139,13 +143,13 @@ const CategoriesScreen: React.FC<CategoriesScreenProps> = ({ navigation }) => {
         {/* Categories List */}
         <View style={styles.categoriesSection}>
           <Text style={styles.sectionTitle}>Available Categories</Text>
-          <Text style={styles.sectionSubtitle}>Tap to expand and see questions</Text>
+          <Text style={styles.sectionSubtitle}>Tap any category to see all questions</Text>
           
           {categories.map((item) => (
             <View key={item.id} style={styles.categoryContainer}>
               <CategoryCard 
                 category={item} 
-                onPress={() => handleCategoryPress(item)}
+                onPress={() => handleStartGame(item)}
                 isExpanded={expandedCategory === item.id}
               />
               
