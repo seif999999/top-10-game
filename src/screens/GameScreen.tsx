@@ -529,18 +529,18 @@ const handleEndGame = () => {
                   );
                 });
                 
-                return (
-                  <View key={index} style={styles.answerTableRow}>
-                    <View style={styles.positionColumn}>
-                      <Text style={styles.positionNumber}>#{answer.rank}</Text>
-                    </View>
-                    <View style={styles.answerColumn}>
-                      <Text style={styles.answerTableText}>
-                        {isRevealed ? answer.text : '???'}
-                      </Text>
-                    </View>
-                  </View>
-                );
+                                 return (
+                   <View key={index} style={styles.answerTableRow}>
+                     <View style={styles.positionColumn}>
+                       <Text style={styles.positionNumber}>{answer.rank}</Text>
+                     </View>
+                     <View style={styles.answerColumn}>
+                       <Text style={styles.answerTableText}>
+                         {isRevealed ? answer.text : '🔒'}
+                       </Text>
+                     </View>
+                   </View>
+                 );
               })}
             </View>
           </View>
@@ -1207,10 +1207,10 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '800'
   },
-  answerColumn: {
-    flex: 1,
-    alignItems: 'flex-start'
-  },
+     answerColumn: {
+     flex: 1,
+     alignItems: 'center'
+   },
   answerTableText: {
     color: '#F1F5F9',
     fontSize: 16,
