@@ -49,14 +49,26 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     }, 2000);
   };
 
+  const handleAnswerRules = () => {
+    Alert.alert(
+      '📝 Answer Rules',
+      '✅ CORRECT: Exact matches get full points\n\n🔍 SIMILAR: Close matches get partial credit\n\n❌ WRONG: Incorrect answers get 0 points\n\n💡 TIP: Try different variations and synonyms!',
+      [{ text: 'Got it! ✍️' }]
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header with Profile Button */}
+      {/* Header with Profile and Rules Buttons */}
       <View style={styles.header}>
         <TouchableOpacity onPress={handleProfileNavigation} style={styles.profileButton}>
           <Text style={styles.profileButtonText}>
             {(user?.displayName || user?.email || 'U').charAt(0).toUpperCase()}
           </Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity onPress={handleAnswerRules} style={styles.rulesButton}>
+          <Text style={styles.rulesButtonText}>📝</Text>
         </TouchableOpacity>
       </View>
 
@@ -87,6 +99,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             <Text style={styles.leaderboardSubtitle}>Global Rankings</Text>
           </TouchableOpacity>
         </View>
+        
+
       </View>
 
       {/* Spin Wheel Section */}
@@ -120,7 +134,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     flexDirection: 'row',
-    justifyContent: 'flex-start',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.lg,
     zIndex: 1,
@@ -142,6 +157,22 @@ const styles = StyleSheet.create({
     color: COLORS.background,
     fontSize: 20,
     fontWeight: '700',
+  },
+  rulesButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#6B46C1',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#6B46C1',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  rulesButtonText: {
+    fontSize: 24,
   },
   welcomeText: {
     color: COLORS.muted,
@@ -253,6 +284,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 16,
   },
+
   spinWheelSection: {
     paddingHorizontal: SPACING.lg,
     marginBottom: SPACING.lg,

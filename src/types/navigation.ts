@@ -15,7 +15,7 @@ export type MainStackParamList = {
   Categories: { gameMode: 'single' | 'multiplayer' };
   QuestionSelection: { categoryName: string; gameMode?: 'single' | 'multiplayer' };
   GameLobby: { categoryId: string; categoryName: string; selectedQuestion?: any };
-  GameScreen: { roomId: string; categoryId: string; categoryName?: string; selectedQuestion?: any; isMultiplayer?: boolean };
+  GameScreen: { roomId: string; categoryId: string; categoryName?: string; selectedQuestion?: any; isMultiplayer?: boolean; teamConfig?: any };
 };
 
 // Combined Root Stack Types

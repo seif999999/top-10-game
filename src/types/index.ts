@@ -90,6 +90,7 @@ export interface GameState {
   timeRemaining: number;
   currentQuestion?: GameQuestion;
   roundStartTime?: number;
+  shuffledQuestions?: GameQuestion[]; // OFFLINE ONLY - For team mode
 }
 
 export interface GameResults {
