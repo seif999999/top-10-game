@@ -1,0 +1,10 @@
+[33m0d5beb4[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/teams-turns[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/feature/teams-turns[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m Relocate welcome text under logo and style it like subtitle for better visual flow
+[33m8282d1c[m Center lock emojis in AnswerTable for better visual balance
+[33ma2f6b71[m  Add AnswerTable feature to GameScreen - Shows all possible answers with positions, reveals answers when guessed correctly (including aliases and nicknames)
+[33mcd8c427[m ui enhancements and right answer position screen implemented
+[33m0f8ae37[m single player fully playable
+[33m62391a2[m Remove GameModeScreen and restore QuestionSelectionScreen - User requested to remove the 'Choose Game Mode' page and keep the question selection flow. Navigation now goes directly from Categories to QuestionSelection to GameScreen, eliminating unnecessary intermediate step.
+[33mc89d9d7[m Fix multiplayer categories bug - each category now shows its own questions instead of same question for all categories. Fixed category mapping from numeric IDs to category names, enhanced server debug logging, and improved socket connection handling for smooth category switching.
+[33m5baf7bb[m Fix multiplayer connection issues for mobile devices
+[33m306a4cb[m Update App.tsx and dependencies
+[33md5f7c5f[m multiplayer mode available, initialized servers for the game, user can enter multiplayer game and see leaderbaord(not full impleented yet, still buggy

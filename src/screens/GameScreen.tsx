@@ -10,12 +10,14 @@ import { useGame } from '../contexts/GameContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useMultiplayer } from '../contexts/MultiplayerContext';
 import { QuestionAnswer } from '../types';
+import { FEATURES } from '../config/featureFlags';
+import HostAssignModal from '../components/HostAssignModal';
 
 
 
 
 const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
-  const { roomId, categoryId, isMultiplayer, selectedQuestion } = route.params;
+  const { roomId, categoryId, isMultiplayer, selectedQuestion, teamConfig } = route.params;
   const { 
     gameState, 
     currentAnswer, 
@@ -30,7 +32,18 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     getCorrectAnswersFound,
     resetGame,
     startGame,
-    endGame
+    endGame,
+    // Team mode functions
+    startTeamsGame,
+    assignAnswerToTeam,
+    endTeamTurn,
+    setTeamTimer,
+    resetTeamsGame,
+    getCurrentTeam,
+    getTeamScore,
+    getAssignedAnswersCount,
+    teamGameState,
+    isTeamMode
   } = useGame();
   const { user } = useAuth();
   
@@ -59,6 +72,11 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   const [showAnswers, setShowAnswers] = useState(false);
   const [showRankingOverlay, setShowRankingOverlay] = useState(false);
   const [showGameEndRanking, setShowGameEndRanking] = useState(false);
+  
+  // Team mode state
+  const [showHostAssignModal, setShowHostAssignModal] = useState(false);
+  const [selectedAnswerIndex, setSelectedAnswerIndex] = useState<number>(-1);
+  const [selectedAnswer, setSelectedAnswer] = useState<QuestionAnswer | null>(null);
   
   // Animation values
   const submitButtonScale = useRef(new Animated.Value(1)).current;
@@ -140,22 +158,43 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
       const shouldStartNewGame = !gameState || gameState.category !== categoryId;
       
       if (shouldStartNewGame) {
-        console.log('🎮 Starting new single-player game...');
-        console.log('🎮 Previous category:', gameState?.category);
-        console.log('🎮 New category:', categoryId);
-        console.log('🎮 Selected question:', selectedQuestion?.title || 'None');
-        
-                 // Reset any existing game first
+                 console.log('🎮 Starting new single-player game...');
+         console.log('🎮 Previous category:', gameState?.category);
+         console.log('🎮 New category:', categoryId);
+         console.log('🎮 Selected question:', selectedQuestion?.title || 'None');
+         console.log('🎮 Team config:', teamConfig ? 'YES' : 'NO');
+         
+         // Reset any existing game first
          if (gameState) {
            resetGame();
            setShowRankingOverlay(false);
            setShowGameEndRanking(false);
          }
-        
-        startGame(categoryId || 'Sports', ['You'], selectedQuestion);
+
+         // Check if this is a team mode game
+         if (teamConfig) {
+           console.log('🎮 Starting team mode game with config:', teamConfig);
+           startTeamsGame(categoryId || 'Sports', teamConfig, selectedQuestion);
+         } else {
+           // Regular single player mode
+           startGame(categoryId || 'Sports', ['You'], selectedQuestion);
+         }
       }
     }
-  }, [isMultiplayerMode, multiplayerState.roomId, gameState, roomId, categoryId, startGame, joinRoom, user, resetGame]);
+  }, [isMultiplayerMode, multiplayerState.roomId, gameState, roomId, categoryId, startGame, startTeamsGame, joinRoom, user, resetGame, teamConfig, selectedQuestion]);
+
+  // Team mode timer effect - Only run in single-player mode
+  useEffect(() => {
+    if (!isMultiplayerMode && isTeamMode && teamGameState && teamGameState.isTurnActive && teamGameState.roundTimerSeconds > 0) {
+      const timer = setInterval(() => {
+        if (teamGameState.timeRemaining > 0) {
+          setTeamTimer(teamGameState.timeRemaining - 1);
+        }
+      }, 1000);
+
+      return () => clearInterval(timer);
+    }
+  }, [isMultiplayerMode, isTeamMode, teamGameState, setTeamTimer]);
 
   // Check if question is complete and show success message
   useEffect(() => {
@@ -266,9 +305,7 @@ const handleEndGame = () => {
       navigation.navigate('MainMenu');
     };
 
-  const handleProfileNavigation = () => {
-    navigation.navigate('Profile');
-  };
+
 
   const handleHelp = () => {
     Alert.alert(
@@ -286,13 +323,7 @@ const handleEndGame = () => {
     );
   };
 
-  const handleShowAnswerRules = () => {
-    Alert.alert(
-      '📝 Answer Rules',
-      '✅ CORRECT: Exact matches get full points\n\n🔍 SIMILAR: Close matches get partial credit\n\n❌ WRONG: Incorrect answers get 0 points\n\n💡 TIP: Try different variations and synonyms!',
-      [{ text: 'Got it! ✍️' }]
-    );
-  };
+
 
     const handleSubmitAnswer = async () => {
     const answerToSubmit = isMultiplayerMode ? multiplayerState.currentAnswer : currentAnswer;
@@ -440,18 +471,8 @@ const handleEndGame = () => {
            <Text style={styles.backButtonText}>Back</Text>
          </TouchableOpacity>
          
-         <TouchableOpacity onPress={handleProfileNavigation} style={styles.profileButton}>
-           <Text style={styles.profileButtonText}>
-             {(user?.displayName || user?.email || 'U').charAt(0).toUpperCase()}
-           </Text>
-         </TouchableOpacity>
+
         <View style={styles.headerCenter}>
-          <Text style={styles.title}>
-            Question {gameProgress.current}/{gameProgress.total}
-          </Text>
-          <Text style={styles.answersProgress}>
-            {correctAnswersFound}/10 answers found
-          </Text>
           {isMultiplayerMode && (
             <Text style={styles.multiplayerIndicator}>
               👥 Multiplayer
@@ -459,9 +480,6 @@ const handleEndGame = () => {
           )}
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity onPress={handleEndGame} style={styles.endGameButton}>
-            <Text style={styles.endGameButtonText}>End Game</Text>
-          </TouchableOpacity>
           <TouchableOpacity onPress={handleExitGame} style={styles.exitButton}>
             <Text style={styles.exitButtonText}>Exit</Text>
           </TouchableOpacity>
@@ -503,34 +521,79 @@ const handleEndGame = () => {
         {currentQuestion && (
           <View style={styles.questionSection}>
             <Text style={styles.questionTitle}>{currentQuestion.title}</Text>
-            <Text style={styles.questionHint}>
-              Type your answer below. The closer you are to #1, the more points you get!
+            <Text style={styles.gameplayHint}>
+              {!isMultiplayerMode && isTeamMode 
+                ? "🎯 Host assigns answers to teams by tapping them" 
+                : "💡 Find the top 10 answers ranked from best to worst"
+              }
             </Text>
-            <TouchableOpacity onPress={handleShowAnswerRules} style={styles.helpButton}>
-              <Text style={styles.helpButtonText}>ℹ️ Answer Rules</Text>
-            </TouchableOpacity>
+
+          </View>
+        )}
+
+        {/* Timer - Only show in team mode */}
+        {!isMultiplayerMode && isTeamMode && teamGameState && (
+          <View style={styles.timerSection}>
+            <View style={styles.timerContainer}>
+              <Text style={styles.timerText}>
+                {teamGameState.roundTimerSeconds === 0 ? '∞' : `${teamGameState.timeRemaining}s`}
+              </Text>
+            </View>
           </View>
         )}
 
         {/* Answer Table - Shows all possible answers with positions */}
         {currentQuestion && currentQuestion.answers && (
           <View style={styles.answerTableSection}>
-            <Text style={styles.answerTableTitle}>All Possible Answers:</Text>
+            <View style={styles.answerTableHeader}>
+              <Text style={styles.answerTableTitle}>All Possible Answers</Text>
+            </View>
             <View style={styles.answerTableContainer}>
-              {currentQuestion.answers.map((answer: QuestionAnswer, index: number) => {
-                // Check if this answer is revealed by checking if any submitted answer matches this answer
-                // (including aliases and normalized versions)
-                const isRevealed = (getCurrentRoundAnswers() || []).some((submitted: string) => {
-                  const normalizedSubmitted = submitted.toLowerCase().trim();
-                  return (
-                    answer.text.toLowerCase().trim() === normalizedSubmitted ||
-                    answer.normalized?.toLowerCase().trim() === normalizedSubmitted ||
-                    answer.aliases?.some(alias => alias.toLowerCase().trim() === normalizedSubmitted)
-                  );
-                });
-                
-                                 return (
-                   <View key={index} style={styles.answerTableRow}>
+                             {currentQuestion.answers.map((answer: QuestionAnswer, index: number) => {
+                 // Determine if this answer should be revealed
+                 let isRevealed = false;
+                 let assignedTeam = null;
+                 let assignedPoints = 0;
+                 
+                 if (!isMultiplayerMode && isTeamMode) {
+                   // In team mode, all answers are always visible to host
+                   isRevealed = true;
+                   // Check if answer has been assigned to any team
+                   const assignment = teamGameState?.answerAssignments?.[index];
+                   if (assignment) {
+                     assignedTeam = teamGameState?.teams.find(t => t.id === assignment.teamId);
+                     assignedPoints = assignment.points;
+                   }
+                 } else {
+                   // Regular mode - check if answer matches submitted answers
+                   isRevealed = (getCurrentRoundAnswers() || []).some((submitted: string) => {
+                     const normalizedSubmitted = submitted.toLowerCase().trim();
+                     return (
+                       answer.text.toLowerCase().trim() === normalizedSubmitted ||
+                       answer.normalized?.toLowerCase().trim() === normalizedSubmitted ||
+                       answer.aliases?.some(alias => alias.toLowerCase().trim() === normalizedSubmitted)
+                     );
+                   });
+                 }
+                 
+                 return (
+                   <TouchableOpacity 
+                     key={index} 
+                     style={[
+                       styles.answerTableRow,
+                       assignedTeam && styles.assignedAnswerRow,
+                       !isMultiplayerMode && isTeamMode && !assignedTeam && styles.unassignedAnswerRow
+                     ]}
+                     onPress={() => {
+                       // In team mode, allow host to assign unassigned answers
+                       if (!isMultiplayerMode && isTeamMode && !assignedTeam) {
+                         setSelectedAnswerIndex(index);
+                         setSelectedAnswer(answer);
+                         setShowHostAssignModal(true);
+                       }
+                     }}
+                     disabled={isMultiplayerMode || (isTeamMode && !!assignedTeam)}
+                   >
                      <View style={styles.positionColumn}>
                        <Text style={styles.positionNumber}>{answer.rank}</Text>
                      </View>
@@ -538,11 +601,17 @@ const handleEndGame = () => {
                        <Text style={styles.answerTableText}>
                          {isRevealed ? answer.text : '🔒'}
                        </Text>
+                       {isRevealed && assignedTeam && (
+                         <Text style={[styles.teamBadge, { color: assignedTeam.color }]}>
+                           {assignedTeam.name} (+{assignedPoints})
+                         </Text>
+                       )}
                      </View>
-                   </View>
+                   </TouchableOpacity>
                  );
-              })}
+               })}
             </View>
+
           </View>
         )}
 
@@ -611,10 +680,11 @@ const handleEndGame = () => {
           </View>
         )}
 
-        {/* Answer Section - Only show if question is not complete AND game is not finished */}
+        {/* Answer Section - Only show if question is not complete AND game is not finished AND not in team mode */}
         {!questionIsComplete && 
          ((isMultiplayerMode && multiplayerState.gameState?.gamePhase !== 'finished') ||
-          (!isMultiplayerMode && gameState?.gamePhase !== 'finished')) && (
+          (!isMultiplayerMode && gameState?.gamePhase !== 'finished')) && 
+         !(!isMultiplayerMode && isTeamMode) && (
           <View style={styles.answerSection}>
             <Text style={styles.answerLabel}>Your Answer:</Text>
                          <Animated.View style={[
@@ -693,10 +763,12 @@ const handleEndGame = () => {
           </View>
         )}
 
-        {/* Score Section */}
-        <View style={styles.scoreSection}>
-          <Text style={styles.scoreTitle}>Your Score: {currentScore}</Text>
-        </View>
+        {/* Score Section - Only show in multiplayer mode */}
+        {isMultiplayerMode && (
+          <View style={styles.scoreSection}>
+            <Text style={styles.scoreTitle}>Your Score: {currentScore}</Text>
+          </View>
+        )}
       </ScrollView>
 
              {/* Results Modal */}
@@ -743,6 +815,87 @@ const handleEndGame = () => {
            />
          </TouchableOpacity>
        )}
+
+               {/* Team Mode UI - Only show in single-player mode */}
+        {!isMultiplayerMode && isTeamMode && teamGameState && (
+          <>
+            {/* Team Leaderboard */}
+            <View style={styles.teamLeaderboard}>
+              <Text style={styles.leaderboardTitle}>Team Scores</Text>
+              <View style={styles.teamsContainer}>
+                {teamGameState.teams.map((team, index) => (
+                  <View 
+                    key={team.id} 
+                    style={[
+                      styles.teamCard,
+                      index === teamGameState.currentTeamIndex && styles.activeTeamCard
+                    ]}
+                  >
+                    <View style={[styles.teamColorIndicator, { backgroundColor: team.color }]} />
+                    <Text style={[
+                      styles.teamCardName,
+                      index === teamGameState.currentTeamIndex && styles.activeTeamText
+                    ]}>
+                      {team.name}
+                    </Text>
+                    <Text style={[
+                      styles.teamCardScore,
+                      index === teamGameState.currentTeamIndex && styles.activeTeamText
+                    ]}>
+                      {team.score}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            {/* Current Team Indicator */}
+            <View style={styles.teamIndicator}>
+              <Text style={styles.currentTeamLabel}>Current Turn:</Text>
+              <View style={[styles.teamColorIndicator, { backgroundColor: getCurrentTeam()?.color }]} />
+              <Text style={styles.teamName}>{getCurrentTeam()?.name}</Text>
+            </View>
+
+
+
+           {/* Turn Controls */}
+           <View style={styles.turnControls}>
+             <TouchableOpacity style={styles.endTurnButton} onPress={endTeamTurn}>
+               <Text style={styles.endTurnButtonText}>End Turn</Text>
+             </TouchableOpacity>
+           </View>
+         </>
+       )}
+
+               {/* Host Assign Modal - Only show in single-player mode */}
+        {!isMultiplayerMode && selectedAnswer && (
+          <HostAssignModal
+            visible={showHostAssignModal}
+            onClose={() => setShowHostAssignModal(false)}
+            onAssign={(teamId, points) => {
+              if (selectedAnswerIndex >= 0 && selectedAnswer) {
+                const team = teamGameState?.teams.find(t => t.id === teamId);
+                console.log(`🎯 Assigning "${selectedAnswer.text}" to ${team?.name} for ${points} points`);
+                
+                assignAnswerToTeam(selectedAnswerIndex, teamId, points);
+                setShowHostAssignModal(false);
+                setSelectedAnswerIndex(-1);
+                setSelectedAnswer(null);
+                
+                // Show success feedback
+                Alert.alert(
+                  '✅ Answer Assigned!',
+                  `"${selectedAnswer.text}" assigned to ${team?.name} (+${points} points)`,
+                  [{ text: 'OK' }]
+                );
+              }
+            }}
+            answer={selectedAnswer}
+            answerIndex={selectedAnswerIndex}
+            teams={teamGameState?.teams || []}
+            currentTeamIndex={teamGameState?.currentTeamIndex || 0}
+          />
+        )}
      </SafeAreaView>
   );
 };
@@ -806,13 +959,13 @@ const styles = StyleSheet.create({
    backButtonArrow: {
      color: '#8B5CF6',
      fontSize: 18,
-     fontWeight: TYPOGRAPHY.fontWeight.bold,
+           fontWeight: '700',
      lineHeight: 20,
    },
    backButtonText: {
      color: '#8B5CF6',
      fontSize: 14,
-     fontWeight: TYPOGRAPHY.fontWeight.semibold,
+           fontWeight: '600',
      fontFamily: TYPOGRAPHY.fontFamily.primary,
      letterSpacing: 0.3,
    },
@@ -834,30 +987,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: SPACING.sm
   },
-  endGameButton: {
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    borderRadius: 12,
-    backgroundColor: '#8B5CF6',
-    borderWidth: 1,
-    borderColor: '#7C3AED'
-  },
-  endGameButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600'
-  },
+
      title: {
      color: '#E2E8F0',
      fontSize: 18,
-     fontWeight: TYPOGRAPHY.fontWeight.bold,
+           fontWeight: '700',
      fontFamily: TYPOGRAPHY.fontFamily.primary,
      letterSpacing: 0.5
    },
      answersProgress: {
      color: '#E2E8F0',
      fontSize: 14,
-     fontWeight: TYPOGRAPHY.fontWeight.semibold,
+           fontWeight: '600',
      fontFamily: TYPOGRAPHY.fontFamily.primary,
      marginTop: 4,
      letterSpacing: 0.3
@@ -895,6 +1036,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     lineHeight: 22
+  },
+  gameplayHint: {
+    color: '#8B5CF6',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.md,
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.3)'
   },
   successSection: {
     backgroundColor: '#0F172A',
@@ -949,7 +1104,7 @@ const styles = StyleSheet.create({
      color: '#F1F5F9',
      fontSize: 16,
      fontFamily: TYPOGRAPHY.fontFamily.primary,
-     fontWeight: TYPOGRAPHY.fontWeight.medium,
+           fontWeight: '500',
      letterSpacing: 0.3
    },
   submitButton: {
@@ -1002,22 +1157,7 @@ const styles = StyleSheet.create({
     paddingLeft: SPACING.sm,
     fontWeight: '500'
   },
-  profileButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#8B5CF6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: SPACING.sm,
-    borderWidth: 1,
-    borderColor: '#7C3AED'
-  },
-  profileButtonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: '800'
-  },
+
   headerCenter: {
     flex: 1,
     alignItems: 'center',
@@ -1167,6 +1307,27 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#7C3AED'
   },
+  timerSection: {
+    alignItems: 'center',
+    marginBottom: SPACING.md
+  },
+
+  progressContainer: {
+    backgroundColor: '#8B5CF6',
+    borderRadius: 12,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderWidth: 1,
+    borderColor: '#7C3AED',
+    width: 80,
+    alignItems: 'center'
+  },
+  progressText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: '700',
+    textAlign: 'center'
+  },
   answerTableSection: {
     backgroundColor: '#0F172A',
     borderRadius: 20,
@@ -1176,12 +1337,28 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#334155'
   },
+  answerTableHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.md,
+    width: '100%'
+  },
   answerTableTitle: {
     color: '#F1F5F9',
     fontSize: 20,
+    fontWeight: '700'
+  },
+  answerTableCount: {
+    color: '#8B5CF6',
+    fontSize: 18,
     fontWeight: '700',
-    marginBottom: SPACING.md,
-    textAlign: 'center'
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.3)'
   },
   answerTableContainer: {
     width: '100%',
@@ -1211,11 +1388,32 @@ const styles = StyleSheet.create({
      flex: 1,
      alignItems: 'center'
    },
-  answerTableText: {
-    color: '#F1F5F9',
-    fontSize: 16,
-    fontWeight: '600'
-  },
+     answerTableText: {
+     color: '#F1F5F9',
+     fontSize: 16,
+     fontWeight: '600'
+   },
+   assignedAnswerRow: {
+     backgroundColor: '#1F2937',
+     borderColor: '#6B7280',
+     opacity: 0.8
+   },
+   unassignedAnswerRow: {
+     backgroundColor: '#312E81',
+     borderColor: '#8B5CF6',
+     borderWidth: 2,
+     shadowColor: '#8B5CF6',
+     shadowOffset: { width: 0, height: 2 },
+     shadowOpacity: 0.3,
+     shadowRadius: 4,
+     elevation: 5
+   },
+   teamBadge: {
+     fontSize: 12,
+     fontWeight: '600',
+     marginTop: 2,
+     textAlign: 'center'
+   },
      fullScreenTouchable: {
      position: 'absolute',
      top: 0,
@@ -1238,10 +1436,128 @@ const styles = StyleSheet.create({
    },
    feedbackText: {
      fontSize: 16,
-     fontWeight: TYPOGRAPHY.fontWeight.semibold,
+           fontWeight: '600',
      fontFamily: TYPOGRAPHY.fontFamily.primary,
      letterSpacing: 0.5,
      textAlign: 'center'
+   },
+   // Team mode styles
+   teamLeaderboard: {
+     backgroundColor: '#1E293B',
+     borderRadius: 12,
+     padding: SPACING.lg,
+     marginBottom: SPACING.md,
+     borderWidth: 1,
+     borderColor: '#475569'
+   },
+   leaderboardTitle: {
+     color: '#F1F5F9',
+     fontSize: 18,
+     fontWeight: '700',
+     textAlign: 'center',
+     marginBottom: SPACING.md
+   },
+   teamsContainer: {
+     flexDirection: 'row',
+     justifyContent: 'space-around',
+   },
+   teamCard: {
+     alignItems: 'center',
+     padding: SPACING.sm,
+     borderRadius: 8,
+     backgroundColor: '#334155',
+     borderWidth: 2,
+     borderColor: 'transparent',
+     minWidth: 80,
+   },
+   activeTeamCard: {
+     backgroundColor: '#8B5CF6',
+     borderColor: '#7C3AED',
+   },
+   teamCardName: {
+     color: '#E2E8F0',
+     fontSize: 14,
+     fontWeight: '600',
+     marginTop: SPACING.xs,
+     textAlign: 'center'
+   },
+   teamCardScore: {
+     color: '#94A3B8',
+     fontSize: 16,
+     fontWeight: '700',
+     marginTop: SPACING.xs
+   },
+   activeTeamText: {
+     color: '#FFFFFF',
+   },
+   teamIndicator: {
+     flexDirection: 'row',
+     alignItems: 'center',
+     justifyContent: 'center',
+     paddingHorizontal: SPACING.lg,
+     paddingVertical: SPACING.md,
+     backgroundColor: '#1E293B',
+     borderRadius: 12,
+     marginBottom: SPACING.md,
+     borderWidth: 1,
+     borderColor: '#475569'
+   },
+   currentTeamLabel: {
+     color: '#94A3B8',
+     fontSize: 16,
+     fontWeight: '600',
+     marginRight: SPACING.sm
+   },
+   teamColorIndicator: {
+     width: 20,
+     height: 20,
+     borderRadius: 10,
+     marginRight: SPACING.sm
+   },
+   teamName: {
+     color: '#F1F5F9',
+     fontSize: 18,
+     fontWeight: '700',
+     marginRight: SPACING.md
+   },
+   teamScore: {
+     color: '#94A3B8',
+     fontSize: 16,
+     fontWeight: '600'
+   },
+   timerContainer: {
+     alignItems: 'center',
+     backgroundColor: '#0F172A',
+     borderRadius: 12,
+     paddingHorizontal: SPACING.lg,
+     paddingVertical: SPACING.md,
+     borderWidth: 1,
+     borderColor: '#334155'
+   },
+   timerText: {
+     color: '#F1F5F9',
+     fontSize: 28,
+     fontWeight: '800'
+   },
+   turnControls: {
+     flexDirection: 'row',
+     justifyContent: 'center',
+     gap: SPACING.md,
+     marginBottom: SPACING.lg
+   },
+
+   endTurnButton: {
+     backgroundColor: '#EF4444',
+     paddingHorizontal: SPACING.lg,
+     paddingVertical: SPACING.md,
+     borderRadius: 8,
+     borderWidth: 1,
+     borderColor: '#DC2626'
+   },
+   endTurnButtonText: {
+     color: 'white',
+     fontSize: 16,
+     fontWeight: '600'
    }
 });
 

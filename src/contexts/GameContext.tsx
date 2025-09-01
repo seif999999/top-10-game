@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
-import { GameState, GameResults, PlayerAnswer, startNewGame, processAnswer, nextQuestion, generateGameResults, isQuestionComplete as checkQuestionComplete } from '../services/gameLogic';
-import { GameQuestion } from '../data/sampleQuestions';
+import { startNewGame, processAnswer, nextQuestion, generateGameResults, isQuestionComplete as checkQuestionComplete } from '../services/gameLogic';
+import { GameState, GameResults, PlayerAnswer, GameQuestion } from '../types';
+import { Team, TeamGameState, TeamSetupConfig } from '../types/teams';
 
 export type GamePhase = 'lobby' | 'question' | 'answered' | 'results' | 'finished';
 
@@ -10,6 +11,9 @@ interface GameContextState {
   suggestions: string[];
   isLoading: boolean;
   error: string | null;
+  // Team mode state
+  teamGameState: TeamGameState | null;
+  isTeamMode: boolean;
 }
 
 type GameAction =
@@ -21,14 +25,22 @@ type GameAction =
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null }
   | { type: 'SET_SUGGESTIONS'; payload: string[] }
-  | { type: 'RESET_GAME' };
+  | { type: 'RESET_GAME' }
+  // Team mode actions
+  | { type: 'START_TEAMS_GAME'; payload: { category: string; selectedQuestion?: any; config: TeamSetupConfig } }
+  | { type: 'ASSIGN_ANSWER_TO_TEAM'; payload: { answerIndex: number; teamId: string; points: number } }
+  | { type: 'END_TEAM_TURN' }
+  | { type: 'SET_TEAM_TIMER'; payload: number }
+  | { type: 'RESET_TEAMS_GAME' };
 
 const initialState: GameContextState = {
   gameState: null,
   currentAnswer: '',
   suggestions: [],
   isLoading: false,
-  error: null
+  error: null,
+  teamGameState: null,
+  isTeamMode: false
 };
 
 const gameReducer = (state: GameContextState, action: GameAction): GameContextState => {
@@ -150,6 +162,168 @@ const gameReducer = (state: GameContextState, action: GameAction): GameContextSt
     case 'RESET_GAME':
       return initialState;
 
+    // Team mode cases
+    case 'START_TEAMS_GAME':
+      try {
+        const { category, selectedQuestion, config } = action.payload;
+        console.log(`🎮 START_TEAMS_GAME action - Category: ${category}, Config:`, config);
+        
+        // Create the regular game state first (needed for questions)
+        const newGameState = startNewGame(category, ['Host'], selectedQuestion ? 1 : 10, selectedQuestion);
+        console.log(`🎮 START_TEAMS_GAME - Game state created:`, {
+          category: newGameState.category,
+          totalRounds: newGameState.totalRounds,
+          currentQuestion: newGameState.currentQuestion?.title,
+          shuffledQuestionsCount: newGameState.shuffledQuestions?.length
+        });
+        
+        newGameState.gamePhase = 'question';
+        
+        // Create teams
+        console.log(`🎮 Creating teams from config:`, {
+          numberOfTeams: config.numberOfTeams,
+          teamNamesLength: config.teamNames.length,
+          teamNames: config.teamNames
+        });
+        
+        const teams: Team[] = config.teamNames.map((name, index) => ({
+          id: `team-${index + 1}`,
+          name,
+          color: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4'][index],
+          score: 0,
+        }));
+        
+        console.log(`🎮 Created ${teams.length} teams:`, teams.map(t => ({ id: t.id, name: t.name })));
+
+        const teamGameState: TeamGameState = {
+          teams,
+          currentTeamIndex: 0,
+          roundTimerSeconds: config.roundTimer,
+          timeRemaining: config.roundTimer,
+          isTurnActive: true,
+          maxRounds: config.maxRounds,
+          currentRound: 1,
+          isHostedLocal: config.isHostedLocal,
+          answerAssignments: {},
+        };
+
+        return {
+          ...state,
+          gameState: newGameState, // Add the game state with questions
+          teamGameState,
+          isTeamMode: true,
+          currentAnswer: '',
+          suggestions: [],
+          error: null,
+        };
+      } catch (error) {
+        console.error(`❌ START_TEAMS_GAME error:`, error);
+        return {
+          ...state,
+          error: 'Failed to start team game'
+        };
+      }
+
+    case 'ASSIGN_ANSWER_TO_TEAM':
+      try {
+        if (!state.teamGameState) throw new Error('No active team game');
+        
+        const { answerIndex, teamId, points } = action.payload;
+        const updatedTeamGameState = { ...state.teamGameState };
+        
+        // Update team score
+        const teamIndex = updatedTeamGameState.teams.findIndex(t => t.id === teamId);
+        if (teamIndex !== -1) {
+          updatedTeamGameState.teams[teamIndex].score += points;
+        }
+        
+        // Record assignment
+        updatedTeamGameState.answerAssignments[answerIndex] = { teamId, points };
+        
+        console.log(`🎯 Answer ${answerIndex} assigned to team ${teamId} for ${points} points`);
+        
+        return {
+          ...state,
+          teamGameState: updatedTeamGameState,
+        };
+      } catch (error) {
+        console.error('❌ ASSIGN_ANSWER_TO_TEAM Error:', error);
+        return {
+          ...state,
+          error: 'Failed to assign answer to team'
+        };
+      }
+
+    case 'END_TEAM_TURN':
+      try {
+        if (!state.teamGameState) throw new Error('No active team game');
+        
+        const updatedTeamGameState = { ...state.teamGameState };
+        
+        // Move to next team
+        updatedTeamGameState.currentTeamIndex = (updatedTeamGameState.currentTeamIndex + 1) % updatedTeamGameState.teams.length;
+        
+        // Check if we've completed a full round
+        if (updatedTeamGameState.currentTeamIndex === 0) {
+          updatedTeamGameState.currentRound += 1;
+        }
+        
+        // Reset timer
+        updatedTeamGameState.timeRemaining = updatedTeamGameState.roundTimerSeconds;
+        updatedTeamGameState.isTurnActive = true;
+        
+        console.log(`🔄 Turn ended, now team ${updatedTeamGameState.currentTeamIndex + 1}'s turn`);
+        
+        return {
+          ...state,
+          teamGameState: updatedTeamGameState,
+        };
+      } catch (error) {
+        console.error('❌ END_TEAM_TURN Error:', error);
+        return {
+          ...state,
+          error: 'Failed to end team turn'
+        };
+      }
+
+    case 'SET_TEAM_TIMER':
+      try {
+        if (!state.teamGameState) throw new Error('No active team game');
+        
+        const updatedTeamGameState = { ...state.teamGameState };
+        updatedTeamGameState.timeRemaining = action.payload;
+        
+        // Auto-end turn if timer reaches 0
+        if (action.payload === 0 && updatedTeamGameState.isTurnActive) {
+          updatedTeamGameState.isTurnActive = false;
+          // Auto-advance to next team
+          updatedTeamGameState.currentTeamIndex = (updatedTeamGameState.currentTeamIndex + 1) % updatedTeamGameState.teams.length;
+          if (updatedTeamGameState.currentTeamIndex === 0) {
+            updatedTeamGameState.currentRound += 1;
+          }
+          updatedTeamGameState.timeRemaining = updatedTeamGameState.roundTimerSeconds;
+          updatedTeamGameState.isTurnActive = true;
+        }
+        
+        return {
+          ...state,
+          teamGameState: updatedTeamGameState,
+        };
+      } catch (error) {
+        console.error('❌ SET_TEAM_TIMER Error:', error);
+        return {
+          ...state,
+          error: 'Failed to update team timer'
+        };
+      }
+
+    case 'RESET_TEAMS_GAME':
+      return {
+        ...state,
+        teamGameState: null,
+        isTeamMode: false,
+      };
+
     default:
       return state;
   }
@@ -164,10 +338,19 @@ interface GameContextType extends GameContextState {
   getGameResults: () => GameResults | null;
   getCurrentQuestion: () => GameQuestion | null;
   getPlayerScore: (playerId: string) => number;
-  getGameProgress: () => number;
+  getGameProgress: () => { current: number; total: number };
   isQuestionComplete: () => boolean;
   getCorrectAnswersFound: () => number;
   resetGame: () => void;
+  // Team mode functions
+  startTeamsGame: (category: string, config: TeamSetupConfig, selectedQuestion?: any) => void;
+  assignAnswerToTeam: (answerIndex: number, teamId: string, points: number) => void;
+  endTeamTurn: () => void;
+  setTeamTimer: (seconds: number) => void;
+  resetTeamsGame: () => void;
+  getCurrentTeam: () => Team | null;
+  getTeamScore: (teamId: string) => number;
+  getAssignedAnswersCount: () => number;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -237,20 +420,78 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
   }, [state.gameState]);
 
   const isQuestionComplete = useCallback((): boolean => {
+    // In team mode, question is complete when all 10 answers are assigned
+    if (state.isTeamMode && state.teamGameState && state.gameState?.currentQuestion) {
+      const totalAnswers = state.gameState.currentQuestion.answers?.length || 10;
+      const assignedAnswers = Object.keys(state.teamGameState.answerAssignments).length;
+      return assignedAnswers >= totalAnswers;
+    }
+    
+    // Regular mode
     if (!state.gameState) return false;
     return checkQuestionComplete(state.gameState);
-  }, [state.gameState]);
+  }, [state.gameState, state.isTeamMode, state.teamGameState]);
 
   const getCorrectAnswersFound = useCallback((): number => {
+    // In team mode, return the number of assigned answers
+    if (state.isTeamMode && state.teamGameState) {
+      return Object.keys(state.teamGameState.answerAssignments).length;
+    }
+    
+    // Regular mode
     if (!state.gameState || !state.gameState.rounds || !Array.isArray(state.gameState.rounds)) return 0;
     const currentRound = state.gameState.rounds[state.gameState.currentRound - 1];
     if (!currentRound || !currentRound.playerAnswers || !Array.isArray(currentRound.playerAnswers)) return 0;
     return currentRound.playerAnswers.length;
-  }, [state.gameState]);
+  }, [state.gameState, state.isTeamMode, state.teamGameState]);
 
   const resetGame = useCallback(() => {
     dispatch({ type: 'RESET_GAME' });
   }, []);
+
+  // Team mode functions
+  const startTeamsGame = useCallback((category: string, config: TeamSetupConfig, selectedQuestion?: any) => {
+    dispatch({ type: 'SET_LOADING', payload: true });
+    try {
+      dispatch({ type: 'START_TEAMS_GAME', payload: { category, selectedQuestion, config } });
+    } catch (error) {
+      dispatch({ type: 'SET_ERROR', payload: 'Failed to start team game' });
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  }, []);
+
+  const assignAnswerToTeam = useCallback((answerIndex: number, teamId: string, points: number) => {
+    dispatch({ type: 'ASSIGN_ANSWER_TO_TEAM', payload: { answerIndex, teamId, points } });
+  }, []);
+
+  const endTeamTurn = useCallback(() => {
+    dispatch({ type: 'END_TEAM_TURN' });
+  }, []);
+
+  const setTeamTimer = useCallback((seconds: number) => {
+    dispatch({ type: 'SET_TEAM_TIMER', payload: seconds });
+  }, []);
+
+  const resetTeamsGame = useCallback(() => {
+    dispatch({ type: 'RESET_TEAMS_GAME' });
+  }, []);
+
+  const getCurrentTeam = useCallback((): Team | null => {
+    if (!state.teamGameState || !state.teamGameState.teams) return null;
+    return state.teamGameState.teams[state.teamGameState.currentTeamIndex] || null;
+  }, [state.teamGameState]);
+
+  const getTeamScore = useCallback((teamId: string): number => {
+    if (!state.teamGameState || !state.teamGameState.teams) return 0;
+    const team = state.teamGameState.teams.find(t => t.id === teamId);
+    return team?.score || 0;
+  }, [state.teamGameState]);
+
+  const getAssignedAnswersCount = useCallback((): number => {
+    if (!state.teamGameState) return 0;
+    return Object.keys(state.teamGameState.answerAssignments).length;
+  }, [state.teamGameState]);
 
   const contextValue: GameContextType = {
     ...state,
@@ -265,7 +506,16 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     getGameProgress,
     isQuestionComplete,
     getCorrectAnswersFound,
-    resetGame
+    resetGame,
+    // Team mode functions
+    startTeamsGame,
+    assignAnswerToTeam,
+    endTeamTurn,
+    setTeamTimer,
+    resetTeamsGame,
+    getCurrentTeam,
+    getTeamScore,
+    getAssignedAnswersCount,
   };
 
   return (

@@ -7,16 +7,22 @@ import {
   TouchableOpacity, 
   ScrollView, 
   ActivityIndicator,
-  FlatList
+  FlatList,
+  Alert
 } from 'react-native';
 import { COLORS, SPACING } from '../utils/constants';
 import { QuestionSelectionScreenProps } from '../types/navigation';
 import { getQuestionsByCategory } from '../services/questionsService';
+import { FEATURES } from '../config/featureFlags';
+import TeamSetupModal from '../components/TeamSetupModal';
+import { TeamSetupConfig } from '../types/teams';
 
 const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navigation, route }) => {
   const { categoryName, gameMode } = route.params;
   const [questions, setQuestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showTeamSetup, setShowTeamSetup] = useState(false);
+  const [selectedQuestion, setSelectedQuestion] = useState<any>(null);
   
   console.log('🎯 QuestionSelectionScreen loaded with params:', route.params);
   console.log('🎯 Category name:', categoryName);
@@ -51,14 +57,47 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
         isMultiplayer: true
       });
     } else {
-      // For single player
+      // For single player - check if teams are enabled
+      if (FEATURES.teamsEnabled) {
+        setSelectedQuestion(question);
+        setShowTeamSetup(true);
+      } else {
+        // Regular single player mode
+        navigation.navigate('GameScreen', {
+          roomId: 'single-player',
+          categoryId: categoryName,
+          categoryName: categoryName,
+          selectedQuestion: question,
+          isMultiplayer: false
+        });
+      }
+    }
+  };
+
+  const handleTeamSetupStart = (config: TeamSetupConfig) => {
+    try {
+      console.log('🎮 Starting team game with config:', config);
+      
+      if (!selectedQuestion) {
+        Alert.alert('Error', 'No question selected');
+        return;
+      }
+
+      // Navigate to GameScreen with team configuration
       navigation.navigate('GameScreen', {
         roomId: 'single-player',
         categoryId: categoryName,
         categoryName: categoryName,
-        selectedQuestion: question,
-        isMultiplayer: false
+        selectedQuestion: selectedQuestion,
+        isMultiplayer: false,
+        teamConfig: config
       });
+      
+      // Close the modal
+      setShowTeamSetup(false);
+    } catch (error) {
+      console.error('Error starting team game:', error);
+      Alert.alert('Error', 'Failed to start team game. Please try again.');
     }
   };
 
@@ -150,6 +189,13 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
           ItemSeparatorComponent={() => <View style={styles.separator} />}
         />
       </View>
+
+      {/* Team Setup Modal */}
+      <TeamSetupModal
+        visible={showTeamSetup}
+        onClose={() => setShowTeamSetup(false)}
+        onStartGame={handleTeamSetupStart}
+      />
     </SafeAreaView>
   );
 };
