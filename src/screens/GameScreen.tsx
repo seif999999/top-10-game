@@ -9,6 +9,7 @@ import { GameScreenProps } from '../types/navigation';
 import { useGame } from '../contexts/GameContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useMultiplayer } from '../contexts/MultiplayerContext';
+import { QuestionAnswer } from '../types';
 
 
 
@@ -508,6 +509,40 @@ const handleEndGame = () => {
             <TouchableOpacity onPress={handleShowAnswerRules} style={styles.helpButton}>
               <Text style={styles.helpButtonText}>ℹ️ Answer Rules</Text>
             </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Answer Table - Shows all possible answers with positions */}
+        {currentQuestion && currentQuestion.answers && (
+          <View style={styles.answerTableSection}>
+            <Text style={styles.answerTableTitle}>All Possible Answers:</Text>
+            <View style={styles.answerTableContainer}>
+              {currentQuestion.answers.map((answer: QuestionAnswer, index: number) => {
+                // Check if this answer is revealed by checking if any submitted answer matches this answer
+                // (including aliases and normalized versions)
+                const isRevealed = (getCurrentRoundAnswers() || []).some((submitted: string) => {
+                  const normalizedSubmitted = submitted.toLowerCase().trim();
+                  return (
+                    answer.text.toLowerCase().trim() === normalizedSubmitted ||
+                    answer.normalized?.toLowerCase().trim() === normalizedSubmitted ||
+                    answer.aliases?.some(alias => alias.toLowerCase().trim() === normalizedSubmitted)
+                  );
+                });
+                
+                return (
+                  <View key={index} style={styles.answerTableRow}>
+                    <View style={styles.positionColumn}>
+                      <Text style={styles.positionNumber}>#{answer.rank}</Text>
+                    </View>
+                    <View style={styles.answerColumn}>
+                      <Text style={styles.answerTableText}>
+                        {isRevealed ? answer.text : '???'}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
           </View>
         )}
 
@@ -1131,6 +1166,55 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
     borderWidth: 1,
     borderColor: '#7C3AED'
+  },
+  answerTableSection: {
+    backgroundColor: '#0F172A',
+    borderRadius: 20,
+    padding: SPACING.xl,
+    marginBottom: SPACING.xl,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#334155'
+  },
+  answerTableTitle: {
+    color: '#F1F5F9',
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: SPACING.md,
+    textAlign: 'center'
+  },
+  answerTableContainer: {
+    width: '100%',
+    gap: SPACING.sm
+  },
+  answerTableRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderRadius: 12,
+    backgroundColor: '#1E293B',
+    borderWidth: 1,
+    borderColor: '#475569'
+  },
+  positionColumn: {
+    width: 50,
+    alignItems: 'center'
+  },
+  positionNumber: {
+    color: '#F1F5F9',
+    fontSize: 18,
+    fontWeight: '800'
+  },
+  answerColumn: {
+    flex: 1,
+    alignItems: 'flex-start'
+  },
+  answerTableText: {
+    color: '#F1F5F9',
+    fontSize: 16,
+    fontWeight: '600'
   },
      fullScreenTouchable: {
      position: 'absolute',
