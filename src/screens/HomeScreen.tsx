@@ -66,6 +66,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           <Text style={styles.logoTop}>TOP</Text>
           <Text style={styles.logoNumber}>10</Text>
         </View>
+        <Text style={styles.welcomeText}>
+          Welcome back, {user?.displayName || user?.email?.split('@')[0] || 'Player'}!
+        </Text>
         <Text style={styles.heroSubtitle}>Test your knowledge and compete for the top spot!</Text>
       </View>
 
@@ -117,7 +120,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'flex-start',
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.lg,
     zIndex: 1,
@@ -140,11 +143,19 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
   },
+  welcomeText: {
+    color: COLORS.muted,
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 24,
+    maxWidth: width * 0.8,
+    marginBottom: SPACING.lg,
+  },
   heroSection: {
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.xl,
     alignItems: 'center',
-    marginTop: SPACING.xl * 2,
+    marginTop: SPACING.md,
     marginBottom: SPACING.xl,
   },
   logoContainer: {

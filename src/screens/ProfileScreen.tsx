@@ -185,7 +185,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           />
           
           <Button 
-            title="🚪 Sign Out" 
+            title="Sign Out" 
             onPress={handleSignOut}
             style={styles.signOutButton}
           />

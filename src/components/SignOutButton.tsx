@@ -86,7 +86,7 @@ const SignOutButton: React.FC<SignOutButtonProps> = ({
         {isLoading ? (
           <ActivityIndicator size="small" color={COLORS.background} />
         ) : (
-          <Text style={[styles.fullButtonText, iconStyle]}>🚪 Sign Out</Text>
+          <Text style={[styles.fullButtonText, iconStyle]}>Sign Out</Text>
         )}
       </TouchableOpacity>
     );
