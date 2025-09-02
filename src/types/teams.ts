@@ -29,10 +29,10 @@ export interface TeamGameState {
 
 // Pre-defined team colors
 export const TEAM_COLORS = [
-  '#FF6B6B', // Red
-  '#4ECDC4', // Teal
-  '#45B7D1', // Blue
-  '#96CEB4', // Green
+  '#FF4444', // Red
+  '#1E3A8A', // Dark Blue
+  '#10B981', // Green
+  '#8B5CF6', // Purple
 ] as const;
 
 // Timer options (0 = no timer/infinity)

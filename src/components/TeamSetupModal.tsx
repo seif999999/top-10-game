@@ -185,7 +185,7 @@ const TeamSetupModal: React.FC<TeamSetupModalProps> = ({
 
             {/* Max Rounds */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Max Rounds (Optional)</Text>
+              <Text style={styles.sectionTitle}>Max Rounds</Text>
               <View style={styles.maxRoundsContainer}>
                 <TouchableOpacity
                   style={[
