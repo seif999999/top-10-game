@@ -15,6 +15,8 @@ import MainMenuScreen from '../screens/MainMenuScreen';
 import CategoriesCarouselScreen from '../screens/CategoriesCarouselScreen';
 import GameScreen from '../screens/GameScreen';
 import ForgotPasswordScreen from '../screens/AuthScreens/ForgotPasswordScreen';
+import MultiplayerRoomScreen from '../screens/MultiplayerRoomScreen';
+
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -40,6 +42,7 @@ const AppNavigator: React.FC = () => {
           <Stack.Screen name="QuestionSelection" component={QuestionSelectionScreen} />
           <Stack.Screen name="GameLobby" component={GameLobbyScreen} />
           <Stack.Screen name="GameScreen" component={GameScreen} />
+          <Stack.Screen name="MultiplayerRoom" component={MultiplayerRoomScreen} />
         </>
       ) : (
         <>

@@ -92,15 +92,24 @@ const CategoriesCarouselScreen: React.FC<CategoriesScreenProps> = ({ navigation,
     setSelectedCategory(category.id);
     
     console.log('🎯 Category pressed:', category.name);
-    console.log('🎯 Navigating to QuestionSelection with params:', {
-      categoryName: category.name
-    });
+    console.log('🎯 Game mode:', gameMode);
     
-    // Navigate to QuestionSelection first
-    navigation.navigate('QuestionSelection', {
-      categoryName: category.name,
-      gameMode: gameMode
-    });
+    if (gameMode === 'multiplayer') {
+      // This shouldn't happen anymore with the new Sporcle flow
+      // Categories are now selected inline in the MultiplayerRoomScreen
+      console.warn('🚨 Unexpected multiplayer navigation to Categories screen');
+      navigation.goBack();
+    } else {
+      // For single player, continue to QuestionSelection
+      console.log('🎯 Navigating to QuestionSelection with params:', {
+        categoryName: category.name
+      });
+      
+      navigation.navigate('QuestionSelection', {
+        categoryName: category.name,
+        gameMode: gameMode
+      });
+    }
   };
 
   const renderCategoryCard = ({ item, index }: { item: typeof categories[0]; index: number }) => {

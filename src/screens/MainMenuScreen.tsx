@@ -44,7 +44,7 @@ const MainMenuScreen: React.FC<MainMenuScreenProps> = ({ navigation }) => {
       })
     ]).start();
     
-    navigation.navigate('Categories', { gameMode: 'multiplayer' });
+    navigation.navigate('MultiplayerRoom', { categoryName: '', categoryId: '' });
   };
 
   const handleBackToHome = () => {
@@ -64,6 +64,8 @@ const MainMenuScreen: React.FC<MainMenuScreenProps> = ({ navigation }) => {
     
     navigation.goBack();
   };
+
+
 
   return (
     <SafeAreaView style={styles.container}>
@@ -114,6 +116,8 @@ const MainMenuScreen: React.FC<MainMenuScreenProps> = ({ navigation }) => {
               </Text>
             </TouchableOpacity>
           </Animated.View>
+
+
         </View>
 
         {/* Footer */}

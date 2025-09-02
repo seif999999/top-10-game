@@ -16,6 +16,7 @@ export type MainStackParamList = {
   QuestionSelection: { categoryName: string; gameMode?: 'single' | 'multiplayer' };
   GameLobby: { categoryId: string; categoryName: string; selectedQuestion?: any };
   GameScreen: { roomId: string; categoryId: string; categoryName?: string; selectedQuestion?: any; isMultiplayer?: boolean; teamConfig?: any };
+  MultiplayerRoom: { categoryName?: string; categoryId?: string; roomCode?: string };
 };
 
 // Combined Root Stack Types
@@ -32,3 +33,4 @@ export type CategoriesScreenProps = NativeStackScreenProps<RootStackParamList, '
 export type QuestionSelectionScreenProps = NativeStackScreenProps<RootStackParamList, 'QuestionSelection'>;
 export type GameLobbyScreenProps = NativeStackScreenProps<RootStackParamList, 'GameLobby'>;
 export type GameScreenProps = NativeStackScreenProps<RootStackParamList, 'GameScreen'>;
+export type MultiplayerRoomScreenProps = NativeStackScreenProps<RootStackParamList, 'MultiplayerRoom'>;
