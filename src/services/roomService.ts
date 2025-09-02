@@ -243,6 +243,15 @@ export const joinRoom = async (roomCode: string): Promise<void> => {
 
   // Normalize room code to uppercase
   const normalizedRoomCode = roomCode.toUpperCase().trim();
+  
+  // Validate room code format
+  if (normalizedRoomCode.length !== 6) {
+    throw new Error('Room code must be 6 characters long');
+  }
+  
+  if (!/^[A-Z0-9]+$/.test(normalizedRoomCode)) {
+    throw new Error('Room code can only contain letters and numbers');
+  }
 
   try {
     const roomRef = doc(db, 'rooms', normalizedRoomCode);
@@ -446,6 +455,57 @@ export const updateRoomQuestions = async (roomCode: string, questions: any[]): P
     console.log(`✅ Questions updated for room ${normalizedRoomCode}: ${questions.length} questions selected`);
   } catch (error) {
     console.error('❌ Error updating questions:', error);
+    throw error;
+  }
+};
+
+/**
+ * Handle host leaving - transfer host to another player or delete room
+ * @param roomCode - The room code
+ * @param leavingPlayerId - The player ID leaving
+ */
+export const handleHostLeaving = async (roomCode: string, leavingPlayerId: string): Promise<void> => {
+  try {
+    const roomRef = doc(db, 'rooms', roomCode);
+    const roomDoc = await getDoc(roomRef);
+    
+    if (!roomDoc.exists()) {
+      return; // Room doesn't exist, nothing to do
+    }
+    
+    const roomData = roomDoc.data() as RoomData;
+    
+    // If the leaving player is not the host, just remove them
+    if (roomData.hostId !== leavingPlayerId) {
+      await updateDoc(roomRef, {
+        players: roomData.players.filter(id => id !== leavingPlayerId),
+        updatedAt: new Date()
+      });
+      return;
+    }
+    
+    // Host is leaving - handle host transfer or room deletion
+    const remainingPlayers = roomData.players.filter(id => id !== leavingPlayerId);
+    
+    if (remainingPlayers.length === 0) {
+      // No players left, delete the room
+      await updateDoc(roomRef, {
+        gameState: 'finished',
+        updatedAt: new Date()
+      });
+      console.log(`🗑️ Room ${roomCode} deleted - no players remaining`);
+    } else {
+      // Transfer host to the first remaining player
+      const newHostId = remainingPlayers[0];
+      await updateDoc(roomRef, {
+        hostId: newHostId,
+        players: remainingPlayers,
+        updatedAt: new Date()
+      });
+      console.log(`👑 Host transferred from ${leavingPlayerId} to ${newHostId} in room ${roomCode}`);
+    }
+  } catch (error) {
+    console.error('Error handling host leaving:', error);
     throw error;
   }
 };

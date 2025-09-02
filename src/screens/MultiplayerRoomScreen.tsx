@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { auth } from '../services/firebase';
-import { COLORS, SPACING } from '../utils/constants';
+import { COLORS, SPACING, TYPOGRAPHY, ACCESSIBILITY } from '../utils/constants';
 import { MultiplayerRoomScreenProps } from '../types/navigation';
 import { 
   createRoom, 
@@ -22,6 +22,7 @@ import {
   subscribeToRoom, 
   updateRoomGameState,
   updateRoomQuestions,
+  handleHostLeaving,
   RoomData 
 } from '../services/roomService';
 import { getQuestionsByCategory } from '../services/questionsService';
@@ -246,6 +247,15 @@ const MultiplayerRoomScreen: React.FC<MultiplayerRoomScreenProps> = ({ route, na
           console.log('📝 Questions already selected, moving to lobby');
           setMode('room_lobby');
         }
+
+        // Handle host leaving edge case
+        if (roomData.gameState === 'finished' && roomData.players.length === 0) {
+          console.log('🏠 Room was deleted by host, returning to mode selection');
+          setError('Host left and room was deleted');
+          resetAllSelections();
+          setCurrentRoom(null);
+          setMode('mode_select');
+        }
       }
     });
 
@@ -343,7 +353,19 @@ const MultiplayerRoomScreen: React.FC<MultiplayerRoomScreenProps> = ({ route, na
   // Sporcle Flow: Join existing room with code
   const handleJoinRoom = async () => {
     if (!joinRoomCode.trim()) {
-      showError('Please enter a room code');
+      setError('Please enter a room code');
+      return;
+    }
+
+    // Validate room code format
+    const normalizedCode = joinRoomCode.toUpperCase().trim();
+    if (normalizedCode.length !== 6) {
+      setError('Room code must be 6 characters long');
+      return;
+    }
+
+    if (!/^[A-Z0-9]+$/.test(normalizedCode)) {
+      setError('Room code can only contain letters and numbers');
       return;
     }
 
@@ -402,7 +424,7 @@ const MultiplayerRoomScreen: React.FC<MultiplayerRoomScreenProps> = ({ route, na
   };
 
   // Leave current room and go back to mode selection
-  const handleLeaveRoom = () => {
+  const handleLeaveRoom = async () => {
     if (unsubscribe) {
       unsubscribe();
       setUnsubscribe(null);
@@ -778,14 +800,16 @@ const styles = StyleSheet.create({
     width: 40,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold' as const,
-    color: COLORS.text,
+    fontSize: TYPOGRAPHY.fontSize['2xl'],
+    fontWeight: '700' as const,
+    color: ACCESSIBILITY.colors.text,
+    lineHeight: TYPOGRAPHY.lineHeight.tight * TYPOGRAPHY.fontSize['2xl'],
     marginBottom: 4,
   },
   subtitle: {
-    fontSize: 16,
-    color: COLORS.muted,
+    fontSize: TYPOGRAPHY.fontSize.base,
+    color: ACCESSIBILITY.colors.textMuted,
+    lineHeight: TYPOGRAPHY.lineHeight.normal * TYPOGRAPHY.fontSize.base,
     fontWeight: '500' as const,
   },
   errorContainer: {
@@ -911,6 +935,8 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
     borderRadius: 12,
     alignItems: 'center',
+    minHeight: ACCESSIBILITY.minTouchTarget,
+    justifyContent: 'center',
   },
   cancelButton: {
     backgroundColor: COLORS.muted,
@@ -929,8 +955,9 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: '#ffffff',
-    fontSize: 16,
+    fontSize: TYPOGRAPHY.fontSize.base,
     fontWeight: '600' as const,
+    lineHeight: TYPOGRAPHY.lineHeight.normal * TYPOGRAPHY.fontSize.base,
   },
   roomContainer: {
     flex: 1,

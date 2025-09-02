@@ -1,112 +1,90 @@
-import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
-import { Alert } from 'react-native';
-import multiplayerService, { 
-  MultiplayerGameState, 
-  MultiplayerPlayer, 
-  AnswerResult,
-  MultiplayerEvents 
-} from '../services/multiplayerService';
+import React, { createContext, useContext, useReducer, ReactNode } from 'react';
+import { RoomData } from '../services/roomService';
 
 // Multiplayer state interface
 interface MultiplayerState {
-  isConnected: boolean;
-  roomId: string | null;
-  playerId: string | null;
-  playerName: string | null;
-  gameState: MultiplayerGameState | null;
-  currentAnswer: string;
-  submittedAnswers: string[];
-  isLoading: boolean;
+  currentRoom: RoomData | null;
+  isHost: boolean;
+  isInRoom: boolean;
+  loading: boolean;
   error: string | null;
-  connectionStatus: 'connected' | 'connecting' | 'disconnected';
+  selectedCategory: string | null;
+  availableQuestions: any[];
+  selectedQuestions: string[];
+  joinRoomCode: string;
 }
 
 // Action types
 type MultiplayerAction =
-  | { type: 'SET_CONNECTION_STATUS'; payload: 'connected' | 'connecting' | 'disconnected' }
-  | { type: 'SET_ROOM'; payload: { roomId: string; playerId: string; playerName: string } }
-  | { type: 'SET_GAME_STATE'; payload: MultiplayerGameState }
-  | { type: 'SET_CURRENT_ANSWER'; payload: string }
-  | { type: 'ADD_SUBMITTED_ANSWER'; payload: string }
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null }
-  | { type: 'RESET_MULTIPLAYER' };
+  | { type: 'SET_ROOM'; payload: RoomData | null }
+  | { type: 'SET_HOST_STATUS'; payload: boolean }
+  | { type: 'SET_CATEGORY'; payload: string | null }
+  | { type: 'SET_QUESTIONS'; payload: { available: any[]; selected: string[] } }
+  | { type: 'SET_JOIN_CODE'; payload: string }
+  | { type: 'RESET_ALL' }
+  | { type: 'RESET_SELECTIONS' };
 
 // Initial state
 const initialState: MultiplayerState = {
-  isConnected: false,
-  roomId: null,
-  playerId: null,
-  playerName: null,
-  gameState: null,
-  currentAnswer: '',
-  submittedAnswers: [],
-  isLoading: false,
+  currentRoom: null,
+  isHost: false,
+  isInRoom: false,
+  loading: false,
   error: null,
-  connectionStatus: 'disconnected'
+  selectedCategory: null,
+  availableQuestions: [],
+  selectedQuestions: [],
+  joinRoomCode: '',
 };
 
-// Reducer
+// Reducer function
 const multiplayerReducer = (state: MultiplayerState, action: MultiplayerAction): MultiplayerState => {
   switch (action.type) {
-    case 'SET_CONNECTION_STATUS':
-      return {
-        ...state,
-        connectionStatus: action.payload,
-        isConnected: action.payload === 'connected'
-      };
-
+    case 'SET_LOADING':
+      return { ...state, loading: action.payload };
+    
+    case 'SET_ERROR':
+      return { ...state, error: action.payload };
+    
     case 'SET_ROOM':
       return {
         ...state,
-        roomId: action.payload.roomId,
-        playerId: action.payload.playerId,
-        playerName: action.payload.playerName
+        currentRoom: action.payload,
+        isInRoom: action.payload !== null,
+        isHost: action.payload ? action.payload.hostId === state.currentRoom?.hostId : false,
       };
-
-    case 'SET_GAME_STATE':
+    
+    case 'SET_HOST_STATUS':
+      return { ...state, isHost: action.payload };
+    
+    case 'SET_CATEGORY':
+      return { ...state, selectedCategory: action.payload };
+    
+    case 'SET_QUESTIONS':
       return {
         ...state,
-        gameState: action.payload,
-        error: null
+        availableQuestions: action.payload.available,
+        selectedQuestions: action.payload.selected,
       };
-
-    case 'SET_CURRENT_ANSWER':
-      console.log('🔌 MultiplayerContext: SET_CURRENT_ANSWER reducer called with:', action.payload);
+    
+    case 'SET_JOIN_CODE':
+      return { ...state, joinRoomCode: action.payload };
+    
+    case 'RESET_ALL':
+      return initialState;
+    
+    case 'RESET_SELECTIONS':
       return {
         ...state,
-        currentAnswer: action.payload
+        selectedCategory: null,
+        availableQuestions: [],
+        selectedQuestions: [],
+        joinRoomCode: '',
+        error: null,
       };
-
-    case 'ADD_SUBMITTED_ANSWER':
-      console.log('🔌 MultiplayerContext: ADD_SUBMITTED_ANSWER reducer called with:', action.payload);
-      console.log('🔌 MultiplayerContext: Previous submittedAnswers:', state.submittedAnswers);
-      const newState = {
-        ...state,
-        submittedAnswers: [...state.submittedAnswers, action.payload]
-      };
-      console.log('🔌 MultiplayerContext: New submittedAnswers:', newState.submittedAnswers);
-      return newState;
-
-    case 'SET_LOADING':
-      return {
-        ...state,
-        isLoading: action.payload
-      };
-
-    case 'SET_ERROR':
-      return {
-        ...state,
-        error: action.payload,
-        isLoading: false
-      };
-
-    case 'RESET_MULTIPLAYER':
-      return {
-        ...initialState,
-        connectionStatus: state.connectionStatus
-      };
-
+    
     default:
       return state;
   }
@@ -115,290 +93,61 @@ const multiplayerReducer = (state: MultiplayerState, action: MultiplayerAction):
 // Context interface
 interface MultiplayerContextType {
   state: MultiplayerState;
-  joinRoom: (roomId: string, playerId: string, playerName: string, categoryId: string) => void;
-  startGame: () => void;
-  submitAnswer: (answer: string) => void;
-  nextQuestion: () => void;
-  endGame: () => void;
-  leaveRoom: () => void;
-  setCurrentAnswer: (answer: string) => void;
-  resetMultiplayer: () => void;
-  forceDisconnect: () => void;
-  getPlayerScore: (playerId: string) => number;
-  getLeaderboard: () => Array<{ playerId: string; playerName: string; score: number }>;
-  isQuestionComplete: () => boolean;
-  getCorrectAnswersFound: () => number;
+  dispatch: React.Dispatch<MultiplayerAction>;
+  // Helper functions
+  setLoading: (loading: boolean) => void;
+  setError: (error: string | null) => void;
+  setRoom: (room: RoomData | null) => void;
+  setCategory: (category: string | null) => void;
+  setQuestions: (available: any[], selected: string[]) => void;
+  setJoinCode: (code: string) => void;
+  resetAll: () => void;
+  resetSelections: () => void;
 }
 
 // Create context
 const MultiplayerContext = createContext<MultiplayerContextType | undefined>(undefined);
 
 // Provider component
-export const MultiplayerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+interface MultiplayerProviderProps {
+  children: ReactNode;
+}
+
+export const MultiplayerProvider: React.FC<MultiplayerProviderProps> = ({ children }) => {
   const [state, dispatch] = useReducer(multiplayerReducer, initialState);
 
-  // Setup multiplayer event handlers
-  const setupEventHandlers = useCallback(() => {
-    const eventHandlers: MultiplayerEvents = {
-             onRoomJoined: (data) => {
-         console.log('🎯 Room joined successfully:', data);
-         if (data.success) {
-           dispatch({ type: 'SET_GAME_STATE', payload: data.room });
-           dispatch({ type: 'SET_LOADING', payload: false });
-           
-           // Auto-start the game if we're the first player
-           if (data.room.players.length === 1) {
-             console.log('🎮 Auto-starting game as first player');
-             setTimeout(() => {
-               multiplayerService.startGame(data.room.roomId);
-             }, 1000);
-           }
-         } else {
-           dispatch({ type: 'SET_ERROR', payload: data.error || 'Failed to join room' });
-         }
-       },
+  // Helper functions
+  const setLoading = (loading: boolean) => dispatch({ type: 'SET_LOADING', payload: loading });
+  const setError = (error: string | null) => dispatch({ type: 'SET_ERROR', payload: error });
+  const setRoom = (room: RoomData | null) => dispatch({ type: 'SET_ROOM', payload: room });
+  const setCategory = (category: string | null) => dispatch({ type: 'SET_CATEGORY', payload: category });
+  const setQuestions = (available: any[], selected: string[]) => 
+    dispatch({ type: 'SET_QUESTIONS', payload: { available, selected } });
+  const setJoinCode = (code: string) => dispatch({ type: 'SET_JOIN_CODE', payload: code });
+  const resetAll = () => dispatch({ type: 'RESET_ALL' });
+  const resetSelections = () => dispatch({ type: 'RESET_SELECTIONS' });
 
-      onPlayerJoined: (data) => {
-        dispatch({ type: 'SET_GAME_STATE', payload: data.room });
-      },
-
-      onPlayerLeft: (data) => {
-        dispatch({ type: 'SET_GAME_STATE', payload: data.room });
-      },
-
-             onGameStarted: (gameState) => {
-         console.log('🎮 Game started:', gameState);
-         dispatch({ type: 'SET_GAME_STATE', payload: gameState });
-         dispatch({ type: 'SET_LOADING', payload: false });
-       },
-
-             onGameStateUpdate: (gameState) => {
-         console.log('🔄 Game state updated:', gameState);
-         dispatch({ type: 'SET_GAME_STATE', payload: gameState });
-       },
-
-      onAnswerResult: (result) => {
-        console.log('🔌 MultiplayerContext: onAnswerResult called with:', result);
-        // Add all submitted answers to the list, regardless of correctness
-        dispatch({ type: 'ADD_SUBMITTED_ANSWER', payload: result.answer });
-        console.log('📝 Answer result received and dispatched:', result);
-      },
-
-      onQuestionEnded: (gameState) => {
-        dispatch({ type: 'SET_GAME_STATE', payload: gameState });
-      },
-
-      onNextQuestion: (gameState) => {
-        dispatch({ type: 'SET_GAME_STATE', payload: gameState });
-        dispatch({ type: 'SET_CURRENT_ANSWER', payload: '' });
-        dispatch({ type: 'SET_LOADING', payload: false });
-      },
-
-      onGameEnded: (gameState) => {
-        dispatch({ type: 'SET_GAME_STATE', payload: gameState });
-      },
-
-      onError: (error) => {
-        dispatch({ type: 'SET_ERROR', payload: error });
-        Alert.alert('Multiplayer Error', error);
-      }
-    };
-
-    multiplayerService.setEventHandlers(eventHandlers);
-  }, []);
-
-  // Initialize event handlers
-  useEffect(() => {
-    setupEventHandlers();
-  }, [setupEventHandlers]);
-
-  // Monitor connection status
-  useEffect(() => {
-    console.log('🔌 MultiplayerContext: Setting up connection monitoring');
-    
-    const checkConnection = () => {
-      const status = multiplayerService.getConnectionStatus();
-      
-      // Only update if status actually changed
-      if (status !== state.connectionStatus) {
-        console.log('🔌 MultiplayerContext: Connection status changed from', state.connectionStatus, 'to', status);
-        dispatch({ type: 'SET_CONNECTION_STATUS', payload: status });
-        
-        // If disconnected, show error message only when status actually changes to disconnected
-        if (status === 'disconnected' && state.roomId) {
-          console.log('🔌 MultiplayerContext: Lost connection while in room, showing error');
-          dispatch({ type: 'SET_ERROR', payload: 'Lost connection to multiplayer server. Please try reconnecting.' });
-        }
-      }
-    };
-
-    checkConnection();
-    const interval = setInterval(checkConnection, 2000);
-
-    return () => {
-      console.log('🔌 MultiplayerContext: Cleaning up connection monitoring');
-      clearInterval(interval);
-    };
-  }, [state.roomId, state.connectionStatus]);
-
-  // Join a multiplayer room
-  const joinRoom = useCallback((roomId: string, playerId: string, playerName: string, categoryId: string) => {
-    console.log('🔌 MultiplayerContext: joinRoom() called with:', { roomId, playerId, playerName, categoryId });
-    console.log('🔌 MultiplayerContext: Current connection status:', state.connectionStatus);
-    
-    dispatch({ type: 'SET_LOADING', payload: true });
-    dispatch({ type: 'SET_ERROR', payload: null });
-    dispatch({ type: 'SET_ROOM', payload: { roomId, playerId, playerName } });
-    
-    console.log('🔌 MultiplayerContext: Calling multiplayerService.joinRoom()');
-    multiplayerService.joinRoom(roomId, playerId, playerName, categoryId);
-  }, []);
-
-  // Start the multiplayer game
-  const startGame = useCallback(() => {
-    if (!state.roomId) {
-      dispatch({ type: 'SET_ERROR', payload: 'No room to start game' });
-      return;
-    }
-
-    dispatch({ type: 'SET_LOADING', payload: true });
-    multiplayerService.startGame(state.roomId);
-  }, [state.roomId]);
-
-  // Submit an answer
-  const submitAnswer = useCallback((answer: string) => {
-    console.log('🔌 MultiplayerContext: submitAnswer called with:', {
-      answer,
-      roomId: state.roomId,
-      playerId: state.playerId,
-      gameState: state.gameState
-    });
-    
-    if (!state.roomId || !state.playerId) {
-      console.log('❌ No room or player ID');
-      dispatch({ type: 'SET_ERROR', payload: 'Not in a game room' });
-      return;
-    }
-
-    if (!answer.trim()) {
-      console.log('❌ Empty answer');
-      dispatch({ type: 'SET_ERROR', payload: 'Answer cannot be empty' });
-      return;
-    }
-
-    console.log('📝 Calling multiplayerService.submitAnswer');
-    multiplayerService.submitAnswer(state.roomId, state.playerId, answer);
-    dispatch({ type: 'SET_CURRENT_ANSWER', payload: '' });
-  }, [state.roomId, state.playerId]);
-
-  // Move to next question
-  const nextQuestion = useCallback(() => {
-    if (!state.roomId) {
-      dispatch({ type: 'SET_ERROR', payload: 'No room to move to next question' });
-      return;
-    }
-
-    dispatch({ type: 'SET_LOADING', payload: true });
-    multiplayerService.nextQuestion(state.roomId);
-  }, [state.roomId]);
-
-  // End the game
-  const endGame = useCallback(() => {
-    if (!state.roomId) {
-      dispatch({ type: 'SET_ERROR', payload: 'No room to end game' });
-      return;
-    }
-
-    multiplayerService.endGame(state.roomId);
-  }, [state.roomId]);
-
-  // Leave the room
-  const leaveRoom = useCallback(() => {
-    multiplayerService.leaveRoom();
-    dispatch({ type: 'RESET_MULTIPLAYER' });
-  }, []);
-
-  // Set current answer
-  const setCurrentAnswer = useCallback((answer: string) => {
-    console.log('🔌 MultiplayerContext: setCurrentAnswer called with:', answer);
-    dispatch({ type: 'SET_CURRENT_ANSWER', payload: answer });
-  }, []);
-
-  // Reset multiplayer state
-  const resetMultiplayer = useCallback(() => {
-    multiplayerService.leaveRoom();
-    dispatch({ type: 'RESET_MULTIPLAYER' });
-  }, []);
-
-  // Force disconnect (for when user exits game completely)
-  const forceDisconnect = useCallback(() => {
-    multiplayerService.forceDisconnect();
-    dispatch({ type: 'RESET_MULTIPLAYER' });
-  }, []);
-
-  // Get player score
-  const getPlayerScore = useCallback((playerId: string): number => {
-    return state.gameState?.scores[playerId] || 0;
-  }, [state.gameState]);
-
-  // Get leaderboard
-  const getLeaderboard = useCallback(() => {
-    return state.gameState?.leaderboard || [];
-  }, [state.gameState]);
-
-  // Check if question is complete (all answers found)
-  const isQuestionComplete = useCallback(() => {
-    if (!state.gameState?.currentQuestion) return false;
-    
-    const correctAnswers = state.gameState.currentQuestion.answers;
-    const foundAnswers = state.submittedAnswers;
-    
-    return correctAnswers.every((answer: { text: string }) =>
-      foundAnswers.some(submitted =>
-        submitted.toLowerCase().trim() === answer.text.toLowerCase().trim()
-      )
-    );
-  }, [state.gameState?.currentQuestion, state.submittedAnswers]);
-
-  // Get number of correct answers found
-  const getCorrectAnswersFound = useCallback(() => {
-    if (!state.gameState?.currentQuestion) return 0;
-    
-    const correctAnswers = state.gameState.currentQuestion.answers;
-    const foundAnswers = state.submittedAnswers;
-    
-    return correctAnswers.filter((answer: { text: string }) =>
-      foundAnswers.some(submitted =>
-        submitted.toLowerCase().trim() === answer.text.toLowerCase().trim()
-      )
-    ).length;
-  }, [state.gameState?.currentQuestion, state.submittedAnswers]);
-
-  const contextValue: MultiplayerContextType = {
+  const value: MultiplayerContextType = {
     state,
-    joinRoom,
-    startGame,
-    submitAnswer,
-    nextQuestion,
-    endGame,
-    leaveRoom,
-    setCurrentAnswer,
-    resetMultiplayer,
-    forceDisconnect,
-    getPlayerScore,
-    getLeaderboard,
-    isQuestionComplete,
-    getCorrectAnswersFound
+    dispatch,
+    setLoading,
+    setError,
+    setRoom,
+    setCategory,
+    setQuestions,
+    setJoinCode,
+    resetAll,
+    resetSelections,
   };
 
   return (
-    <MultiplayerContext.Provider value={contextValue}>
+    <MultiplayerContext.Provider value={value}>
       {children}
     </MultiplayerContext.Provider>
   );
 };
 
-// Hook to use multiplayer context
+// Custom hook to use the context
 export const useMultiplayer = (): MultiplayerContextType => {
   const context = useContext(MultiplayerContext);
   if (context === undefined) {
