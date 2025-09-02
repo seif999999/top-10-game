@@ -7,9 +7,10 @@ import {
   TouchableOpacity, 
   ScrollView, 
   Dimensions,
-  FlatList
+  FlatList,
+  Animated
 } from 'react-native';
-import { COLORS, SPACING } from '../utils/constants';
+import { COLORS, SPACING, TYPOGRAPHY, ANIMATIONS } from '../utils/constants';
 import { CategoriesScreenProps } from '../types/navigation';
 
 const { width, height } = Dimensions.get('window');
@@ -87,6 +88,27 @@ const CategoriesCarouselScreen: React.FC<CategoriesScreenProps> = ({ navigation,
   const { gameMode } = route.params;
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const flatListRef = useRef<FlatList>(null);
+  
+  // Animation values
+  const backButtonScale = useRef(new Animated.Value(1)).current;
+
+  const handleBackToHome = () => {
+    // Button press animation
+    Animated.sequence([
+      Animated.timing(backButtonScale, {
+        toValue: 0.9,
+        duration: ANIMATIONS.duration.fast,
+        useNativeDriver: true,
+      }),
+      Animated.timing(backButtonScale, {
+        toValue: 1,
+        duration: ANIMATIONS.duration.fast,
+        useNativeDriver: true,
+      })
+    ]).start();
+    
+    navigation.goBack();
+  };
 
   const handleCategoryPress = (category: typeof categories[0]) => {
     setSelectedCategory(category.id);
@@ -150,12 +172,13 @@ const CategoriesCarouselScreen: React.FC<CategoriesScreenProps> = ({ navigation,
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton} 
-          onPress={() => navigation.goBack()}
-        >
-          <Text style={styles.backButtonText}>←</Text>
-        </TouchableOpacity>
+        <Animated.View style={{ transform: [{ scale: backButtonScale }] }}>
+          <TouchableOpacity onPress={handleBackToHome} style={styles.backButton}>
+            <View style={styles.backButtonIcon}>
+              <Text style={styles.backButtonArrow}>‹</Text>
+            </View>
+          </TouchableOpacity>
+        </Animated.View>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Choose Category</Text>
           <Text style={styles.headerSubtitle}>
@@ -198,27 +221,53 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.lg,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    position: 'relative',
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    position: 'absolute',
+    left: SPACING.sm,
+    top: SPACING.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: 22,
+    backgroundColor: 'rgba(139, 92, 246, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.2)',
+    shadowColor: '#8B5CF6',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  backButtonIcon: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(139, 92, 246, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: SPACING.md,
   },
-  backButtonText: {
-    fontSize: 20,
-    color: COLORS.text,
-    fontWeight: '600',
+  backButtonArrow: {
+    color: '#8B5CF6',
+    fontSize: 18,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    lineHeight: 20,
   },
   headerContent: {
     flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
     fontSize: 24,

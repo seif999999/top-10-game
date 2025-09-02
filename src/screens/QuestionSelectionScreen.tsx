@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   View, 
   Text, 
@@ -8,9 +8,10 @@ import {
   ScrollView, 
   ActivityIndicator,
   FlatList,
-  Alert
+  Alert,
+  Animated
 } from 'react-native';
-import { COLORS, SPACING } from '../utils/constants';
+import { COLORS, SPACING, TYPOGRAPHY, ANIMATIONS } from '../utils/constants';
 import { QuestionSelectionScreenProps } from '../types/navigation';
 import { getQuestionsByCategory } from '../services/questionsService';
 import { FEATURES } from '../config/featureFlags';
@@ -23,6 +24,9 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
   const [loading, setLoading] = useState(true);
   const [showTeamSetup, setShowTeamSetup] = useState(false);
   const [selectedQuestion, setSelectedQuestion] = useState<any>(null);
+  
+  // Animation values
+  const backButtonScale = useRef(new Animated.Value(1)).current;
   
   console.log('🎯 QuestionSelectionScreen loaded with params:', route.params);
   console.log('🎯 Category name:', categoryName);
@@ -102,6 +106,20 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
   };
 
   const handleBackToCategories = () => {
+    // Button press animation
+    Animated.sequence([
+      Animated.timing(backButtonScale, {
+        toValue: 0.9,
+        duration: ANIMATIONS.duration.fast,
+        useNativeDriver: true,
+      }),
+      Animated.timing(backButtonScale, {
+        toValue: 1,
+        duration: ANIMATIONS.duration.fast,
+        useNativeDriver: true,
+      })
+    ]).start();
+    
     navigation.navigate('Categories', { gameMode: 'single' });
   };
 
@@ -120,9 +138,13 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={handleBackToCategories} style={styles.backButton}>
-            <Text style={styles.backButtonText}>← Back</Text>
-          </TouchableOpacity>
+          <Animated.View style={{ transform: [{ scale: backButtonScale }] }}>
+            <TouchableOpacity onPress={handleBackToCategories} style={styles.backButton}>
+              <View style={styles.backButtonIcon}>
+                <Text style={styles.backButtonArrow}>‹</Text>
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
           <Text style={styles.title}>Choose a Question</Text>
           <View style={styles.placeholder} />
         </View>
@@ -165,9 +187,13 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleBackToCategories} style={styles.backButton}>
-          <Text style={styles.backButtonText}>← Back</Text>
-        </TouchableOpacity>
+        <Animated.View style={{ transform: [{ scale: backButtonScale }] }}>
+          <TouchableOpacity onPress={handleBackToCategories} style={styles.backButton}>
+            <View style={styles.backButtonIcon}>
+              <Text style={styles.backButtonArrow}>‹</Text>
+            </View>
+          </TouchableOpacity>
+        </Animated.View>
         <Text style={styles.title}>Choose a Question</Text>
         <View style={styles.placeholder} />
       </View>
@@ -208,22 +234,48 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.card
+    borderBottomColor: COLORS.card,
+    position: 'relative',
   },
   backButton: {
-    paddingVertical: SPACING.sm,
+    position: 'absolute',
+    left: SPACING.sm,
+    top: SPACING.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: SPACING.md,
-    borderRadius: 8,
-    backgroundColor: COLORS.card
+    paddingVertical: SPACING.sm,
+    borderRadius: 22,
+    backgroundColor: 'rgba(139, 92, 246, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.2)',
+    shadowColor: '#8B5CF6',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  backButtonText: {
-    color: COLORS.text,
-    fontSize: 16,
-    fontWeight: '600'
+  backButtonIcon: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backButtonArrow: {
+    color: '#8B5CF6',
+    fontSize: 18,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    lineHeight: 20,
   },
   title: {
     color: COLORS.text,

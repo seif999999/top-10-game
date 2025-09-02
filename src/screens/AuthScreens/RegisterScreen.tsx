@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput } from 'react-native';
 import Button from '../../components/Button';
+import GoogleSignInButton from '../../components/GoogleSignInButton';
 import { useAuth } from '../../contexts/AuthContext';
 import { COLORS, SPACING } from '../../utils/constants';
 import { RegisterScreenProps } from '../../types/navigation';
@@ -15,6 +16,8 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
   const [displayName, setDisplayName] = useState('');
   const [localLoading, setLocalLoading] = useState(false);
   const [errors, setErrors] = useState<{ displayName?: string; email?: string; password?: string; confirmPassword?: string }>({});
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const validate = () => {
     const next: { displayName?: string; email?: string; password?: string; confirmPassword?: string } = {};
@@ -68,31 +71,73 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
         style={styles.input}
       />
       {errors.email ? <Text style={styles.error}>{errors.email}</Text> : null}
-      <TextInput 
-        placeholder="Password" 
-        placeholderTextColor={COLORS.muted}
-        secureTextEntry 
-        value={password} 
-        onChangeText={setPassword}
-        editable={!isLoading}
-        style={styles.input}
-      />
+      <View style={styles.passwordContainer}>
+        <TextInput 
+          placeholder="Password" 
+          placeholderTextColor={COLORS.muted}
+          secureTextEntry={!showPassword}
+          value={password} 
+          onChangeText={setPassword}
+          editable={!isLoading}
+          style={styles.passwordInput}
+        />
+        <TouchableOpacity 
+          style={styles.eyeButton}
+          onPress={() => setShowPassword(!showPassword)}
+          disabled={isLoading}
+        >
+          <Text style={styles.eyeIcon}>
+            {showPassword ? '👁️' : '👁️‍🗨️'}
+          </Text>
+        </TouchableOpacity>
+      </View>
       {errors.password ? <Text style={styles.error}>{errors.password}</Text> : null}
-      <TextInput 
-        placeholder="Confirm Password" 
-        placeholderTextColor={COLORS.muted}
-        secureTextEntry 
-        value={confirmPassword} 
-        onChangeText={setConfirmPassword}
-        editable={!isLoading}
-        style={styles.input}
-      />
+      <View style={styles.passwordContainer}>
+        <TextInput 
+          placeholder="Confirm Password" 
+          placeholderTextColor={COLORS.muted}
+          secureTextEntry={!showConfirmPassword}
+          value={confirmPassword} 
+          onChangeText={setConfirmPassword}
+          editable={!isLoading}
+          style={styles.passwordInput}
+        />
+        <TouchableOpacity 
+          style={styles.eyeButton}
+          onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+          disabled={isLoading}
+        >
+          <Text style={styles.eyeIcon}>
+            {showConfirmPassword ? '👁️' : '👁️‍🗨️'}
+          </Text>
+        </TouchableOpacity>
+      </View>
       {errors.confirmPassword ? <Text style={styles.error}>{errors.confirmPassword}</Text> : null}
       
       <Button 
         title={isLoading ? 'Creating account…' : 'Create Account'} 
         onPress={handleSignUp}
         disabled={isLoading}
+      />
+
+      {/* Divider */}
+      <View style={styles.divider}>
+        <View style={styles.dividerLine} />
+        <Text style={styles.dividerText}>OR</Text>
+        <View style={styles.dividerLine} />
+      </View>
+
+      {/* Google Sign-In Button */}
+      <GoogleSignInButton
+        onSuccess={() => {
+          // Navigation will be handled automatically by AuthContext
+          console.log('Google sign-in successful');
+        }}
+        onError={(error) => {
+          console.error('Google sign-in error:', error);
+          Alert.alert('Sign-In Error', error);
+        }}
+        style={styles.googleButton}
       />
       
       <View style={styles.footer}>
@@ -157,6 +202,56 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#334155',
     minHeight: 50
+  },
+  passwordContainer: {
+    position: 'relative',
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  passwordInput: {
+    backgroundColor: COLORS.card,
+    color: COLORS.text,
+    fontSize: 16,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    paddingRight: 50,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#334155',
+    minHeight: 50,
+    flex: 1
+  },
+  eyeButton: {
+    position: 'absolute',
+    right: SPACING.md,
+    padding: SPACING.sm,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  eyeIcon: {
+    fontSize: 18,
+    opacity: 0.8,
+    color: COLORS.muted
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: SPACING.lg
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: COLORS.muted,
+    opacity: 0.3
+  },
+  dividerText: {
+    color: COLORS.muted,
+    fontSize: 14,
+    marginHorizontal: SPACING.md,
+    fontWeight: '500'
+  },
+  googleButton: {
+    marginBottom: SPACING.sm
   }
 });
 

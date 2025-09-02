@@ -71,20 +71,21 @@ const MainMenuScreen: React.FC<MainMenuScreenProps> = ({ navigation }) => {
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         {/* Header */}
-                 <View style={styles.header}>
-           <Animated.View style={{ transform: [{ scale: backButtonScale }] }}>
-             <TouchableOpacity onPress={handleBackToHome} style={styles.backButton}>
-               <View style={styles.backButtonIcon}>
-                 <Text style={styles.backButtonArrow}>‹</Text>
-               </View>
-               <Text style={styles.backButtonText}>Back</Text>
-             </TouchableOpacity>
-           </Animated.View>
+        <View style={styles.header}>
+          <Animated.View style={{ transform: [{ scale: backButtonScale }] }}>
+            <TouchableOpacity onPress={handleBackToHome} style={styles.backButton}>
+              <View style={styles.backButtonIcon}>
+                <Text style={styles.backButtonArrow}>‹</Text>
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
+          
           <View style={styles.headerCenter}>
-            <Text style={styles.title}>TOP 10</Text>
-            <Text style={styles.subtitle}>Trivia Challenge</Text>
+            <View style={styles.logoContainer}>
+              <Text style={styles.logoTop}>TOP</Text>
+              <Text style={styles.logoNumber}>10</Text>
+            </View>
           </View>
-          <View style={styles.placeholder} />
         </View>
 
         {/* Game Mode Selection */}
@@ -141,17 +142,23 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: SPACING.xl * 2,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    marginTop: SPACING.lg,
     paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.md,
+    position: 'relative',
   },
      backButton: {
+     position: 'absolute',
+     left: SPACING.sm,
+     top: SPACING.md,
      flexDirection: 'row',
      alignItems: 'center',
+     justifyContent: 'center',
      paddingHorizontal: SPACING.md,
      paddingVertical: SPACING.sm,
-     borderRadius: 25,
+     borderRadius: 22,
      backgroundColor: 'rgba(139, 92, 246, 0.08)',
      borderWidth: 1.5,
      borderColor: 'rgba(139, 92, 246, 0.3)',
@@ -162,13 +169,12 @@ const styles = StyleSheet.create({
      elevation: 3,
    },
      backButtonIcon: {
-     width: 24,
-     height: 24,
-     borderRadius: 12,
+     width: 22,
+     height: 22,
+     borderRadius: 11,
      backgroundColor: 'rgba(139, 92, 246, 0.2)',
      justifyContent: 'center',
      alignItems: 'center',
-     marginRight: SPACING.xs,
    },
    backButtonArrow: {
      color: '#8B5CF6',
@@ -176,38 +182,34 @@ const styles = StyleSheet.create({
      fontWeight: TYPOGRAPHY.fontWeight.bold,
      lineHeight: 20,
    },
-   backButtonText: {
-     color: '#8B5CF6',
-     fontSize: 14,
-     fontWeight: TYPOGRAPHY.fontWeight.semibold,
-     fontFamily: TYPOGRAPHY.fontFamily.primary,
-     letterSpacing: 0.3,
-   },
+
   headerCenter: {
     alignItems: 'center',
-    flex: 1,
+    justifyContent: 'center',
+    width: '100%',
   },
-  placeholder: {
-    width: 40,
+
+  logoContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-     title: {
-     fontSize: 48,
-     fontWeight: TYPOGRAPHY.fontWeight.black,
-     fontFamily: TYPOGRAPHY.fontFamily.display,
-     color: COLORS.primary,
-     marginBottom: SPACING.sm,
-     letterSpacing: 2,
-     textShadowColor: 'rgba(0, 0, 0, 0.3)',
-     textShadowOffset: { width: 0, height: 2 },
-     textShadowRadius: 4,
-   },
-     subtitle: {
-     fontSize: 18,
-     color: COLORS.muted,
-     fontWeight: TYPOGRAPHY.fontWeight.medium,
-     fontFamily: TYPOGRAPHY.fontFamily.primary,
-     letterSpacing: 0.5,
-   },
+  logoTop: {
+    color: COLORS.primary,
+    fontSize: 32,
+    fontWeight: '900',
+    letterSpacing: 6,
+    textAlign: 'center',
+    marginBottom: -8,
+  },
+  logoNumber: {
+    color: COLORS.text,
+    fontSize: 72,
+    fontWeight: '900',
+    textAlign: 'center',
+    textShadowColor: COLORS.primary,
+    textShadowOffset: { width: 0, height: 6 },
+    textShadowRadius: 12,
+  },
   modeSelection: {
     flex: 1,
     justifyContent: 'center',

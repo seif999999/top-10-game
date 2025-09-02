@@ -59,10 +59,10 @@ const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
       style={[styles.button, style]}
       onPress={handleGoogleSignIn}
       disabled={isLoading}
-      activeOpacity={0.8}
+      activeOpacity={0.7}
     >
       {isLoading ? (
-        <ActivityIndicator color="#5F6368" size="small" />
+        <ActivityIndicator color={COLORS.text} size="small" />
       ) : (
         <>
           <View style={styles.googleIcon}>
@@ -82,40 +82,48 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
+    backgroundColor: COLORS.primary,
+    borderRadius: 12,
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.lg,
     marginVertical: SPACING.sm,
     borderWidth: 1,
-    borderColor: '#DADCE0',
-    shadowColor: '#000',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    shadowColor: COLORS.primary,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  googleIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#4285F4',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: SPACING.md,
+    shadowColor: '#4285F4',
     shadowOffset: {
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 3,
-  },
-  googleIcon: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#4285F4',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: SPACING.sm,
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
   },
   googleIconText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: 'bold',
   },
   text: {
-    color: '#5F6368',
+    color: COLORS.text,
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
   },
 });
 
