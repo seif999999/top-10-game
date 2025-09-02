@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Alert, TextInput, Platform, Animated } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import Button from '../components/Button';
 import ResultsModal from '../components/ResultsModal';
 import MultiplayerLeaderboard from '../components/MultiplayerLeaderboard';
@@ -215,6 +216,24 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     }
   }, [gameState?.gamePhase, showResults]);
 
+  // Cleanup game state when screen loses focus (user navigates away)
+  useFocusEffect(
+    React.useCallback(() => {
+      // This runs when the screen comes into focus
+      console.log('🎮 GameScreen focused');
+      
+      // Return cleanup function that runs when screen loses focus
+      return () => {
+        console.log('🎮 GameScreen unfocused - cleaning up single-player game state');
+        // Only reset single-player game state, not multiplayer
+        if (!isMultiplayerMode) {
+          console.log('🎮 Resetting single-player game state on navigation away');
+          resetGame();
+        }
+      };
+    }, [isMultiplayerMode, resetGame])
+  );
+
   const handleExitGame = () => {
     Alert.alert(
       'Exit Game',
@@ -305,7 +324,14 @@ const handleEndGame = () => {
       navigation.navigate('MainMenu');
     };
 
-
+  const handleBackButton = () => {
+    console.log('🎮 Back button pressed - resetting single-player game state');
+    // Reset single-player game state when back button is pressed
+    if (!isMultiplayerMode) {
+      resetGame();
+    }
+    navigation.goBack();
+  };
 
   const handleHelp = () => {
     Alert.alert(
@@ -424,10 +450,10 @@ const handleEndGame = () => {
     if (!currentQuestion?.answers) return false;
     
     const normalizedAnswer = answer.toLowerCase().trim();
-    return currentQuestion.answers.some(correctAnswer => 
+    return currentQuestion.answers.some((correctAnswer: any) => 
       correctAnswer.text.toLowerCase().trim() === normalizedAnswer ||
       correctAnswer.normalized?.toLowerCase().trim() === normalizedAnswer ||
-      correctAnswer.aliases?.some(alias => alias.toLowerCase().trim() === normalizedAnswer)
+      correctAnswer.aliases?.some((alias: string) => alias.toLowerCase().trim() === normalizedAnswer)
     );
   };
 
@@ -464,7 +490,7 @@ const handleEndGame = () => {
     <SafeAreaView style={styles.container}>
              {/* Header */}
        <View style={styles.header}>
-         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+         <TouchableOpacity onPress={handleBackButton} style={styles.backButton}>
            <View style={styles.backButtonIcon}>
              <Text style={styles.backButtonArrow}>‹</Text>
            </View>
