@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import { startNewGame, processAnswer, nextQuestion, generateGameResults, isQuestionComplete as checkQuestionComplete } from '../services/gameLogic';
 import { GameState, GameResults, PlayerAnswer, GameQuestion } from '../types';
-import { Team, TeamGameState, TeamSetupConfig } from '../types/teams';
+import { Team, TeamGameState, TeamSetupConfig, TEAM_COLORS } from '../types/teams';
 
 export type GamePhase = 'lobby' | 'question' | 'answered' | 'results' | 'finished';
 
@@ -189,7 +189,7 @@ const gameReducer = (state: GameContextState, action: GameAction): GameContextSt
         const teams: Team[] = config.teamNames.map((name, index) => ({
           id: `team-${index + 1}`,
           name,
-          color: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4'][index],
+          color: TEAM_COLORS[index],
           score: 0,
         }));
         
