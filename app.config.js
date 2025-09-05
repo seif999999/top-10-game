@@ -19,7 +19,8 @@ module.exports = () => ({
     // Platform-specific configurations
     ios: {
       bundleIdentifier: 'com.top10game.app',
-      googleServicesFile: './GoogleService-Info.plist',
+      // Note: googleServicesFile removed - use EAS secrets or environment-based config
+      // For production, add: googleServicesFile: './GoogleService-Info.plist'
       infoPlist: {
         CFBundleURLTypes: [
           {
@@ -32,7 +33,8 @@ module.exports = () => ({
     
     android: {
       package: 'com.top10game.app',
-      googleServicesFile: './google-services.json',
+      // Note: googleServicesFile removed - use EAS secrets or environment-based config
+      // For production, add: googleServicesFile: './google-services.json'
       intentFilters: [
         {
           action: 'VIEW',

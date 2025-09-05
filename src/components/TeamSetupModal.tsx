@@ -33,11 +33,14 @@ const TeamSetupModal: React.FC<TeamSetupModalProps> = ({
     console.log(`🎮 TeamSetupModal: Changing numberOfTeams from ${numberOfTeams} to ${value}`);
     console.log(`🎮 Current teamNames:`, teamNames);
     
-    if (value >= 1 && value <= 4) {
-      setNumberOfTeams(value);
+    // Ensure value is within bounds (1-4)
+    const clampedValue = Math.max(1, Math.min(4, value));
+    
+    if (clampedValue !== numberOfTeams) {
+      setNumberOfTeams(clampedValue);
       // Ensure we have enough team names
       const newTeamNames = [...teamNames];
-      for (let i = teamNames.length; i < value; i++) {
+      for (let i = teamNames.length; i < clampedValue; i++) {
         newTeamNames.push(`Team ${i + 1}`);
       }
       console.log(`🎮 Updated teamNames:`, newTeamNames);
@@ -112,26 +115,38 @@ const TeamSetupModal: React.FC<TeamSetupModalProps> = ({
             {/* Number of Teams */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Number of Teams</Text>
-              <View style={styles.numberSelector}>
-                {[1, 2, 3, 4].map((num) => (
-                  <TouchableOpacity
-                    key={num}
-                    style={[
-                      styles.numberButton,
-                      numberOfTeams === num && styles.selectedNumberButton,
-                    ]}
-                    onPress={() => handleNumberOfTeamsChange(num)}
-                  >
-                    <Text
-                      style={[
-                        styles.numberButtonText,
-                        numberOfTeams === num && styles.selectedNumberButtonText,
-                      ]}
-                    >
-                      {num}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+              <View style={styles.teamCounterContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.counterButton,
+                    numberOfTeams <= 1 && styles.disabledButton,
+                  ]}
+                  onPress={() => handleNumberOfTeamsChange(numberOfTeams - 1)}
+                  disabled={numberOfTeams <= 1}
+                >
+                  <Text style={[
+                    styles.counterButtonText,
+                    numberOfTeams <= 1 && styles.disabledButtonText,
+                  ]}>-</Text>
+                </TouchableOpacity>
+                
+                <View style={styles.teamCountDisplay}>
+                  <Text style={styles.teamCountText}>{numberOfTeams}</Text>
+                </View>
+                
+                <TouchableOpacity
+                  style={[
+                    styles.counterButton,
+                    numberOfTeams >= 4 && styles.disabledButton,
+                  ]}
+                  onPress={() => handleNumberOfTeamsChange(numberOfTeams + 1)}
+                  disabled={numberOfTeams >= 4}
+                >
+                  <Text style={[
+                    styles.counterButtonText,
+                    numberOfTeams >= 4 && styles.disabledButtonText,
+                  ]}>+</Text>
+                </TouchableOpacity>
               </View>
             </View>
 
@@ -279,36 +294,56 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     marginBottom: SPACING.md,
   },
-  numberSelector: {
+  teamCounterContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.lg,
   },
-  numberButton: {
-    width: 60,
+  counterButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
+  disabledButton: {
+    backgroundColor: COLORS.muted,
+    opacity: 0.5,
+  },
+  counterButtonText: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: COLORS.background,
+  },
+  disabledButtonText: {
+    color: COLORS.text,
+  },
+  teamCountDisplay: {
+    width: 80,
     height: 60,
-    borderRadius: 30,
     backgroundColor: COLORS.card,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: COLORS.muted,
+    borderColor: COLORS.primary,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
     shadowRadius: 2,
   },
-  selectedNumberButton: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  numberButtonText: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: COLORS.text,
-  },
-  selectedNumberButtonText: {
-    color: COLORS.background,
+  teamCountText: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: COLORS.primary,
   },
   teamNameContainer: {
     flexDirection: 'row',

@@ -1,48 +1,11 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Rooms collection rules - for multiplayer system
-    match /rooms/{roomCode} {
-      // Allow anyone authenticated to read room data (needed for joining rooms)
-      allow read: if request.auth != null;
-      
-      // Allow authenticated users to create new rooms
-      allow create: if request.auth != null
-        && request.auth.token.email != null
-        && request.resource.data.hostId == request.auth.token.email
-        && request.resource.data.players is list
-        && request.auth.token.email in request.resource.data.players;
-      
-      // Allow updates only by:
-      // 1. Host (can update game state)
-      // 2. Players joining (can add themselves to players array)
-      allow update: if request.auth != null
-        && request.auth.token.email != null
-        && (
-          // Host can update game state and other room properties
-          (resource.data.hostId == request.auth.token.email)
-          ||
-          // Players can join by adding themselves to the players array
-          (
-            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['players', 'updatedAt'])
-            && request.auth.token.email in request.resource.data.players
-            && !(request.auth.token.email in resource.data.players)
-            && request.resource.data.players.size() <= (resource.data.maxPlayers ?? 4)
-          )
-        );
-      
-      // Allow host to delete their room
-      allow delete: if request.auth != null
-        && request.auth.token.email == resource.data.hostId;
-    }
-    
-    // Add other collection rules as needed for your app
-    // For example, user profiles, game results, etc.
-    
-    // Default deny rule for all other documents
+    // 🚨 TEMPORARY: COMPLETELY OPEN RULES FOR TESTING
+    // ⚠️ WARNING: These rules allow anyone to read/write to your database
+    // Only use these for debugging permission issues!
     match /{document=**} {
-      allow read, write: if false;
+      allow read, write: if true;
     }
   }
 }

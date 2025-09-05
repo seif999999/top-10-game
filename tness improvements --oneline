@@ -1,0 +1,37 @@
+[33mcommit 7f306e9eb60577a9577e2ee393500b5ad62b9054[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfix/multiplayer-robustness[m[33m)[m
+Author: seifnazmy3 <seifnazmy3@gmail.com>
+Date:   Fri Sep 5 20:46:32 2025 +0300
+
+    feat: implement multiplayer robustness core infrastructure
+    
+    - Add unified data types (src/types/game.ts) for single-player and multiplayer consistency
+    - Implement centralized scoring system (src/services/scoring.ts) with pointsForRank function
+    - Add atomic transaction helpers (src/services/multiplayerTransaction.ts) for Firestore operations
+    - Create timer synchronization system (src/services/timeSync.ts) with server offset calculation
+    - Add question normalization (src/services/questionsService.ts) with safe string handling
+    - Update Firebase service with database type detection
+    - Add comprehensive unit tests for scoring and question normalization
+    - Add integration tests for concurrent answer awarding
+    - Create Jest configuration and test setup
+    - Add migration guide with detailed instructions
+    
+    Key improvements:
+    - Prevents double-awarding of points through atomic transactions
+    - Synchronizes timers across all clients using server timestamps
+    - Provides safe string handling to prevent undefined errors
+    - Unifies data structures between single-player and multiplayer modes
+    - Includes comprehensive testing and migration documentation
+
+ MULTIPLAYER_ROBUSTNESS_MIGRATION.md           | 154 [32m++++++++++++++++++++++++++[m
+ jest.config.js                                |  27 [32m+++++[m
+ src/__tests__/integration/multiplayer.test.ts |  97 [32m++++++++++++++++[m
+ src/__tests__/questionsService.test.ts        |  90 [32m+++++++++++++++[m
+ src/__tests__/scoring.test.ts                 |  24 [32m++++[m
+ src/__tests__/setup.ts                        |  72 [32m++++++++++++[m
+ src/services/firebase.ts                      |  17 [32m++[m[31m-[m
+ src/services/multiplayerTransaction.ts        |  84 [32m++++++++++++++[m
+ src/services/questionsService.ts              | 128 [32m+++++++++++++++++++++[m
+ src/services/scoring.ts                       |   4 [32m+[m
+ src/services/timeSync.ts                      | 144 [32m++++++++++++++++++++++++[m
+ src/types/game.ts                             |  73 [32m++++++++++++[m
+ 12 files changed, 913 insertions(+), 1 deletion(-)

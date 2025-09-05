@@ -1,4 +1,6 @@
 import { GameQuestion, QuestionAnswer, sampleQuestions } from '../data/sampleQuestions';
+import { Question, Answer, LegacyQuestion } from '../types/game';
+import { pointsForRank } from './scoring';
 
 export interface AnswerValidationResult {
   isCorrect: boolean;
@@ -331,3 +333,166 @@ export const shuffleQuestions = (questions: GameQuestion[]): GameQuestion[] => {
   }
   return shuffled;
 };
+
+/**
+ * Normalize a legacy question with string[] answers to the new Question format
+ * This is the key migration function for data structure unification
+ */
+export const normalizeQuestion = (legacyQuestion: LegacyQuestion | GameQuestion): Question => {
+  console.log(`🔄 NORMALIZE_QUESTION: Converting question "${legacyQuestion.text}"`);
+  
+  // Handle GameQuestion format (already has QuestionAnswer[])
+  if ('answers' in legacyQuestion && Array.isArray(legacyQuestion.answers) && legacyQuestion.answers.length > 0) {
+    const firstAnswer = legacyQuestion.answers[0];
+    
+    // Check if it's already in Answer format
+    if (typeof firstAnswer === 'object' && 'text' in firstAnswer && 'rank' in firstAnswer) {
+      console.log(`✅ NORMALIZE_QUESTION: Already in Answer format`);
+      return {
+        id: legacyQuestion.id,
+        text: legacyQuestion.text,
+        category: legacyQuestion.category,
+        difficulty: legacyQuestion.difficulty,
+        answers: legacyQuestion.answers as Answer[]
+      };
+    }
+    
+    // Check if it's QuestionAnswer format (needs conversion)
+    if (typeof firstAnswer === 'object' && 'text' in firstAnswer && 'points' in firstAnswer) {
+      console.log(`🔄 NORMALIZE_QUESTION: Converting from QuestionAnswer format`);
+      const answers: Answer[] = (legacyQuestion.answers as QuestionAnswer[]).map((qa, index) => ({
+        id: `${legacyQuestion.id}_answer_${index}`,
+        text: qa.text,
+        rank: qa.rank || (index + 1),
+        aliases: qa.aliases || []
+      }));
+      
+      return {
+        id: legacyQuestion.id,
+        text: legacyQuestion.text,
+        category: legacyQuestion.category,
+        difficulty: legacyQuestion.difficulty,
+        answers
+      };
+    }
+  }
+  
+  // Handle string[] format (legacy)
+  if (Array.isArray(legacyQuestion.answers) && typeof legacyQuestion.answers[0] === 'string') {
+    console.log(`🔄 NORMALIZE_QUESTION: Converting from string[] format`);
+    const answers: Answer[] = (legacyQuestion.answers as string[]).map((answerText, index) => ({
+      id: `${legacyQuestion.id}_answer_${index}`,
+      text: answerText,
+      rank: index + 1,
+      aliases: []
+    }));
+    
+    return {
+      id: legacyQuestion.id,
+      text: legacyQuestion.text,
+      category: legacyQuestion.category,
+      difficulty: legacyQuestion.difficulty,
+      answers
+    };
+  }
+  
+  // Fallback: create empty question
+  console.warn(`⚠️ NORMALIZE_QUESTION: Unknown format, creating empty question`);
+  return {
+    id: legacyQuestion.id || `question_${Date.now()}`,
+    text: legacyQuestion.text || 'Unknown Question',
+    category: legacyQuestion.category || 'General',
+    difficulty: legacyQuestion.difficulty || 'medium',
+    answers: []
+  };
+};
+
+/**
+ * Convert a Question back to GameQuestion format for single-player compatibility
+ */
+export const questionToGameQuestion = (question: Question): GameQuestion => {
+  const answers: QuestionAnswer[] = question.answers.map(answer => ({
+    text: answer.text,
+    rank: answer.rank,
+    points: pointsForRank(answer.rank),
+    aliases: answer.aliases || []
+  }));
+  
+  return {
+    id: question.id,
+    category: question.category,
+    title: question.text,
+    answers,
+    difficulty: question.difficulty
+  };
+};
+
+/**
+ * Convert a Question back to LegacyQuestion format for multiplayer compatibility
+ */
+export const questionToLegacyQuestion = (question: Question): LegacyQuestion => {
+  return {
+    id: question.id,
+    text: question.text,
+    category: question.category,
+    difficulty: question.difficulty,
+    answers: question.answers.map(answer => answer.text)
+  };
+};
+
+/**
+ * Safe string normalization to prevent toLowerCase of undefined errors
+ */
+export const safeToLower = (s?: string): string => {
+  return (s || '').toLowerCase().trim();
+};
+
+/**
+ * Validate question shape at runtime
+ */
+export const assertQuestionShape = (question: any): Question => {
+  if (!question || typeof question !== 'object') {
+    console.warn('⚠️ ASSERT_QUESTION_SHAPE: Invalid question object, creating fallback');
+    return {
+      id: `fallback_${Date.now()}`,
+      text: 'Invalid Question',
+      category: 'General',
+      difficulty: 'medium',
+      answers: []
+    };
+  }
+  
+  // Ensure required fields exist
+  const normalizedQuestion = {
+    id: question.id || `question_${Date.now()}`,
+    text: question.text || question.title || 'Unknown Question',
+    category: question.category || 'General',
+    difficulty: question.difficulty || 'medium',
+    answers: question.answers || []
+  };
+  
+  // Validate answers array
+  if (!Array.isArray(normalizedQuestion.answers)) {
+    console.warn('⚠️ ASSERT_QUESTION_SHAPE: Invalid answers array, using empty array');
+    normalizedQuestion.answers = [];
+  }
+  
+  // Convert to Answer format if needed
+  if (normalizedQuestion.answers.length > 0) {
+    const firstAnswer = normalizedQuestion.answers[0];
+    if (typeof firstAnswer === 'string') {
+      // Convert string[] to Answer[]
+      normalizedQuestion.answers = normalizedQuestion.answers.map((text: string, index: number) => ({
+        id: `${normalizedQuestion.id}_answer_${index}`,
+        text,
+        rank: index + 1,
+        aliases: []
+      }));
+    }
+  }
+  
+  return normalizedQuestion as Question;
+};
+
+// Log normalization system initialization
+console.log('🔄 Question normalization system initialized');
