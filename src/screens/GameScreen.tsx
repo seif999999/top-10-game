@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Alert, TextInput, Platform, Animated } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import Button from '../components/Button';
@@ -10,6 +10,7 @@ import { GameScreenProps } from '../types/navigation';
 import { useGame } from '../contexts/GameContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useMultiplayer } from '../contexts/MultiplayerContext';
+import multiplayerService from '../services/multiplayerService';
 import { QuestionAnswer } from '../types';
 import { FEATURES } from '../config/featureFlags';
 import HostAssignModal from '../components/HostAssignModal';
@@ -50,20 +51,21 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   
   // Multiplayer context
   const {
-    state: multiplayerState,
+    currentRoom: multiplayerState,
+    currentAnswer: multiplayerCurrentAnswer,
+    submittedAnswers: multiplayerSubmittedAnswers,
+    connectionStatus: multiplayerConnectionStatus,
     joinRoom,
     startGame: startMultiplayerGame,
-    submitAnswer: submitMultiplayerAnswer,
+    submitAnswers: submitMultiplayerAnswer,
     nextQuestion: nextMultiplayerQuestion,
     endGame: endMultiplayerGame,
     leaveRoom,
     setCurrentAnswer: setMultiplayerAnswer,
-    resetMultiplayer,
-    forceDisconnect,
-    getPlayerScore: getMultiplayerScore,
-    getLeaderboard,
-    isQuestionComplete: isMultiplayerQuestionComplete,
-    getCorrectAnswersFound: getMultiplayerCorrectAnswersFound
+    resetAll: resetMultiplayer,
+    cleanup: forceDisconnect,
+    revealAnswer: revealMultiplayerAnswer,
+    isHost: isMultiplayerHost
   } = useMultiplayer();
 
   const [showResults, setShowResults] = useState(false);
@@ -91,28 +93,42 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   
   // Get current game state based on mode
   const currentQuestion = isMultiplayerMode 
-    ? multiplayerState.gameState?.currentQuestion 
+    ? (multiplayerState?.questions && multiplayerState.questions[multiplayerState.currentQuestionIndex || 0])
     : getCurrentQuestion();
   const progress = isMultiplayerMode 
-    ? { current: multiplayerState.gameState?.currentRound || 1, total: multiplayerState.gameState?.totalRounds || 3 }
+    ? { current: (multiplayerState?.currentQuestionIndex || 0) + 1, total: multiplayerState?.questions?.length || 3 }
     : getProgress();
   
   // Progress is now always an object
   const gameProgress = progress;
-  const currentScore = isMultiplayerMode 
-    ? getMultiplayerScore(multiplayerState.playerId || '')
-    : getPlayerScore('You');
-  const correctAnswersFound = isMultiplayerMode 
-    ? getMultiplayerCorrectAnswersFound()
-    : getCorrectAnswersFound();
-  const questionIsComplete = isMultiplayerMode 
-    ? isMultiplayerQuestionComplete()
-    : isQuestionComplete();
+  
+  // Multiplayer scoring and state
+  const getMultiplayerScore = () => {
+    if (!isMultiplayerMode || !multiplayerState || !user?.id) return 0;
+    const playerData = multiplayerState.playerSubmissions[user.id];
+    return playerData ? playerData.points : 0;
+  };
+  
+  const getMultiplayerCorrectAnswers = () => {
+    if (!isMultiplayerMode || !multiplayerState) return 0;
+    return multiplayerState.revealedAnswers?.length || 0;
+  };
+  
+  const isMultiplayerQuestionComplete = () => {
+    if (!isMultiplayerMode || !multiplayerState || !currentQuestion) return false;
+    const totalAnswers = currentQuestion.answers?.length || 0;
+    const revealedAnswers = multiplayerState.revealedAnswers?.length || 0;
+    return revealedAnswers >= totalAnswers;
+  };
+  
+  const currentScore = isMultiplayerMode ? getMultiplayerScore() : getPlayerScore('You');
+  const correctAnswersFound = isMultiplayerMode ? getMultiplayerCorrectAnswers() : getCorrectAnswersFound();
+  const questionIsComplete = isMultiplayerMode ? isMultiplayerQuestionComplete() : isQuestionComplete();
   
   // Get submitted answers for the current round
   const getCurrentRoundAnswers = () => {
     if (isMultiplayerMode) {
-      return multiplayerState.submittedAnswers || [];
+      return multiplayerSubmittedAnswers; // Use multiplayer context state
     }
     if (!gameState || !gameState.rounds[gameState.currentRound - 1]) return [];
     const currentRound = gameState.rounds[gameState.currentRound - 1];
@@ -124,46 +140,56 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   
   const currentRoundAnswers = getCurrentRoundAnswers();
 
-  // Initialize game based on mode
-  useEffect(() => {
+  // Memoize the initialization function to prevent unnecessary re-renders
+  const initializeGame = useCallback(async () => {
     console.log('🎮 GameScreen useEffect - Debug Info:', {
       isMultiplayerMode,
       roomId,
       categoryId,
       hasGameState: !!gameState,
-      hasMultiplayerState: !!multiplayerState.roomId,
-      currentGameCategory: gameState?.category
+      hasMultiplayerState: !!multiplayerState?.roomCode,
+      currentGameCategory: gameState?.category,
+      multiplayerGamePhase: multiplayerState?.gamePhase,
+      multiplayerStatus: multiplayerState?.status
     });
     
     if (isMultiplayerMode) {
-      // Initialize multiplayer game
-      const shouldStartNewMultiplayerGame = !multiplayerState.roomId || 
-        (multiplayerState.gameState && multiplayerState.gameState.categoryId !== categoryId);
-      
-      if (shouldStartNewMultiplayerGame && roomId !== 'single-player') {
-        console.log('🎮 Starting new multiplayer game...');
-        console.log('🎮 Previous category:', multiplayerState.gameState?.categoryId);
-        console.log('🎮 New category:', categoryId);
+      // For multiplayer, we should already be in a room from the lobby
+      // Just ensure we're subscribed to the room updates
+      if (multiplayerState?.roomCode && multiplayerState.roomCode === roomId) {
+        console.log('🎮 Already in correct multiplayer room:', multiplayerState.roomCode);
+        console.log('🎮 Game phase:', multiplayerState.gamePhase);
+        console.log('🎮 Current question index:', multiplayerState.currentQuestionIndex);
+        console.log('🎮 Questions count:', multiplayerState.questions?.length);
+      } else {
+        console.log('🎮 Multiplayer room mismatch or not found');
+        console.log('🎮 Expected room:', roomId);
+        console.log('🎮 Current room:', multiplayerState?.roomCode);
         
-        // Reset any existing multiplayer game first
-        if (multiplayerState.roomId) {
-          resetMultiplayer();
+        // If we're not in the right room, try to join
+        if (roomId && roomId !== 'single-player') {
+          const playerName = user?.displayName || user?.email || 'Player';
+          const playerId = user?.id || user?.email || `player_${Date.now()}`;
+          try {
+            await multiplayerService.joinRoom(roomId, playerId, playerName);
+            console.log('✅ Successfully joined multiplayer room');
+          } catch (error) {
+            console.error('❌ Failed to join room:', error);
+            // Show error to user
+            Alert.alert('Connection Error', 'Failed to join the multiplayer room. Please try again.');
+          }
         }
-        
-        const playerName = user?.displayName || user?.email || 'Player';
-        const playerId = user?.email || `player_${Date.now()}`;
-        joinRoom(roomId, playerId, playerName, categoryId || 'Sports');
       }
     } else {
       // Initialize single-player game
       const shouldStartNewGame = !gameState || gameState.category !== categoryId;
       
       if (shouldStartNewGame) {
-                 console.log('🎮 Starting new single-player game...');
-         console.log('🎮 Previous category:', gameState?.category);
-         console.log('🎮 New category:', categoryId);
-         console.log('🎮 Selected question:', selectedQuestion?.title || 'None');
-         console.log('🎮 Team config:', teamConfig ? 'YES' : 'NO');
+        console.log('🎮 Starting new single-player game...');
+        console.log('🎮 Previous category:', gameState?.category);
+        console.log('🎮 New category:', categoryId);
+        console.log('🎮 Selected question:', selectedQuestion?.text || selectedQuestion?.title || 'None');
+        console.log('🎮 Team config:', teamConfig ? 'YES' : 'NO');
          
          // Reset any existing game first
          if (gameState) {
@@ -182,9 +208,60 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
          }
       }
     }
-  }, [isMultiplayerMode, multiplayerState.roomId, gameState, roomId, categoryId, startGame, startTeamsGame, joinRoom, user, resetGame, teamConfig, selectedQuestion]);
+  }, [isMultiplayerMode, roomId, categoryId, gameState?.category, multiplayerState?.roomCode, multiplayerState?.gamePhase, multiplayerState?.currentQuestionIndex, multiplayerState?.questions?.length, user?.displayName, user?.email, user?.id, selectedQuestion?.text, selectedQuestion?.title, teamConfig]);
 
-  // Team mode timer effect - Only run in single-player mode
+  // Initialize game based on mode
+  useEffect(() => {
+    initializeGame();
+  }, [initializeGame]);
+
+  // Sync multiplayer state changes - simplified dependencies
+  useEffect(() => {
+    if (isMultiplayerMode && multiplayerState) {
+      console.log('🎮 Multiplayer state changed:', {
+        gamePhase: multiplayerState.gamePhase,
+        status: multiplayerState.status,
+        currentQuestionIndex: multiplayerState.currentQuestionIndex,
+        questionStartTime: multiplayerState.questionStartTime,
+        revealedAnswers: multiplayerState.revealedAnswers?.length || 0
+      });
+      
+      // Handle game phase changes
+      if (multiplayerState.gamePhase === 'question' && multiplayerState.questionStartTime > 0) {
+        console.log('🎮 Question phase started');
+        // Game is active, show the question
+      } else if (multiplayerState.gamePhase === 'answers') {
+        console.log('🎮 Answers phase - showing revealed answers');
+        setShowAnswers(true);
+      } else if (multiplayerState.gamePhase === 'results') {
+        console.log('🎮 Results phase');
+        setShowRankingOverlay(true);
+      } else if (multiplayerState.gamePhase === 'finished') {
+        console.log('🎮 Game finished');
+        setShowGameEndRanking(true);
+      }
+    }
+  }, [isMultiplayerMode, multiplayerState?.gamePhase, multiplayerState?.status, multiplayerState?.questionStartTime, multiplayerState?.revealedAnswers?.length]);
+
+  // Timeout for multiplayer game loading - simplified dependencies
+  useEffect(() => {
+    if (isMultiplayerMode && multiplayerState?.gamePhase === 'lobby') {
+      const timeout = setTimeout(() => {
+        console.log('⏰ Multiplayer game loading timeout - showing error');
+        Alert.alert(
+          'Game Loading Timeout',
+          'The game is taking too long to start. Please try again.',
+          [
+            { text: 'OK', onPress: () => navigation.goBack() }
+          ]
+        );
+      }, 10000); // 10 second timeout
+
+      return () => clearTimeout(timeout);
+    }
+  }, [isMultiplayerMode, multiplayerState?.gamePhase, navigation]);
+
+  // Team mode timer effect - Only run in single-player mode - simplified dependencies
   useEffect(() => {
     if (!isMultiplayerMode && isTeamMode && teamGameState && teamGameState.isTurnActive && teamGameState.roundTimerSeconds > 0) {
       const timer = setInterval(() => {
@@ -195,9 +272,39 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
 
       return () => clearInterval(timer);
     }
-  }, [isMultiplayerMode, isTeamMode, teamGameState, setTeamTimer]);
+  }, [isMultiplayerMode, isTeamMode, teamGameState?.isTurnActive, teamGameState?.roundTimerSeconds, teamGameState?.timeRemaining, setTeamTimer]);
 
-  // Check if question is complete and show success message
+  // Multiplayer timer effect - simplified dependencies
+  useEffect(() => {
+    if (isMultiplayerMode && multiplayerState?.gamePhase === 'question' && multiplayerState.questionStartTime) {
+      const timer = setInterval(() => {
+        // Handle both server timestamps and client timestamps
+        let startTime: number;
+        if (typeof multiplayerState.questionStartTime === 'object' && multiplayerState.questionStartTime && 'seconds' in multiplayerState.questionStartTime) {
+          // Server timestamp object
+          startTime = (multiplayerState.questionStartTime as any).seconds * 1000;
+        } else if (typeof multiplayerState.questionStartTime === 'number') {
+          // Client timestamp
+          startTime = multiplayerState.questionStartTime;
+        } else {
+          return; // Invalid timestamp
+        }
+        
+        const elapsed = Date.now() - startTime;
+        const remaining = Math.max(0, (multiplayerState.questionTimeLimit * 1000) - elapsed);
+        
+        if (remaining <= 0) {
+          // Time's up - automatically move to next question
+          console.log('⏰ Multiplayer timer expired');
+          // The host should handle this, but we can show a message
+        }
+      }, 1000);
+
+      return () => clearInterval(timer);
+    }
+  }, [isMultiplayerMode, multiplayerState?.gamePhase, multiplayerState?.questionStartTime, multiplayerState?.questionTimeLimit]);
+
+  // Check if question is complete and show success message - simplified dependencies
   useEffect(() => {
     if (questionIsComplete && !showQuestionComplete) {
       setShowQuestionComplete(true);
@@ -207,7 +314,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     }
   }, [questionIsComplete, showQuestionComplete]);
 
-  // Check if game is finished and show results
+  // Check if game is finished and show results - simplified dependencies
   useEffect(() => {
     if (gameState?.gamePhase === 'finished' && !showResults) {
       console.log('🎉 Game finished! Showing results...');
@@ -352,16 +459,31 @@ const handleEndGame = () => {
 
 
     const handleSubmitAnswer = async () => {
-    const answerToSubmit = isMultiplayerMode ? multiplayerState.currentAnswer : currentAnswer;
+    const answerToSubmit = isMultiplayerMode ? (multiplayerCurrentAnswer || '') : currentAnswer;
     console.log('🎮 handleSubmitAnswer called:', {
       isMultiplayerMode,
       answerToSubmit,
-      multiplayerStateCurrentAnswer: multiplayerState.currentAnswer,
+      multiplayerStateCurrentAnswer: multiplayerCurrentAnswer,
       currentAnswer
     });
     
-    if (!answerToSubmit.trim()) {
-      console.log('❌ No answer to submit');
+    // Enhanced validation
+    if (!answerToSubmit || typeof answerToSubmit !== 'string') {
+      console.log('❌ No valid answer to submit');
+      Alert.alert('Invalid Input', 'Please enter a valid answer.');
+      return;
+    }
+
+    const trimmedAnswer = answerToSubmit.trim();
+    if (trimmedAnswer.length === 0) {
+      console.log('❌ Empty answer');
+      Alert.alert('Invalid Input', 'Please enter a non-empty answer.');
+      return;
+    }
+
+    if (trimmedAnswer.length > 100) {
+      console.log('❌ Answer too long');
+      Alert.alert('Invalid Input', 'Answer is too long. Please keep it under 100 characters.');
       return;
     }
 
@@ -381,35 +503,52 @@ const handleEndGame = () => {
 
     try {
       if (isMultiplayerMode) {
-        console.log('📝 Submitting multiplayer answer:', answerToSubmit.trim());
-        submitMultiplayerAnswer(answerToSubmit.trim());
-        setMultiplayerAnswer('');
+        console.log('📝 Submitting multiplayer answer:', trimmedAnswer);
+        // Use the same answer processing logic as single player
+        const isCorrect = checkAnswerCorrectness(trimmedAnswer);
+        
+        if (isCorrect) {
+          // Process the answer using the same logic as single player
+          await submitMultiplayerAnswer([trimmedAnswer]);
+          setMultiplayerAnswer('');
+          // Add to submitted answers for display
+          setSubmittedAnswers(prev => [...prev, trimmedAnswer]);
+          
+          // Show success feedback
+          setLastAnswerResult('correct');
+          
+          // Show ranking overlay after correct answer
+          setShowRankingOverlay(true);
+        } else {
+          // Show error feedback for incorrect answer
+          setLastAnswerResult('incorrect');
+        }
       } else {
-        console.log('📝 Submitting single-player answer:', answerToSubmit.trim());
+        console.log('📝 Submitting single-player answer:', trimmedAnswer);
         console.log('📝 Before submission - Score:', getPlayerScore('You'));
-        submitAnswer('You', answerToSubmit.trim());
+        submitAnswer('You', trimmedAnswer);
         console.log('📝 After submission - Score:', getPlayerScore('You'));
         setAnswer('');
+        
+        // Determine answer result and show feedback
+        const isCorrect = checkAnswerCorrectness(trimmedAnswer);
+        setLastAnswerResult(isCorrect ? 'correct' : 'incorrect');
+        
+        // Show ranking overlay after correct answer
+        if (isCorrect) {
+          setShowRankingOverlay(true);
+        }
       }
       
-      setSubmittedAnswers(prev => [...prev, answerToSubmit.trim()]);
+      setSubmittedAnswers(prev => [...prev, trimmedAnswer]);
       setIsAnswerSubmitted(true);
-      
-      // Determine answer result and show feedback
-      const isCorrect = checkAnswerCorrectness(answerToSubmit.trim());
-      setLastAnswerResult(isCorrect ? 'correct' : 'incorrect');
       
       // Animate answer input based on result
       Animated.timing(answerInputGlow, {
-        toValue: isCorrect ? 1 : -1,
+        toValue: lastAnswerResult === 'correct' ? 1 : -1,
         duration: ANIMATIONS.duration.normal,
         useNativeDriver: false,
       }).start();
-      
-      // Show ranking overlay after correct answer
-      if (isCorrect) {
-        setShowRankingOverlay(true);
-      }
       
       // Reset feedback after delay
       setTimeout(() => {
@@ -423,13 +562,14 @@ const handleEndGame = () => {
       }, 2000);
     } catch (error) {
       console.error('❌ Error submitting answer:', error);
-      Alert.alert('Error', 'Failed to submit answer. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to submit answer. Please try again.';
+      Alert.alert('Submission Error', errorMessage);
     }
   };
 
   const handleNextQuestion = () => {
     if (isMultiplayerMode) {
-      if (multiplayerState.gameState && multiplayerState.gameState.currentRound >= multiplayerState.gameState.totalRounds) {
+      if (multiplayerState && (multiplayerState.currentQuestionIndex || 0) >= (multiplayerState.questions?.length || 0) - 1) {
         // Game finished, show results
         setShowResults(true);
       } else {
@@ -447,39 +587,57 @@ const handleEndGame = () => {
 
   // Helper function to check if an answer is correct
   const checkAnswerCorrectness = (answer: string): boolean => {
-    if (!currentQuestion?.answers) return false;
+    if (!currentQuestion?.answers || !answer || typeof answer !== 'string') return false;
     
     const normalizedAnswer = answer.toLowerCase().trim();
-    return currentQuestion.answers.some((correctAnswer: any) => 
-      correctAnswer.text.toLowerCase().trim() === normalizedAnswer ||
-      correctAnswer.normalized?.toLowerCase().trim() === normalizedAnswer ||
-      correctAnswer.aliases?.some((alias: string) => alias.toLowerCase().trim() === normalizedAnswer)
-    );
+    return currentQuestion.answers.some((correctAnswer: any) => {
+      if (!correctAnswer || !correctAnswer.text) return false;
+      
+      return correctAnswer.text.toLowerCase().trim() === normalizedAnswer ||
+        (correctAnswer.normalized && correctAnswer.normalized.toLowerCase().trim() === normalizedAnswer) ||
+        (correctAnswer.aliases && Array.isArray(correctAnswer.aliases) && 
+         correctAnswer.aliases.some((alias: string) => 
+           alias && typeof alias === 'string' && alias.toLowerCase().trim() === normalizedAnswer
+         ));
+    });
   };
 
   console.log('🎮 GameScreen render state:', {
     isMultiplayerMode,
     gameState: gameState ? 'exists' : 'null',
-    multiplayerState: multiplayerState.gameState ? 'exists' : 'null',
+    multiplayerState: multiplayerState ? 'exists' : 'null',
     currentQuestion: currentQuestion ? 'exists' : 'null',
-    gamePhase: multiplayerState.gameState?.gamePhase,
+    gamePhase: multiplayerState?.gamePhase,
     currentScore,
     correctAnswersFound,
-    gameProgress
+    gameProgress,
+    roomId,
+    categoryId,
+    questionsCount: multiplayerState?.questions?.length,
+    currentQuestionIndex: multiplayerState?.currentQuestionIndex,
+    questionStartTime: multiplayerState?.questionStartTime
   });
 
   if ((!isMultiplayerMode && (!gameState || !currentQuestion)) || 
-      (isMultiplayerMode && (!multiplayerState.gameState || !currentQuestion))) {
+      (isMultiplayerMode && (!multiplayerState || !currentQuestion || multiplayerState.gamePhase === 'lobby'))) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>
-            {isMultiplayerMode ? 'Connecting to multiplayer game...' : 'Loading game...'}
+            {isMultiplayerMode ? 'Waiting for game to start...' : 'Loading game...'}
           </Text>
           {isMultiplayerMode && (
-            <Text style={styles.connectionStatus}>
-              Status: {multiplayerState.connectionStatus}
-            </Text>
+            <>
+              <Text style={styles.connectionStatus}>
+                Status: {multiplayerConnectionStatus || 'disconnected'}
+              </Text>
+              <Text style={styles.connectionStatus}>
+                Game Phase: {multiplayerState?.gamePhase || 'unknown'}
+              </Text>
+              <Text style={styles.connectionStatus}>
+                Questions: {multiplayerState?.questions?.length || 0}
+              </Text>
+            </>
           )}
         </View>
       </SafeAreaView>
@@ -517,16 +675,16 @@ const handleEndGame = () => {
         {isMultiplayerMode && (
           <>
             <MultiplayerLeaderboard
-              leaderboard={getLeaderboard()}
-              currentPlayerId={multiplayerState.playerId || ''}
+              leaderboard={[]} // TODO: Implement multiplayer leaderboard
+              currentPlayerId={multiplayerState?.hostId || ''}
               maxHeight={150}
             />
             
-            {/* Start Game Button for Multiplayer */}
-            {multiplayerState.gameState?.gamePhase === 'lobby' && (
+            {/* Start Game Button for Multiplayer - Only show in lobby */}
+            {multiplayerState?.gamePhase === 'lobby' && isMultiplayerHost && (
               <View style={styles.startGameSection}>
                 <Text style={styles.startGameTitle}>
-                  Waiting for players... ({multiplayerState.gameState?.players?.length || 0} joined)
+                  Waiting for players... ({Object.keys(multiplayerState?.players || {}).length} joined)
                 </Text>
                 <Button 
                   title="🎮 Start Game" 
@@ -538,6 +696,34 @@ const handleEndGame = () => {
                 />
               </View>
             )}
+            
+            {/* Game Status for Multiplayer */}
+            {multiplayerState?.gamePhase === 'question' && (
+              <View style={styles.gameStatusSection}>
+                <Text style={styles.gameStatusText}>
+                  🎮 Game in progress - Submit your answers!
+                </Text>
+                <Text style={styles.gameStatusSubtext}>
+                  Found {multiplayerState.revealedAnswers?.length || 0} of {currentQuestion?.answers?.length || 0} answers
+                </Text>
+              </View>
+            )}
+            
+            {multiplayerState?.gamePhase === 'answers' && (
+              <View style={styles.gameStatusSection}>
+                <Text style={styles.gameStatusText}>
+                  🎯 Revealing answers...
+                </Text>
+              </View>
+            )}
+            
+            {multiplayerState?.gamePhase === 'results' && (
+              <View style={styles.gameStatusSection}>
+                <Text style={styles.gameStatusText}>
+                  🏆 Question complete! Moving to next question...
+                </Text>
+              </View>
+            )}
           </>
         )}
 
@@ -546,7 +732,9 @@ const handleEndGame = () => {
         {/* Question Section */}
         {currentQuestion && (
           <View style={styles.questionSection}>
-            <Text style={styles.questionTitle}>{currentQuestion.title}</Text>
+            <Text style={styles.questionTitle}>
+              {'text' in currentQuestion ? currentQuestion.text : currentQuestion.title}
+            </Text>
             <Text style={styles.gameplayHint}>
               {!isMultiplayerMode && isTeamMode 
                 ? "🎯 Host assigns answers to teams by tapping them" 
@@ -557,12 +745,45 @@ const handleEndGame = () => {
           </View>
         )}
 
-        {/* Timer - Only show in team mode */}
+        {/* Timer - Show in team mode and multiplayer mode */}
         {!isMultiplayerMode && isTeamMode && teamGameState && (
           <View style={styles.timerSection}>
             <View style={styles.timerContainer}>
               <Text style={styles.timerText}>
                 {teamGameState.roundTimerSeconds === 0 ? '∞' : `${teamGameState.timeRemaining}s`}
+              </Text>
+            </View>
+          </View>
+        )}
+        
+        {/* Multiplayer Timer */}
+        {isMultiplayerMode && multiplayerState?.gamePhase === 'question' && multiplayerState.questionStartTime && (
+          <View style={styles.timerSection}>
+            <View style={styles.timerContainer}>
+              <Text style={styles.timerText}>
+                {(() => {
+                  // Handle both server timestamps and client timestamps
+                  let startTime: number;
+                  if (typeof multiplayerState.questionStartTime === 'object' && multiplayerState.questionStartTime && 'seconds' in multiplayerState.questionStartTime) {
+                    // Server timestamp object
+                    startTime = (multiplayerState.questionStartTime as any).seconds * 1000;
+                  } else if (typeof multiplayerState.questionStartTime === 'number') {
+                    // Client timestamp
+                    startTime = multiplayerState.questionStartTime;
+                  } else {
+                    return 'Starting...';
+                  }
+                  
+                  const elapsed = Date.now() - startTime;
+                  const timeLimitMs = (multiplayerState.questionTimeLimit || 60) * 1000;
+                  const remaining = Math.max(0, timeLimitMs - elapsed);
+                  
+                  if (remaining <= 0) {
+                    return 'Time\'s up!';
+                  }
+                  
+                  return `${Math.ceil(remaining / 1000)}s`;
+                })()}
               </Text>
             </View>
           </View>
@@ -575,13 +796,20 @@ const handleEndGame = () => {
               <Text style={styles.answerTableTitle}>All Possible Answers</Text>
             </View>
             <View style={styles.answerTableContainer}>
-                             {currentQuestion.answers.map((answer: QuestionAnswer, index: number) => {
+                             {currentQuestion.answers.map((answer: string | QuestionAnswer, index: number) => {
+                 // Get answer text
+                 const answerText = typeof answer === 'string' ? answer : answer.text;
+                 
                  // Determine if this answer should be revealed
                  let isRevealed = false;
                  let assignedTeam = null;
                  let assignedPoints = 0;
                  
-                 if (!isMultiplayerMode && isTeamMode) {
+                 if (isMultiplayerMode) {
+                   // In multiplayer mode, check if answer is revealed
+                   // Host cannot see answers by default - only revealed answers are visible
+                   isRevealed = multiplayerState?.revealedAnswers?.includes(answerText) || false;
+                 } else if (!isMultiplayerMode && isTeamMode) {
                    // In team mode, all answers are always visible to host
                    isRevealed = true;
                    // Check if answer has been assigned to any team
@@ -593,11 +821,21 @@ const handleEndGame = () => {
                  } else {
                    // Regular mode - check if answer matches submitted answers
                    isRevealed = (getCurrentRoundAnswers() || []).some((submitted: string) => {
+                     if (!submitted || typeof submitted !== 'string') return false;
+                     
                      const normalizedSubmitted = submitted.toLowerCase().trim();
+                     const answerText = typeof answer === 'string' ? answer : (answer?.text || '');
+                     
+                     if (!answerText) return false;
+                     
                      return (
-                       answer.text.toLowerCase().trim() === normalizedSubmitted ||
-                       answer.normalized?.toLowerCase().trim() === normalizedSubmitted ||
-                       answer.aliases?.some(alias => alias.toLowerCase().trim() === normalizedSubmitted)
+                       answerText.toLowerCase().trim() === normalizedSubmitted ||
+                       (typeof answer === 'object' && answer?.normalized && 
+                        answer.normalized.toLowerCase().trim() === normalizedSubmitted) ||
+                       (typeof answer === 'object' && answer?.aliases && Array.isArray(answer.aliases) && 
+                        answer.aliases.some(alias => 
+                          alias && typeof alias === 'string' && alias.toLowerCase().trim() === normalizedSubmitted
+                        ))
                      );
                    });
                  }
@@ -614,18 +852,20 @@ const handleEndGame = () => {
                        // In team mode, allow host to assign unassigned answers
                        if (!isMultiplayerMode && isTeamMode && !assignedTeam) {
                          setSelectedAnswerIndex(index);
-                         setSelectedAnswer(answer);
+                         setSelectedAnswer(typeof answer === 'string' ? { text: answer, rank: index + 1, points: 10 - index } : answer);
                          setShowHostAssignModal(true);
                        }
                      }}
                      disabled={isMultiplayerMode || (isTeamMode && !!assignedTeam)}
                    >
                      <View style={styles.positionColumn}>
-                       <Text style={styles.positionNumber}>{answer.rank}</Text>
+                       <Text style={styles.positionNumber}>
+                         {typeof answer === 'string' ? index + 1 : answer.rank}
+                       </Text>
                      </View>
                      <View style={styles.answerColumn}>
                        <Text style={styles.answerTableText}>
-                         {isRevealed ? answer.text : '🔒'}
+                         {isRevealed ? (typeof answer === 'string' ? answer : answer.text) : '🔒'}
                        </Text>
                        {isRevealed && assignedTeam && (
                          <Text style={[styles.teamBadge, { color: assignedTeam.color }]}>
@@ -638,6 +878,69 @@ const handleEndGame = () => {
                })}
             </View>
 
+          </View>
+        )}
+
+        {/* Host Controls for Multiplayer - Only show during question phase */}
+        {isMultiplayerMode && isMultiplayerHost && multiplayerState?.gamePhase === 'question' && (
+          <View style={styles.hostControlsSection}>
+            <Text style={styles.hostControlsTitle}>Host Controls</Text>
+            <Text style={styles.hostControlsSubtitle}>
+              Click on answers to reveal them to all players
+            </Text>
+            <View style={styles.hostControlsGrid}>
+              {currentQuestion?.answers?.map((answer: string | QuestionAnswer, index: number) => {
+                const answerText = typeof answer === 'string' ? answer : answer.text;
+                const isRevealed = multiplayerState?.revealedAnswers?.includes(answerText) || false;
+                
+                return (
+                  <TouchableOpacity
+                    key={index}
+                    style={[
+                      styles.hostControlButton,
+                      isRevealed && styles.hostControlButtonRevealed
+                    ]}
+                    onPress={() => {
+                      if (!isRevealed) {
+                        revealMultiplayerAnswer(answerText);
+                      }
+                    }}
+                    disabled={isRevealed}
+                  >
+                    <Text style={[
+                      styles.hostControlButtonText,
+                      isRevealed && styles.hostControlButtonTextRevealed
+                    ]}>
+                      {isRevealed ? '✅' : '🔓'} {answerText}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            
+            {/* Host Action Buttons */}
+            <View style={styles.hostActionButtons}>
+              <TouchableOpacity
+                style={styles.endTurnButton}
+                onPress={handleNextQuestion}
+              >
+                <Text style={styles.endTurnButtonText}>
+                  End Turn
+                </Text>
+              </TouchableOpacity>
+              
+              {/* Next Question Button - Only show when all answers are revealed */}
+              {(multiplayerState?.revealedAnswers?.length || 0) >= (currentQuestion?.answers?.length || 0) && (
+                <TouchableOpacity
+                  style={styles.nextQuestionButton}
+                  onPress={handleNextQuestion}
+                >
+                  <Text style={styles.nextQuestionButtonText}>
+                    Next Question
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
         )}
 
@@ -661,19 +964,25 @@ const handleEndGame = () => {
             {showAnswers && currentQuestion && currentQuestion.answers && (
               <View style={styles.answersList}>
                 <Text style={styles.answersListTitle}>All Correct Answers:</Text>
-                {currentQuestion.answers.map((answer: { text: string; rank: number; points: number }, index: number) => {
-                  const isCorrect = (currentRoundAnswers || []).some(submitted => 
-                    submitted.toLowerCase().trim() === answer.text.toLowerCase().trim()
-                  );
+                {currentQuestion.answers.map((answer: string | { text: string; rank: number; points: number }, index: number) => {
+                  // Handle both string[] and QuestionAnswer[] formats
+                  const answerText = typeof answer === 'string' ? answer : answer.text;
+                  const answerRank = typeof answer === 'string' ? index + 1 : answer.rank;
+                  const answerPoints = typeof answer === 'string' ? 10 - index : answer.points;
+                  
+                  const isCorrect = (currentRoundAnswers || []).some((submitted: string) => {
+                    if (!submitted || typeof submitted !== 'string' || !answerText) return false;
+                    return submitted.toLowerCase().trim() === answerText.toLowerCase().trim();
+                  });
                   
                   return (
                     <View key={index} style={[
                       styles.answerItem,
                       isCorrect ? styles.correctAnswer : styles.missedAnswer
                     ]}>
-                      <Text style={styles.answerRank}>#{answer.rank}</Text>
-                      <Text style={styles.answerText}>{answer.text}</Text>
-                      <Text style={styles.answerPoints}>{answer.points} pts</Text>
+                      <Text style={styles.answerRank}>#{answerRank}</Text>
+                      <Text style={styles.answerText}>{answerText}</Text>
+                      <Text style={styles.answerPoints}>{answerPoints} pts</Text>
                       {isCorrect && <Text style={styles.correctIndicator}>✅</Text>}
                       {!isCorrect && <Text style={styles.missedAnswer}>❌</Text>}
                     </View>
@@ -708,7 +1017,7 @@ const handleEndGame = () => {
 
         {/* Answer Section - Only show if question is not complete AND game is not finished AND not in team mode */}
         {!questionIsComplete && 
-         ((isMultiplayerMode && multiplayerState.gameState?.gamePhase !== 'finished') ||
+         ((isMultiplayerMode && multiplayerState?.gamePhase !== 'finished') ||
           (!isMultiplayerMode && gameState?.gamePhase !== 'finished')) && 
          !(!isMultiplayerMode && isTeamMode) && (
           <View style={styles.answerSection}>
@@ -735,7 +1044,7 @@ const handleEndGame = () => {
                <TextInput 
                  placeholder="Enter your answer..." 
                  placeholderTextColor={COLORS.muted}
-                 value={isMultiplayerMode ? multiplayerState.currentAnswer : currentAnswer} 
+                 value={isMultiplayerMode ? (multiplayerCurrentAnswer || '') : currentAnswer} 
                  onChangeText={isMultiplayerMode ? setMultiplayerAnswer : setAnswer}
                  style={styles.answerInput}
                  editable={true}
@@ -746,7 +1055,7 @@ const handleEndGame = () => {
                <Button 
                  title="Submit Answer" 
                  onPress={handleSubmitAnswer}
-                 disabled={!(isMultiplayerMode ? multiplayerState.currentAnswer : currentAnswer).trim()}
+                 disabled={!(isMultiplayerMode ? (multiplayerCurrentAnswer || '') : currentAnswer).trim()}
                  style={styles.submitButton}
                />
              </Animated.View>
@@ -1584,6 +1893,96 @@ const styles = StyleSheet.create({
      color: 'white',
      fontSize: 16,
      fontWeight: '600'
+   },
+   
+   // Multiplayer host controls
+   hostControlsSection: {
+     backgroundColor: '#1E293B',
+     borderRadius: 12,
+     padding: SPACING.lg,
+     marginBottom: SPACING.md,
+     borderWidth: 1,
+     borderColor: '#475569'
+   },
+   hostControlsTitle: {
+     color: '#F1F5F9',
+     fontSize: 18,
+     fontWeight: '700',
+     textAlign: 'center',
+     marginBottom: SPACING.sm
+   },
+   hostControlsSubtitle: {
+     color: '#94A3B8',
+     fontSize: 14,
+     textAlign: 'center',
+     marginBottom: SPACING.md
+   },
+   hostControlsGrid: {
+     flexDirection: 'row',
+     flexWrap: 'wrap',
+     gap: SPACING.sm
+   },
+   hostControlButton: {
+     backgroundColor: '#334155',
+     paddingHorizontal: SPACING.md,
+     paddingVertical: SPACING.sm,
+     borderRadius: 8,
+     borderWidth: 1,
+     borderColor: '#475569',
+     minWidth: 120
+   },
+   hostControlButtonRevealed: {
+     backgroundColor: '#059669',
+     borderColor: '#047857'
+   },
+   hostControlButtonText: {
+     color: '#E2E8F0',
+     fontSize: 14,
+     fontWeight: '600',
+     textAlign: 'center'
+   },
+   hostControlButtonTextRevealed: {
+     color: '#D1FAE5'
+   },
+   hostActionButtons: {
+     marginTop: SPACING.md,
+     alignItems: 'center',
+     gap: SPACING.sm
+   },
+   nextQuestionButton: {
+     backgroundColor: '#8B5CF6',
+     paddingHorizontal: SPACING.lg,
+     paddingVertical: SPACING.md,
+     borderRadius: 8,
+     borderWidth: 1,
+     borderColor: '#7C3AED'
+   },
+   nextQuestionButtonText: {
+     color: 'white',
+     fontSize: 16,
+     fontWeight: '600'
+   },
+   
+   // Game status styles
+   gameStatusSection: {
+     backgroundColor: '#1E293B',
+     borderRadius: 12,
+     padding: SPACING.lg,
+     marginBottom: SPACING.md,
+     borderWidth: 1,
+     borderColor: '#475569'
+   },
+   gameStatusText: {
+     color: '#F1F5F9',
+     fontSize: 16,
+     fontWeight: '600',
+     textAlign: 'center',
+     marginBottom: SPACING.xs
+   },
+   gameStatusSubtext: {
+     color: '#94A3B8',
+     fontSize: 14,
+     textAlign: 'center'
    }
 });
 

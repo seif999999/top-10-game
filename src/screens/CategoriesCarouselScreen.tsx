@@ -117,10 +117,10 @@ const CategoriesCarouselScreen: React.FC<CategoriesScreenProps> = ({ navigation,
     console.log('🎯 Game mode:', gameMode);
     
     if (gameMode === 'multiplayer') {
-      // This shouldn't happen anymore with the new Sporcle flow
-      // Categories are now selected inline in the MultiplayerRoomScreen
-      console.warn('🚨 Unexpected multiplayer navigation to Categories screen');
-      navigation.goBack();
+      // For multiplayer, navigate to MultiplayerRoom with the selected category
+      console.log('🎯 Navigating to MultiplayerRoom with category:', category.name);
+      
+      navigation.navigate('CreateRoom' as never);
     } else {
       // For single player, continue to QuestionSelection
       console.log('🎯 Navigating to QuestionSelection with params:', {
@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
   backButtonArrow: {
     color: '#8B5CF6',
     fontSize: 18,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    fontWeight: 'bold' as const,
     lineHeight: 20,
   },
   headerContent: {

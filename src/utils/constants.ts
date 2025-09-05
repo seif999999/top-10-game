@@ -2,15 +2,19 @@ export const APP_NAME = 'Top10Game';
 
 export const COLORS = {
   primary: '#4F46E5',
+  secondary: '#8B5CF6',
   background: '#0A0A0A',
+  surface: '#1C1C1E',
   card: '#1C1C1E',
   text: '#FFFFFF',
+  white: '#FFFFFF',
   muted: '#8E8E93',
   accent: '#FF6B6B',
   success: '#10B981',
   error: '#EF4444',
   warning: '#F59E0B',
   info: '#3B82F6',
+  border: '#374151',
   successGlow: 'rgba(16, 185, 129, 0.3)',
   errorGlow: 'rgba(239, 68, 68, 0.3)',
   progressBg: '#1F2937',
@@ -22,7 +26,8 @@ export const SPACING = {
   sm: 8,
   md: 12,
   lg: 16,
-  xl: 24
+  xl: 24,
+  xxl: 32
 };
 
 export const TYPOGRAPHY = {

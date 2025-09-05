@@ -429,7 +429,9 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     
     // Regular mode
     if (!state.gameState) return false;
-    return checkQuestionComplete(state.gameState);
+    const currentRound = state.gameState.rounds[state.gameState.currentRound - 1];
+    if (!currentRound) return false;
+    return checkQuestionComplete(currentRound);
   }, [state.gameState, state.isTeamMode, state.teamGameState]);
 
   const getCorrectAnswersFound = useCallback((): number => {

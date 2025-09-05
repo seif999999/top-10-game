@@ -46,7 +46,13 @@ export const signInWithGoogle = async (): Promise<{ idToken: string; accessToken
     // Start the OAuth flow
     const result = await request.promptAsync({
       authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
-      useProxy: Platform.select({ web: false, default: true })
+      useProxy: Platform.select({ web: false, default: true }),
+      // Web-specific configuration
+      ...(Platform.OS === 'web' && {
+        additionalParameters: {
+          prompt: 'select_account'
+        }
+      })
     });
 
     console.log('📋 Auth result type:', result.type);

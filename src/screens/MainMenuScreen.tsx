@@ -44,7 +44,7 @@ const MainMenuScreen: React.FC<MainMenuScreenProps> = ({ navigation }) => {
       })
     ]).start();
     
-    navigation.navigate('MultiplayerRoom', { categoryName: '', categoryId: '' });
+    navigation.navigate('MultiplayerMenu' as never);
   };
 
   const handleBackToHome = () => {
@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
    backButtonArrow: {
      color: '#8B5CF6',
      fontSize: 18,
-     fontWeight: TYPOGRAPHY.fontWeight.bold,
+     fontWeight: '700',
      lineHeight: 20,
    },
 
@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
   },
      modeTitle: {
      fontSize: 24,
-     fontWeight: TYPOGRAPHY.fontWeight.bold,
+     fontWeight: '700',
      fontFamily: TYPOGRAPHY.fontFamily.primary,
      color: COLORS.text,
      textAlign: 'center',
@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
   },
      modeName: {
      fontSize: 24,
-     fontWeight: TYPOGRAPHY.fontWeight.bold,
+     fontWeight: '700',
      fontFamily: TYPOGRAPHY.fontFamily.primary,
      color: COLORS.text,
      marginBottom: SPACING.md,
@@ -273,7 +273,7 @@ const styles = StyleSheet.create({
      fontSize: 16,
      color: COLORS.muted,
      fontFamily: TYPOGRAPHY.fontFamily.secondary,
-     fontWeight: TYPOGRAPHY.fontWeight.regular,
+     fontWeight: '400',
      textAlign: 'center',
      lineHeight: 24,
      letterSpacing: 0.2,
@@ -286,7 +286,7 @@ const styles = StyleSheet.create({
      fontSize: 14,
      color: COLORS.muted,
      fontFamily: TYPOGRAPHY.fontFamily.secondary,
-     fontWeight: TYPOGRAPHY.fontWeight.medium,
+     fontWeight: '500',
      textAlign: 'center',
      letterSpacing: 0.3,
    },

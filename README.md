@@ -75,7 +75,34 @@ npm start
 3. Click "Add app" and choose "Web"
 4. Copy the configuration values to your `.env` file
 
-### Step 4: Test Authentication
+### Step 4: Google Service Files (For Production)
+For production builds, you'll need to add Google service files:
+
+1. **Download Google Service Files**:
+   - Go to Firebase Console → Project Settings → Your apps
+   - Download `google-services.json` (Android) and `GoogleService-Info.plist` (iOS)
+   - Place them in the project root directory
+
+2. **Update app.config.js**:
+   ```javascript
+   // Uncomment these lines in app.config.js for production:
+   ios: {
+     bundleIdentifier: 'com.top10game.app',
+     googleServicesFile: './GoogleService-Info.plist', // Uncomment this
+     // ... rest of config
+   },
+   android: {
+     package: 'com.top10game.app',
+     googleServicesFile: './google-services.json', // Uncomment this
+     // ... rest of config
+   }
+   ```
+
+3. **Alternative: Use EAS Secrets** (Recommended for CI/CD):
+   - Set up EAS secrets for the file contents
+   - Use environment-based configuration in `app.config.js`
+
+### Step 5: Test Authentication
 1. Restart your development server
 2. Try to register a new account
 3. Check the console logs for any errors
