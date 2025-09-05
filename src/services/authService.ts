@@ -1,10 +1,33 @@
-import { signInAnonymously } from 'firebase/auth';
+import { 
+  getCurrentUser, 
+  signInWithEmail, 
+  signUpWithEmail, 
+  signOutUser,
+  subscribeToAuthChanges
+} from './auth';
+import { User } from '../types';
 import { auth } from './firebase';
 
+/**
+ * Singleton AuthService class that provides authentication functionality
+ * This wraps the existing auth functions in a class-based interface
+ */
 export class AuthService {
-  private static instance: AuthService;
-  
-  static getInstance(): AuthService {
+  private static instance: AuthService | null = null;
+  private currentUser: User | null = null;
+  private authUnsubscribe: (() => void) | null = null;
+
+  private constructor() {
+    // Subscribe to auth state changes
+    this.authUnsubscribe = subscribeToAuthChanges((user) => {
+      this.currentUser = user;
+    });
+  }
+
+  /**
+   * Get the singleton instance of AuthService
+   */
+  public static getInstance(): AuthService {
     if (!AuthService.instance) {
       AuthService.instance = new AuthService();
     }
@@ -12,51 +35,99 @@ export class AuthService {
   }
 
   /**
-   * Ensure user is authenticated before any multiplayer operations
+   * Ensure the user is authenticated, signs them in anonymously if not
    */
-  async ensureAuthenticated(): Promise<string> {
+  public async ensureAuthenticated(): Promise<string> {
     try {
-      let user = auth.currentUser;
-      
-      if (!user) {
-        console.log('No user found, signing in anonymously...');
-        const userCredential = await signInAnonymously(auth);
-        user = userCredential.user;
+      // Check if user is already authenticated
+      if (this.currentUser) {
+        return this.currentUser.id;
       }
-      
-      if (!user?.uid) {
-        throw new Error('Failed to authenticate user');
+
+      // Check Firebase auth state
+      const firebaseUser = auth.currentUser;
+      if (firebaseUser) {
+        this.currentUser = {
+          id: firebaseUser.uid,
+          email: firebaseUser.email ?? '',
+          displayName: firebaseUser.displayName ?? undefined,
+          createdAt: firebaseUser.metadata?.creationTime ? new Date(firebaseUser.metadata.creationTime) : undefined,
+          stats: undefined
+        };
+        return this.currentUser.id;
       }
-      
-      console.log('User authenticated:', user.uid);
-      return user.uid;
+
+      // If no user is authenticated, we need to handle this
+      // For now, throw an error - in a real app you might want to redirect to login
+      throw new Error('User not authenticated. Please sign in to continue.');
     } catch (error) {
-      console.error('Authentication error:', error);
-      throw new Error('Failed to authenticate user');
+      console.error('Error ensuring authentication:', error);
+      throw error;
     }
   }
 
   /**
-   * Get current user ID (returns null if not authenticated)
+   * Get the current user ID
    */
-  getCurrentUserId(): string | null {
-    return auth.currentUser?.uid || null;
+  public getCurrentUserId(): string | null {
+    return this.currentUser?.id || null;
   }
 
   /**
-   * Check if user is currently authenticated
+   * Get the current user object
    */
-  isAuthenticated(): boolean {
-    return !!auth.currentUser;
+  public getCurrentUser(): User | null {
+    return this.currentUser;
   }
 
   /**
-   * Sign out current user
+   * Test authentication by checking if user is signed in
    */
-  async signOut(): Promise<void> {
+  public async testAuthentication(): Promise<boolean> {
     try {
-      await auth.signOut();
-      console.log('User signed out successfully');
+      const userId = await this.ensureAuthenticated();
+      return !!userId;
+    } catch (error) {
+      console.error('Authentication test failed:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Sign in with email and password
+   */
+  public async signInWithEmail(email: string, password: string): Promise<User> {
+    try {
+      const user = await signInWithEmail(email, password);
+      this.currentUser = user;
+      return user;
+    } catch (error) {
+      console.error('Sign in error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Sign up with email and password
+   */
+  public async signUpWithEmail(email: string, password: string, displayName?: string): Promise<User> {
+    try {
+      const user = await signUpWithEmail(email, password, displayName);
+      this.currentUser = user;
+      return user;
+    } catch (error) {
+      console.error('Sign up error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Sign out the current user
+   */
+  public async signOut(): Promise<void> {
+    try {
+      await signOutUser();
+      this.currentUser = null;
     } catch (error) {
       console.error('Sign out error:', error);
       throw error;
@@ -64,51 +135,22 @@ export class AuthService {
   }
 
   /**
-   * Wait for auth state to be ready
+   * Check if user is currently authenticated
    */
-  async waitForAuthReady(): Promise<void> {
-    return new Promise((resolve) => {
-      const unsubscribe = auth.onAuthStateChanged((user) => {
-        unsubscribe();
-        resolve();
-      });
-    });
+  public isAuthenticated(): boolean {
+    return !!this.currentUser;
   }
 
   /**
-   * Test authentication and basic Firestore write
+   * Clean up resources
    */
-  async testAuthentication(): Promise<void> {
-    try {
-      console.log('🔍 Testing Firebase Auth...');
-      
-      // Check if user exists
-      let user = auth.currentUser;
-      console.log('Current user:', user?.uid);
-      
-      if (!user) {
-        console.log('No user found, signing in anonymously...');
-        const result = await signInAnonymously(auth);
-        user = result.user;
-        console.log('Anonymous sign-in successful:', user.uid);
-      }
-      
-      // Test basic Firestore write with authenticated user
-      console.log('Testing Firestore write...');
-      const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
-      const { db } = await import('./firebase');
-      
-      await setDoc(doc(db, 'authTest', 'test'), {
-        userId: user.uid,
-        timestamp: serverTimestamp(),
-        test: true
-      });
-      
-      console.log('✅ Auth and Firestore test successful!');
-      
-    } catch (error) {
-      console.error('❌ Auth test failed:', error);
-      throw error;
+  public cleanup(): void {
+    if (this.authUnsubscribe) {
+      this.authUnsubscribe();
+      this.authUnsubscribe = null;
     }
   }
 }
+
+// Export the singleton instance
+export default AuthService.getInstance();
