@@ -7,7 +7,6 @@ import {
   SafeAreaView,
   ScrollView,
   ActivityIndicator,
-  Alert,
   Dimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -67,7 +66,8 @@ const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
 
   useEffect(() => {
     if (error) {
-      Alert.alert('Error', error, [{ text: 'OK', onPress: clearError }]);
+      console.error('Multiplayer error:', error);
+      clearError();
     }
   }, [error, clearError]);
 
@@ -95,18 +95,15 @@ const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
 
   const handleCreateRoom = async () => {
     if (!selectedCategory) {
-      Alert.alert('Error', 'Please select a category');
+      console.error('No category selected');
       return;
     }
 
     if (selectedQuestions.length === 0) {
-      Alert.alert('Error', 'Please select at least one question');
+      console.error('No questions selected');
       return;
     }
 
-    // Log selected questions for debugging
-    console.log('🔍 DEBUG: Selected questions before validation:', selectedQuestions);
-    
     // Filter out invalid questions instead of rejecting all
     const validQuestions = (selectedQuestions as any[]).filter(q => {
       const isValid = q && 
@@ -117,36 +114,20 @@ const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
         q.answers.length > 0 &&
         q.answers.some((a: any) => a && a.text && a.text.trim() !== '');
       
-      if (!isValid) {
-        console.warn('⚠️ Skipping invalid question:', q);
-      }
-      
       return isValid;
     });
 
-    console.log('🔍 DEBUG: Valid questions after filtering:', validQuestions);
-
     if (validQuestions.length === 0) {
       console.error('❌ No valid questions found after filtering');
-      Alert.alert('Error', 'No valid questions found. Please select questions with proper data.');
       return;
-    }
-
-    // Show warning if some questions were filtered out
-    if (validQuestions.length < selectedQuestions.length) {
-      const filteredCount = selectedQuestions.length - validQuestions.length;
-      console.warn(`⚠️ Filtered out ${filteredCount} invalid questions, using ${validQuestions.length} valid ones`);
     }
 
     try {
       // Ensure user is authenticated before creating room
       await authService.ensureAuthenticated();
       
-      console.log('🔍 DEBUG: Converting valid questions:', validQuestions);
-      
       // Convert GameQuestion to Question format for multiplayer service
       const convertedQuestions: any[] = validQuestions.map((gameQuestion: any) => {
-        console.log('🔍 DEBUG: Converting question:', gameQuestion);
         return {
           id: gameQuestion.id,
           text: gameQuestion.title, // Use title as text
@@ -156,8 +137,6 @@ const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
         };
       });
       
-      console.log('🔍 DEBUG: Converted questions for room creation:', convertedQuestions);
-      
       const roomCode = await createRoom(selectedCategory, convertedQuestions);
       (navigation as any).navigate('RoomLobby', { roomCode });
     } catch (error) {
@@ -165,24 +144,6 @@ const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
     }
   };
 
-  const handleTestAuth = async () => {
-    try {
-      await authService.testAuthentication();
-      Alert.alert('Success', 'Authentication test passed!');
-    } catch (error) {
-      Alert.alert('Error', `Authentication test failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  };
-
-  const handleTestSimpleRoom = async () => {
-    try {
-      const multiplayerService = (await import('../services/multiplayerService')).default;
-      const roomCode = await multiplayerService.createRoomSimple();
-      Alert.alert('Success', `Simple room created: ${roomCode}`);
-    } catch (error) {
-      Alert.alert('Error', `Simple room creation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  };
 
   const handleLeaveRoom = async () => {
     try {
@@ -295,26 +256,6 @@ const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
           </View>
         )}
 
-        {/* Test Buttons */}
-        <View style={styles.testContainer}>
-          <Text style={styles.testTitle}>Debug Tests</Text>
-          <View style={styles.testButtons}>
-            <TouchableOpacity
-              style={styles.testButton}
-              onPress={handleTestAuth}
-              accessibilityLabel="Test authentication"
-            >
-              <Text style={styles.testButtonText}>Test Auth</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.testButton}
-              onPress={handleTestSimpleRoom}
-              accessibilityLabel="Test simple room creation"
-            >
-              <Text style={styles.testButtonText}>Test Simple Room</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
 
         {/* Create Room Button */}
         <View style={styles.buttonContainer}>
@@ -501,35 +442,6 @@ const styles = StyleSheet.create({
   createButtonSubtext: {
     fontSize: 14,
     color: COLORS.white + 'CC',
-  },
-  testContainer: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    padding: SPACING.lg,
-    marginBottom: SPACING.lg,
-  },
-  testTitle: {
-    fontSize: 16,
-    fontWeight: 'bold' as const,
-    color: COLORS.text,
-    marginBottom: SPACING.md,
-    textAlign: 'center',
-  },
-  testButtons: {
-    flexDirection: 'row',
-    gap: SPACING.md,
-  },
-  testButton: {
-    flex: 1,
-    backgroundColor: COLORS.primary,
-    borderRadius: 8,
-    padding: SPACING.md,
-    alignItems: 'center',
-  },
-  testButtonText: {
-    color: COLORS.white,
-    fontWeight: '600' as const,
-    fontSize: 14,
   },
 });
 

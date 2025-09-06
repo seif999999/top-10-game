@@ -14,48 +14,7 @@ import multiplayerService from '../services/multiplayerService';
 import { QuestionAnswer } from '../types';
 import { FEATURES } from '../config/featureFlags';
 import HostAssignModal from '../components/HostAssignModal';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../services/firebase';
 
-// Debug overlay component for visual debugging
-const DebugOverlay = ({ multiplayerState, currentUserId }: { multiplayerState: any; currentUserId: string | undefined }) => {
-  if (!__DEV__) return null; // Only show in development
-  
-  return (
-    <View style={{
-      position: 'absolute',
-      top: 50,
-      right: 10,
-      backgroundColor: 'rgba(0,0,0,0.8)',
-      padding: 10,
-      borderRadius: 5,
-      maxWidth: 300,
-      zIndex: 1000
-    }}>
-      <Text style={{color: 'white', fontSize: 12, fontWeight: 'bold'}}>
-        🔍 DEBUG INFO
-      </Text>
-      <Text style={{color: 'white', fontSize: 10}}>
-        Player ID: {currentUserId?.substring(0, 8)}...
-      </Text>
-      <Text style={{color: 'white', fontSize: 10}}>
-        My Score: {multiplayerState?.players?.[currentUserId || '']?.score || 0}
-      </Text>
-      <Text style={{color: 'white', fontSize: 10}}>
-        Game Phase: {multiplayerState?.gamePhase}
-      </Text>
-      <Text style={{color: 'white', fontSize: 10}}>
-        Revealed Count: {(multiplayerState?.revealedAnswers || []).filter(Boolean).length}
-      </Text>
-      <Text style={{color: 'white', fontSize: 10}}>
-        Room Code: {multiplayerState?.roomCode}
-      </Text>
-      <Text style={{color: 'white', fontSize: 10}}>
-        Current Q: {multiplayerState?.questions?.[multiplayerState?.currentQuestionIndex || 0]?.text?.substring(0, 30)}...
-      </Text>
-    </View>
-  );
-};
 
 const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   const { roomId, categoryId, isMultiplayer, selectedQuestion, teamConfig } = route.params;
@@ -113,7 +72,6 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   const [submittedAnswers, setSubmittedAnswers] = useState<string[]>([]);
   const [showQuestionComplete, setShowQuestionComplete] = useState(false);
   const [showAnswers, setShowAnswers] = useState(false);
-  const [showRankingOverlay, setShowRankingOverlay] = useState(false);
   const [showGameEndRanking, setShowGameEndRanking] = useState(false);
   
   // Team mode state
@@ -188,37 +146,6 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     questionIsComplete
   });
   
-  // Firebase state inspection function
-  const inspectFirebaseState = async () => {
-    try {
-      if (!multiplayerState?.roomCode || !user?.id) {
-        alert('No room code or user ID available');
-        return;
-      }
-      
-      const roomRef = doc(db, 'multiplayerGames', multiplayerState.roomCode);
-      const roomDoc = await getDoc(roomRef);
-      const data = roomDoc.data();
-      
-      if (data) {
-        const myScore = data.players?.[user.id]?.score || 0;
-        const revealedCount = (data.revealedAnswers || []).filter(Boolean).length;
-        
-        alert(`🔍 FIREBASE STATE CHECK:
-My Score in DB: ${myScore}
-My Score in UI: ${multiplayerState?.players?.[user.id]?.score || 0}
-Revealed in DB: ${revealedCount}
-Revealed in UI: ${(multiplayerState?.revealedAnswers || []).filter(Boolean).length}
-Players Count: ${Object.keys(data.players || {}).length}
-Game Phase: ${data.gamePhase}
-Room Status: ${data.status}`);
-      } else {
-        alert('Room document not found in Firebase');
-      }
-    } catch (error) {
-      alert(`Firebase inspection error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  };
   
   // Get submitted answers for the current round
   const getCurrentRoundAnswers = () => {
@@ -289,7 +216,6 @@ Room Status: ${data.status}`);
          // Reset any existing game first
          if (gameState) {
            resetGame();
-           setShowRankingOverlay(false);
            setShowGameEndRanking(false);
          }
 
@@ -330,7 +256,6 @@ Room Status: ${data.status}`);
         setShowAnswers(true);
       } else if (multiplayerState.gamePhase === 'results') {
         console.log('🎮 Results phase');
-        setShowRankingOverlay(true);
       } else if (multiplayerState.gamePhase === 'finished') {
         console.log('🎮 Game finished');
         setShowGameEndRanking(true);
@@ -619,20 +544,17 @@ const handleEndGame = () => {
     // Enhanced validation
     if (!answerToSubmit || typeof answerToSubmit !== 'string') {
       console.log('❌ No valid answer to submit');
-      Alert.alert('Invalid Input', 'Please enter a valid answer.');
       return;
     }
 
     const trimmedAnswer = answerToSubmit.trim();
     if (trimmedAnswer.length === 0) {
       console.log('❌ Empty answer');
-      Alert.alert('Invalid Input', 'Please enter a non-empty answer.');
       return;
     }
 
     if (trimmedAnswer.length > 100) {
       console.log('❌ Answer too long');
-      Alert.alert('Invalid Input', 'Answer is too long. Please keep it under 100 characters.');
       return;
     }
 
@@ -656,7 +578,7 @@ const handleEndGame = () => {
         if (multiplayerState) {
           const validation = multiplayerService.isAllowedToSubmitV2(user?.id || '', multiplayerState);
           if (!validation.allowed) {
-            Alert.alert('Cannot Submit', validation.reason || 'Wait for your turn to submit answers.');
+            console.log('❌ Cannot submit:', validation.reason || 'Wait for your turn to submit answers.');
             return;
           }
         }
@@ -688,17 +610,18 @@ const handleEndGame = () => {
           setMultiplayerAnswer('');
           // The answer is already added to multiplayerSubmittedAnswers by the context
           
-          // Show success feedback
-          setLastAnswerResult('correct');
-          
-          // Show ranking overlay after correct answer
-          setShowRankingOverlay(true);
-          
-          console.log(`✅ Answer submitted successfully, earned ${result.points} points`);
+          // Show feedback based on whether points were earned (correct answer)
+          if (result.points && result.points > 0) {
+            setLastAnswerResult('correct');
+            console.log(`✅ Correct answer! Earned ${result.points} points`);
+          } else {
+            setLastAnswerResult('incorrect');
+            console.log(`❌ Wrong answer - no points earned`);
+          }
         } else {
           // Show error feedback
           setLastAnswerResult('incorrect');
-          Alert.alert('Submission Failed', result.error || 'Failed to submit answer');
+          console.log(`❌ Answer submission failed: ${result.error || 'Failed to submit answer'}`);
         }
       } else {
         console.log('📝 Submitting single-player answer:', trimmedAnswer);
@@ -710,22 +633,19 @@ const handleEndGame = () => {
         // Determine answer result and show feedback
         const isCorrect = checkAnswerCorrectness(trimmedAnswer);
         setLastAnswerResult(isCorrect ? 'correct' : 'incorrect');
-        
-        // Show ranking overlay after correct answer
-        if (isCorrect) {
-          setShowRankingOverlay(true);
-        }
       }
       
       setSubmittedAnswers(prev => [...prev, trimmedAnswer]);
       setIsAnswerSubmitted(true);
       
-      // Animate answer input based on result
-      Animated.timing(answerInputGlow, {
-        toValue: lastAnswerResult === 'correct' ? 1 : -1,
-        duration: ANIMATIONS.duration.normal,
-        useNativeDriver: false,
-      }).start();
+      // Animate answer input based on result - use setTimeout to ensure state is updated
+      setTimeout(() => {
+        Animated.timing(answerInputGlow, {
+          toValue: lastAnswerResult === 'correct' ? 1 : -1,
+          duration: ANIMATIONS.duration.normal,
+          useNativeDriver: false,
+        }).start();
+      }, 100); // Small delay to ensure state is updated
       
       // Reset feedback after delay
       setTimeout(() => {
@@ -739,8 +659,6 @@ const handleEndGame = () => {
       }, 2000);
     } catch (error) {
       console.error('❌ Error submitting answer:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to submit answer. Please try again.';
-      Alert.alert('Submission Error', errorMessage);
     }
   };
 
@@ -823,29 +741,6 @@ const handleEndGame = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Debug Overlay - Only in development */}
-      <DebugOverlay 
-        multiplayerState={multiplayerState} 
-        currentUserId={user?.id} 
-      />
-      
-      {/* Debug Check DB Button - Only in development */}
-      {__DEV__ && (
-        <TouchableOpacity 
-          style={{
-            position: 'absolute',
-            bottom: 100,
-            right: 20,
-            backgroundColor: 'red',
-            padding: 10,
-            borderRadius: 5,
-            zIndex: 1000
-          }}
-          onPress={inspectFirebaseState}
-        >
-          <Text style={{color: 'white', fontSize: 12}}>Check DB</Text>
-        </TouchableOpacity>
-      )}
       
              {/* Header */}
        <View style={styles.header}>
@@ -873,11 +768,15 @@ const handleEndGame = () => {
 
       <ScrollView style={styles.content}>
         {/* Multiplayer Leaderboard */}
-        {isMultiplayerMode && (
+        {isMultiplayerMode && multiplayerState && (
           <>
             <MultiplayerLeaderboard
-              leaderboard={[]} // TODO: Implement multiplayer leaderboard
-              currentPlayerId={multiplayerState?.hostId || ''}
+              leaderboard={Object.entries(multiplayerState.players || {}).map(([playerId, player]) => ({
+                playerId,
+                playerName: player.name || 'Unknown Player',
+                score: multiplayerState.scores?.[playerId] || 0
+              })).sort((a, b) => b.score - a.score)} // Sort by score descending
+              currentPlayerId={user?.id || ''}
               maxHeight={150}
             />
             
@@ -899,16 +798,6 @@ const handleEndGame = () => {
             )}
             
             {/* Game Status for Multiplayer */}
-            {multiplayerState?.gamePhase === 'question' && (
-              <View style={styles.gameStatusSection}>
-                <Text style={styles.gameStatusText}>
-                  🎮 Game in progress - Submit your answers!
-                </Text>
-                <Text style={styles.gameStatusSubtext}>
-                  Found {multiplayerState.revealedAnswers?.length || 0} of {currentQuestion?.answers?.length || 0} answers
-                </Text>
-              </View>
-            )}
             
             {multiplayerState?.gamePhase === 'answers' && (
               <View style={styles.gameStatusSection}>
@@ -1126,8 +1015,8 @@ const handleEndGame = () => {
             </Text>
             <Text style={styles.turnSystemSubtitle}>
               {multiplayerState.currentPlayerId === user?.id 
-                ? 'Submit your answers below' 
-                : `Waiting for ${multiplayerState.players?.[multiplayerState.currentPlayerId || '']?.name || 'player'} to submit answers`
+                ? 'Your turn' 
+                : `Waiting for ${multiplayerState.players?.[multiplayerState.currentPlayerId || '']?.name || 'player'}`
               }
             </Text>
             
@@ -1311,7 +1200,7 @@ const handleEndGame = () => {
                    styles.feedbackText,
                    { color: lastAnswerResult === 'correct' ? COLORS.success : COLORS.error }
                  ]}>
-                   {lastAnswerResult === 'correct' ? '✅ Correct!' : '❌ Try Again!'}
+                   {lastAnswerResult === 'correct' ? '✅ Correct!' : '❌ Wrong Answer'}
                  </Text>
                </Animated.View>
              )}
@@ -1349,22 +1238,6 @@ const handleEndGame = () => {
        
        
 
-       {/* Ranking Overlay - Shows after each correct answer */}
-       {showRankingOverlay && (
-         <TouchableOpacity
-           style={styles.fullScreenTouchable}
-           activeOpacity={1}
-           onPress={() => setShowRankingOverlay(false)}
-         >
-           <RankingOverlay
-             visible={showRankingOverlay}
-             question={currentQuestion}
-             submittedAnswers={getCurrentRoundAnswers()}
-             onHide={() => setShowRankingOverlay(false)}
-             isGameEnd={false}
-           />
-         </TouchableOpacity>
-       )}
 
        {/* Game End Ranking Overlay - Shows at game completion */}
        {showGameEndRanking && (
@@ -1450,11 +1323,7 @@ const handleEndGame = () => {
                 setSelectedAnswer(null);
                 
                 // Show success feedback
-                Alert.alert(
-                  '✅ Answer Assigned!',
-                  `"${selectedAnswer.text}" assigned to ${team?.name} (+${points} points)`,
-                  [{ text: 'OK' }]
-                );
+                console.log(`✅ Answer Assigned: "${selectedAnswer.text}" to ${team?.name} (+${points} points)`);
               }
             }}
             answer={selectedAnswer}

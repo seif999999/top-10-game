@@ -201,6 +201,14 @@ class MultiplayerService {
         throw new Error('Failed to create room due to concurrent state changes');
       }
 
+      // Verify room was created successfully
+      const verifyRef = doc(db, 'multiplayerGames', roomCode);
+      const verifySnap = await getDoc(verifyRef);
+      if (!verifySnap.exists()) {
+        throw new Error('Failed to create room - verification failed');
+      }
+      console.log('✅ DEBUG: Room creation verified successfully');
+
       // Start connection monitoring for the host
       this.startConnectionMonitoring(roomCode, userId, true);
 
@@ -264,6 +272,8 @@ class MultiplayerService {
    */
   async joinRoom(roomCode: string, playerId: string, playerName: string): Promise<boolean> {
     try {
+      console.log(`🔍 DEBUG: Attempting to join room ${roomCode} with player ${playerId}`);
+      
       await this.ensureAuthenticated();
       
       // Check for malicious activity
@@ -274,7 +284,10 @@ class MultiplayerService {
       const roomRef = doc(db, 'multiplayerGames', roomCode);
       const roomSnap = await getDoc(roomRef);
       
+      console.log(`🔍 DEBUG: Room exists check: ${roomSnap.exists()}`);
+      
       if (!roomSnap.exists()) {
+        console.log(`❌ Room ${roomCode} not found in Firestore`);
         throw new Error('Room not found');
       }
 

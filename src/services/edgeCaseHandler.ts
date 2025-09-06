@@ -298,9 +298,15 @@ export class EdgeCaseHandler {
    */
   async handleMaliciousPlayer(roomCode: string, playerId: string, action: string): Promise<boolean> {
     try {
+      // Don't flag join_room actions as suspicious - they're normal user behavior
+      if (action === 'join_room') {
+        console.log(`✅ Normal join attempt from player ${playerId}`);
+        return false;
+      }
+      
       console.log(`🚨 Detecting malicious activity from player ${playerId}: ${action}`);
       
-      // Track player activity
+      // Track player activity for non-join actions
       const now = Date.now();
       const playerActivity = this.playerActivity.get(playerId) || { actions: 0, lastAction: now };
       

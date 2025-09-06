@@ -220,9 +220,9 @@ export async function submitAnswer(
     timestamp: new Date().toISOString()
   });
   
-  // Alert 1: Function entry
+  // Debug logging for function entry
   if (__DEV__) {
-    alert(`🎯 DEBUG 1: Starting submitAnswer
+    console.log(`🎯 DEBUG 1: Starting submitAnswer
 Player: ${playerId.substring(0, 8)}
 Answer: "${answerText}"
 Room: ${roomCode}`);
@@ -290,9 +290,9 @@ Room: ${roomCode}`);
         const { answer, index } = match;
         const pointsToAdd = calculatePoints(answer.rank);
         
-        // Alert 2: Match found
+        // Debug logging for match found
         if (__DEV__) {
-          alert(`✅ DEBUG 2: Match Found!
+          console.log(`✅ DEBUG 2: Match Found!
 User Input: "${answerText}"
 Matched: "${answer.text}"
 Rank: ${answer.rank}
@@ -332,9 +332,9 @@ Points: ${pointsToAdd}`);
         points = calculatePoints(answer.rank);
         console.log(`💰 POINTS_CALCULATED: Rank ${answer.rank} = ${points} points`);
         
-        // Alert 3: Before transaction
+        // Debug logging before transaction
         if (__DEV__) {
-          alert(`💾 DEBUG 3: Starting Transaction
+          console.log(`💾 DEBUG 3: Starting Transaction
 Points to add: ${points}
 Reveal index: ${index}
 Canonical name: "${answer.text}"`);
@@ -376,9 +376,9 @@ Canonical name: "${answer.text}"`);
         // Wrong answer - no points, but turn still advances
         console.log(`❌ SUBMIT_ANSWER: Wrong answer "${answerText}" - no points awarded`);
         
-        // Alert 5: No match found
+        // Debug logging for no match found
         if (__DEV__) {
-          alert(`❌ DEBUG 5: No Match Found
+          console.log(`❌ DEBUG 5: No Match Found
 Input: "${answerText}"
 Available answers count: ${currentQuestion?.answers?.length || 0}`);
         }
@@ -446,9 +446,9 @@ Available answers count: ${currentQuestion?.answers?.length || 0}`);
       
       transaction.update(roomRef, updates);
       
-      // Alert 4: After transaction
+      // Debug logging after transaction
       if (__DEV__ && match) {
-        alert(`✅ DEBUG 4: Transaction Complete!
+        console.log(`✅ DEBUG 4: Transaction Complete!
 Should have updated:
 - Player score by +${points}
 - Revealed answer at index ${match.index}`);
@@ -556,9 +556,9 @@ Should have updated:
       
       console.log(`✅ FALLBACK SUCCESS: Awarded ${points} points to player ${playerId}`);
       
-      // Alert 4: Fallback success
+      // Debug logging for fallback success
       if (__DEV__) {
-        alert(`✅ DEBUG 4: Fallback Success!
+        console.log(`✅ DEBUG 4: Fallback Success!
 Awarded ${points} points to player ${playerId}
 Revealed answer at index ${index}`);
       }
@@ -569,9 +569,9 @@ Revealed answer at index ${index}`);
     console.error(`❌ FALLBACK FAILED:`, fallbackError);
   }
   
-  // Alert 6: Error occurred
+  // Debug logging for error occurred
   if (__DEV__) {
-    alert(`🚨 DEBUG 6: ERROR!
+    console.log(`🚨 DEBUG 6: ERROR!
 Message: ${lastError?.message || 'Unknown error'}
 Function: submitAnswer
 Attempts: ${maxRetries}`);
