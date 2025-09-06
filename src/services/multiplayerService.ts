@@ -21,8 +21,10 @@ import { distance } from 'fastest-levenshtein';
 import { Question, Answer, RoomData, Player, GamePhase, RoomStatus } from '../types/game';
 import { normalizeQuestion, safeToLower, assertQuestionShape } from './questionsService';
 import { pointsForRank } from './scoring';
-import { awardAnswer, startRound, endRound, updatePlayerPresence } from './multiplayerTransaction';
-import { getServerTimeOffset, calculateTimeRemaining, formatTimeRemaining } from './timeSync';
+import { awardAnswer, startRound, endRound, updatePlayerPresence, hostStartGame, advanceTurn, submitTurnAnswer as submitTurnAnswerTransaction, forceAdvanceExpiredTurn } from './multiplayerTransaction';
+import { startGame as startGameFlow, submitAnswer as submitAnswerFlow, endGame as endGameFlow, advanceTurnOnTimeout } from './multiplayerGameFlow';
+import { hostStartGame as hostStartGameV2, submitAnswer as submitAnswerV2, advanceTurnOnTimeout as advanceTurnOnTimeoutV2, hostEndGame as hostEndGameV2, getServerOffset, calculateTimeRemaining, isAllowedToSubmit, resetRoomStatus } from './multiplayerGameFlowV2';
+import { getServerTimeOffset, formatTimeRemaining } from './timeSync';
 
 // Re-export types from unified game types
 export type { Player, Question, RoomData, AnswerResult, GameResult } from '../types/game';
@@ -70,7 +72,7 @@ class MultiplayerService {
   /**
    * Creates a new multiplayer room with comprehensive edge case handling
    */
-  async createRoom(hostId: string, category: string, questions: any[]): Promise<string> {
+  async createRoom(hostId: string, category: string, questions: any[], hostName?: string): Promise<string> {
     try {
       console.log('🔍 DEBUG: Starting room creation...');
       
@@ -82,10 +84,10 @@ class MultiplayerService {
       const userId = await this.ensureAuthenticated();
       console.log('🔍 DEBUG: User ID after auth:', userId);
       
-      // Check for rate limiting
-      if (await this.checkRateLimit(userId, 'room_creation')) {
-        throw new Error('Too many room creation attempts. Please wait before creating another room.');
-      }
+      // Check for rate limiting (disabled for development)
+      // if (await this.checkRateLimit(userId, 'room_creation')) {
+      //   throw new Error('Too many room creation attempts. Please wait before creating another room.');
+      // }
       
       // Test a simple write first with Firebase outage handling
       console.log('🔍 DEBUG: Testing basic Firestore write...');
@@ -136,7 +138,7 @@ class MultiplayerService {
         players: {
           [userId]: {
             id: userId,
-            name: 'Host', // Will be updated with actual name
+            name: hostName || 'Player', // Use provided host name
             score: 0,
             isHost: true,
             joinedAt: now,
@@ -148,7 +150,15 @@ class MultiplayerService {
         questionStartTime: 0, // Use 0 instead of null for Firestore compatibility
         questionTimeLimit: 60, // 60 seconds per question
         currentAnswers: [],
-        revealedAnswers: [],
+        // Initialize V2 fields
+        revealedAnswers: Array(10).fill(null),
+        scores: { [userId]: 0 },
+        answersSubmittedCount: 0,
+        // Turn system fields
+        turnTimeLimit: 60,
+        turnOrder: [userId],
+        currentTurnIndex: 0,
+        // Legacy fields
         answerOwners: {},
         playerSubmissions: {},
         maxPlayers: 8,
@@ -377,46 +387,14 @@ class MultiplayerService {
   }
 
   /**
-   * Starts the game (host only)
+   * Starts the game (host only) - atomic transition from lobby to playing
    */
-  async startGame(roomCode: string, hostId: string): Promise<void> {
+  async startGame(roomCode: string, hostId: string, timeLimit: number = 60): Promise<void> {
     try {
       console.log('🎮 ROOM_START: Starting game in room:', roomCode, 'for host:', hostId);
       
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
-      const roomSnap = await getDoc(roomRef);
-      
-      if (!roomSnap.exists()) {
-        throw new Error('Room not found');
-      }
-
-      const roomData = roomSnap.data() as RoomData;
-      console.log('🔍 DEBUG: Room data retrieved:', {
-        roomCode: roomData.roomCode,
-        hostId: roomData.hostId,
-        status: roomData.status,
-        playerCount: Object.keys(roomData.players).length,
-        questionsCount: roomData.questions?.length || 0,
-        category: roomData.category
-      });
-      
-      // Verify host
-      if (roomData.hostId !== hostId) {
-        throw new Error('Only the host can start the game');
-      }
-
-      // Check minimum players
-      if (Object.keys(roomData.players).length < 1) {
-        throw new Error('Need at least 1 player to start');
-      }
-
-      // Validate questions array
-      if (!roomData.questions || roomData.questions.length === 0) {
-        throw new Error('No questions available. Please select questions before starting the game.');
-      }
-
-      // Start the game using transaction
-      const result = await startRound(roomCode, hostId, 0, 60);
+      // Use atomic hostStartGame transaction
+      const result = await hostStartGame(roomCode, hostId, timeLimit);
       
       if (!result.success) {
         throw new Error(result.error || 'Failed to start game');
@@ -597,6 +575,255 @@ class MultiplayerService {
   }
 
   /**
+   * Advance to next player's turn
+   */
+  async advanceTurn(roomCode: string, playerId: string): Promise<void> {
+    try {
+      console.log(`🔄 ADVANCE_TURN: Advancing turn in room ${roomCode} for player ${playerId}`);
+      
+      const result = await advanceTurn(roomCode, playerId);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to advance turn');
+      }
+      
+      console.log(`✅ ADVANCE_TURN: Turn advanced successfully`);
+    } catch (error) {
+      console.error('❌ ADVANCE_TURN: Error advancing turn:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Force advance turn when it has expired
+   */
+  async forceAdvanceExpiredTurn(roomCode: string, playerId: string): Promise<void> {
+    try {
+      console.log(`🔄 FORCE_ADVANCE_EXPIRED_TURN: Force advancing expired turn in room ${roomCode} for player ${playerId}`);
+      
+      const result = await forceAdvanceExpiredTurn(roomCode, playerId);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to force advance expired turn');
+      }
+      
+      console.log(`✅ FORCE_ADVANCE_EXPIRED_TURN: Expired turn advanced successfully`);
+    } catch (error) {
+      console.error('❌ FORCE_ADVANCE_EXPIRED_TURN: Error force advancing expired turn:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Submit answer for current player's turn (turn-based system)
+   */
+  async submitTurnAnswer(roomCode: string, playerId: string, answers: string[]): Promise<void> {
+    try {
+      console.log(`📝 SUBMIT_TURN_ANSWER: Submitting turn answer in room ${roomCode} for player ${playerId}`);
+      
+      const result = await submitTurnAnswerTransaction(roomCode, playerId, answers);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to submit turn answer');
+      }
+      
+      console.log(`✅ SUBMIT_TURN_ANSWER: Turn answer submitted successfully`);
+    } catch (error) {
+      console.error('❌ SUBMIT_TURN_ANSWER: Error submitting turn answer:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Clean game flow methods
+   */
+  async startGameClean(roomCode: string, hostId: string): Promise<void> {
+    try {
+      console.log(`🎮 START_GAME_CLEAN: Starting game in room ${roomCode}`);
+      
+      const result = await startGameFlow(roomCode, hostId);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to start game');
+      }
+      
+      console.log(`✅ START_GAME_CLEAN: Game started successfully`);
+    } catch (error) {
+      console.error('❌ START_GAME_CLEAN: Error starting game:', error);
+      throw error;
+    }
+  }
+
+  async submitAnswerClean(roomCode: string, playerId: string, answer: string): Promise<void> {
+    try {
+      console.log(`📝 SUBMIT_ANSWER_CLEAN: Submitting answer in room ${roomCode} for player ${playerId}`);
+      
+      const result = await submitAnswerFlow(roomCode, playerId, answer);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to submit answer');
+      }
+      
+      console.log(`✅ SUBMIT_ANSWER_CLEAN: Answer submitted successfully`);
+    } catch (error) {
+      console.error('❌ SUBMIT_ANSWER_CLEAN: Error submitting answer:', error);
+      throw error;
+    }
+  }
+
+  async endGameClean(roomCode: string, hostId: string): Promise<void> {
+    try {
+      console.log(`🏁 END_GAME_CLEAN: Ending game in room ${roomCode}`);
+      
+      const result = await endGameFlow(roomCode, hostId);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to end game');
+      }
+      
+      console.log(`✅ END_GAME_CLEAN: Game ended successfully`);
+    } catch (error) {
+      console.error('❌ END_GAME_CLEAN: Error ending game:', error);
+      throw error;
+    }
+  }
+
+  async advanceTurnOnTimeoutClean(roomCode: string, playerId: string): Promise<void> {
+    try {
+      console.log(`⏰ ADVANCE_TURN_TIMEOUT_CLEAN: Advancing turn on timeout in room ${roomCode}`);
+      
+      const result = await advanceTurnOnTimeout(roomCode, playerId);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to advance turn on timeout');
+      }
+      
+      console.log(`✅ ADVANCE_TURN_TIMEOUT_CLEAN: Turn advanced successfully`);
+    } catch (error) {
+      console.error('❌ ADVANCE_TURN_TIMEOUT_CLEAN: Error advancing turn:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * V2 Game Flow Methods - Following exact specification
+   */
+  async startGameV2(roomCode: string, hostId: string, turnTimeLimitSec: number = 60): Promise<void> {
+    try {
+      console.log(`🎮 START_GAME_V2: Starting game in room ${roomCode}`);
+      
+      const result = await hostStartGameV2(roomCode, hostId, turnTimeLimitSec);
+      
+      if (!result.success) {
+        // If the room is in an invalid state (like 'closed'), try to reset it
+        if (result.error?.includes('not in lobby state')) {
+          console.log(`🔄 START_GAME_V2: Room in invalid state, attempting to reset...`);
+          const resetResult = await resetRoomStatus(roomCode, hostId);
+          
+          if (resetResult.success) {
+            console.log(`✅ START_GAME_V2: Room reset successful, retrying game start...`);
+            // Retry starting the game
+            const retryResult = await hostStartGameV2(roomCode, hostId, turnTimeLimitSec);
+            if (!retryResult.success) {
+              throw new Error(retryResult.error || 'Failed to start game after reset');
+            }
+          } else {
+            throw new Error(`Failed to reset room: ${resetResult.error}`);
+          }
+        } else {
+          throw new Error(result.error || 'Failed to start game');
+        }
+      }
+      
+      console.log(`✅ START_GAME_V2: Game started successfully`);
+    } catch (error) {
+      console.error('❌ START_GAME_V2: Error starting game:', error);
+      throw error;
+    }
+  }
+
+  async submitAnswerV2(roomCode: string, playerId: string, answerText: string): Promise<{ success: boolean; points?: number; error?: string }> {
+    try {
+      console.log(`📝 SUBMIT_ANSWER_V2: Submitting answer in room ${roomCode} for player ${playerId}`);
+      
+      const result = await submitAnswerV2(roomCode, playerId, answerText);
+      
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+      
+      console.log(`✅ SUBMIT_ANSWER_V2: Answer submitted successfully, points: ${result.points}`);
+      return { success: true, points: result.points };
+    } catch (error) {
+      console.error('❌ SUBMIT_ANSWER_V2: Error submitting answer:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+
+  async endGameV2(roomCode: string, hostId: string): Promise<void> {
+    try {
+      console.log(`🏁 END_GAME_V2: Ending game in room ${roomCode}`);
+      
+      const result = await hostEndGameV2(roomCode, hostId);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to end game');
+      }
+      
+      console.log(`✅ END_GAME_V2: Game ended successfully`);
+    } catch (error) {
+      console.error('❌ END_GAME_V2: Error ending game:', error);
+      throw error;
+    }
+  }
+
+  async advanceTurnOnTimeoutV2(roomCode: string, playerId: string): Promise<void> {
+    try {
+      console.log(`⏰ ADVANCE_TURN_TIMEOUT_V2: Advancing turn on timeout in room ${roomCode}`);
+      
+      const result = await advanceTurnOnTimeoutV2(roomCode, playerId);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to advance turn on timeout');
+      }
+      
+      console.log(`✅ ADVANCE_TURN_TIMEOUT_V2: Turn advanced successfully`);
+    } catch (error) {
+      console.error('❌ ADVANCE_TURN_TIMEOUT_V2: Error advancing turn:', error);
+      throw error;
+    }
+  }
+
+  async getServerOffsetV2(): Promise<number> {
+    return await getServerOffset();
+  }
+
+  calculateTimeRemainingV2(turnStartTime: any, turnTimeLimitSec: number, serverOffset: number): number {
+    return calculateTimeRemaining(turnStartTime, turnTimeLimitSec, serverOffset);
+  }
+
+  isAllowedToSubmitV2(playerId: string, room: RoomData): { allowed: boolean; reason?: string } {
+    return isAllowedToSubmit(playerId, room);
+  }
+
+  async resetRoomStatusV2(roomCode: string, hostId: string): Promise<void> {
+    try {
+      console.log(`🔄 RESET_ROOM_STATUS_V2: Resetting room ${roomCode}`);
+      
+      const result = await resetRoomStatus(roomCode, hostId);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to reset room status');
+      }
+      
+      console.log(`✅ RESET_ROOM_STATUS_V2: Room reset successfully`);
+    } catch (error) {
+      console.error('❌ RESET_ROOM_STATUS_V2: Error resetting room:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Reveals an answer and awards points (host only)
    */
   async revealAnswer(roomCode: string, hostId: string, answer: string): Promise<void> {
@@ -616,7 +843,7 @@ class MultiplayerService {
       }
 
       // Check if answer is already revealed
-      if (roomData.revealedAnswers.includes(answer)) {
+      if (roomData.revealedAnswers.some(ra => ra && ra.answerId === answer)) {
         throw new Error('Answer already revealed');
       }
 
@@ -885,12 +1112,37 @@ class MultiplayerService {
       clearTimeout(existingTimer);
     }
     
-    // Start new monitor
+    // Start new monitor with proper presence check
     const timer = setTimeout(async () => {
-      if (isHost) {
-        await this.edgeCaseHandler.handleHostDisconnection(roomCode, playerId);
-      } else {
-        await this.edgeCaseHandler.handlePlayerDisconnection(roomCode, playerId);
+      try {
+        // Check if player is actually disconnected by verifying room state
+        const roomRef = doc(db, 'multiplayerGames', roomCode);
+        const roomSnap = await getDoc(roomRef);
+        
+        if (!roomSnap.exists()) {
+          console.log(`Room ${roomCode} no longer exists, stopping monitoring for ${playerId}`);
+          return;
+        }
+        
+        const roomData = roomSnap.data() as RoomData;
+        const player = roomData.players?.[playerId];
+        
+        // Only trigger disconnection if player is not in room or marked as disconnected
+        if (!player || !player.isConnected) {
+          console.log(`Player ${playerId} confirmed disconnected, handling disconnection`);
+          if (isHost) {
+            await this.edgeCaseHandler.handleHostDisconnection(roomCode, playerId);
+          } else {
+            await this.edgeCaseHandler.handlePlayerDisconnection(roomCode, playerId);
+          }
+        } else {
+          console.log(`Player ${playerId} still connected, extending monitoring`);
+          // Player is still connected, extend monitoring
+          this.startConnectionMonitoring(roomCode, playerId, isHost);
+        }
+      } catch (error) {
+        console.error(`Error in connection monitoring for ${playerId}:`, error);
+        // On error, don't trigger disconnection to avoid false positives
       }
     }, isHost ? 30000 : 60000); // 30s for host, 60s for players
     

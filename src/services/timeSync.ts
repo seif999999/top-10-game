@@ -1,7 +1,7 @@
 // Server time synchronization for accurate timer display
 // Handles client-server time drift and provides accurate time remaining calculations
 
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { db } from './firebase';
 
 let serverTimeOffset: number | null = null;
@@ -102,7 +102,7 @@ async function sampleServerTime(): Promise<number> {
   
   // Clean up temporary document
   try {
-    await tempRef.delete();
+    await deleteDoc(tempRef);
   } catch (error) {
     // Ignore cleanup errors
   }

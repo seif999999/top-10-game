@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, ReactNode, useEffect, useCallback } from 'react';
 import { RoomData, Player, Question } from '../types/game';
 import multiplayerService from '../services/multiplayerService';
 import { useAuth } from './AuthContext';
@@ -14,6 +14,7 @@ interface MultiplayerState {
   
   // UI State
   loading: boolean;
+  isStarting: boolean;
   error: string | null;
   
   // Room Creation
@@ -37,6 +38,7 @@ interface MultiplayerState {
 // Action types
 type MultiplayerAction =
   | { type: 'SET_LOADING'; payload: boolean }
+  | { type: 'SET_STARTING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null }
   | { type: 'SET_ROOM'; payload: { roomData: RoomData | null; userId?: string } }
   | { type: 'SET_HOST_STATUS'; payload: boolean }
@@ -46,6 +48,7 @@ type MultiplayerAction =
   | { type: 'SET_JOIN_CODE'; payload: string }
   | { type: 'SET_CURRENT_ANSWER'; payload: string }
   | { type: 'SET_SUBMITTED_ANSWERS'; payload: string[] }
+  | { type: 'ADD_SUBMITTED_ANSWER'; payload: string }
   | { type: 'SET_UNSUBSCRIBE'; payload: (() => void) | null }
   | { type: 'SET_NAVIGATION_CALLBACK'; payload: ((params: any) => void) | null }
   | { type: 'RESET_ALL' }
@@ -58,6 +61,7 @@ const initialState: MultiplayerState = {
   playerRole: null,
   connectionStatus: 'disconnected',
   loading: false,
+  isStarting: false,
   error: null,
   selectedCategory: null,
   selectedQuestions: [],
@@ -74,6 +78,9 @@ const multiplayerReducer = (state: MultiplayerState, action: MultiplayerAction):
     case 'SET_LOADING':
       return { ...state, loading: action.payload };
     
+    case 'SET_STARTING':
+      return { ...state, isStarting: action.payload };
+    
     case 'SET_ERROR':
       return { ...state, error: action.payload };
     
@@ -88,7 +95,10 @@ const multiplayerReducer = (state: MultiplayerState, action: MultiplayerAction):
         playersCount: Object.keys(roomData?.players || {}).length,
         hostId: roomData?.hostId,
         currentUserId: userId,
-        isHost: roomData ? roomData.hostId === userId : false
+        isHost: roomData ? roomData.hostId === userId : false,
+        currentPlayerId: roomData?.currentPlayerId,
+        turnStartTime: roomData?.turnStartTime,
+        answersSubmittedCount: roomData?.answersSubmittedCount
       });
       return {
         ...state,
@@ -119,6 +129,9 @@ const multiplayerReducer = (state: MultiplayerState, action: MultiplayerAction):
     
     case 'SET_SUBMITTED_ANSWERS':
       return { ...state, submittedAnswers: action.payload };
+    
+    case 'ADD_SUBMITTED_ANSWER':
+      return { ...state, submittedAnswers: [...state.submittedAnswers, action.payload] };
     
     case 'SET_UNSUBSCRIBE':
       return { ...state, unsubscribe: action.payload };
@@ -152,6 +165,7 @@ interface MultiplayerContextType {
   playerRole: 'host' | 'player' | null;
   connectionStatus: 'connected' | 'connecting' | 'disconnected';
   loading: boolean;
+  isStarting: boolean;
   error: string | null;
   
   // Room Creation
@@ -179,6 +193,7 @@ interface MultiplayerContextType {
   
   // Player Actions
   submitAnswers: (answers: string[]) => Promise<void>;
+  advanceTurn: () => Promise<void>;
   
   // UI Actions
   setCategory: (category: string) => void;
@@ -218,6 +233,14 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
 
   // Auto-navigate to GameScreen when game starts - simplified dependencies
   useEffect(() => {
+    console.log('🎮 NAVIGATION_CHECK:', {
+      hasRoom: !!state.currentRoom,
+      status: state.currentRoom?.status,
+      gamePhase: state.currentRoom?.gamePhase,
+      hasCallback: !!state.navigationCallback,
+      roomCode: state.currentRoom?.roomCode
+    });
+    
     if (state.currentRoom && state.currentRoom.status === 'playing' && state.currentRoom.gamePhase === 'question' && state.navigationCallback) {
       console.log('🎮 CLIENT_NAVIGATE: Auto-navigating to GameScreen...');
       state.navigationCallback({
@@ -266,7 +289,7 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
         throw new Error('User not authenticated');
       }
 
-      const roomCode = await multiplayerService.createRoom(user.id, category, questions);
+      const roomCode = await multiplayerService.createRoom(user.id, category, questions, user.displayName || user.email?.split('@')[0] || 'Player');
       
       // Subscribe to room updates
       const unsubscribe = multiplayerService.subscribeToRoom(roomCode, (roomData) => {
@@ -316,10 +339,22 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
     try {
       if (!state.currentRoom) return;
       
+      console.log('🚪 Leaving room:', state.currentRoom.roomCode);
       await multiplayerService.leaveRoom(state.currentRoom.roomCode, user?.id || '');
-      dispatch({ type: 'SET_ROOM', payload: { roomData: null, userId: user?.id } });
+      
+      // Clean up subscription
+      if (state.unsubscribe) {
+        state.unsubscribe();
+        dispatch({ type: 'SET_UNSUBSCRIBE', payload: null });
+      }
+      
+      // Reset all state to allow creating new rooms
+      dispatch({ type: 'RESET_ALL' });
+      console.log('✅ Room left successfully, state reset for new room creation');
     } catch (error) {
+      console.error('❌ Error leaving room:', error);
       dispatch({ type: 'SET_ERROR', payload: error instanceof Error ? error.message : 'Failed to leave room' });
+      throw error;
     }
   };
 
@@ -337,13 +372,23 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
         throw new Error('User not authenticated');
       }
       
+      // Prevent double starts
+      if (state.isStarting) {
+        console.log('⚠️ Start game already in progress, ignoring duplicate request');
+        return;
+      }
+      
+      dispatch({ type: 'SET_STARTING', payload: true });
+      
       console.log('🎮 ROOM_START: Host starting game...');
-      await multiplayerService.startGame(state.currentRoom.roomCode, user.id);
+      await multiplayerService.startGameV2(state.currentRoom.roomCode, user.id, 60);
       console.log('✅ ROOM_START: Game started successfully');
     } catch (error) {
       console.error('❌ ROOM_START: Error starting game:', error);
       dispatch({ type: 'SET_ERROR', payload: error instanceof Error ? error.message : 'Failed to start game' });
       throw error;
+    } finally {
+      dispatch({ type: 'SET_STARTING', payload: false });
     }
   };
 
@@ -362,7 +407,7 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
       }
       
       console.log('🏁 END_GAME: Host ending game...');
-      await multiplayerService.endGame(state.currentRoom.roomCode, user.id);
+      await multiplayerService.endGameV2(state.currentRoom.roomCode, user.id);
       console.log('✅ END_GAME: Game ended successfully');
     } catch (error) {
       console.error('❌ END_GAME: Error ending game:', error);
@@ -405,10 +450,28 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
     try {
       if (!state.currentRoom || !user) return;
       
-      await multiplayerService.submitAnswer(state.currentRoom.roomCode, user.id, answers);
-      dispatch({ type: 'SET_SUBMITTED_ANSWERS', payload: answers });
+      // Use the V2 answer submission system (single answer)
+      if (answers.length > 0) {
+        const result = await multiplayerService.submitAnswerV2(state.currentRoom.roomCode, user.id, answers[0]);
+        if (result.success) {
+          // Append to existing submitted answers instead of replacing
+          dispatch({ type: 'ADD_SUBMITTED_ANSWER', payload: answers[0] });
+        } else {
+          throw new Error(result.error || 'Failed to submit answer');
+        }
+      }
     } catch (error) {
       dispatch({ type: 'SET_ERROR', payload: error instanceof Error ? error.message : 'Failed to submit answers' });
+    }
+  };
+
+  const advanceTurn = async (): Promise<void> => {
+    try {
+      if (!state.currentRoom || !user) return;
+      
+      await multiplayerService.advanceTurn(state.currentRoom.roomCode, user.id);
+    } catch (error) {
+      dispatch({ type: 'SET_ERROR', payload: error instanceof Error ? error.message : 'Failed to advance turn' });
     }
   };
 
@@ -439,30 +502,30 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
     dispatch({ type: 'SET_SUBMITTED_ANSWERS', payload: newAnswers });
   };
 
-  const clearError = () => {
+  const clearError = useCallback(() => {
     dispatch({ type: 'SET_ERROR', payload: null });
-  };
+  }, []);
 
   const resetSelections = () => {
     dispatch({ type: 'RESET_SELECTIONS' });
   };
 
-  const resetAll = () => {
+  const resetAll = useCallback(() => {
     dispatch({ type: 'RESET_ALL' });
-  };
+  }, []);
 
-  const setNavigationCallback = (callback: (params: any) => void) => {
+  const setNavigationCallback = useCallback((callback: (params: any) => void) => {
     dispatch({ type: 'SET_NAVIGATION_CALLBACK', payload: callback });
-  };
+  }, []);
 
-  const cleanup = () => {
+  const cleanup = useCallback(() => {
     // Clean up subscription if it exists
     if (state.unsubscribe) {
       state.unsubscribe();
     }
     multiplayerService.cleanup();
     dispatch({ type: 'RESET_ALL' });
-  };
+  }, [state.unsubscribe]);
 
   const value: MultiplayerContextType = {
     // Current State
@@ -471,6 +534,7 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
     playerRole: state.playerRole,
     connectionStatus: state.connectionStatus,
     loading: state.loading,
+    isStarting: state.isStarting,
     error: state.error,
     
     // Room Creation
@@ -498,6 +562,7 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
     
     // Player Actions
     submitAnswers,
+    advanceTurn,
     
     // UI Actions
     setCategory,

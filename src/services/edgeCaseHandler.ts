@@ -34,7 +34,7 @@ export const DEFAULT_EDGE_CASE_CONFIG: EdgeCaseConfig = {
   maxPlayers: 8,
   roomCleanupDelay: 600000, // 10 minutes
   maxSubmissionsPerMinute: 10,
-  maxRoomCreationsPerHour: 5,
+  maxRoomCreationsPerHour: 100, // Increased for development
   suspiciousActivityThreshold: 20
 };
 

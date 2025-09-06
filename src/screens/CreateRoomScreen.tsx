@@ -145,7 +145,7 @@ const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
       console.log('🔍 DEBUG: Converting valid questions:', validQuestions);
       
       // Convert GameQuestion to Question format for multiplayer service
-      const convertedQuestions = validQuestions.map((gameQuestion: any) => {
+      const convertedQuestions: any[] = validQuestions.map((gameQuestion: any) => {
         console.log('🔍 DEBUG: Converting question:', gameQuestion);
         return {
           id: gameQuestion.id,

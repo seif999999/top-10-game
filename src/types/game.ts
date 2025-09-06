@@ -35,7 +35,7 @@ export type QuestionAnswer = {
 };
 
 // Room state types for multiplayer
-export type RoomStatus = 'lobby' | 'playing' | 'finished';
+export type RoomStatus = 'lobby' | 'playing' | 'finished' | 'closed';
 export type GamePhase = 'lobby' | 'question' | 'answers' | 'results' | 'finished';
 
 // Player types
@@ -49,7 +49,14 @@ export type Player = {
   lastSeen: number;
 };
 
-// Room data structure
+// Revealed answer structure
+export type RevealedAnswer = {
+  answerId: string;
+  playerId: string;
+  points: number;
+};
+
+// Room data structure - Updated to match specification
 export type RoomData = {
   // Room Info
   roomCode: string;
@@ -74,9 +81,20 @@ export type RoomData = {
   roundStartTs?: number;        // server timestamp for current round
   roundDurationSeconds?: number; // duration for current round
   
-  // Answers & Scoring
+  // Turn-based system
+  currentPlayerId?: string;     // ID of player whose turn it is
+  turnStartTime?: number;       // server timestamp when turn started
+  turnTimeLimit: number;        // seconds per turn (default 60)
+  turnOrder: string[];          // array of player IDs in turn order
+  currentTurnIndex: number;     // index in turnOrder array
+  
+  // Answers & Scoring - Updated to match specification
   currentAnswers: Answer[];     // Correct answers for current question
-  revealedAnswers: string[];    // Answer texts that have been revealed
+  revealedAnswers: (null | RevealedAnswer)[]; // Array of 10 revealed answers (null if not revealed)
+  scores: { [playerId: string]: number }; // Player scores
+  answersSubmittedCount: number; // Count of revealed answers (0-10)
+  
+  // Legacy fields for backward compatibility
   answerOwners: { [answerText: string]: string }; // Who revealed each answer
   playerSubmissions: {
     [playerId: string]: {
