@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Alert, TextInput, Platform, Animated } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Alert, TextInput, Platform, Animated, BackHandler } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import Button from '../components/Button';
 import ResultsModal from '../components/ResultsModal';
@@ -58,6 +58,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     joinRoom,
     startGame: startMultiplayerGame,
     submitAnswers: submitMultiplayerAnswer,
+    advanceTurn: advanceMultiplayerTurn,
     nextQuestion: nextMultiplayerQuestion,
     endGame: endMultiplayerGame,
     leaveRoom,
@@ -79,6 +80,10 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   // Team mode state
   const [showHostAssignModal, setShowHostAssignModal] = useState(false);
   const [selectedAnswerIndex, setSelectedAnswerIndex] = useState<number>(-1);
+  
+  // Multiplayer timer state
+  const [multiplayerTimeRemaining, setMultiplayerTimeRemaining] = useState(60);
+  const [serverOffset, setServerOffset] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<QuestionAnswer | null>(null);
   
   // Animation values
@@ -105,19 +110,21 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   // Multiplayer scoring and state
   const getMultiplayerScore = () => {
     if (!isMultiplayerMode || !multiplayerState || !user?.id) return 0;
-    const playerData = multiplayerState.playerSubmissions[user.id];
-    return playerData ? playerData.points : 0;
+    // Use the new V2 scores system
+    return multiplayerState.scores[user.id] || 0;
   };
   
   const getMultiplayerCorrectAnswers = () => {
     if (!isMultiplayerMode || !multiplayerState) return 0;
-    return multiplayerState.revealedAnswers?.length || 0;
+    // Count only non-null revealed answers
+    return multiplayerState.revealedAnswers?.filter(ra => ra !== null).length || 0;
   };
   
   const isMultiplayerQuestionComplete = () => {
     if (!isMultiplayerMode || !multiplayerState || !currentQuestion) return false;
     const totalAnswers = currentQuestion.answers?.length || 0;
-    const revealedAnswers = multiplayerState.revealedAnswers?.length || 0;
+    // Count only non-null revealed answers
+    const revealedAnswers = multiplayerState.revealedAnswers?.filter(ra => ra !== null).length || 0;
     return revealedAnswers >= totalAnswers;
   };
   
@@ -274,35 +281,41 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     }
   }, [isMultiplayerMode, isTeamMode, teamGameState?.isTurnActive, teamGameState?.roundTimerSeconds, teamGameState?.timeRemaining, setTeamTimer]);
 
-  // Multiplayer timer effect - simplified dependencies
+  // Multiplayer turn timer effect with V2 server synchronization
   useEffect(() => {
-    if (isMultiplayerMode && multiplayerState?.gamePhase === 'question' && multiplayerState.questionStartTime) {
+    if (isMultiplayerMode && multiplayerState?.gamePhase === 'question' && multiplayerState.turnStartTime) {
+      // Get server offset once
+      multiplayerService.getServerOffsetV2().then(offset => {
+        setServerOffset(offset);
+      });
+      
       const timer = setInterval(() => {
-        // Handle both server timestamps and client timestamps
-        let startTime: number;
-        if (typeof multiplayerState.questionStartTime === 'object' && multiplayerState.questionStartTime && 'seconds' in multiplayerState.questionStartTime) {
-          // Server timestamp object
-          startTime = (multiplayerState.questionStartTime as any).seconds * 1000;
-        } else if (typeof multiplayerState.questionStartTime === 'number') {
-          // Client timestamp
-          startTime = multiplayerState.questionStartTime;
-        } else {
-          return; // Invalid timestamp
-        }
+        // Calculate time remaining using server offset
+        const timeRemaining = multiplayerService.calculateTimeRemainingV2(
+          multiplayerState.turnStartTime,
+          multiplayerState.turnTimeLimit || 60,
+          serverOffset
+        );
         
-        const elapsed = Date.now() - startTime;
-        const remaining = Math.max(0, (multiplayerState.questionTimeLimit * 1000) - elapsed);
+        // Update the timer state for UI display
+        setMultiplayerTimeRemaining(timeRemaining);
         
-        if (remaining <= 0) {
-          // Time's up - automatically move to next question
-          console.log('⏰ Multiplayer timer expired');
-          // The host should handle this, but we can show a message
+        if (timeRemaining <= 0) {
+          // Turn time's up - automatically advance to next player
+          console.log('⏰ Turn timer expired - advancing to next player');
+          if (multiplayerState.currentPlayerId === user?.id && user?.id) {
+            // Current player's turn expired, try to advance turn
+            multiplayerService.advanceTurnOnTimeoutV2(multiplayerState.roomCode, user.id).catch(error => {
+              console.log('⚠️ Turn advance failed:', error);
+              // This is expected - another client may have already advanced the turn
+            });
+          }
         }
       }, 1000);
 
       return () => clearInterval(timer);
     }
-  }, [isMultiplayerMode, multiplayerState?.gamePhase, multiplayerState?.questionStartTime, multiplayerState?.questionTimeLimit]);
+  }, [isMultiplayerMode, multiplayerState?.gamePhase, multiplayerState?.turnStartTime, multiplayerState?.turnTimeLimit, multiplayerState?.currentPlayerId, user?.id, serverOffset]);
 
   // Check if question is complete and show success message - simplified dependencies
   useEffect(() => {
@@ -322,6 +335,32 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
       setShowResults(true);
     }
   }, [gameState?.gamePhase, showResults]);
+
+  // Handle back button in multiplayer mode
+  useEffect(() => {
+    if (isMultiplayerMode) {
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+        Alert.alert(
+          'Exit Game',
+          'Are you sure you want to leave the game? This will disconnect you from the room.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { 
+              text: 'Exit', 
+              style: 'destructive', 
+              onPress: () => {
+                leaveRoom();
+                navigation.goBack();
+              }
+            }
+          ]
+        );
+        return true; // Prevent default back behavior
+      });
+
+      return () => backHandler.remove();
+    }
+  }, [isMultiplayerMode, leaveRoom, navigation]);
 
   // Cleanup game state when screen loses focus (user navigates away)
   useFocusEffect(
@@ -464,7 +503,15 @@ const handleEndGame = () => {
       isMultiplayerMode,
       answerToSubmit,
       multiplayerStateCurrentAnswer: multiplayerCurrentAnswer,
-      currentAnswer
+      currentAnswer,
+      multiplayerState: multiplayerState ? {
+        status: multiplayerState.status,
+        gamePhase: multiplayerState.gamePhase,
+        currentPlayerId: multiplayerState.currentPlayerId,
+        currentQuestionIndex: multiplayerState.currentQuestionIndex,
+        answersSubmittedCount: multiplayerState.answersSubmittedCount
+      } : null,
+      userId: user?.id
     });
     
     // Enhanced validation
@@ -503,25 +550,39 @@ const handleEndGame = () => {
 
     try {
       if (isMultiplayerMode) {
-        console.log('📝 Submitting multiplayer answer:', trimmedAnswer);
-        // Use the same answer processing logic as single player
-        const isCorrect = checkAnswerCorrectness(trimmedAnswer);
+        // Check if it's the current player's turn using V2 validation
+        if (multiplayerState) {
+          const validation = multiplayerService.isAllowedToSubmitV2(user?.id || '', multiplayerState);
+          if (!validation.allowed) {
+            Alert.alert('Cannot Submit', validation.reason || 'Wait for your turn to submit answers.');
+            return;
+          }
+        }
         
-        if (isCorrect) {
-          // Process the answer using the same logic as single player
-          await submitMultiplayerAnswer([trimmedAnswer]);
+        console.log('📝 Submitting multiplayer answer:', trimmedAnswer);
+        
+        // Use V2 answer submission system
+        const result = await multiplayerService.submitAnswerV2(
+          multiplayerState?.roomCode || '',
+          user?.id || '',
+          trimmedAnswer
+        );
+        
+        if (result.success) {
           setMultiplayerAnswer('');
-          // Add to submitted answers for display
-          setSubmittedAnswers(prev => [...prev, trimmedAnswer]);
+          // The answer is already added to multiplayerSubmittedAnswers by the context
           
           // Show success feedback
           setLastAnswerResult('correct');
           
           // Show ranking overlay after correct answer
           setShowRankingOverlay(true);
+          
+          console.log(`✅ Answer submitted successfully, earned ${result.points} points`);
         } else {
-          // Show error feedback for incorrect answer
+          // Show error feedback
           setLastAnswerResult('incorrect');
+          Alert.alert('Submission Failed', result.error || 'Failed to submit answer');
         }
       } else {
         console.log('📝 Submitting single-player answer:', trimmedAnswer);
@@ -755,34 +816,21 @@ const handleEndGame = () => {
             </View>
           </View>
         )}
-        
-        {/* Multiplayer Timer */}
-        {isMultiplayerMode && multiplayerState?.gamePhase === 'question' && multiplayerState.questionStartTime && (
+
+        {/* Multiplayer Timer - Show for current player */}
+        {isMultiplayerMode && multiplayerState && (
           <View style={styles.timerSection}>
             <View style={styles.timerContainer}>
               <Text style={styles.timerText}>
                 {(() => {
-                  // Handle both server timestamps and client timestamps
-                  let startTime: number;
-                  if (typeof multiplayerState.questionStartTime === 'object' && multiplayerState.questionStartTime && 'seconds' in multiplayerState.questionStartTime) {
-                    // Server timestamp object
-                    startTime = (multiplayerState.questionStartTime as any).seconds * 1000;
-                  } else if (typeof multiplayerState.questionStartTime === 'number') {
-                    // Client timestamp
-                    startTime = multiplayerState.questionStartTime;
+                  if (multiplayerState.currentPlayerId === user?.id) {
+                    // Show time remaining for current player
+                    return `${multiplayerTimeRemaining}s`;
                   } else {
-                    return 'Starting...';
+                    // Show whose turn it is
+                    const currentPlayer = multiplayerState.players[multiplayerState.currentPlayerId];
+                    return currentPlayer ? `${currentPlayer.name}'s turn` : 'Waiting...';
                   }
-                  
-                  const elapsed = Date.now() - startTime;
-                  const timeLimitMs = (multiplayerState.questionTimeLimit || 60) * 1000;
-                  const remaining = Math.max(0, timeLimitMs - elapsed);
-                  
-                  if (remaining <= 0) {
-                    return 'Time\'s up!';
-                  }
-                  
-                  return `${Math.ceil(remaining / 1000)}s`;
                 })()}
               </Text>
             </View>
@@ -796,7 +844,7 @@ const handleEndGame = () => {
               <Text style={styles.answerTableTitle}>All Possible Answers</Text>
             </View>
             <View style={styles.answerTableContainer}>
-                             {currentQuestion.answers.map((answer: string | QuestionAnswer, index: number) => {
+                             {currentQuestion.answers.map((answer: any, index: number) => {
                  // Get answer text
                  const answerText = typeof answer === 'string' ? answer : answer.text;
                  
@@ -807,8 +855,22 @@ const handleEndGame = () => {
                  
                  if (isMultiplayerMode) {
                    // In multiplayer mode, check if answer is revealed
-                   // Host cannot see answers by default - only revealed answers are visible
-                   isRevealed = multiplayerState?.revealedAnswers?.includes(answerText) || false;
+                   // Check if this answer is in the revealedAnswers array
+                   // Compare with answer.id (not answerText) since answerId stores the answer's id
+                   const answerId = typeof answer === 'string' ? `${currentQuestion.id}_answer_${index}` : answer.id;
+                   isRevealed = multiplayerState?.revealedAnswers?.some(ra => 
+                     ra && ra.answerId === answerId
+                   ) || false;
+                   
+                   // Debug logging for answer revelation
+                   if (index === 0) { // Only log for first answer to avoid spam
+                     console.log('🔍 Answer revelation debug:', {
+                       answerText,
+                       answerId,
+                       revealedAnswers: multiplayerState?.revealedAnswers?.map(ra => ra?.answerId),
+                       isRevealed
+                     });
+                   }
                  } else if (!isMultiplayerMode && isTeamMode) {
                    // In team mode, all answers are always visible to host
                    isRevealed = true;
@@ -833,7 +895,7 @@ const handleEndGame = () => {
                        (typeof answer === 'object' && answer?.normalized && 
                         answer.normalized.toLowerCase().trim() === normalizedSubmitted) ||
                        (typeof answer === 'object' && answer?.aliases && Array.isArray(answer.aliases) && 
-                        answer.aliases.some(alias => 
+                        answer.aliases.some((alias: any) => 
                           alias && typeof alias === 'string' && alias.toLowerCase().trim() === normalizedSubmitted
                         ))
                      );
@@ -881,66 +943,42 @@ const handleEndGame = () => {
           </View>
         )}
 
-        {/* Host Controls for Multiplayer - Only show during question phase */}
-        {isMultiplayerMode && isMultiplayerHost && multiplayerState?.gamePhase === 'question' && (
-          <View style={styles.hostControlsSection}>
-            <Text style={styles.hostControlsTitle}>Host Controls</Text>
-            <Text style={styles.hostControlsSubtitle}>
-              Click on answers to reveal them to all players
+        {/* Turn-based system display */}
+        {isMultiplayerMode && multiplayerState?.gamePhase === 'question' && (
+          <View style={styles.turnSystemSection}>
+            <Text style={styles.turnSystemTitle}>
+              {multiplayerState.currentPlayerId === user?.id ? 'Your Turn!' : 'Waiting for Turn'}
             </Text>
-            <View style={styles.hostControlsGrid}>
-              {currentQuestion?.answers?.map((answer: string | QuestionAnswer, index: number) => {
-                const answerText = typeof answer === 'string' ? answer : answer.text;
-                const isRevealed = multiplayerState?.revealedAnswers?.includes(answerText) || false;
-                
-                return (
-                  <TouchableOpacity
-                    key={index}
-                    style={[
-                      styles.hostControlButton,
-                      isRevealed && styles.hostControlButtonRevealed
-                    ]}
-                    onPress={() => {
-                      if (!isRevealed) {
-                        revealMultiplayerAnswer(answerText);
-                      }
-                    }}
-                    disabled={isRevealed}
-                  >
-                    <Text style={[
-                      styles.hostControlButtonText,
-                      isRevealed && styles.hostControlButtonTextRevealed
-                    ]}>
-                      {isRevealed ? '✅' : '🔓'} {answerText}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+            <Text style={styles.turnSystemSubtitle}>
+              {multiplayerState.currentPlayerId === user?.id 
+                ? 'Submit your answers below' 
+                : `Waiting for ${multiplayerState.players?.[multiplayerState.currentPlayerId || '']?.name || 'player'} to submit answers`
+              }
+            </Text>
             
-            {/* Host Action Buttons */}
-            <View style={styles.hostActionButtons}>
-              <TouchableOpacity
-                style={styles.endTurnButton}
-                onPress={handleNextQuestion}
-              >
-                <Text style={styles.endTurnButtonText}>
-                  End Turn
+            {/* Turn timer */}
+            {multiplayerState.turnStartTime && (
+              <View style={styles.turnTimerContainer}>
+                <Text style={styles.turnTimerText}>
+                  {(() => {
+                    const startTime = typeof multiplayerState.turnStartTime === 'object' && multiplayerState.turnStartTime && 'seconds' in multiplayerState.turnStartTime
+                      ? (multiplayerState.turnStartTime as any).seconds * 1000
+                      : typeof multiplayerState.turnStartTime === 'number'
+                      ? multiplayerState.turnStartTime
+                      : 0;
+                    
+                    if (startTime === 0) return 'Starting...';
+                    
+                    const elapsed = Date.now() - startTime;
+                    const remaining = Math.max(0, (multiplayerState.turnTimeLimit || 60) * 1000 - elapsed);
+                    const seconds = Math.ceil(remaining / 1000);
+                    
+                    if (remaining <= 0) return 'Time\'s up!';
+                    return `${seconds}s`;
+                  })()}
                 </Text>
-              </TouchableOpacity>
-              
-              {/* Next Question Button - Only show when all answers are revealed */}
-              {(multiplayerState?.revealedAnswers?.length || 0) >= (currentQuestion?.answers?.length || 0) && (
-                <TouchableOpacity
-                  style={styles.nextQuestionButton}
-                  onPress={handleNextQuestion}
-                >
-                  <Text style={styles.nextQuestionButtonText}>
-                    Next Question
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
+              </View>
+            )}
           </View>
         )}
 
@@ -964,7 +1002,7 @@ const handleEndGame = () => {
             {showAnswers && currentQuestion && currentQuestion.answers && (
               <View style={styles.answersList}>
                 <Text style={styles.answersListTitle}>All Correct Answers:</Text>
-                {currentQuestion.answers.map((answer: string | { text: string; rank: number; points: number }, index: number) => {
+                {currentQuestion.answers.map((answer: any, index: number) => {
                   // Handle both string[] and QuestionAnswer[] formats
                   const answerText = typeof answer === 'string' ? answer : answer.text;
                   const answerRank = typeof answer === 'string' ? index + 1 : answer.rank;
@@ -1016,10 +1054,23 @@ const handleEndGame = () => {
         )}
 
         {/* Answer Section - Only show if question is not complete AND game is not finished AND not in team mode */}
-        {!questionIsComplete && 
-         ((isMultiplayerMode && multiplayerState?.gamePhase !== 'finished') ||
-          (!isMultiplayerMode && gameState?.gamePhase !== 'finished')) && 
-         !(!isMultiplayerMode && isTeamMode) && (
+        {(() => {
+          const shouldShowAnswer = !questionIsComplete && 
+            ((isMultiplayerMode && multiplayerState?.gamePhase !== 'finished') ||
+             (!isMultiplayerMode && gameState?.gamePhase !== 'finished')) && 
+            !(!isMultiplayerMode && isTeamMode);
+          
+          console.log('🎮 Answer input visibility check:', {
+            questionIsComplete,
+            isMultiplayerMode,
+            gamePhase: multiplayerState?.gamePhase,
+            shouldShowAnswer,
+            revealedAnswersCount: multiplayerState?.revealedAnswers?.filter(ra => ra !== null).length || 0,
+            totalAnswers: currentQuestion?.answers?.length || 0
+          });
+          
+          return shouldShowAnswer;
+        })() && (
           <View style={styles.answerSection}>
             <Text style={styles.answerLabel}>Your Answer:</Text>
                          <Animated.View style={[
@@ -1053,10 +1104,16 @@ const handleEndGame = () => {
              
              <Animated.View style={{ transform: [{ scale: submitButtonScale }] }}>
                <Button 
-                 title="Submit Answer" 
+                 title={isMultiplayerMode && multiplayerState?.currentPlayerId !== user?.id ? "Wait for Turn" : "Submit Answer"} 
                  onPress={handleSubmitAnswer}
-                 disabled={!(isMultiplayerMode ? (multiplayerCurrentAnswer || '') : currentAnswer).trim()}
-                 style={styles.submitButton}
+                 disabled={
+                   !(isMultiplayerMode ? (multiplayerCurrentAnswer || '') : currentAnswer).trim() ||
+                   (isMultiplayerMode && multiplayerState?.currentPlayerId !== user?.id)
+                 }
+                 style={isMultiplayerMode && multiplayerState?.currentPlayerId !== user?.id 
+                   ? {...styles.submitButton, ...styles.submitButtonDisabled}
+                   : styles.submitButton
+                 }
                />
              </Animated.View>
              
@@ -1087,10 +1144,10 @@ const handleEndGame = () => {
         )}
 
         {/* Submitted Answers Section */}
-        {submittedAnswers.length > 0 && (
+        {(isMultiplayerMode ? multiplayerSubmittedAnswers : submittedAnswers).length > 0 && (
           <View style={styles.submittedAnswersSection}>
             <Text style={styles.submittedAnswersTitle}>Your Answers:</Text>
-            {submittedAnswers.map((answer, index) => (
+            {(isMultiplayerMode ? multiplayerSubmittedAnswers : submittedAnswers).map((answer, index) => (
               <Text key={index} style={styles.submittedAnswer}>
                 • {answer}
               </Text>
@@ -1895,14 +1952,46 @@ const styles = StyleSheet.create({
      fontWeight: '600'
    },
    
-   // Multiplayer host controls
-   hostControlsSection: {
+   // Turn-based system
+   turnSystemSection: {
      backgroundColor: '#1E293B',
      borderRadius: 12,
      padding: SPACING.lg,
      marginBottom: SPACING.md,
      borderWidth: 1,
+     borderColor: '#475569',
+     alignItems: 'center'
+   },
+   turnSystemTitle: {
+     color: '#F1F5F9',
+     fontSize: 20,
+     fontWeight: '700',
+     textAlign: 'center',
+     marginBottom: SPACING.sm
+   },
+   turnSystemSubtitle: {
+     color: '#94A3B8',
+     fontSize: 14,
+     textAlign: 'center',
+     marginBottom: SPACING.md
+   },
+   turnTimerContainer: {
+     backgroundColor: '#334155',
+     borderRadius: 8,
+     paddingHorizontal: SPACING.md,
+     paddingVertical: SPACING.sm,
+     borderWidth: 1,
      borderColor: '#475569'
+   },
+   turnTimerText: {
+     color: '#F1F5F9',
+     fontSize: 18,
+     fontWeight: '600',
+     textAlign: 'center'
+   },
+   submitButtonDisabled: {
+     backgroundColor: '#64748B',
+     opacity: 0.6
    },
    hostControlsTitle: {
      color: '#F1F5F9',

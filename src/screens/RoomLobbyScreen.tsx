@@ -8,6 +8,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  BackHandler,
   Animated,
   Dimensions,
 } from 'react-native';
@@ -28,6 +29,7 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
     isHost,
     playerRole,
     loading,
+    isStarting,
     error,
     leaveRoom,
     startGame,
@@ -71,7 +73,36 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
       console.log('🎮 RoomLobbyScreen: Auto-navigating to GameScreen with params:', params);
       navigation.navigate('GameScreen' as never, params as never);
     });
-  }, [navigation, setNavigationCallback]);
+  }, [navigation]);
+
+  // Handle back button to prevent accidental exits
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      Alert.alert(
+        'Leave Room',
+        'Are you sure you want to leave this room? This will end the room session.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Leave Room', 
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await leaveRoom();
+                navigation.goBack();
+              } catch (error) {
+                console.error('Error leaving room:', error);
+                navigation.goBack();
+              }
+            }
+          }
+        ]
+      );
+      return true; // Prevent default back behavior
+    });
+
+    return () => backHandler.remove();
+  }, [leaveRoom, navigation]);
 
   const handleLeaveRoom = async () => {
     Alert.alert(
@@ -159,6 +190,18 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
         }
       ]
     );
+  };
+
+  const handleResetRoom = async () => {
+    try {
+      if (currentRoom && user?.id) {
+        const { multiplayerService } = require('../services/multiplayerService');
+        await multiplayerService.resetRoomStatusV2(currentRoom.roomCode, user.id);
+        Alert.alert('Success', 'Room status has been reset to lobby');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to reset room status');
+    }
   };
 
   const handleKickPlayer = (player: Player) => {
@@ -341,14 +384,14 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
                     playerCount < 2 && styles.startGameButtonDisabled
                   ]}
                   onPress={handleStartGame}
-                  disabled={playerCount < 2 || loading}
+                  disabled={playerCount < 2 || loading || isStarting}
                   accessibilityLabel="Start the game"
                 >
-                  {loading ? (
+                  {(loading || isStarting) ? (
                     <ActivityIndicator color={COLORS.white} />
                   ) : (
                     <Text style={styles.startGameButtonText}>
-                      Start Game ({playerCount} players)
+                      {isStarting ? 'Starting...' : `Start Game (${playerCount} players)`}
                     </Text>
                   )}
                 </TouchableOpacity>
@@ -359,6 +402,14 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
                   accessibilityLabel="End the game"
                 >
                   <Text style={styles.endGameButtonText}>End Game</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[styles.endGameButton, { backgroundColor: COLORS.orange }]}
+                  onPress={handleResetRoom}
+                  accessibilityLabel="Reset room status"
+                >
+                  <Text style={styles.endGameButtonText}>Reset Room</Text>
                 </TouchableOpacity>
               </View>
             </View>
