@@ -132,7 +132,7 @@ export async function submitAnswer(
       );
       
       if (correctAnswer) {
-        points = correctAnswer.rank <= 10 ? (11 - correctAnswer.rank) * 10 : 0;
+        points = correctAnswer.rank <= 10 ? correctAnswer.rank : 0;
       }
       
       // Update player submission and score

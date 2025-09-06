@@ -8,7 +8,6 @@ import LoginScreen from '../screens/AuthScreens/LoginScreen';
 import RegisterScreen from '../screens/AuthScreens/RegisterScreen';
 import HomeScreen from '../screens/HomeScreen';
 import ProfileScreen from '../screens/ProfileScreen';
-import CategoriesScreen from '../screens/CategoriesScreen';
 import QuestionSelectionScreen from '../screens/QuestionSelectionScreen';
 import GameLobbyScreen from '../screens/GameLobbyScreen';
 import MainMenuScreen from '../screens/MainMenuScreen';

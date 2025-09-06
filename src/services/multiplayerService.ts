@@ -25,6 +25,7 @@ import { awardAnswer, startRound, endRound, updatePlayerPresence, hostStartGame,
 import { startGame as startGameFlow, submitAnswer as submitAnswerFlow, endGame as endGameFlow, advanceTurnOnTimeout } from './multiplayerGameFlow';
 import { hostStartGame as hostStartGameV2, submitAnswer as submitAnswerV2, advanceTurnOnTimeout as advanceTurnOnTimeoutV2, hostEndGame as hostEndGameV2, getServerOffset, calculateTimeRemaining, isAllowedToSubmit, resetRoomStatus } from './multiplayerGameFlowV2';
 import { getServerTimeOffset, formatTimeRemaining } from './timeSync';
+import { findBestMatch, normalizeAnswerEnhanced } from './fuzzyMatching';
 
 // Re-export types from unified game types
 export type { Player, Question, RoomData, AnswerResult, GameResult } from '../types/game';
@@ -354,6 +355,24 @@ class MultiplayerService {
 
       const roomData = roomSnap.data() as RoomData;
       
+      // Validate room data
+      if (!roomData.hostId) {
+        console.error('❌ Room has no hostId, cannot process leave request');
+        // Try to delete the corrupted room
+        try {
+          await deleteDoc(roomRef);
+          console.log('✅ Deleted corrupted room with no hostId');
+        } catch (deleteError) {
+          console.error('❌ Failed to delete corrupted room:', deleteError);
+        }
+        return;
+      }
+      
+      if (!roomData.players || !roomData.players[playerId]) {
+        console.error('❌ Player not found in room, cannot process leave request');
+        return;
+      }
+      
       // If host is leaving, transfer host to another player or end room
       if (roomData.hostId === playerId) {
         const otherPlayers = Object.values(roomData.players).filter(p => p.id !== playerId);
@@ -361,22 +380,38 @@ class MultiplayerService {
         if (otherPlayers.length > 0) {
           // Transfer host to first other player
           const newHost = otherPlayers[0];
-          await updateDoc(roomRef, {
+          const updateData: any = {
             hostId: newHost.id,
             [`players.${newHost.id}.isHost`]: true,
-            [`players.${playerId}`]: arrayRemove(),
-            lastActivity: Date.now()
-          });
+            [`players.${playerId}`]: arrayRemove(roomData.players[playerId]),
+            lastActivity: serverTimestamp()
+          };
+          
+          // Validate all values before updating
+          if (updateData.hostId && updateData[`players.${newHost.id}.isHost`] !== undefined) {
+            await updateDoc(roomRef, updateData);
+          } else {
+            console.error('❌ Invalid update data for host transfer:', updateData);
+            // Fallback: delete the room
+            await deleteDoc(roomRef);
+          }
         } else {
           // No other players, delete the room
           await deleteDoc(roomRef);
         }
       } else {
         // Regular player leaving
-        await updateDoc(roomRef, {
-          [`players.${playerId}`]: arrayRemove(),
-          lastActivity: Date.now()
-        });
+        const updateData: any = {
+          [`players.${playerId}`]: arrayRemove(roomData.players[playerId]),
+          lastActivity: serverTimestamp()
+        };
+        
+        // Validate all values before updating
+        if (updateData[`players.${playerId}`] !== undefined) {
+          await updateDoc(roomRef, updateData);
+        } else {
+          console.error('❌ Invalid update data for player removal:', updateData);
+        }
       }
 
       console.log(`✅ Player ${playerId} left room ${roomCode}`);
@@ -744,11 +779,31 @@ class MultiplayerService {
 
   async submitAnswerV2(roomCode: string, playerId: string, answerText: string): Promise<{ success: boolean; points?: number; error?: string }> {
     try {
+      // 🔧 SERVICE - INPUT DEBUG LOGGING
+      console.log('🔧 SERVICE - INPUT:', { 
+        roomCode, 
+        playerId, 
+        answerText,
+        timestamp: new Date().toISOString()
+      });
+      
       console.log(`📝 SUBMIT_ANSWER_V2: Submitting answer in room ${roomCode} for player ${playerId}`);
+      
+      // 🔧 SERVICE - CALLING GAME FLOW DEBUG LOGGING
+      console.log('🔧 SERVICE - CALLING GAME FLOW...');
       
       const result = await submitAnswerV2(roomCode, playerId, answerText);
       
+      // 🔧 SERVICE - GAME FLOW RESULT DEBUG LOGGING
+      console.log('🔧 SERVICE - GAME FLOW RESULT:', {
+        success: result.success,
+        points: result.points,
+        error: result.error,
+        timestamp: new Date().toISOString()
+      });
+      
       if (!result.success) {
+        console.log('❌ SERVICE - GAME FLOW FAILED:', result.error);
         return { success: false, error: result.error };
       }
       
@@ -942,38 +997,22 @@ class MultiplayerService {
   }
 
   /**
-   * Find matching answer using safe string comparison
+   * Find matching answer using enhanced fuzzy matching
    */
   private findMatchingAnswer(userAnswer: string, correctAnswers: Answer[]): Answer | null {
     if (!userAnswer || !correctAnswers || correctAnswers.length === 0) {
       return null;
     }
 
-    const normalizedUserAnswer = safeToLower(userAnswer);
+    // Use enhanced fuzzy matching
+    const matchResult = findBestMatch(userAnswer, correctAnswers);
     
-    // Check for exact matches first
-    for (const answer of correctAnswers) {
-      const normalizedText = safeToLower(answer.text);
-      
-      if (normalizedText === normalizedUserAnswer) {
-        return answer;
-      }
-      
-      // Check aliases
-      if (answer.aliases && Array.isArray(answer.aliases)) {
-        for (const alias of answer.aliases) {
-          if (safeToLower(alias) === normalizedUserAnswer) {
-            return answer;
-          }
-        }
-      }
-      
-      // Check for partial matches
-      if (normalizedText.includes(normalizedUserAnswer) || normalizedUserAnswer.includes(normalizedText)) {
-        return answer;
-      }
+    if (matchResult.isMatch && matchResult.matchedAnswer) {
+      console.log(`✅ FUZZY MATCH: "${userAnswer}" -> "${matchResult.officialAnswer}" (confidence: ${matchResult.confidence}, similarity: ${matchResult.similarity.toFixed(3)})`);
+      return matchResult.matchedAnswer;
     }
     
+    console.log(`❌ NO MATCH: "${userAnswer}" (best similarity: ${matchResult.similarity.toFixed(3)})`);
     return null;
   }
 

@@ -133,8 +133,8 @@ describe('Questions Service', () => {
       expect(gameQuestion.id).toBe('test1');
       expect(gameQuestion.title).toBe('Test Question');
       expect(gameQuestion.answers).toHaveLength(2);
-      expect(gameQuestion.answers[0].points).toBe(100); // rank 1 = 100 points
-      expect(gameQuestion.answers[1].points).toBe(90);  // rank 2 = 90 points
+      expect(gameQuestion.answers[0].points).toBe(1); // rank 1 = 1 point
+      expect(gameQuestion.answers[1].points).toBe(2);  // rank 2 = 2 points
     });
   });
 

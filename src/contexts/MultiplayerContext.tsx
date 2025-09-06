@@ -100,6 +100,30 @@ const multiplayerReducer = (state: MultiplayerState, action: MultiplayerAction):
         turnStartTime: roomData?.turnStartTime,
         answersSubmittedCount: roomData?.answersSubmittedCount
       });
+      
+      // Additional debugging for scores and revealed answers
+      if (roomData) {
+        console.log('🎯 CONTEXT_SCORE_DEBUG:', {
+          scores: roomData.scores,
+          revealedAnswers: roomData.revealedAnswers?.map((ra, i) => ({
+            index: i,
+            isRevealed: ra !== null,
+            answerId: ra?.answerId,
+            playerId: ra?.playerId,
+            points: ra?.points
+          }))
+        });
+        
+        // 📡 FIRESTORE LISTENER UPDATE DEBUG LOGGING
+        console.log('📡 FIRESTORE LISTENER UPDATE:', {
+          timestamp: new Date().toISOString(),
+          playersData: roomData.players,
+          revealedAnswers: roomData.revealedAnswers,
+          myPlayerId: userId,
+          myScore: userId ? roomData.players?.[userId]?.score : 'N/A',
+          totalPlayers: Object.keys(roomData.players || {}).length
+        });
+      }
       return {
         ...state,
         currentRoom: roomData,

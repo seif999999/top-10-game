@@ -14,9 +14,48 @@ import multiplayerService from '../services/multiplayerService';
 import { QuestionAnswer } from '../types';
 import { FEATURES } from '../config/featureFlags';
 import HostAssignModal from '../components/HostAssignModal';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../services/firebase';
 
-
-
+// Debug overlay component for visual debugging
+const DebugOverlay = ({ multiplayerState, currentUserId }: { multiplayerState: any; currentUserId: string | undefined }) => {
+  if (!__DEV__) return null; // Only show in development
+  
+  return (
+    <View style={{
+      position: 'absolute',
+      top: 50,
+      right: 10,
+      backgroundColor: 'rgba(0,0,0,0.8)',
+      padding: 10,
+      borderRadius: 5,
+      maxWidth: 300,
+      zIndex: 1000
+    }}>
+      <Text style={{color: 'white', fontSize: 12, fontWeight: 'bold'}}>
+        🔍 DEBUG INFO
+      </Text>
+      <Text style={{color: 'white', fontSize: 10}}>
+        Player ID: {currentUserId?.substring(0, 8)}...
+      </Text>
+      <Text style={{color: 'white', fontSize: 10}}>
+        My Score: {multiplayerState?.players?.[currentUserId || '']?.score || 0}
+      </Text>
+      <Text style={{color: 'white', fontSize: 10}}>
+        Game Phase: {multiplayerState?.gamePhase}
+      </Text>
+      <Text style={{color: 'white', fontSize: 10}}>
+        Revealed Count: {(multiplayerState?.revealedAnswers || []).filter(Boolean).length}
+      </Text>
+      <Text style={{color: 'white', fontSize: 10}}>
+        Room Code: {multiplayerState?.roomCode}
+      </Text>
+      <Text style={{color: 'white', fontSize: 10}}>
+        Current Q: {multiplayerState?.questions?.[multiplayerState?.currentQuestionIndex || 0]?.text?.substring(0, 30)}...
+      </Text>
+    </View>
+  );
+};
 
 const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   const { roomId, categoryId, isMultiplayer, selectedQuestion, teamConfig } = route.params;
@@ -111,7 +150,14 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   const getMultiplayerScore = () => {
     if (!isMultiplayerMode || !multiplayerState || !user?.id) return 0;
     // Use the new V2 scores system
-    return multiplayerState.scores[user.id] || 0;
+    const score = multiplayerState.scores[user.id] || 0;
+    console.log(`🎯 UI_SCORE_DEBUG: Player ${user.id} score:`, {
+      score,
+      allScores: multiplayerState.scores,
+      isMultiplayerMode,
+      hasMultiplayerState: !!multiplayerState
+    });
+    return score;
   };
   
   const getMultiplayerCorrectAnswers = () => {
@@ -131,6 +177,48 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   const currentScore = isMultiplayerMode ? getMultiplayerScore() : getPlayerScore('You');
   const correctAnswersFound = isMultiplayerMode ? getMultiplayerCorrectAnswers() : getCorrectAnswersFound();
   const questionIsComplete = isMultiplayerMode ? isMultiplayerQuestionComplete() : isQuestionComplete();
+  
+  // 🎨 UI RENDER STATE DEBUG LOGGING
+  console.log('🎨 UI RENDER STATE:', {
+    myScore: multiplayerState?.players?.[user?.id || '']?.score,
+    revealedAnswers: multiplayerState?.revealedAnswers,
+    totalPlayers: Object.keys(multiplayerState?.players || {}).length,
+    currentScore,
+    correctAnswersFound,
+    questionIsComplete
+  });
+  
+  // Firebase state inspection function
+  const inspectFirebaseState = async () => {
+    try {
+      if (!multiplayerState?.roomCode || !user?.id) {
+        alert('No room code or user ID available');
+        return;
+      }
+      
+      const roomRef = doc(db, 'multiplayerGames', multiplayerState.roomCode);
+      const roomDoc = await getDoc(roomRef);
+      const data = roomDoc.data();
+      
+      if (data) {
+        const myScore = data.players?.[user.id]?.score || 0;
+        const revealedCount = (data.revealedAnswers || []).filter(Boolean).length;
+        
+        alert(`🔍 FIREBASE STATE CHECK:
+My Score in DB: ${myScore}
+My Score in UI: ${multiplayerState?.players?.[user.id]?.score || 0}
+Revealed in DB: ${revealedCount}
+Revealed in UI: ${(multiplayerState?.revealedAnswers || []).filter(Boolean).length}
+Players Count: ${Object.keys(data.players || {}).length}
+Game Phase: ${data.gamePhase}
+Room Status: ${data.status}`);
+      } else {
+        alert('Room document not found in Firebase');
+      }
+    } catch (error) {
+      alert(`Firebase inspection error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
   
   // Get submitted answers for the current round
   const getCurrentRoundAnswers = () => {
@@ -499,6 +587,20 @@ const handleEndGame = () => {
 
     const handleSubmitAnswer = async () => {
     const answerToSubmit = isMultiplayerMode ? (multiplayerCurrentAnswer || '') : currentAnswer;
+    
+    // 🎯 SUBMIT ANSWER - START DEBUG LOGGING
+    console.log('🎯 SUBMIT ANSWER - START:', {
+      userInput: answerToSubmit,
+      playerId: user?.id,
+      gameMode: 'multiplayer',
+      currentQuestion: multiplayerState?.questions?.[multiplayerState?.currentQuestionIndex || 0]?.text,
+      roomCode: multiplayerState?.roomCode,
+      currentPlayerId: multiplayerState?.currentPlayerId,
+      isMyTurn: multiplayerState?.currentPlayerId === user?.id,
+      gamePhase: multiplayerState?.gamePhase,
+      status: multiplayerState?.status
+    });
+    
     console.log('🎮 handleSubmitAnswer called:', {
       isMultiplayerMode,
       answerToSubmit,
@@ -562,11 +664,25 @@ const handleEndGame = () => {
         console.log('📝 Submitting multiplayer answer:', trimmedAnswer);
         
         // Use V2 answer submission system
+        console.log('🔧 CALLING SERVICE - submitAnswerV2:', {
+          roomCode: multiplayerState?.roomCode || '',
+          playerId: user?.id || '',
+          answerText: trimmedAnswer
+        });
+        
         const result = await multiplayerService.submitAnswerV2(
           multiplayerState?.roomCode || '',
           user?.id || '',
           trimmedAnswer
         );
+        
+        // 🎯 SUBMIT ANSWER - SERVICE RESULT DEBUG LOGGING
+        console.log('🎯 SUBMIT ANSWER - SERVICE RESULT:', {
+          success: result.success,
+          points: result.points,
+          error: result.error,
+          matchedAnswer: 'N/A' // Service doesn't return matchedAnswer
+        });
         
         if (result.success) {
           setMultiplayerAnswer('');
@@ -707,6 +823,30 @@ const handleEndGame = () => {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Debug Overlay - Only in development */}
+      <DebugOverlay 
+        multiplayerState={multiplayerState} 
+        currentUserId={user?.id} 
+      />
+      
+      {/* Debug Check DB Button - Only in development */}
+      {__DEV__ && (
+        <TouchableOpacity 
+          style={{
+            position: 'absolute',
+            bottom: 100,
+            right: 20,
+            backgroundColor: 'red',
+            padding: 10,
+            borderRadius: 5,
+            zIndex: 1000
+          }}
+          onPress={inspectFirebaseState}
+        >
+          <Text style={{color: 'white', fontSize: 12}}>Check DB</Text>
+        </TouchableOpacity>
+      )}
+      
              {/* Header */}
        <View style={styles.header}>
          <TouchableOpacity onPress={handleBackButton} style={styles.backButton}>
@@ -828,7 +968,7 @@ const handleEndGame = () => {
                     return `${multiplayerTimeRemaining}s`;
                   } else {
                     // Show whose turn it is
-                    const currentPlayer = multiplayerState.players[multiplayerState.currentPlayerId];
+                    const currentPlayer = multiplayerState.currentPlayerId ? multiplayerState.players[multiplayerState.currentPlayerId] : null;
                     return currentPlayer ? `${currentPlayer.name}'s turn` : 'Waiting...';
                   }
                 })()}
@@ -853,22 +993,53 @@ const handleEndGame = () => {
                  let assignedTeam = null;
                  let assignedPoints = 0;
                  
+                 // 🎨 ANSWER DEBUG LOGGING (only for first few answers to avoid spam)
+                 if (index < 3) {
+                   console.log(`🎨 ANSWER ${index + 1}:`, {
+                     canonicalName: answerText,
+                     answerIndex: index,
+                     isRevealed: false, // Will be updated below
+                     revealedValue: 'N/A' // Will be updated below
+                   });
+                 }
+                 
                  if (isMultiplayerMode) {
                    // In multiplayer mode, check if answer is revealed
-                   // Check if this answer is in the revealedAnswers array
-                   // Compare with answer.id (not answerText) since answerId stores the answer's id
-                   const answerId = typeof answer === 'string' ? `${currentQuestion.id}_answer_${index}` : answer.id;
-                   isRevealed = multiplayerState?.revealedAnswers?.some(ra => 
-                     ra && ra.answerId === answerId
-                   ) || false;
+                   // Check if this answer position is revealed in the revealedAnswers array
+                   isRevealed = multiplayerState?.revealedAnswers?.[index] !== null && 
+                               multiplayerState?.revealedAnswers?.[index] !== undefined;
                    
                    // Debug logging for answer revelation
                    if (index === 0) { // Only log for first answer to avoid spam
                      console.log('🔍 Answer revelation debug:', {
                        answerText,
-                       answerId,
-                       revealedAnswers: multiplayerState?.revealedAnswers?.map(ra => ra?.answerId),
-                       isRevealed
+                       answerIndex: index,
+                       revealedAnswers: multiplayerState?.revealedAnswers?.map((ra, i) => ({ index: i, answerId: ra?.answerId, playerId: ra?.playerId, points: ra?.points })),
+                       isRevealed,
+                       currentRevealedAnswer: multiplayerState?.revealedAnswers?.[index]
+                     });
+                   }
+                   
+                   // Additional logging for revealed answers
+                   if (isRevealed) {
+                     console.log(`🎉 UI_REVELATION_DEBUG: Answer at index ${index} is revealed:`, {
+                       answerText,
+                       answerIndex: index,
+                       revealedAnswer: multiplayerState?.revealedAnswers?.[index],
+                       canonicalAnswer: multiplayerState?.revealedAnswers?.[index]?.answerId,
+                       playerWhoRevealed: multiplayerState?.revealedAnswers?.[index]?.playerId,
+                       pointsAwarded: multiplayerState?.revealedAnswers?.[index]?.points
+                     });
+                   }
+                   
+                   // 🎨 ANSWER DEBUG LOGGING - Update with actual values
+                   if (index < 3) {
+                     console.log(`🎨 ANSWER ${index + 1} - UPDATED:`, {
+                       canonicalName: answerText,
+                       answerIndex: index,
+                       isRevealed: isRevealed,
+                       revealedValue: multiplayerState?.revealedAnswers?.[index],
+                       shouldShow: isRevealed
                      });
                    }
                  } else if (!isMultiplayerMode && isTeamMode) {
@@ -914,7 +1085,7 @@ const handleEndGame = () => {
                        // In team mode, allow host to assign unassigned answers
                        if (!isMultiplayerMode && isTeamMode && !assignedTeam) {
                          setSelectedAnswerIndex(index);
-                         setSelectedAnswer(typeof answer === 'string' ? { text: answer, rank: index + 1, points: 10 - index } : answer);
+                         setSelectedAnswer(typeof answer === 'string' ? { text: answer, rank: index + 1, points: index + 1 } : answer);
                          setShowHostAssignModal(true);
                        }
                      }}
@@ -927,7 +1098,11 @@ const handleEndGame = () => {
                      </View>
                      <View style={styles.answerColumn}>
                        <Text style={styles.answerTableText}>
-                         {isRevealed ? (typeof answer === 'string' ? answer : answer.text) : '🔒'}
+                         {isRevealed ? (
+                           isMultiplayerMode 
+                             ? (multiplayerState?.revealedAnswers?.[index]?.answerId || (typeof answer === 'string' ? answer : answer.text))
+                             : (typeof answer === 'string' ? answer : answer.text)
+                         ) : '🔒'}
                        </Text>
                        {isRevealed && assignedTeam && (
                          <Text style={[styles.teamBadge, { color: assignedTeam.color }]}>

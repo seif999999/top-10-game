@@ -49,8 +49,13 @@ export async function awardAnswer(
       // Calculate points
       const points = pointsForRank(answerRank);
       
-      // Prepare updates
-      const newRevealedAnswers = [...(roomData.revealedAnswers || []), answerText];
+      // Prepare updates - create proper RevealedAnswer object
+      const revealedAnswer = {
+        answerId: answerText,
+        playerId: playerId,
+        points: points
+      };
+      const newRevealedAnswers = [...(roomData.revealedAnswers || []), revealedAnswer];
       const newAnswerOwners = {
         ...(roomData.answerOwners || {}),
         [answerText]: playerId

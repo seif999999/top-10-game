@@ -9,9 +9,11 @@
  * - Proper answer matching with aliases
  */
 
-import { runTransaction, doc, serverTimestamp, collection, setDoc, getDoc, deleteDoc } from 'firebase/firestore';
+import { runTransaction, doc, serverTimestamp, collection, setDoc, getDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { RoomData, RevealedAnswer, Answer } from '../types/game';
+import { findBestMatch, normalizeAnswerEnhanced } from './fuzzyMatching';
+import { pointsForRank } from './scoring';
 
 // Server time offset cache
 let serverOffset: number | null = null;
@@ -70,44 +72,39 @@ export function calculateTimeRemaining(turnStartTime: any, turnTimeLimitSec: num
 }
 
 /**
- * Normalize answer text for matching
- */
-function normalizeAnswerText(text: string): string {
-  return (text || '').toLowerCase().trim();
-}
-
-/**
- * Check if user answer matches a correct answer (with aliases support)
+ * Check if user answer matches a correct answer using enhanced fuzzy matching
  */
 function findMatchingAnswer(userAnswer: string, correctAnswers: Answer[]): { answer: Answer; index: number } | null {
-  const normalizedUserAnswer = normalizeAnswerText(userAnswer);
+  if (!userAnswer || !correctAnswers || correctAnswers.length === 0) {
+    return null;
+  }
+
+  // Use enhanced fuzzy matching
+  const matchResult = findBestMatch(userAnswer, correctAnswers);
   
-  for (let i = 0; i < correctAnswers.length; i++) {
-    const correctAnswer = correctAnswers[i];
+  if (matchResult.isMatch && matchResult.matchedAnswer) {
+    // Find the index of the matched answer
+    const index = correctAnswers.findIndex(answer => 
+      answer === matchResult.matchedAnswer || 
+      (typeof answer === 'object' && typeof matchResult.matchedAnswer === 'object' && 
+       answer.text === matchResult.matchedAnswer.text)
+    );
     
-    // Check main text
-    if (normalizeAnswerText(correctAnswer.text) === normalizedUserAnswer) {
-      return { answer: correctAnswer, index: i };
-    }
-    
-    // Check aliases
-    if (correctAnswer.aliases) {
-      for (const alias of correctAnswer.aliases) {
-        if (normalizeAnswerText(alias) === normalizedUserAnswer) {
-          return { answer: correctAnswer, index: i };
-        }
-      }
+    if (index !== -1) {
+      console.log(`✅ FUZZY MATCH: "${userAnswer}" -> "${matchResult.officialAnswer}" (confidence: ${matchResult.confidence}, similarity: ${matchResult.similarity.toFixed(3)})`);
+      return { answer: matchResult.matchedAnswer, index };
     }
   }
   
+  console.log(`❌ NO MATCH: "${userAnswer}" (best similarity: ${matchResult.similarity.toFixed(3)})`);
   return null;
 }
 
 /**
- * Calculate points for answer based on rank
+ * Calculate points for answer based on rank using centralized scoring
  */
 function calculatePoints(rank: number): number {
-  return rank <= 10 ? (11 - rank) * 10 : 0;
+  return pointsForRank(rank);
 }
 
 /**
@@ -215,10 +212,33 @@ export async function submitAnswer(
   playerId: string,
   answerText: string
 ): Promise<{ success: boolean; error?: string; points?: number }> {
+  // ⚙️ GAME FLOW - START DEBUG LOGGING
+  console.log('⚙️ GAME FLOW - START:', {
+    roomCode,
+    playerId,
+    answerText,
+    timestamp: new Date().toISOString()
+  });
+  
+  // Alert 1: Function entry
+  if (__DEV__) {
+    alert(`🎯 DEBUG 1: Starting submitAnswer
+Player: ${playerId.substring(0, 8)}
+Answer: "${answerText}"
+Room: ${roomCode}`);
+  }
+  
   console.log(`📝 SUBMIT_ANSWER: Room ${roomCode}, Player ${playerId}, Answer: "${answerText}"`);
   
-  try {
-    const result = await runTransaction(db, async (transaction) => {
+  // Retry mechanism for failed-precondition errors
+  const maxRetries = 3;
+  let lastError: Error | null = null;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`🔄 TRANSACTION ATTEMPT ${attempt}/${maxRetries}`);
+      
+      const result = await runTransaction(db, async (transaction) => {
       const roomRef = doc(db, 'multiplayerGames', roomCode);
       const roomSnap = await transaction.get(roomRef);
       
@@ -247,6 +267,18 @@ export async function submitAnswer(
         throw new Error('No current question found');
       }
       
+      // Ensure revealedAnswers array is properly initialized
+      if (!room.revealedAnswers || room.revealedAnswers.length !== 10) {
+        console.log(`⚠️ REVEALED_ANSWERS_INIT: Initializing revealedAnswers array (was length ${room.revealedAnswers?.length || 0})`);
+        room.revealedAnswers = Array(10).fill(null);
+      }
+      
+      // Ensure scores object is properly initialized
+      if (!room.scores) {
+        console.log(`⚠️ SCORES_INIT: Initializing scores object`);
+        room.scores = {};
+      }
+      
       const match = findMatchingAnswer(answerText, currentQuestion.answers);
       let points = 0;
       let newRevealedAnswers = [...room.revealedAnswers];
@@ -256,29 +288,100 @@ export async function submitAnswer(
       if (match) {
         // Correct answer found
         const { answer, index } = match;
+        const pointsToAdd = calculatePoints(answer.rank);
+        
+        // Alert 2: Match found
+        if (__DEV__) {
+          alert(`✅ DEBUG 2: Match Found!
+User Input: "${answerText}"
+Matched: "${answer.text}"
+Rank: ${answer.rank}
+Points: ${pointsToAdd}`);
+        }
+        
+        // ✅ MATCH FOUND DEBUG LOGGING
+        console.log('✅ MATCH FOUND:', {
+          userInput: answerText,
+          matchedAnswer: answer,
+          points: pointsToAdd,
+          answerIndex: index,
+          canonicalAnswer: answer.text
+        });
+        
+        console.log(`🎯 MATCH FOUND:`, {
+          userInput: answerText,
+          officialAnswer: answer.text,
+          answerRank: answer.rank,
+          answerIndex: index,
+          currentRevealedAnswers: room.revealedAnswers.map((ra, i) => ({ index: i, answerId: ra?.answerId, playerId: ra?.playerId, points: ra?.points }))
+        });
         
         // Check if answer is already revealed
         if (room.revealedAnswers[index] !== null) {
+          console.log(`❌ ALREADY_REVEALED: Answer at index ${index} is already revealed`);
           throw new Error('Answer already revealed');
+        }
+        
+        // Validate array bounds
+        if (index < 0 || index >= 10) {
+          console.log(`❌ INVALID_INDEX: Answer index ${index} is out of bounds (0-9)`);
+          throw new Error('Invalid answer index');
         }
         
         // Calculate points
         points = calculatePoints(answer.rank);
+        console.log(`💰 POINTS_CALCULATED: Rank ${answer.rank} = ${points} points`);
         
-        // Update room state atomically
-        newRevealedAnswers[index] = {
-          answerId: answer.id,
-          playerId: playerId,
-          points: points
-        };
+        // Alert 3: Before transaction
+        if (__DEV__) {
+          alert(`💾 DEBUG 3: Starting Transaction
+Points to add: ${points}
+Reveal index: ${index}
+Canonical name: "${answer.text}"`);
+        }
         
-        newScores[playerId] = (newScores[playerId] || 0) + points;
-        newAnswersSubmittedCount = room.answersSubmittedCount + 1;
+        // 💾 STARTING FIRESTORE TRANSACTION DEBUG LOGGING
+        console.log('💾 STARTING FIRESTORE TRANSACTION:', {
+          playerId,
+          pointsToAdd: points,
+          canonicalAnswer: answer.text,
+          revealIndex: index,
+          currentPlayerScore: room.scores[playerId] || 0,
+          newPlayerScore: (room.scores[playerId] || 0) + points
+        });
         
-        console.log(`✅ SUBMIT_ANSWER: Correct answer "${answerText}" awarded ${points} points`);
+      // Update room state atomically - store the official answer text, not user input
+      newRevealedAnswers[index] = {
+        answerId: answer.text, // Use the official correct answer text
+        playerId: playerId,
+        points: points
+      };
+      
+      newScores[playerId] = (newScores[playerId] || 0) + points;
+      newAnswersSubmittedCount = room.answersSubmittedCount + 1;
+      
+      // 🔥 CRITICAL: Ensure we're updating the correct player score
+      console.log(`🔥 CRITICAL SCORE UPDATE:`, {
+        playerId,
+        oldScore: room.scores[playerId] || 0,
+        pointsToAdd: points,
+        newScore: newScores[playerId],
+        scoresObject: newScores
+      });
+        
+        console.log(`✅ SUBMIT_ANSWER: Correct answer "${answerText}" -> "${answer.text}" awarded ${points} points`);
+        console.log(`📊 SCORE_UPDATE: Player ${playerId} score: ${room.scores[playerId] || 0} -> ${newScores[playerId]}`);
+        console.log(`📋 REVEAL_UPDATE: Answer at index ${index} will be revealed`);
       } else {
         // Wrong answer - no points, but turn still advances
         console.log(`❌ SUBMIT_ANSWER: Wrong answer "${answerText}" - no points awarded`);
+        
+        // Alert 5: No match found
+        if (__DEV__) {
+          alert(`❌ DEBUG 5: No Match Found
+Input: "${answerText}"
+Available answers count: ${currentQuestion?.answers?.length || 0}`);
+        }
       }
       
       // Always advance turn (regardless of correct/wrong answer)
@@ -329,20 +432,155 @@ export async function submitAnswer(
         console.log(`✅ SUBMIT_ANSWER: Turn advanced to player ${nextPlayerId}`);
       }
       
+      // 🔥 FIRESTORE - TRANSACTION OPERATIONS DEBUG LOGGING
+      console.log('🔥 FIRESTORE - TRANSACTION OPERATIONS:', {
+        scoreIncrement: match ? calculatePoints(match.answer.rank) : 0,
+        revealIndex: match ? match.index : 'N/A',
+        canonicalName: match ? match.answer.text : 'N/A',
+        updates: {
+          revealedAnswers: newRevealedAnswers.length,
+          scores: Object.keys(newScores).length,
+          answersSubmittedCount: newAnswersSubmittedCount
+        }
+      });
+      
       transaction.update(roomRef, updates);
       
-      console.log(`✅ SUBMIT_ANSWER: Answer "${answerText}" awarded ${points} points`);
+      // Alert 4: After transaction
+      if (__DEV__ && match) {
+        alert(`✅ DEBUG 4: Transaction Complete!
+Should have updated:
+- Player score by +${points}
+- Revealed answer at index ${match.index}`);
+      }
+      
+      // ✅ FIRESTORE TRANSACTION COMPLETE DEBUG LOGGING
+      console.log('✅ FIRESTORE TRANSACTION COMPLETE:', {
+        success: true,
+        updatedScore: newScores[playerId],
+        updatedRevealedAnswers: newRevealedAnswers.filter(ra => ra !== null).length,
+        timestamp: new Date().toISOString()
+      });
+      
+      console.log(`✅ SUBMIT_ANSWER: Transaction completed successfully`);
+      console.log(`📊 FINAL_STATE:`, {
+        pointsAwarded: points,
+        newScores: newScores,
+        newRevealedAnswers: newRevealedAnswers.map((ra, i) => ({ index: i, answerId: ra?.answerId, playerId: ra?.playerId, points: ra?.points })),
+        answersSubmittedCount: newAnswersSubmittedCount
+      });
+      
+      // Additional debugging for score and revelation
+      console.log(`🎯 SCORE_DEBUG: Player ${playerId} score update:`, {
+        oldScore: room.scores[playerId] || 0,
+        pointsAwarded: points,
+        newScore: newScores[playerId],
+        scoreUpdated: points > 0
+      });
+      
+      console.log(`🎉 REVELATION_DEBUG: Answer revelation update:`, {
+        answerIndex: match ? match.index : 'N/A',
+        canonicalAnswer: match ? match.answer.text : 'N/A',
+        revealedAnswersArray: newRevealedAnswers.map((ra, i) => ({
+          index: i,
+          isRevealed: ra !== null,
+          answerId: ra?.answerId,
+          playerId: ra?.playerId,
+          points: ra?.points
+        }))
+      });
+      
       return { success: true, points };
     });
     
+    // If we get here, the transaction succeeded
+    console.log(`✅ TRANSACTION SUCCESS on attempt ${attempt}`);
     return result;
-  } catch (error) {
-    console.error(`❌ SUBMIT_ANSWER: Failed to submit answer:`, error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
-    };
+    
+    } catch (error) {
+      lastError = error as Error;
+      console.error(`❌ TRANSACTION ATTEMPT ${attempt} FAILED:`, error);
+      
+      // Check if it's a failed-precondition error and we have retries left
+      if (error instanceof Error && 
+          error.message.includes('failed-precondition') && 
+          attempt < maxRetries) {
+        console.log(`🔄 RETRYING in ${attempt * 1000}ms due to failed-precondition...`);
+        await new Promise(resolve => setTimeout(resolve, attempt * 1000)); // Exponential backoff
+        continue;
+      }
+      
+      // If it's not a retryable error or we've exhausted retries, break
+      break;
+    }
   }
+  
+  // If we get here, all attempts failed
+  console.error(`❌ SUBMIT_ANSWER: All ${maxRetries} attempts failed`);
+  
+  // Try a simpler fallback approach without transactions
+  console.log(`🔄 FALLBACK: Trying simple update without transaction...`);
+  try {
+    const roomRef = doc(db, 'multiplayerGames', roomCode);
+    const roomSnap = await getDoc(roomRef);
+    
+    if (!roomSnap.exists()) {
+      throw new Error('Room not found');
+    }
+    
+    const room = roomSnap.data() as RoomData;
+    
+    // Find matching answer
+    const currentQuestion = room.questions[room.currentQuestionIndex];
+    if (!currentQuestion) {
+      throw new Error('No current question found');
+    }
+    
+    const match = findMatchingAnswer(answerText, currentQuestion.answers);
+    if (match) {
+      const { answer, index } = match;
+      const points = calculatePoints(answer.rank);
+      
+      // Simple update without transaction
+      const updates = {
+        [`scores.${playerId}`]: (room.scores?.[playerId] || 0) + points,
+        [`revealedAnswers.${index}`]: {
+          answerId: answer.text,
+          playerId: playerId,
+          points: points
+        },
+        lastActivity: serverTimestamp()
+      };
+      
+      await updateDoc(roomRef, updates);
+      
+      console.log(`✅ FALLBACK SUCCESS: Awarded ${points} points to player ${playerId}`);
+      
+      // Alert 4: Fallback success
+      if (__DEV__) {
+        alert(`✅ DEBUG 4: Fallback Success!
+Awarded ${points} points to player ${playerId}
+Revealed answer at index ${index}`);
+      }
+      
+      return { success: true, points };
+    }
+  } catch (fallbackError) {
+    console.error(`❌ FALLBACK FAILED:`, fallbackError);
+  }
+  
+  // Alert 6: Error occurred
+  if (__DEV__) {
+    alert(`🚨 DEBUG 6: ERROR!
+Message: ${lastError?.message || 'Unknown error'}
+Function: submitAnswer
+Attempts: ${maxRetries}`);
+  }
+  
+  return {
+    success: false,
+    error: lastError?.message || 'Unknown error'
+  };
 }
 
 /**

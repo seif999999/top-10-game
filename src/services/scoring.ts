@@ -3,15 +3,15 @@
 
 /**
  * Calculate points for a given rank (1-10)
- * Rank 1 = 100 points, Rank 10 = 10 points
+ * Rank 1 = 1 point, Rank 10 = 10 points
  * This is the canonical scoring function used across single-player and multiplayer
  */
 export function pointsForRank(rank: number): number {
   if (rank < 1 || rank > 10) {
     console.warn(`Invalid rank ${rank}, using fallback calculation`);
-    return Math.max(10, (11 - Math.max(1, Math.min(10, rank))) * 10);
+    return Math.max(1, Math.min(10, rank));
   }
-  return Math.max(10, (11 - rank) * 10);
+  return rank;
 }
 
 /**
@@ -41,9 +41,8 @@ export function calculateTotalPoints(correctAnswers: number[]): number {
  * @returns rank (1-10) or null if invalid
  */
 export function rankFromPoints(points: number): number | null {
-  if (points < 10 || points > 100) return null;
-  const rank = 11 - (points / 10);
-  return Math.round(rank);
+  if (points < 1 || points > 10) return null;
+  return points; // Since rank = points in the new system
 }
 
 /**
@@ -78,7 +77,7 @@ export function getScoringInfo(rank: number): {
 // Log scoring system initialization
 console.log('🎯 Scoring system initialized with pointsForRank function');
 console.log('🎯 Sample calculations:', {
-  rank1: pointsForRank(1),    // 100
-  rank5: pointsForRank(5),    // 60
+  rank1: pointsForRank(1),    // 1
+  rank5: pointsForRank(5),    // 5
   rank10: pointsForRank(10)   // 10
 });

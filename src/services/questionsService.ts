@@ -1,6 +1,7 @@
 import { GameQuestion, QuestionAnswer, sampleQuestions } from '../data/sampleQuestions';
 import { Question, Answer, LegacyQuestion } from '../types/game';
 import { pointsForRank } from './scoring';
+import { validateAnswerFuzzy } from './fuzzyMatching';
 
 export interface AnswerValidationResult {
   isCorrect: boolean;
@@ -146,90 +147,31 @@ export const calculateSimilarity = (str1: string, str2: string): number => {
 };
 
 /**
- * Validate user answer
+ * Validate user answer using enhanced fuzzy matching
  */
 export const validateAnswer = (userAnswer: string, correctAnswers: QuestionAnswer[]): AnswerValidationResult => {
   if (!userAnswer.trim()) {
     return { isCorrect: false };
   }
   
-  const normalizedUserAnswer = normalizeAnswer(userAnswer);
-  console.log(`🔍 Validating: "${userAnswer}" -> normalized: "${normalizedUserAnswer}"`);
+  console.log(`🔍 Validating: "${userAnswer}"`);
   
-  let bestMatch: QuestionAnswer | undefined;
-  let bestSimilarity = 0;
+  // Use enhanced fuzzy matching
+  const result = validateAnswerFuzzy(userAnswer, correctAnswers);
   
-  // Check for exact matches first
-  for (const answer of correctAnswers) {
-    if (answer.normalized && normalizedUserAnswer === answer.normalized) {
-      console.log(`✅ EXACT MATCH: "${answer.text}" (rank ${answer.rank}, points ${answer.points})`);
-      return {
-        isCorrect: true,
-        matchedAnswer: answer,
-        rank: answer.rank,
-        points: answer.points,
-        similarity: 1
-      };
-    }
-    
-    // Check aliases
-    if (answer.aliases) {
-      for (const alias of answer.aliases) {
-        const normalizedAlias = normalizeAnswer(alias);
-        if (normalizedUserAnswer === normalizedAlias) {
-          console.log(`✅ ALIAS MATCH: "${alias}" -> "${answer.text}" (rank ${answer.rank}, points ${answer.points})`);
-          return {
-            isCorrect: true,
-            matchedAnswer: answer,
-            rank: answer.rank,
-            points: answer.points,
-            similarity: 1
-          };
-        }
-      }
-    }
-    
-    // Check fuzzy matching
-    const similarity = calculateSimilarity(normalizedUserAnswer, answer.normalized || answer.text);
-    
-    if (similarity > bestSimilarity) {
-      bestSimilarity = similarity;
-      bestMatch = answer;
-    }
+  if (result.isCorrect) {
+    console.log(`✅ MATCH: "${userAnswer}" -> "${result.officialAnswer}" (confidence: ${result.confidence}, similarity: ${result.similarity.toFixed(3)})`);
+  } else {
+    console.log(`❌ NO MATCH: "${userAnswer}" (best similarity: ${result.similarity.toFixed(3)})`);
   }
   
-  // Check if best match meets threshold
-  if (bestSimilarity >= 0.75 && bestMatch) {
-    return {
-      isCorrect: true,
-      matchedAnswer: bestMatch,
-      rank: bestMatch.rank,
-      points: bestMatch.points,
-      similarity: bestSimilarity
-    };
-  }
-  
-  if (bestSimilarity >= 0.65 && bestMatch) {
-    return {
-      isCorrect: true,
-      matchedAnswer: bestMatch,
-      rank: bestMatch.rank,
-      points: bestMatch.points,
-      similarity: bestSimilarity
-    };
-  }
-  
-  if (bestSimilarity >= 0.55 && bestMatch) {
-    return {
-      isCorrect: true,
-      matchedAnswer: bestMatch,
-      rank: bestMatch.rank,
-      points: bestMatch.points,
-      similarity: bestSimilarity
-    };
-  }
-  
-  return { isCorrect: false };
+  return {
+    isCorrect: result.isCorrect,
+    matchedAnswer: result.matchedAnswer,
+    rank: result.rank,
+    points: result.points,
+    similarity: result.similarity
+  };
 };
 
 /**
