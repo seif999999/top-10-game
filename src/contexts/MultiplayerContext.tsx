@@ -17,6 +17,22 @@ interface MultiplayerState {
   isStarting: boolean;
   error: string | null;
   
+  // System Messages
+  systemMessage: {
+    type: 'host_migrated' | 'room_terminated' | 'game_terminated' | null;
+    message: string;
+    timestamp?: any;
+    newHostId?: string;
+    newHostName?: string;
+  };
+  
+  // Host Migration State
+  hostMigrationNotification: {
+    type: 'host_migrated' | 'room_terminated' | null;
+    newHostName?: string;
+    message?: string;
+  };
+  
   // Room Creation
   selectedCategory: string | null;
   selectedQuestions: Question[];
@@ -51,6 +67,10 @@ type MultiplayerAction =
   | { type: 'ADD_SUBMITTED_ANSWER'; payload: string }
   | { type: 'SET_UNSUBSCRIBE'; payload: (() => void) | null }
   | { type: 'SET_NAVIGATION_CALLBACK'; payload: ((params: any) => void) | null }
+  | { type: 'SET_HOST_MIGRATION_NOTIFICATION'; payload: { type: 'host_migrated' | 'room_terminated' | null; newHostName?: string; message?: string } }
+  | { type: 'CLEAR_HOST_MIGRATION_NOTIFICATION' }
+  | { type: 'SET_SYSTEM_MESSAGE'; payload: { type: 'host_migrated' | 'room_terminated' | 'game_terminated' | null; message: string; timestamp?: any; newHostId?: string; newHostName?: string } }
+  | { type: 'CLEAR_SYSTEM_MESSAGE' }
   | { type: 'RESET_ALL' }
   | { type: 'RESET_SELECTIONS' };
 
@@ -63,6 +83,18 @@ const initialState: MultiplayerState = {
   loading: false,
   isStarting: false,
   error: null,
+  systemMessage: {
+    type: null,
+    message: '',
+    timestamp: undefined,
+    newHostId: undefined,
+    newHostName: undefined,
+  },
+  hostMigrationNotification: {
+    type: null,
+    newHostName: undefined,
+    message: undefined,
+  },
   selectedCategory: null,
   selectedQuestions: [],
   joinRoomCode: '',
@@ -124,14 +156,32 @@ const multiplayerReducer = (state: MultiplayerState, action: MultiplayerAction):
           totalPlayers: Object.keys(roomData.players || {}).length
         });
       }
-      return {
+      // Check for system messages in room data
+      let newState = {
         ...state,
         currentRoom: roomData,
         isHost: roomData ? roomData.hostId === userId : false,
-        playerRole: roomData ? (roomData.hostId === userId ? 'host' : 'player') : null,
-        connectionStatus: roomData ? 'connected' : 'disconnected',
+        playerRole: roomData ? (roomData.hostId === userId ? 'host' as const : 'player' as const) : null,
+        connectionStatus: roomData ? 'connected' as const : 'disconnected' as const,
         error: null
       };
+      
+      // Handle system messages from room data
+      if (roomData?.systemMessage && roomData.systemMessage.type) {
+        console.log('🔔 SYSTEM_MESSAGE: Received system message from room data:', roomData.systemMessage);
+        newState = {
+          ...newState,
+          systemMessage: {
+            type: roomData.systemMessage.type,
+            message: roomData.systemMessage.message,
+            timestamp: roomData.systemMessage.timestamp,
+            newHostId: roomData.systemMessage.newHostId,
+            newHostName: roomData.systemMessage.newHostName
+          }
+        };
+      }
+      
+      return newState;
     
     case 'SET_HOST_STATUS':
       return { ...state, isHost: action.payload };
@@ -163,6 +213,24 @@ const multiplayerReducer = (state: MultiplayerState, action: MultiplayerAction):
     case 'SET_NAVIGATION_CALLBACK':
       return { ...state, navigationCallback: action.payload };
     
+    case 'SET_HOST_MIGRATION_NOTIFICATION':
+      return { ...state, hostMigrationNotification: action.payload };
+    
+    case 'CLEAR_HOST_MIGRATION_NOTIFICATION':
+      return { 
+        ...state, 
+        hostMigrationNotification: { type: null, newHostName: undefined, message: undefined }
+      };
+    
+    case 'SET_SYSTEM_MESSAGE':
+      return { ...state, systemMessage: action.payload };
+    
+    case 'CLEAR_SYSTEM_MESSAGE':
+      return { 
+        ...state, 
+        systemMessage: { type: null, message: '', timestamp: undefined, newHostId: undefined, newHostName: undefined }
+      };
+    
     case 'RESET_ALL':
       return initialState;
     
@@ -192,6 +260,22 @@ interface MultiplayerContextType {
   isStarting: boolean;
   error: string | null;
   
+  // System Messages
+  systemMessage: {
+    type: 'host_migrated' | 'room_terminated' | 'game_terminated' | null;
+    message: string;
+    timestamp?: any;
+    newHostId?: string;
+    newHostName?: string;
+  };
+  
+  // Host Migration State
+  hostMigrationNotification: {
+    type: 'host_migrated' | 'room_terminated' | null;
+    newHostName?: string;
+    message?: string;
+  };
+  
   // Room Creation
   selectedCategory: string | null;
   selectedQuestions: Question[];
@@ -218,6 +302,15 @@ interface MultiplayerContextType {
   // Player Actions
   submitAnswers: (answers: string[]) => Promise<void>;
   advanceTurn: () => Promise<void>;
+  skipTurn: () => Promise<void>;
+  
+  // Host Migration Actions
+  handleHostDisconnection: (disconnectedHostId: string) => Promise<void>;
+  clearHostMigrationNotification: () => void;
+  terminateGame: (disconnectedPlayerId: string) => Promise<void>;
+  
+  // System Message Actions
+  clearSystemMessage: () => void;
   
   // UI Actions
   setCategory: (category: string) => void;
@@ -405,7 +498,7 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
       dispatch({ type: 'SET_STARTING', payload: true });
       
       console.log('🎮 ROOM_START: Host starting game...');
-      await multiplayerService.startGameV2(state.currentRoom.roomCode, user.id, 60);
+      await multiplayerService.startGameV2(state.currentRoom.roomCode, user.id, 20);
       console.log('✅ ROOM_START: Game started successfully');
     } catch (error) {
       console.error('❌ ROOM_START: Error starting game:', error);
@@ -499,6 +592,117 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
     }
   };
 
+  const skipTurn = async (): Promise<void> => {
+    try {
+      if (!state.currentRoom || !user) return;
+      
+      const result = await multiplayerService.skipTurnV2(state.currentRoom.roomCode, user.id);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to skip turn');
+      }
+    } catch (error) {
+      dispatch({ type: 'SET_ERROR', payload: error instanceof Error ? error.message : 'Failed to skip turn' });
+    }
+  };
+
+  const handleHostDisconnection = async (disconnectedHostId: string): Promise<void> => {
+    try {
+      if (!state.currentRoom) return;
+      
+      console.log(`🚪 Handling host disconnection: ${disconnectedHostId}`);
+      
+      const result = await multiplayerService.handleHostDisconnectionV2(
+        state.currentRoom.roomCode, 
+        disconnectedHostId
+      );
+      
+      if (result.action === 'migrated' && result.newHostId) {
+        // Use system message for seamless host migration (Sporcle-style)
+        dispatch({
+          type: 'SET_SYSTEM_MESSAGE',
+          payload: {
+            type: 'host_migrated',
+            message: result.newHostName ? `${result.newHostName} is now the host.` : 'A new host has been assigned.',
+            newHostId: result.newHostId,
+            newHostName: result.newHostName
+          }
+        });
+        
+        console.log(`✅ Host migrated to: ${result.newHostName || result.newHostId}`);
+      } else if (result.action === 'terminated') {
+        dispatch({
+          type: 'SET_SYSTEM_MESSAGE',
+          payload: {
+            type: 'room_terminated',
+            message: 'The host left the game, so the room has been closed.'
+          }
+        });
+        
+        console.log(`🏁 Room terminated due to host disconnection`);
+      } else if (result.action === 'error') {
+        console.error(`❌ Host disconnection handling failed:`, result.error);
+        dispatch({ 
+          type: 'SET_ERROR', 
+          payload: result.error || 'Failed to handle host disconnection' 
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error handling host disconnection:', error);
+      dispatch({ 
+        type: 'SET_ERROR', 
+        payload: error instanceof Error ? error.message : 'Failed to handle host disconnection' 
+      });
+    }
+  };
+
+  const clearHostMigrationNotification = () => {
+    dispatch({ type: 'CLEAR_HOST_MIGRATION_NOTIFICATION' });
+  };
+
+  const clearSystemMessage = () => {
+    dispatch({ type: 'CLEAR_SYSTEM_MESSAGE' });
+  };
+
+  const terminateGame = async (disconnectedPlayerId: string): Promise<void> => {
+    try {
+      if (!state.currentRoom) return;
+      
+      console.log(`🏁 Terminating game due to player disconnection: ${disconnectedPlayerId}`);
+      
+      const result = await multiplayerService.terminateGameV2(
+        state.currentRoom.roomCode, 
+        disconnectedPlayerId
+      );
+      
+      if (result.success) {
+        dispatch({
+          type: 'SET_SYSTEM_MESSAGE',
+          payload: {
+            type: 'game_terminated',
+            message: 'A player has left, and the game has been terminated due to insufficient players.'
+          }
+        });
+        
+        console.log(`✅ Game terminated successfully due to player disconnection`);
+      } else {
+        console.error(`❌ Failed to terminate game:`, result.error);
+        dispatch({ 
+          type: 'SET_ERROR', 
+          payload: result.error || 'Failed to terminate game' 
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error terminating game:', error);
+      dispatch({ 
+        type: 'SET_ERROR', 
+        payload: error instanceof Error ? error.message : 'Failed to terminate game' 
+      });
+    }
+  };
+
+  // Host migration functions for cross-platform compatibility
+
   // UI Actions
   const setCategory = (category: string) => {
     dispatch({ type: 'SET_CATEGORY', payload: category });
@@ -560,6 +764,8 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
     loading: state.loading,
     isStarting: state.isStarting,
     error: state.error,
+    systemMessage: state.systemMessage,
+    hostMigrationNotification: state.hostMigrationNotification,
     
     // Room Creation
     selectedCategory: state.selectedCategory,
@@ -587,6 +793,15 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
     // Player Actions
     submitAnswers,
     advanceTurn,
+    skipTurn,
+    
+    // Host Migration Actions
+    handleHostDisconnection,
+    clearHostMigrationNotification,
+    terminateGame,
+    
+    // System Message Actions
+    clearSystemMessage,
     
     // UI Actions
     setCategory,

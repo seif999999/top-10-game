@@ -175,7 +175,7 @@ export async function hostStartGame(
         // Initialize turn system
         currentPlayerId: turnOrder[0], // First player starts
         turnStartTime: serverTimestamp(),
-        turnTimeLimit: 60, // 60 seconds per turn
+        turnTimeLimit: 20, // 20 seconds per turn
         turnOrder: turnOrder,
         currentTurnIndex: 0
       };
@@ -297,7 +297,7 @@ export async function advanceTurn(
         ? roomData.turnStartTime
         : 0;
       
-      const turnExpired = turnStartTime > 0 && (now - turnStartTime) > (roomData.turnTimeLimit || 60) * 1000;
+      const turnExpired = turnStartTime > 0 && (now - turnStartTime) > (roomData.turnTimeLimit || 20) * 1000;
       
       if (roomData.currentPlayerId !== playerId && !turnExpired) {
         throw new Error('Not your turn');
@@ -403,7 +403,7 @@ export async function forceAdvanceExpiredTurn(
         ? roomData.turnStartTime
         : 0;
       
-      const turnExpired = turnStartTime > 0 && (now - turnStartTime) > (roomData.turnTimeLimit || 60) * 1000;
+      const turnExpired = turnStartTime > 0 && (now - turnStartTime) > (roomData.turnTimeLimit || 20) * 1000;
       
       if (!turnExpired) {
         throw new Error('Turn has not expired yet');
@@ -658,14 +658,17 @@ export async function updatePlayerPresence(
       const roomSnap = await transaction.get(roomRef);
       
       if (!roomSnap.exists()) {
-        throw new Error('Room not found');
+        // Room has been deleted, this is expected when host leaves
+        console.log(`⚠️ UPDATE_PRESENCE: Room ${roomCode} not found, skipping presence update`);
+        return { success: true, skipped: true };
       }
       
       const roomData = roomSnap.data() as RoomData;
       
       // Check if player exists
       if (!roomData.players?.[playerId]) {
-        throw new Error('Player not in room');
+        console.log(`⚠️ UPDATE_PRESENCE: Player ${playerId} not in room ${roomCode}, skipping presence update`);
+        return { success: true, skipped: true };
       }
       
       // Update player presence
@@ -685,6 +688,12 @@ export async function updatePlayerPresence(
     
     return result;
   } catch (error) {
+    // Don't log as error if room was deleted (expected behavior)
+    if (error instanceof Error && error.message.includes('Room not found')) {
+      console.log(`ℹ️ UPDATE_PRESENCE: Room ${roomCode} was deleted, skipping presence update`);
+      return { success: true, skipped: true };
+    }
+    
     console.error(`❌ UPDATE_PRESENCE: Failed to update presence:`, error);
     return {
       success: false,

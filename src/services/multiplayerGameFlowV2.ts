@@ -113,7 +113,7 @@ function calculatePoints(rank: number): number {
 export async function hostStartGame(
   roomCode: string,
   hostId: string,
-  turnTimeLimitSec: number = 60
+  turnTimeLimitSec: number = 20
 ): Promise<{ success: boolean; error?: string }> {
   console.log(`🎮 HOST_START_GAME: Room ${roomCode}, Host ${hostId}, TimeLimit ${turnTimeLimitSec}s`);
   
@@ -753,6 +753,66 @@ export async function resetRoomStatus(
 }
 
 /**
+ * Skip turn for current player
+ */
+export async function skipTurn(
+  roomCode: string,
+  playerId: string
+): Promise<{ success: boolean; error?: string }> {
+  console.log(`⏭️ SKIP_TURN: Room ${roomCode}, Player ${playerId}`);
+  
+  try {
+    const result = await runTransaction(db, async (transaction) => {
+      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomSnap = await transaction.get(roomRef);
+      
+      if (!roomSnap.exists()) {
+        throw new Error('Room not found');
+      }
+      
+      const room = roomSnap.data() as RoomData;
+      
+      // Validation checks
+      if (room.status !== 'playing') {
+        throw new Error('Game is not in playing state');
+      }
+      
+      if (room.currentPlayerId !== playerId) {
+        throw new Error('Not your turn');
+      }
+      
+      if (room.answersSubmittedCount >= 10) {
+        throw new Error('All answers have been revealed for this question');
+      }
+      
+      // Advance turn to next player
+      const nextTurnIndex = (room.currentTurnIndex + 1) % room.turnOrder.length;
+      const nextPlayerId = room.turnOrder[nextTurnIndex];
+      
+      const updates = {
+        currentTurnIndex: nextTurnIndex,
+        currentPlayerId: nextPlayerId,
+        turnStartTime: serverTimestamp(),
+        lastActivity: serverTimestamp()
+      };
+      
+      transaction.update(roomRef, updates);
+      
+      console.log(`✅ SKIP_TURN: Turn skipped, advanced to player ${nextPlayerId}`);
+      return { success: true };
+    });
+    
+    return result;
+  } catch (error) {
+    console.error(`❌ SKIP_TURN: Failed to skip turn:`, error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+}
+
+/**
  * Check if player is allowed to submit answer
  */
 export function isAllowedToSubmit(playerId: string, room: RoomData): { allowed: boolean; reason?: string } {
@@ -769,4 +829,270 @@ export function isAllowedToSubmit(playerId: string, room: RoomData): { allowed: 
   }
   
   return { allowed: true };
+}
+
+/**
+ * Migrate host to another player when host disconnects (Sporcle-style)
+ * Seamlessly reassigns host privileges without interrupting gameplay
+ */
+export async function migrateHost(
+  roomCode: string,
+  disconnectedHostId: string
+): Promise<{ success: boolean; newHostId?: string; newHostName?: string; error?: string }> {
+  try {
+    console.log(`🔄 MIGRATE_HOST: Room ${roomCode}, Disconnected Host ${disconnectedHostId}`);
+    
+    const roomRef = doc(db, 'multiplayerGames', roomCode);
+    const roomSnap = await getDoc(roomRef);
+    
+    if (!roomSnap.exists()) {
+      return { success: false, error: 'Room not found' };
+    }
+    
+    const room = roomSnap.data() as RoomData;
+    const remainingPlayers = Object.keys(room.players).filter(playerId => playerId !== disconnectedHostId);
+    
+    if (remainingPlayers.length < 3) {
+      return { success: false, error: 'Not enough players for host migration' };
+    }
+    
+    // Sporcle-style host selection: Use join order (first player in the list)
+    // This ensures consistent host selection across all clients
+    const newHostId = remainingPlayers[0];
+    const newHostName = room.players[newHostId]?.name || 'Unknown Player';
+    
+    // Atomic host migration with race condition prevention
+    await runTransaction(db, async (transaction) => {
+      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomSnap = await transaction.get(roomRef);
+      
+      if (!roomSnap.exists()) {
+        throw new Error('Room not found during migration');
+      }
+      
+      const currentRoom = roomSnap.data() as RoomData;
+      const currentRemainingPlayers = Object.keys(currentRoom.players).filter(playerId => playerId !== disconnectedHostId);
+      
+      if (currentRemainingPlayers.length < 3) {
+        throw new Error('Not enough players for host migration');
+      }
+      
+      // Ensure we're not trying to migrate to a player who no longer exists
+      if (!currentRoom.players[newHostId]) {
+        throw new Error('Selected new host no longer exists');
+      }
+      
+      // Atomic host migration - update hostId and add system message
+      transaction.update(roomRef, {
+        hostId: newHostId,
+        lastUpdated: serverTimestamp(),
+        // Add system message for broadcasting host change
+        systemMessage: {
+          type: 'host_migrated',
+          message: `${newHostName} is now the host.`,
+          timestamp: serverTimestamp(),
+          newHostId: newHostId,
+          newHostName: newHostName
+        }
+      });
+    });
+    
+    console.log(`✅ MIGRATE_HOST: Successfully migrated host to ${newHostName} (${newHostId})`);
+    return { success: true, newHostId, newHostName };
+  } catch (error) {
+    console.error(`❌ MIGRATE_HOST: Error migrating host:`, error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+}
+
+/**
+ * Terminate room when host disconnects and only 1 player remains (Sporcle-style)
+ * Immediately ends the game and closes the room
+ */
+export async function terminateRoom(
+  roomCode: string,
+  disconnectedHostId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    console.log(`🏁 TERMINATE_ROOM: Room ${roomCode}, Disconnected Host ${disconnectedHostId}`);
+    
+    const roomRef = doc(db, 'multiplayerGames', roomCode);
+    const roomSnap = await getDoc(roomRef);
+    
+    if (!roomSnap.exists()) {
+      return { success: false, error: 'Room not found' };
+    }
+    
+    const room = roomSnap.data() as RoomData;
+    const remainingPlayers = Object.keys(room.players).filter(playerId => playerId !== disconnectedHostId);
+    
+    if (remainingPlayers.length !== 1) {
+      return { success: false, error: 'Room termination requires exactly 1 remaining player' };
+    }
+    
+    // Atomic room termination with system message
+    await runTransaction(db, async (transaction) => {
+      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomSnap = await transaction.get(roomRef);
+      
+      if (!roomSnap.exists()) {
+        throw new Error('Room not found during termination');
+      }
+      
+      const currentRoom = roomSnap.data() as RoomData;
+      const currentRemainingPlayers = Object.keys(currentRoom.players).filter(playerId => playerId !== disconnectedHostId);
+      
+      if (currentRemainingPlayers.length !== 1) {
+        throw new Error('Room termination requires exactly 1 remaining player');
+      }
+      
+      // Add system message before deletion for the remaining player
+      transaction.update(roomRef, {
+        systemMessage: {
+          type: 'room_terminated',
+          message: 'The host left the game, so the room has been closed.',
+          timestamp: serverTimestamp()
+        },
+        status: 'finished',
+        gamePhase: 'finished',
+        lastUpdated: serverTimestamp()
+      });
+      
+      // Note: We don't delete immediately to allow the system message to be received
+      // The room will be cleaned up by a separate cleanup process
+    });
+    
+    console.log(`✅ TERMINATE_ROOM: Successfully terminated room ${roomCode}`);
+    return { success: true };
+  } catch (error) {
+    console.error(`❌ TERMINATE_ROOM: Error terminating room:`, error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+}
+
+/**
+ * Handle host disconnection - migrate host or terminate room based on remaining players (Sporcle-style)
+ * Seamlessly handles host changes without interrupting gameplay
+ */
+export async function handleHostDisconnection(
+  roomCode: string,
+  disconnectedHostId: string
+): Promise<{ action: 'migrated' | 'terminated' | 'error'; newHostId?: string; newHostName?: string; error?: string }> {
+  console.log(`🚪 HOST_DISCONNECTION: Room ${roomCode}, Host ${disconnectedHostId}`);
+  
+  try {
+    const roomRef = doc(db, 'multiplayerGames', roomCode);
+    const roomSnap = await getDoc(roomRef);
+    
+    if (!roomSnap.exists()) {
+      return { action: 'error', error: 'Room not found' };
+    }
+    
+    const room = roomSnap.data() as RoomData;
+    const remainingPlayers = Object.keys(room.players).filter(playerId => playerId !== disconnectedHostId);
+    
+    console.log(`📊 HOST_DISCONNECTION: Remaining players: ${remainingPlayers.length}`);
+    
+    if (remainingPlayers.length >= 3) {
+      // Migrate host to another player - 3+ players remain (Sporcle-style)
+      const migrationResult = await migrateHost(roomCode, disconnectedHostId);
+      if (migrationResult.success) {
+        return { 
+          action: 'migrated', 
+          newHostId: migrationResult.newHostId,
+          newHostName: migrationResult.newHostName
+        };
+      } else {
+        return { action: 'error', error: migrationResult.error };
+      }
+    } else if (remainingPlayers.length <= 2) {
+      // Terminate game - 2 or fewer players remain (including host)
+      const terminationResult = await terminateGame(roomCode, disconnectedHostId);
+      if (terminationResult.success) {
+        return { action: 'terminated' };
+      } else {
+        return { action: 'error', error: terminationResult.error };
+      }
+    } else {
+      // No players left, just delete the room
+      await deleteDoc(roomRef);
+      return { action: 'terminated' };
+    }
+  } catch (error) {
+    console.error(`❌ HOST_DISCONNECTION: Error handling host disconnection:`, error);
+    return {
+      action: 'error',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+}
+
+/**
+ * Terminate game when host leaves and 2 or fewer players remain (including host)
+ */
+export async function terminateGame(
+  roomCode: string,
+  disconnectedPlayerId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    console.log(`🏁 TERMINATE_GAME: Room ${roomCode}, Disconnected Player ${disconnectedPlayerId}`);
+    
+    const roomRef = doc(db, 'multiplayerGames', roomCode);
+    const roomSnap = await getDoc(roomRef);
+    
+    if (!roomSnap.exists()) {
+      return { success: false, error: 'Room not found' };
+    }
+    
+    const room = roomSnap.data() as RoomData;
+    const remainingPlayers = Object.keys(room.players).filter(playerId => playerId !== disconnectedPlayerId);
+    
+    if (remainingPlayers.length > 2) {
+      return { success: false, error: 'Game termination requires 2 or fewer remaining players' };
+    }
+    
+    await runTransaction(db, async (transaction) => {
+      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomSnap = await transaction.get(roomRef);
+      
+      if (!roomSnap.exists()) {
+        throw new Error('Room not found during game termination');
+      }
+      
+      const currentRoom = roomSnap.data() as RoomData;
+      const currentRemainingPlayers = Object.keys(currentRoom.players).filter(playerId => playerId !== disconnectedPlayerId);
+      
+      if (currentRemainingPlayers.length > 2) {
+        throw new Error('Game termination requires 2 or fewer remaining players');
+      }
+      
+      // Update game status to finished and set gamePhase to 'finished'
+      // Add system message to notify players about game termination
+      transaction.update(roomRef, {
+        status: 'finished',
+        gamePhase: 'finished',
+        lastUpdated: serverTimestamp(),
+        systemMessage: {
+          type: 'game_terminated',
+          message: 'The host left the game, so the game has been terminated.',
+          timestamp: serverTimestamp()
+        }
+      });
+    });
+    
+    console.log(`✅ TERMINATE_GAME: Successfully terminated game in room ${roomCode}`);
+    return { success: true };
+  } catch (error) {
+    console.error(`❌ TERMINATE_GAME: Error terminating game:`, error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
 }

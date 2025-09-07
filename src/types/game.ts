@@ -84,7 +84,7 @@ export type RoomData = {
   // Turn-based system
   currentPlayerId?: string;     // ID of player whose turn it is
   turnStartTime?: number;       // server timestamp when turn started
-  turnTimeLimit: number;        // seconds per turn (default 60)
+  turnTimeLimit: number;        // seconds per turn (default 20)
   turnOrder: string[];          // array of player IDs in turn order
   currentTurnIndex: number;     // index in turnOrder array
   
@@ -108,6 +108,15 @@ export type RoomData = {
   maxPlayers: number;
   isPrivate: boolean;
   lastActivity: number;
+  
+  // System messages for broadcasting events
+  systemMessage?: {
+    type: 'host_migrated' | 'room_terminated' | 'game_terminated';
+    message: string;
+    timestamp: any; // Firestore serverTimestamp
+    newHostId?: string;
+    newHostName?: string;
+  };
 };
 
 // Answer result for processing
