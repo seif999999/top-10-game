@@ -12,7 +12,8 @@ import {
   query,
   where,
   getDocs,
-  deleteDoc
+  deleteDoc,
+  runTransaction
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { AuthService } from './authService';
@@ -23,7 +24,7 @@ import { normalizeQuestion, safeToLower, assertQuestionShape } from './questions
 import { pointsForRank } from './scoring';
 import { awardAnswer, startRound, endRound, updatePlayerPresence, hostStartGame, advanceTurn, submitTurnAnswer as submitTurnAnswerTransaction, forceAdvanceExpiredTurn } from './multiplayerTransaction';
 import { startGame as startGameFlow, submitAnswer as submitAnswerFlow, endGame as endGameFlow, advanceTurnOnTimeout } from './multiplayerGameFlow';
-import { hostStartGame as hostStartGameV2, submitAnswer as submitAnswerV2, advanceTurnOnTimeout as advanceTurnOnTimeoutV2, hostEndGame as hostEndGameV2, getServerOffset, calculateTimeRemaining, isAllowedToSubmit, resetRoomStatus } from './multiplayerGameFlowV2';
+import { hostStartGame as hostStartGameV2, submitAnswer as submitAnswerV2, advanceTurnOnTimeout as advanceTurnOnTimeoutV2, hostEndGame as hostEndGameV2, getServerOffset, calculateTimeRemaining, isAllowedToSubmit, resetRoomStatus, skipTurn as skipTurnV2, handleHostDisconnection, terminateGame } from './multiplayerGameFlowV2';
 import { getServerTimeOffset, formatTimeRemaining } from './timeSync';
 import { findBestMatch, normalizeAnswerEnhanced } from './fuzzyMatching';
 
@@ -156,7 +157,7 @@ class MultiplayerService {
         scores: { [userId]: 0 },
         answersSubmittedCount: 0,
         // Turn system fields
-        turnTimeLimit: 60,
+        turnTimeLimit: 20,
         turnOrder: [userId],
         currentTurnIndex: 0,
         // Legacy fields
@@ -386,34 +387,104 @@ class MultiplayerService {
         return;
       }
       
-      // If host is leaving, transfer host to another player or end room
+      // Handle host disconnection with proper validation
       if (roomData.hostId === playerId) {
-        const otherPlayers = Object.values(roomData.players).filter(p => p.id !== playerId);
+        console.log(`🚪 HOST_LEAVING: Host ${playerId} is leaving room ${roomCode}`);
         
-        if (otherPlayers.length > 0) {
-          // Transfer host to first other player
-          const newHost = otherPlayers[0];
+        // Get remaining players (excluding the leaving host)
+        const remainingPlayerIds = Object.keys(roomData.players).filter(id => id !== playerId);
+        console.log(`📊 HOST_LEAVING: Remaining players: ${remainingPlayerIds.length}`, remainingPlayerIds);
+        
+        if (remainingPlayerIds.length === 0) {
+          // No players left, delete the room
+          console.log(`🏁 HOST_LEAVING: No players left, deleting room ${roomCode}`);
+            await deleteDoc(roomRef);
+          return;
+        } else if (remainingPlayerIds.length <= 2) {
+          // 2 or fewer players remain, terminate the game
+          console.log(`🏁 HOST_LEAVING: ≤2 players remain, terminating game in room ${roomCode}`);
+          await runTransaction(db, async (transaction) => {
+            const roomRef = doc(db, 'multiplayerGames', roomCode);
+            const roomSnap = await transaction.get(roomRef);
+            
+            if (!roomSnap.exists()) {
+              throw new Error('Room not found during termination');
+            }
+            
+            // Set game as finished and add system message
+            transaction.update(roomRef, {
+              status: 'finished',
+              gamePhase: 'finished',
+              lastActivity: serverTimestamp(),
+              systemMessage: {
+                type: 'game_terminated',
+                message: 'The host left the game, so the game has been terminated.',
+                timestamp: serverTimestamp()
+              }
+            });
+          });
+          
+          // Also remove the leaving host from the room
           const updateData: any = {
-            hostId: newHost.id,
-            [`players.${newHost.id}.isHost`]: true,
             [`players.${playerId}`]: arrayRemove(roomData.players[playerId]),
             lastActivity: serverTimestamp()
           };
           
-          // Validate all values before updating
-          if (updateData.hostId && updateData[`players.${newHost.id}.isHost`] !== undefined) {
+          if (updateData[`players.${playerId}`] !== undefined) {
             await updateDoc(roomRef, updateData);
-          } else {
-            console.error('❌ Invalid update data for host transfer:', updateData);
-            // Fallback: delete the room
-            await deleteDoc(roomRef);
           }
+          
+          console.log(`✅ HOST_LEAVING: Game terminated and host removed from room ${roomCode}`);
         } else {
-          // No other players, delete the room
-          await deleteDoc(roomRef);
+          // 3+ players remain, migrate host to first remaining player
+          const newHostId = remainingPlayerIds[0];
+          const newHostName = roomData.players[newHostId]?.name || 'Unknown Player';
+          
+          console.log(`🔄 HOST_LEAVING: Migrating host to ${newHostName} (${newHostId})`);
+          
+          await runTransaction(db, async (transaction) => {
+            const roomRef = doc(db, 'multiplayerGames', roomCode);
+            const roomSnap = await transaction.get(roomRef);
+            
+            if (!roomSnap.exists()) {
+              throw new Error('Room not found during host migration');
+            }
+            
+            const currentRoom = roomSnap.data() as RoomData;
+            const currentRemainingPlayers = Object.keys(currentRoom.players).filter(id => id !== playerId);
+            
+            if (currentRemainingPlayers.length < 3) {
+              throw new Error('Not enough players for host migration');
+            }
+            
+            // Validate new host exists
+            if (!currentRoom.players[newHostId]) {
+              throw new Error('New host no longer exists');
+            }
+            
+            // Update host and remove leaving player
+            const updatedPlayers = { ...currentRoom.players };
+            updatedPlayers[newHostId].isHost = true;
+            delete updatedPlayers[playerId];
+            
+            transaction.update(roomRef, {
+              hostId: newHostId,
+              players: updatedPlayers,
+              lastActivity: serverTimestamp(),
+              systemMessage: {
+                type: 'host_migrated',
+                message: `${newHostName} is now the host.`,
+                timestamp: serverTimestamp(),
+                newHostId: newHostId,
+                newHostName: newHostName
+              }
+            });
+          });
         }
       } else {
         // Regular player leaving
+        console.log(`👤 PLAYER_LEAVING: Player ${playerId} is leaving room ${roomCode}`);
+        
         const updateData: any = {
           [`players.${playerId}`]: arrayRemove(roomData.players[playerId]),
           lastActivity: serverTimestamp()
@@ -424,6 +495,8 @@ class MultiplayerService {
           await updateDoc(roomRef, updateData);
         } else {
           console.error('❌ Invalid update data for player removal:', updateData);
+          // Fallback: delete the room
+          await deleteDoc(roomRef);
         }
       }
 
@@ -437,7 +510,7 @@ class MultiplayerService {
   /**
    * Starts the game (host only) - atomic transition from lobby to playing
    */
-  async startGame(roomCode: string, hostId: string, timeLimit: number = 60): Promise<void> {
+  async startGame(roomCode: string, hostId: string, timeLimit: number = 20): Promise<void> {
     try {
       console.log('🎮 ROOM_START: Starting game in room:', roomCode, 'for host:', hostId);
       
@@ -756,7 +829,7 @@ class MultiplayerService {
   /**
    * V2 Game Flow Methods - Following exact specification
    */
-  async startGameV2(roomCode: string, hostId: string, turnTimeLimitSec: number = 60): Promise<void> {
+  async startGameV2(roomCode: string, hostId: string, turnTimeLimitSec: number = 20): Promise<void> {
     try {
       console.log(`🎮 START_GAME_V2: Starting game in room ${roomCode}`);
       
@@ -824,6 +897,61 @@ class MultiplayerService {
       return { success: true, points: result.points };
     } catch (error) {
       console.error('❌ SUBMIT_ANSWER_V2: Error submitting answer:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+
+  async skipTurnV2(roomCode: string, playerId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      console.log(`⏭️ SKIP_TURN_V2: Skipping turn in room ${roomCode} for player ${playerId}`);
+      
+      const result = await skipTurnV2(roomCode, playerId);
+      
+      if (!result.success) {
+        console.log('❌ SKIP_TURN_V2: Failed to skip turn:', result.error);
+        return { success: false, error: result.error };
+      }
+      
+      console.log(`✅ SKIP_TURN_V2: Turn skipped successfully`);
+      return { success: true };
+    } catch (error) {
+      console.error('❌ SKIP_TURN_V2: Error skipping turn:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+
+  async handleHostDisconnectionV2(roomCode: string, disconnectedHostId: string): Promise<{ action: 'migrated' | 'terminated' | 'error'; newHostId?: string; newHostName?: string; error?: string }> {
+    try {
+      console.log(`🚪 HOST_DISCONNECTION_V2: Handling host disconnection in room ${roomCode}`);
+      
+      const result = await handleHostDisconnection(roomCode, disconnectedHostId);
+      
+      console.log(`✅ HOST_DISCONNECTION_V2: Result:`, result);
+      return result;
+    } catch (error) {
+      console.error('❌ HOST_DISCONNECTION_V2: Error handling host disconnection:', error);
+      return {
+        action: 'error',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
+
+  async terminateGameV2(roomCode: string, disconnectedPlayerId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      console.log(`🏁 TERMINATE_GAME_V2: Terminating game in room ${roomCode} for player ${disconnectedPlayerId}`);
+      
+      const result = await terminateGame(roomCode, disconnectedPlayerId);
+      
+      if (!result.success) {
+        console.log('❌ TERMINATE_GAME_V2: Failed to terminate game:', result.error);
+        return { success: false, error: result.error };
+      }
+      
+      console.log(`✅ TERMINATE_GAME_V2: Game terminated successfully`);
+      return { success: true };
+    } catch (error) {
+      console.error('❌ TERMINATE_GAME_V2: Error terminating game:', error);
       return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
   }
