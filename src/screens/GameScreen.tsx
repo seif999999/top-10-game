@@ -2057,7 +2057,7 @@ const styles = StyleSheet.create({
      alignItems: 'center',
      padding: SPACING.sm,
      borderRadius: 8,
-     backgroundColor: '#334155',
+     backgroundColor: 'rgba(139, 92, 246, 0.2)',
      borderWidth: 2,
      borderColor: 'transparent',
      minWidth: 80,
@@ -2296,22 +2296,22 @@ const styles = StyleSheet.create({
    
    // Game status styles
    gameStatusSection: {
-     backgroundColor: '#1E293B',
+     backgroundColor: 'rgba(139, 92, 246, 0.1)',
      borderRadius: 12,
      padding: SPACING.lg,
      marginBottom: SPACING.md,
      borderWidth: 1,
-     borderColor: '#475569'
+     borderColor: 'rgba(139, 92, 246, 0.3)'
    },
    gameStatusText: {
-     color: '#F1F5F9',
+     color: '#8B5CF6',
      fontSize: 16,
      fontWeight: '600',
      textAlign: 'center',
      marginBottom: SPACING.xs
    },
    gameStatusSubtext: {
-     color: '#94A3B8',
+     color: '#A78BFA',
      fontSize: 14,
      textAlign: 'center'
    },

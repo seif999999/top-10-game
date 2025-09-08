@@ -26,10 +26,10 @@
   - [x] 2.4 Update answer text colors for proper contrast
   - [x] 2.5 Update answer rank badge styling to purple theme
   - [x] 2.6 Update revealed/assigned answer card states to purple theme
-- [ ] 3.0 Update Team Score Cards and Game Status Elements
-  - [ ] 3.1 Update team score card backgrounds to purple theme
-  - [ ] 3.2 Update team score text colors for contrast
-  - [ ] 3.3 Update game status indicators to purple theme
+- [x] 3.0 Update Team Score Cards and Game Status Elements
+  - [x] 3.1 Update team score card backgrounds to purple theme
+  - [x] 3.2 Update team score text colors for contrast
+  - [x] 3.3 Update game status indicators to purple theme
 - [ ] 4.0 Update Answer Input Section and Submit Buttons
   - [ ] 4.1 Update answer input section background to purple theme
   - [ ] 4.2 Update submit button styling to purple theme
