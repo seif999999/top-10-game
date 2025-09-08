@@ -19,13 +19,13 @@
   - [x] 1.2 Update question card shadow color to purple (#8B5CF6)
   - [x] 1.3 Update question card border color to purple
   - [x] 1.4 Update question text color to light color for contrast
-- [ ] 2.0 Update Answer Cards and Related Elements
-  - [ ] 2.1 Update answer card backgrounds to light purple theme
-  - [ ] 2.2 Update answer card borders to purple theme
-  - [ ] 2.3 Update answer card shadows to purple theme
-  - [ ] 2.4 Update answer text colors for proper contrast
-  - [ ] 2.5 Update answer rank badge styling to purple theme
-  - [ ] 2.6 Update revealed/assigned answer card states to purple theme
+- [x] 2.0 Update Answer Cards and Related Elements
+  - [x] 2.1 Update answer card backgrounds to light purple theme
+  - [x] 2.2 Update answer card borders to purple theme
+  - [x] 2.3 Update answer card shadows to purple theme
+  - [x] 2.4 Update answer text colors for proper contrast
+  - [x] 2.5 Update answer rank badge styling to purple theme
+  - [x] 2.6 Update revealed/assigned answer card states to purple theme
 - [ ] 3.0 Update Team Score Cards and Game Status Elements
   - [ ] 3.1 Update team score card backgrounds to purple theme
   - [ ] 3.2 Update team score text colors for contrast

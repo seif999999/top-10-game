@@ -2444,15 +2444,15 @@ const styles = StyleSheet.create({
   },
   revealedAnswerCard: {
     borderColor: '#10B981',
-    backgroundColor: '#F0FDF4',
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
   },
   assignedAnswerCard: {
     borderColor: '#6366F1',
-    backgroundColor: '#EEF2FF',
+    backgroundColor: 'rgba(99, 102, 241, 0.1)',
   },
   unassignedAnswerCard: {
     borderColor: '#F59E0B',
-    backgroundColor: '#FFFBEB',
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
   },
   answerCardHeader: {
     flexDirection: 'row',
