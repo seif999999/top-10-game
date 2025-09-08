@@ -143,7 +143,8 @@ const CategoriesCarouselScreen: React.FC<CategoriesScreenProps> = ({ navigation,
           styles.categoryCard,
           { 
             backgroundColor: item.color,
-            transform: [{ scale: isSelected ? 1.05 : 1 }]
+            borderWidth: isSelected ? 3 : 0,
+            borderColor: isSelected ? 'rgba(255, 255, 255, 0.8)' : 'transparent'
           }
         ]}
         onPress={() => handleCategoryPress(item)}
@@ -185,6 +186,7 @@ const CategoriesCarouselScreen: React.FC<CategoriesScreenProps> = ({ navigation,
             {gameMode === 'single' ? 'Single Player' : 'Multiplayer'} Mode
           </Text>
         </View>
+        <View style={styles.headerPlaceholder} />
       </View>
 
       {/* Categories Carousel */}
@@ -221,17 +223,12 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
-    position: 'relative',
+    paddingBottom: SPACING.xl,
   },
   backButton: {
-    position: 'absolute',
-    left: SPACING.sm,
-    top: SPACING.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -269,6 +266,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  headerPlaceholder: {
+    width: 60,
+  },
   headerTitle: {
     fontSize: 24,
     fontWeight: '700',
@@ -283,6 +283,7 @@ const styles = StyleSheet.create({
   carouselContainer: {
     flex: 1,
     justifyContent: 'center',
+    paddingTop: SPACING.xl,
   },
   carouselContent: {
     paddingHorizontal: SPACING.lg,

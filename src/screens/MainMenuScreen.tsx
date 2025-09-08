@@ -86,6 +86,8 @@ const MainMenuScreen: React.FC<MainMenuScreenProps> = ({ navigation }) => {
               <Text style={styles.logoNumber}>10</Text>
             </View>
           </View>
+          
+          <View style={styles.placeholder} />
         </View>
 
         {/* Game Mode Selection */}
@@ -123,7 +125,6 @@ const MainMenuScreen: React.FC<MainMenuScreenProps> = ({ navigation }) => {
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Test your knowledge with the most popular trivia game!</Text>
         </View>
       </View>
     </SafeAreaView>
@@ -142,32 +143,29 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginTop: SPACING.lg,
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.md,
-    position: 'relative',
+    paddingBottom: SPACING.xl,
   },
-     backButton: {
-     position: 'absolute',
-     left: SPACING.sm,
-     top: SPACING.md,
-     flexDirection: 'row',
-     alignItems: 'center',
-     justifyContent: 'center',
-     paddingHorizontal: SPACING.md,
-     paddingVertical: SPACING.sm,
-     borderRadius: 22,
-     backgroundColor: 'rgba(139, 92, 246, 0.08)',
-     borderWidth: 1.5,
-     borderColor: 'rgba(139, 92, 246, 0.3)',
-     shadowColor: COLORS.primary,
-     shadowOffset: { width: 0, height: 2 },
-     shadowOpacity: 0.1,
-     shadowRadius: 4,
-     elevation: 3,
-   },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: 22,
+    backgroundColor: 'rgba(139, 92, 246, 0.08)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(139, 92, 246, 0.3)',
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
      backButtonIcon: {
      width: 22,
      height: 22,
@@ -186,7 +184,10 @@ const styles = StyleSheet.create({
   headerCenter: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: '100%',
+    flex: 1,
+  },
+  placeholder: {
+    width: 60,
   },
 
   logoContainer: {

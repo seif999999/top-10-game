@@ -145,7 +145,9 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
               </View>
             </TouchableOpacity>
           </Animated.View>
-          <Text style={styles.title}>Choose a Question</Text>
+          <View style={styles.headerContent}>
+            <Text style={styles.title}>Choose a Question</Text>
+          </View>
           <View style={styles.placeholder} />
         </View>
         
@@ -194,7 +196,9 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
             </View>
           </TouchableOpacity>
         </Animated.View>
-        <Text style={styles.title}>Choose a Question</Text>
+        <View style={styles.headerContent}>
+          <Text style={styles.title}>Choose a Question</Text>
+        </View>
         <View style={styles.placeholder} />
       </View>
 
@@ -234,17 +238,12 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.card,
-    position: 'relative',
+    paddingBottom: SPACING.xl,
   },
   backButton: {
-    position: 'absolute',
-    left: SPACING.sm,
-    top: SPACING.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -276,6 +275,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
     lineHeight: 20,
+  },
+  headerContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     color: COLORS.text,

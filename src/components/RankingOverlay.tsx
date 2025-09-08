@@ -212,60 +212,60 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 1000,
   },
-     card: {
-     backgroundColor: 'white',
-     borderRadius: 16,
-     padding: SPACING.xl,
-     margin: SPACING.lg,
-     maxWidth: Dimensions.get('window').width - 40,
-     maxHeight: Dimensions.get('window').height - 80,
-     shadowColor: '#000',
-     shadowOffset: {
-       width: 0,
-       height: 4,
-     },
-     shadowOpacity: 0.3,
-     shadowRadius: 8,
-     elevation: 8,
-   },
+  card: {
+    backgroundColor: '#1E1B4B', // Dark purple background
+    borderRadius: 16,
+    padding: SPACING.xl,
+    margin: SPACING.lg,
+    maxWidth: Dimensions.get('window').width - 40,
+    maxHeight: Dimensions.get('window').height - 80,
+    shadowColor: '#8B5CF6',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
      header: {
      alignItems: 'center',
      marginBottom: SPACING.md,
    },
-     title: {
-     fontSize: 22,
-     fontWeight: '800',
-     color: COLORS.primary,
-     marginBottom: SPACING.sm,
-     textAlign: 'center',
-   },
-     subtitle: {
-     fontSize: 14,
-     fontWeight: '600',
-     color: COLORS.text,
-     textAlign: 'center',
-     lineHeight: 20,
-   },
-   progressText: {
-     fontSize: 12,
-     fontWeight: '600',
-     color: COLORS.primary,
-     textAlign: 'center',
-     marginTop: SPACING.xs,
-   },
+  title: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#8B5CF6', // Purple text
+    marginBottom: SPACING.sm,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#E2E8F0', // Light text for dark background
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  progressText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#8B5CF6', // Purple text
+    textAlign: 'center',
+    marginTop: SPACING.xs,
+  },
      rankingsContainer: {
      gap: SPACING.xs,
    },
-   rankingRow: {
-     flexDirection: 'row',
-     alignItems: 'center',
-     paddingVertical: SPACING.xs,
-     paddingHorizontal: SPACING.md,
-     backgroundColor: '#F8F9FA',
-     borderRadius: 8,
-     borderWidth: 1,
-     borderColor: '#E9ECEF',
-   },
+  rankingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: SPACING.xs,
+    paddingHorizontal: SPACING.md,
+    backgroundColor: 'rgba(139, 92, 246, 0.1)', // Light purple background
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.3)', // Purple border
+  },
   rankContainer: {
     alignItems: 'center',
     minWidth: 60,
@@ -273,12 +273,12 @@ const styles = StyleSheet.create({
   rankNumber: {
     fontSize: 18,
     fontWeight: '800',
-    color: COLORS.primary,
+    color: '#8B5CF6', // Purple text
   },
   rankPoints: {
     fontSize: 12,
     fontWeight: '600',
-    color: COLORS.muted,
+    color: '#A78BFA', // Lighter purple for points
     marginTop: 2,
   },
   answerContainer: {
@@ -290,11 +290,12 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderStyle: 'solid',
   },
-     answerText: {
-     fontSize: 14,
-     fontWeight: '600',
-     textAlign: 'center',
-   },
+  answerText: {
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+    color: '#E2E8F0', // Light text for dark background
+  },
   statusContainer: {
     width: 40,
     alignItems: 'center',
@@ -311,7 +312,7 @@ const styles = StyleSheet.create({
   },
   gameEndText: {
     fontSize: 14,
-    color: COLORS.muted,
+    color: '#A78BFA', // Light purple text
     fontStyle: 'italic',
   },
 });

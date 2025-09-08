@@ -15,8 +15,9 @@ import { COLORS, SPACING, TYPOGRAPHY, ACCESSIBILITY } from '../utils/constants';
 import { Question } from '../services/multiplayerService';
 import { AuthService } from '../services/authService';
 import { sampleQuestions } from '../data/sampleQuestions';
+import CategoryCarousel, { Category } from '../components/CategoryCarousel';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 interface CreateRoomScreenProps {}
 
@@ -41,7 +42,7 @@ const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
   const availableCategories = [...new Set(sampleQuestions.map(q => q.category))];
   
   // Get categories dynamically from sample questions
-  const categories = availableCategories.map(categoryName => {
+  const categories: Category[] = availableCategories.map(categoryName => {
     const iconMap: { [key: string]: string } = {
       'Sports': '⚽',
       'Movies': '🎬',
@@ -54,15 +55,45 @@ const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
       'Technology': '💻'
     };
     
+    const colorMap: { [key: string]: string } = {
+      'Sports': '#FF6B6B',
+      'Movies': '#4ECDC4',
+      'Music': '#45B7D1',
+      'Science': '#DDA0DD',
+      'History': '#FFEAA7',
+      'Geography': '#96CEB4',
+      'Movies & TV': '#4ECDC4',
+      'Food & Drink': '#FFB347',
+      'Technology': '#87CEEB'
+    };
+    
+    const descriptionMap: { [key: string]: string } = {
+      'Sports': 'Athletics, games, and competitions',
+      'Movies': 'Films, television, and entertainment',
+      'Music': 'Songs, artists, and musical genres',
+      'Science': 'Scientific discoveries and facts',
+      'History': 'Historical events and figures',
+      'Geography': 'Countries, cities, and landmarks',
+      'Movies & TV': 'Films, television, and entertainment',
+      'Food & Drink': 'Cuisines, dishes, and beverages',
+      'Technology': 'Computers, gadgets, and innovation'
+    };
+    
+    // Count questions for this category
+    const questionCount = sampleQuestions.filter(q => q.category === categoryName).length;
+    
     return {
       id: categoryName,
       name: categoryName,
-      icon: iconMap[categoryName] || '❓'
+      icon: iconMap[categoryName] || '❓',
+      description: descriptionMap[categoryName] || 'General knowledge questions',
+      color: colorMap[categoryName] || '#8B5CF6',
+      questions: questionCount
     };
   });
 
 
-  const [selectedQuestionIds, setSelectedQuestionIds] = useState<string[]>([]);
+  const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(null);
 
   useEffect(() => {
     if (error) {
@@ -71,26 +102,23 @@ const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
     }
   }, [error, clearError]);
 
-  const handleCategorySelect = (categoryId: string) => {
-    setCategory(categoryId);
-    setSelectedQuestionIds([]);
+  const handleCategorySelect = (category: Category) => {
+    setCategory(category.id);
+    setSelectedQuestionId(null);
     setQuestions([]);
   };
 
-  const handleQuestionToggle = (questionId: string) => {
-    setSelectedQuestionIds(prev => {
-      const newSelection = prev.includes(questionId)
-        ? prev.filter(id => id !== questionId)
-        : [...prev, questionId];
-      
-      // Update selected questions
-      const selectedQuestions = sampleQuestions.filter(q => 
-        q.category === selectedCategory && newSelection.includes(q.id)
-      );
-      setQuestions(selectedQuestions as any); // Type assertion for now
-      
-      return newSelection;
-    });
+  const handleQuestionSelect = (questionId: string) => {
+    setSelectedQuestionId(questionId);
+    
+    // Update selected questions - only one question
+    const selectedQuestion = sampleQuestions.find(q => 
+      q.category === selectedCategory && q.id === questionId
+    );
+    
+    if (selectedQuestion) {
+      setQuestions([selectedQuestion] as any); // Type assertion for now
+    }
   };
 
   const handleCreateRoom = async () => {
@@ -187,37 +215,28 @@ const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Category Selection */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>1. Choose a Category</Text>
-          <View style={styles.categoryGrid}>
-            {categories.map((category) => (
-              <TouchableOpacity
-                key={category.id}
-                style={[
-                  styles.categoryCard,
-                  selectedCategory === category.id && styles.categoryCardSelected
-                ]}
-                onPress={() => handleCategorySelect(category.id)}
-                accessibilityLabel={`Select ${category.name} category`}
-                accessibilityState={{ selected: selectedCategory === category.id }}
-              >
-                <Text style={styles.categoryIcon}>{category.icon}</Text>
-                <Text style={[
-                  styles.categoryName,
-                  selectedCategory === category.id && styles.categoryNameSelected
-                ]}>
-                  {category.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
+          <Text style={styles.sectionTitle}>Choose a Category</Text>
+          <View style={styles.carouselContainer}>
+            <CategoryCarousel
+              categories={categories}
+              selectedCategory={selectedCategory}
+              onCategorySelect={handleCategorySelect}
+              showInstructions={true}
+              instructionsText="Swipe to browse categories • Tap to select"
+              cardWidth={width * 0.8}
+              cardHeight={height * 0.5}
+              showQuestionCount={true}
+              buttonText="🎯 Select"
+            />
           </View>
         </View>
 
         {/* Question Selection */}
         {selectedCategory && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>2. Select Questions ({selectedQuestions.length} selected)</Text>
+            <Text style={styles.sectionTitle}>Select a Question</Text>
             <Text style={styles.sectionSubtitle}>
-              Choose the questions you want to include in your game
+              Choose the question you want to use for your game
             </Text>
             <View style={styles.questionList}>
               {currentQuestions.map((question) => (
@@ -225,31 +244,28 @@ const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
                   key={question.id}
                   style={[
                     styles.questionCard,
-                    selectedQuestionIds.includes(question.id) && styles.questionCardSelected
+                    selectedQuestionId === question.id && styles.questionCardSelected
                   ]}
-                  onPress={() => handleQuestionToggle(question.id)}
+                  onPress={() => handleQuestionSelect(question.id)}
                   accessibilityLabel={`Select question: ${question.title}`}
-                  accessibilityState={{ selected: selectedQuestionIds.includes(question.id) }}
+                  accessibilityState={{ selected: selectedQuestionId === question.id }}
                 >
                   <View style={styles.questionHeader}>
                     <Text style={[
                       styles.questionText,
-                      selectedQuestionIds.includes(question.id) && styles.questionTextSelected
+                      selectedQuestionId === question.id && styles.questionTextSelected
                     ]}>
                       {question.title}
                     </Text>
                     <View style={[
                       styles.checkbox,
-                      selectedQuestionIds.includes(question.id) && styles.checkboxSelected
+                      selectedQuestionId === question.id && styles.checkboxSelected
                     ]}>
-                      {selectedQuestionIds.includes(question.id) && (
+                      {selectedQuestionId === question.id && (
                         <Text style={styles.checkmark}>✓</Text>
                       )}
                     </View>
                   </View>
-                  <Text style={styles.questionDifficulty}>
-                    {question.difficulty.toUpperCase()}
-                  </Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -266,17 +282,12 @@ const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
             ]}
             onPress={handleCreateRoom}
             disabled={!selectedCategory || selectedQuestions.length === 0 || loading}
-            accessibilityLabel="Create room with selected category and questions"
+            accessibilityLabel="Create room with selected category and question"
           >
             {loading ? (
               <ActivityIndicator color={COLORS.white} />
             ) : (
-              <>
-                <Text style={styles.createButtonText}>Create Room</Text>
-                <Text style={styles.createButtonSubtext}>
-                  {selectedQuestions.length} question{selectedQuestions.length !== 1 ? 's' : ''} selected
-                </Text>
-              </>
+              <Text style={styles.createButtonText}>Create Room</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -296,8 +307,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    paddingBottom: SPACING.lg,
   },
   leaveButton: {
     padding: SPACING.sm,
@@ -324,7 +334,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
   },
   section: {
-    marginVertical: SPACING.lg,
+    marginTop: SPACING.xl,
+    marginBottom: SPACING.lg,
   },
   sectionTitle: {
     fontSize: 20,
@@ -337,36 +348,10 @@ const styles = StyleSheet.create({
     color: COLORS.muted,
     marginBottom: SPACING.md,
   },
-  categoryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.md,
-  },
-  categoryCard: {
-    width: (width - SPACING.lg * 2 - SPACING.md) / 2,
-    backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    padding: SPACING.lg,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  categoryCardSelected: {
-    borderColor: COLORS.primary,
-    backgroundColor: COLORS.primary + '10',
-  },
-  categoryIcon: {
-    fontSize: 32,
-    marginBottom: SPACING.sm,
-  },
-  categoryName: {
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: COLORS.text,
-    textAlign: 'center',
-  },
-  categoryNameSelected: {
-    color: COLORS.primary,
+  carouselContainer: {
+    height: height * 0.6,
+    marginTop: SPACING.xl,
+    marginBottom: SPACING.md,
   },
   questionList: {
     gap: SPACING.md,
@@ -416,11 +401,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold' as const,
   },
-  questionDifficulty: {
-    fontSize: 12,
-    color: COLORS.muted,
-    fontWeight: '600' as const,
-  },
   buttonContainer: {
     paddingVertical: SPACING.xl,
   },
@@ -437,11 +417,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold' as const,
     color: COLORS.white,
-    marginBottom: SPACING.xs,
-  },
-  createButtonSubtext: {
-    fontSize: 14,
-    color: COLORS.white + 'CC',
   },
 });
 

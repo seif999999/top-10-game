@@ -39,9 +39,13 @@ const MultiplayerMenuScreen: React.FC<MultiplayerMenuScreenProps> = () => {
           accessibilityLabel="Go back"
           accessibilityHint="Returns to main menu"
         >
-          <Text style={styles.backButtonText}>← Back</Text>
+          <View style={styles.backButtonIcon}>
+            <Text style={styles.backButtonArrow}>‹</Text>
+          </View>
         </TouchableOpacity>
-        <Text style={styles.title}>Multiplayer</Text>
+        <View style={styles.headerContent}>
+          <Text style={styles.title}>Multiplayer</Text>
+        </View>
         <View style={styles.placeholder} />
       </View>
 
@@ -129,16 +133,45 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    paddingBottom: SPACING.xl,
   },
   backButton: {
-    padding: SPACING.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: 22,
+    backgroundColor: 'rgba(139, 92, 246, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.2)',
+    shadowColor: '#8B5CF6',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  backButtonText: {
-    fontSize: 16,
-    color: COLORS.primary,
-    fontWeight: '600' as const,
+  backButtonIcon: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backButtonArrow: {
+    color: '#8B5CF6',
+    fontSize: 18,
+    fontWeight: 'bold' as const,
+    lineHeight: 20,
+  },
+  headerContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     fontSize: 20,

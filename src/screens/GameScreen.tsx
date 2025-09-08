@@ -945,14 +945,17 @@ const handleEndGame = () => {
     <SafeAreaView style={styles.container}>
       
              {/* Header */}
-       <View style={styles.header}>
-         <TouchableOpacity onPress={handleBackButton} style={styles.backButton}>
-           <View style={styles.backButtonIcon}>
-             <Text style={styles.backButtonArrow}>‹</Text>
-           </View>
-           <Text style={styles.backButtonText}>Back</Text>
-         </TouchableOpacity>
-         
+      <View style={styles.header}>
+        {isMultiplayerMode ? (
+          <TouchableOpacity onPress={handleBackButton} style={styles.backButton}>
+            <View style={styles.backButtonIcon}>
+              <Text style={styles.backButtonArrow}>‹</Text>
+            </View>
+            <Text style={styles.backButtonText}>Back</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.headerLeft} />
+        )}
 
         <View style={styles.headerCenter}>
           {isMultiplayerMode && (
@@ -1566,6 +1569,9 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600'
+  },
+  headerLeft: {
+    width: 80, // Same width as back button to maintain layout balance
   },
   headerRight: {
     flexDirection: 'row',
@@ -2312,16 +2318,18 @@ const styles = StyleSheet.create({
 
   // Modern Trivia Game Styles
   questionCard: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#1E1B4B', // Dark purple background
     borderRadius: 12,
     padding: 20,
     marginHorizontal: 16,
     marginVertical: 12,
-    shadowColor: '#000',
+    shadowColor: '#8B5CF6', // Purple shadow
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.3)', // Purple border
   },
   questionHeader: {
     flexDirection: 'row',
@@ -2332,8 +2340,8 @@ const styles = StyleSheet.create({
   questionNumber: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6366F1',
-    backgroundColor: '#EEF2FF',
+    color: '#8B5CF6',
+    backgroundColor: 'rgba(139, 92, 246, 0.2)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
@@ -2341,8 +2349,8 @@ const styles = StyleSheet.create({
   questionCategory: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#64748B',
-    backgroundColor: '#F1F5F9',
+    color: '#A78BFA',
+    backgroundColor: 'rgba(167, 139, 250, 0.2)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
@@ -2350,7 +2358,7 @@ const styles = StyleSheet.create({
   questionText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1E293B',
+    color: '#E2E8F0',
     lineHeight: 26,
     marginBottom: 8,
   },
@@ -2423,16 +2431,16 @@ const styles = StyleSheet.create({
   },
   answerCard: {
     width: '48%',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: 'rgba(139, 92, 246, 0.1)', // Light purple background
     borderRadius: 8,
     marginBottom: 8,
-    shadowColor: '#000',
+    shadowColor: '#8B5CF6', // Purple shadow
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.2,
     shadowRadius: 3,
     elevation: 2,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: 'rgba(139, 92, 246, 0.3)', // Purple border
   },
   revealedAnswerCard: {
     borderColor: '#10B981',
@@ -2455,10 +2463,12 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#6366F1',
+    backgroundColor: '#8B5CF6', // Purple background
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.5)', // Purple border
   },
   answerRankNumber: {
     fontSize: 14,
@@ -2471,7 +2481,7 @@ const styles = StyleSheet.create({
   answerCardText: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#1E293B',
+    color: '#E2E8F0', // Light text for dark background
     lineHeight: 18,
   },
   teamBadge: {
