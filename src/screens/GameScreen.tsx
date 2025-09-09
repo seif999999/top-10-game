@@ -1522,10 +1522,10 @@ const handleEndGame = () => {
           />
         )}
 
-        {/* Answer Input Section - Moved to bottom */}
+        {/* Answer Input Section - Always visible */}
         {(() => {
           const shouldShowAnswer = !questionIsComplete && 
-            ((isMultiplayerMode && multiplayerState?.gamePhase !== 'finished' && multiplayerState?.currentPlayerId === user?.id) ||
+            ((isMultiplayerMode && multiplayerState?.gamePhase !== 'finished') ||
              (!isMultiplayerMode && gameState?.gamePhase !== 'finished')) && 
             !(!isMultiplayerMode && isTeamMode);
           
@@ -1544,19 +1544,6 @@ const handleEndGame = () => {
           return shouldShowAnswer;
         })() && (
           <View style={styles.modernAnswerSection}>
-            {/* Turn Indicator */}
-            {isMultiplayerMode && multiplayerState?.currentPlayerId && (
-              <View style={styles.turnIndicator}>
-                <Text style={styles.turnIndicatorText}>
-                  {multiplayerState.currentPlayerId === user?.id 
-                    ? "Your Turn!" 
-                    : `${multiplayerState.players[multiplayerState.currentPlayerId]?.name || 'Player'}'s Turn`}
-                </Text>
-                <Text style={styles.turnTimerText}>
-                  {multiplayerTimeRemaining}s remaining
-                </Text>
-              </View>
-            )}
             <Animated.View style={[
                styles.answerInputContainer,
                {
@@ -1594,17 +1581,22 @@ const handleEndGame = () => {
                <TouchableOpacity
                  style={[
                    styles.modernSubmitButton,
-                   (!(isMultiplayerMode ? (multiplayerCurrentAnswer || '') : currentAnswer).trim() ||
-                    (isMultiplayerMode && multiplayerState?.currentPlayerId !== user?.id)) && styles.modernSubmitButtonDisabled
+                   // Only apply grey styling when it's not your turn
+                   (isMultiplayerMode && multiplayerState?.currentPlayerId !== user?.id) && styles.modernSubmitButtonNotMyTurn,
+                   // Only apply disabled styling when there's no answer AND it's your turn
+                   (!(isMultiplayerMode ? (multiplayerCurrentAnswer || '') : currentAnswer).trim() && 
+                    !(isMultiplayerMode && multiplayerState?.currentPlayerId !== user?.id)) && styles.modernSubmitButtonDisabled
                  ]}
                  onPress={handleSubmitAnswer}
                  disabled={
-                   !(isMultiplayerMode ? (multiplayerCurrentAnswer || '') : currentAnswer).trim() ||
-                   (isMultiplayerMode && multiplayerState?.currentPlayerId !== user?.id)
+                   !(isMultiplayerMode ? (multiplayerCurrentAnswer || '') : currentAnswer).trim()
                  }
                >
-                 <Text style={styles.modernSubmitButtonText}>
-                   {isMultiplayerMode && multiplayerState?.currentPlayerId !== user?.id ? "Wait for Turn" : "Submit Answer"}
+                 <Text style={[
+                   styles.modernSubmitButtonText,
+                   (isMultiplayerMode && multiplayerState?.currentPlayerId !== user?.id) && styles.modernSubmitButtonTextNotMyTurn
+                 ]}>
+                   Submit Answer
               </Text>
                </TouchableOpacity>
              </Animated.View>
@@ -1614,16 +1606,15 @@ const handleEndGame = () => {
                <TouchableOpacity
                  style={[
                    styles.modernSkipButton,
-                   multiplayerState?.currentPlayerId !== user?.id && styles.modernSkipButtonDisabled
+                   (multiplayerState?.currentPlayerId !== user?.id) && styles.modernSkipButtonNotMyTurn
                  ]}
                  onPress={handleSkipTurn}
-                 disabled={multiplayerState?.currentPlayerId !== user?.id}
                >
                  <Text style={[
                    styles.modernSkipButtonText,
-                   multiplayerState?.currentPlayerId !== user?.id && styles.modernSkipButtonTextDisabled
+                   (multiplayerState?.currentPlayerId !== user?.id) && styles.modernSkipButtonTextNotMyTurn
                  ]}>
-                   {multiplayerState?.currentPlayerId === user?.id ? 'Skip Turn' : 'Skip Turn (Not Your Turn)'}
+                   Skip Turn
                  </Text>
                </TouchableOpacity>
              )}
@@ -2824,10 +2815,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#94A3B8',
     shadowOpacity: 0.1,
   },
+  modernSubmitButtonNotMyTurn: {
+    backgroundColor: '#6B7280', // Grey when not my turn
+    shadowOpacity: 0.1,
+  },
   modernSubmitButtonText: {
     fontSize: 16,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  modernSubmitButtonTextNotMyTurn: {
+    color: '#9CA3AF', // Grey text when not my turn
   },
 
   // Modern Skip Button Styles
@@ -2844,10 +2842,17 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
   },
+  modernSkipButtonNotMyTurn: {
+    backgroundColor: '#6B7280', // Grey when not my turn
+    shadowOpacity: 0.1,
+  },
   modernSkipButtonText: {
     fontSize: 14,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  modernSkipButtonTextNotMyTurn: {
+    color: '#9CA3AF', // Grey text when not my turn
   },
   modernSkipButtonDisabled: {
     backgroundColor: '#6D28D9', // Same purple color when disabled
