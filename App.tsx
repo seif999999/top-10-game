@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { GameProvider } from './src/contexts/GameContext';
 import { MultiplayerProvider } from './src/contexts/MultiplayerContext';
@@ -38,19 +39,21 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
 
 export default function App() {
   return (
-    <ErrorBoundary>
-      <AuthProvider>
-        <GameProvider>
-          <MultiplayerProvider>
-            <NavigationContainer>
-              <StatusBar style="auto" />
-              <AppNavigator />
-               
-            </NavigationContainer>
-          </MultiplayerProvider>
-        </GameProvider>
-      </AuthProvider>
-    </ErrorBoundary>
+    <SafeAreaProvider>
+      <ErrorBoundary>
+        <AuthProvider>
+          <GameProvider>
+            <MultiplayerProvider>
+              <NavigationContainer>
+                <StatusBar style="auto" />
+                <AppNavigator />
+                 
+              </NavigationContainer>
+            </MultiplayerProvider>
+          </GameProvider>
+        </AuthProvider>
+      </ErrorBoundary>
+    </SafeAreaProvider>
   );
 }
 

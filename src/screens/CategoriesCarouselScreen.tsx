@@ -10,6 +10,7 @@ import {
   FlatList,
   Animated
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, TYPOGRAPHY, ANIMATIONS } from '../utils/constants';
 import { CategoriesScreenProps } from '../types/navigation';
 
@@ -87,6 +88,7 @@ const categories = [
 const CategoriesCarouselScreen: React.FC<CategoriesScreenProps> = ({ navigation, route }) => {
   const { gameMode } = route.params;
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const insets = useSafeAreaInsets();
   const flatListRef = useRef<FlatList>(null);
   
   // Animation values
@@ -172,7 +174,7 @@ const CategoriesCarouselScreen: React.FC<CategoriesScreenProps> = ({ navigation,
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + SPACING.md }]}>
         <Animated.View style={{ transform: [{ scale: backButtonScale }] }}>
           <TouchableOpacity onPress={handleBackToHome} style={styles.backButton}>
             <View style={styles.backButtonIcon}>

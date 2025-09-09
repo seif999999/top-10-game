@@ -11,6 +11,7 @@ import {
   Alert,
   Animated
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, TYPOGRAPHY, ANIMATIONS } from '../utils/constants';
 import { QuestionSelectionScreenProps } from '../types/navigation';
 import { getQuestionsByCategory } from '../services/questionsService';
@@ -20,6 +21,7 @@ import { TeamSetupConfig } from '../types/teams';
 
 const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navigation, route }) => {
   const { categoryName, gameMode } = route.params;
+  const insets = useSafeAreaInsets();
   const [questions, setQuestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showTeamSetup, setShowTeamSetup] = useState(false);
@@ -188,7 +190,7 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + SPACING.md }]}>
         <Animated.View style={{ transform: [{ scale: backButtonScale }] }}>
           <TouchableOpacity onPress={handleBackToCategories} style={styles.backButton}>
             <View style={styles.backButtonIcon}>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Alert, Dimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING } from '../utils/constants';
 import { HomeScreenProps } from '../types/navigation';
 import { useAuth } from '../contexts/AuthContext';
@@ -10,6 +11,7 @@ const { width, height } = Dimensions.get('window');
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const { user } = useAuth();
   const [isSpinning, setIsSpinning] = useState(false);
+  const insets = useSafeAreaInsets();
 
   const handleProfileNavigation = () => {
     navigation.navigate('Profile');
@@ -64,7 +66,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
 
       {/* Header with Profile and Rules Buttons */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + SPACING.lg }]}>
         <TouchableOpacity onPress={handleProfileNavigation} style={styles.profileButton}>
           <AvatarIcon 
             user={user} 
@@ -150,7 +152,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.lg,
     zIndex: 10,
   },
   profileButton: {

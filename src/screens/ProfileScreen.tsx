@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Alert, ScrollView, TextInput } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Button from '../components/Button';
 import UserAvatar from '../components/UserAvatar';
 import AvatarSelectionModal from '../components/AvatarSelectionModal';
@@ -13,6 +14,7 @@ import DataRetentionService from '../services/dataRetentionService';
 
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const { user, signOut, updateUserProfile, updateUserAvatar } = useAuth();
+  const insets = useSafeAreaInsets();
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [updatedDisplayName, setUpdatedDisplayName] = useState(user?.displayName || '');
   const [isEditing, setIsEditing] = useState(false);
@@ -214,7 +216,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + SPACING.md }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <View style={styles.backButtonIcon}>
             <Text style={styles.backButtonArrow}>‹</Text>

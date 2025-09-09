@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput, SafeAreaView } from 'react-native';
 import Button from '../../components/Button';
 import GoogleSignInButton from '../../components/GoogleSignInButton';
 import PrivacyPolicyModal from '../../components/PrivacyPolicyModal';
@@ -170,7 +170,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
   const isLoading = loading || localLoading;
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <Text style={styles.title}>Create account</Text>
       <Text style={styles.subtitle}>Join the Top 10 game community</Text>
       
@@ -296,7 +296,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
         onDecline={handlePrivacyPolicyDecline}
         onClose={() => setShowPrivacyPolicy(false)}
       />
-    </View>
+    </SafeAreaView>
   );
 };
 

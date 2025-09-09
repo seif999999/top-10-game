@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
@@ -22,6 +23,7 @@ interface JoinRoomScreenProps {}
 
 const JoinRoomScreen: React.FC<JoinRoomScreenProps> = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const insets = useSafeAreaInsets();
   const { 
     joinRoomCode, 
     setJoinRoomCode, 
@@ -106,7 +108,7 @@ const JoinRoomScreen: React.FC<JoinRoomScreenProps> = () => {
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + SPACING.md }]}>
         <TouchableOpacity 
           style={styles.leaveButton}
           onPress={handleLeaveRoom}

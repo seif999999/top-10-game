@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Alert, TextInput, Platform, Animated, BackHandler } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import Button from '../components/Button';
 import ResultsModal from '../components/ResultsModal';
@@ -23,6 +24,7 @@ import { RateLimitService } from '../services/rateLimitService';
 
 const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   const { roomId, categoryId, isMultiplayer, selectedQuestion, teamConfig } = route.params;
+  const insets = useSafeAreaInsets();
   const { 
     gameState, 
     currentAnswer, 
@@ -1062,7 +1064,7 @@ const handleEndGame = () => {
     <SafeAreaView style={styles.container}>
       
              {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + SPACING.md }]}>
         {isMultiplayerMode ? (
           <TouchableOpacity onPress={handleBackButton} style={styles.backButton}>
             <View style={styles.backButtonIcon}>

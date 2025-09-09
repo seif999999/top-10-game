@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput, SafeAreaView } from 'react-native';
 import Button from '../../components/Button';
 import GoogleSignInButton from '../../components/GoogleSignInButton';
 import { useAuth } from '../../contexts/AuthContext';
@@ -99,7 +99,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
   const isLoading = loading || localLoading;
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <Text style={styles.title}>Welcome back</Text>
       <Text style={styles.subtitle}>Sign in to continue playing</Text>
       
@@ -174,7 +174,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
           <Text style={[styles.linkText, isLoading && styles.disabledText]}>Sign up</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 

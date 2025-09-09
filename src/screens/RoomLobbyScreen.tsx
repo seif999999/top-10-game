@@ -12,6 +12,7 @@ import {
   Animated,
   Dimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AvatarIcon from '../components/AvatarIcon';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -28,6 +29,7 @@ interface RoomLobbyScreenProps {}
 const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { 
     currentRoom,
@@ -269,7 +271,7 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + SPACING.md }]}>
         <View style={styles.placeholder} />
         <Text style={styles.title}>Room Lobby</Text>
         <TouchableOpacity 

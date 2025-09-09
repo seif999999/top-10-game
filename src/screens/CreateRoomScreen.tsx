@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Dimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useMultiplayer } from '../contexts/MultiplayerContext';
 import { COLORS, SPACING, TYPOGRAPHY, ACCESSIBILITY } from '../utils/constants';
@@ -23,6 +24,7 @@ interface CreateRoomScreenProps {}
 
 const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const { 
     selectedCategory, 
     selectedQuestions, 
@@ -200,7 +202,7 @@ const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + SPACING.md }]}>
         <TouchableOpacity 
           style={styles.leaveButton}
           onPress={handleLeaveRoom}

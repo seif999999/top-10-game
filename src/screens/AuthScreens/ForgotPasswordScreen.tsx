@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput, SafeAreaView } from 'react-native';
 import Button from '../../components/Button';
 import { useAuth } from '../../contexts/AuthContext';
 import { COLORS, SPACING } from '../../utils/constants';
@@ -32,7 +32,7 @@ const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation 
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <Text style={styles.title}>Reset Password</Text>
       <Text style={styles.subtitle}>Enter your email to receive reset instructions.</Text>
 
@@ -57,7 +57,7 @@ const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation 
           <Text style={styles.linkText}>Back to Sign in</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 
