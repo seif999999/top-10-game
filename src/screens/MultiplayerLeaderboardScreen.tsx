@@ -10,12 +10,14 @@ import {
   Dimensions,
 } from 'react-native';
 import { COLORS, SPACING, TYPOGRAPHY } from '../utils/constants';
+import AvatarIcon from '../components/AvatarIcon';
 
 interface Player {
   playerId: string;
   playerName: string;
   score: number;
   rank: number;
+  selectedAvatar?: string;
 }
 
 interface MultiplayerLeaderboardScreenProps {
@@ -125,11 +127,17 @@ const MultiplayerLeaderboardScreen: React.FC<MultiplayerLeaderboardScreenProps> 
         </View>
         
         <View style={styles.playerInfo}>
-          <View style={[styles.avatar, { backgroundColor: playerColor }]}>
-            <Text style={styles.avatarText}>
-              {item.playerName.charAt(0).toUpperCase()}
-            </Text>
-          </View>
+          <AvatarIcon 
+            user={{ 
+              id: item.playerId, 
+              displayName: item.playerName, 
+              email: `${item.playerId}@player.local`,
+              selectedAvatar: item.selectedAvatar 
+            }} 
+            size={40} 
+            showBorder={true}
+            borderColor={playerColor}
+          />
           <Text style={[styles.playerName, isWinner && styles.winnerName]}>
             {item.playerName}
           </Text>

@@ -217,7 +217,7 @@ describe('CategoryCarousel', () => {
       />
     );
 
-    const flatList = UNSAFE_getByType('FlatList');
+    const flatList = UNSAFE_getByType(require('react-native').FlatList);
     expect(flatList.props.horizontal).toBe(true);
     expect(flatList.props.showsHorizontalScrollIndicator).toBe(false);
     expect(flatList.props.decelerationRate).toBe('fast');
@@ -233,7 +233,7 @@ describe('CategoryCarousel', () => {
       />
     );
 
-    const flatList = UNSAFE_getByType('FlatList');
+    const flatList = UNSAFE_getByType(require('react-native').FlatList);
     expect(flatList.props.snapToInterval).toBe(customWidth + 20); // CARD_SPACING = 20
   });
 
@@ -290,8 +290,8 @@ describe('CategoryCarousel', () => {
       />
     );
 
-    const container = UNSAFE_getByType('View');
-    const flatList = UNSAFE_getByType('FlatList');
+    const container = UNSAFE_getByType(require('react-native').View);
+    const flatList = UNSAFE_getByType(require('react-native').FlatList);
     
     expect(container.props.style).toContain(customStyle);
     expect(flatList.props.contentContainerStyle).toContain(customContentStyle);

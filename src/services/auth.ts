@@ -14,8 +14,93 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { auth } from './firebase';
 import { User } from '../types';
+import SecurityMonitoringService from './securityMonitoringService';
 
 export type AuthListenerUnsubscribe = () => void;
+
+// Security configuration
+interface SecurityConfig {
+  maxLoginAttempts: number;
+  lockoutDuration: number;
+  sessionTimeout: number;
+  passwordMinLength: number;
+}
+
+const SECURITY_CONFIG: SecurityConfig = {
+  maxLoginAttempts: 5,
+  lockoutDuration: 15 * 60 * 1000, // 15 minutes
+  sessionTimeout: 24 * 60 * 60 * 1000, // 24 hours
+  passwordMinLength: 8
+};
+
+// Rate limiting for authentication attempts
+class AuthRateLimit {
+  private attempts: Map<string, { count: number; lastAttempt: number }> = new Map();
+  
+  isBlocked(identifier: string): boolean {
+    const record = this.attempts.get(identifier);
+    if (!record) return false;
+    
+    if (Date.now() - record.lastAttempt > SECURITY_CONFIG.lockoutDuration) {
+      this.attempts.delete(identifier);
+      return false;
+    }
+    
+    return record.count >= SECURITY_CONFIG.maxLoginAttempts;
+  }
+  
+  recordAttempt(identifier: string): void {
+    const existing = this.attempts.get(identifier);
+    this.attempts.set(identifier, {
+      count: existing ? existing.count + 1 : 1,
+      lastAttempt: Date.now()
+    });
+  }
+  
+  reset(identifier: string): void {
+    this.attempts.delete(identifier);
+  }
+  
+  getRemainingTime(identifier: string): number {
+    const record = this.attempts.get(identifier);
+    if (!record) return 0;
+    
+    const elapsed = Date.now() - record.lastAttempt;
+    return Math.max(0, SECURITY_CONFIG.lockoutDuration - elapsed);
+  }
+}
+
+// Session management
+class SessionManager {
+  private sessionTimers: Map<string, NodeJS.Timeout> = new Map();
+  
+  startSession(userId: string, onExpire: () => void): void {
+    this.clearSession(userId);
+    
+    const timer = setTimeout(() => {
+      console.warn(`Session expired for user ${userId}`);
+      onExpire();
+    }, SECURITY_CONFIG.sessionTimeout);
+    
+    this.sessionTimers.set(userId, timer);
+  }
+  
+  extendSession(userId: string, onExpire: () => void): void {
+    this.startSession(userId, onExpire);
+  }
+  
+  clearSession(userId: string): void {
+    const timer = this.sessionTimers.get(userId);
+    if (timer) {
+      clearTimeout(timer);
+      this.sessionTimers.delete(userId);
+    }
+  }
+}
+
+// Global instances
+const authRateLimit = new AuthRateLimit();
+const sessionManager = new SessionManager();
 
 // Storage keys for auth-related data
 const AUTH_STORAGE_KEYS = {
@@ -104,25 +189,88 @@ export const signUpWithEmail = async (
   password: string,
   displayName?: string
 ): Promise<User> => {
+  console.log('🔍 DEBUG: signUpWithEmail called with:', { email, displayName, password: password ? '***' : '' });
   try {
+    console.log('🔍 DEBUG: Calling createUserWithEmailAndPassword...');
     const cred = await createUserWithEmailAndPassword(auth, email, password);
+    console.log('✅ DEBUG: createUserWithEmailAndPassword successful');
+    
     if (displayName) {
+      console.log('🔍 DEBUG: Updating profile with displayName...');
       await updateProfile(cred.user, { displayName });
+      console.log('✅ DEBUG: Profile updated with displayName');
     }
-    return mapFirebaseUser(cred.user);
+    
+    console.log('🔍 DEBUG: Mapping Firebase user...');
+    const user = mapFirebaseUser(cred.user);
+    console.log('✅ DEBUG: User mapped successfully:', user);
+    return user;
   } catch (error) {
+    console.error('❌ DEBUG: signUpWithEmail error:', error);
     const err = error as AuthError | Error;
-    throw new Error(getFriendlyAuthMessage(err));
+    const friendlyMessage = getFriendlyAuthMessage(err);
+    console.error('❌ DEBUG: Friendly error message:', friendlyMessage);
+    throw new Error(friendlyMessage);
   }
 };
 
 export const signInWithEmail = async (email: string, password: string): Promise<User> => {
+  console.log('🔍 DEBUG: signInWithEmail called with:', { email, password: password ? '***' : '' });
+  
+  // Check rate limiting
+  if (authRateLimit.isBlocked(email)) {
+    const remainingTime = Math.ceil(authRateLimit.getRemainingTime(email) / 1000 / 60);
+    console.log('❌ DEBUG: Rate limit exceeded for email:', email);
+    throw new Error(`Too many login attempts. Please try again in ${remainingTime} minutes.`);
+  }
+
   try {
+    console.log('🔍 DEBUG: Calling signInWithEmailAndPassword...');
     const cred = await signInWithEmailAndPassword(auth, email, password);
-    return mapFirebaseUser(cred.user);
+    console.log('✅ DEBUG: signInWithEmailAndPassword successful');
+    
+    // Reset rate limiting on successful login
+    authRateLimit.reset(email);
+    console.log('🔍 DEBUG: Rate limit reset for email');
+    
+    // Start session management
+    sessionManager.startSession(cred.user.uid, () => {
+      console.log('Session expired, signing out user');
+      signOutUser();
+    });
+    console.log('🔍 DEBUG: Session management started');
+    
+    console.log('🔍 DEBUG: Mapping Firebase user...');
+    const user = mapFirebaseUser(cred.user);
+    console.log('✅ DEBUG: User mapped successfully:', user);
+    return user;
   } catch (error) {
+    console.error('❌ DEBUG: signInWithEmail error:', error);
+    // Record failed attempt
+    authRateLimit.recordAttempt(email);
+    console.log('🔍 DEBUG: Failed attempt recorded for email');
+    
+    // Log security event
+    try {
+      await SecurityMonitoringService.logSecurityEvent({
+        userId: email,
+        eventType: 'AUTHENTICATION_FAILURE',
+        severity: 'MEDIUM',
+        description: `Failed login attempt for email: ${email}`,
+        metadata: {
+          ipAddress: 'unknown',
+          userAgent: 'mobile',
+          error: error instanceof Error ? error.message : 'Unknown error',
+        },
+      });
+    } catch (logError) {
+      console.error('Failed to log security event:', logError);
+    }
+    
     const err = error as AuthError | Error;
-    throw new Error(getFriendlyAuthMessage(err));
+    const friendlyMessage = getFriendlyAuthMessage(err);
+    console.error('❌ DEBUG: Friendly error message:', friendlyMessage);
+    throw new Error(friendlyMessage);
   }
 };
 
@@ -130,6 +278,13 @@ export const signInWithGoogle = async (idToken: string): Promise<User> => {
   try {
     const credential = GoogleAuthProvider.credential(idToken);
     const cred = await signInWithCredential(auth, credential);
+    
+    // Start session management
+    sessionManager.startSession(cred.user.uid, () => {
+      console.log('Session expired, signing out user');
+      signOutUser();
+    });
+    
     return mapFirebaseUser(cred.user);
   } catch (error) {
     const err = error as AuthError | Error;
@@ -151,16 +306,22 @@ export const signOutUser = async (): Promise<void> => {
     console.log('🚪 Starting sign-out process...');
     console.log(`📱 Platform: ${Platform.OS}`);
     
-    // Step 1: Sign out from Firebase
+    // Step 1: Clear session management
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      sessionManager.clearSession(currentUser.uid);
+    }
+    
+    // Step 2: Sign out from Firebase
     console.log('🔥 Signing out from Firebase...');
     await signOut(auth);
     console.log('✅ Firebase sign-out successful');
     
-    // Step 2: Clear auth storage
+    // Step 3: Clear auth storage
     console.log('🧹 Clearing authentication storage...');
     await clearAuthStorage();
     
-    // Step 3: Clear user data
+    // Step 4: Clear user data
     console.log('🗑️ Clearing user data...');
     await clearUserData();
     
@@ -198,8 +359,44 @@ export const updateUserProfile = async (displayName: string): Promise<User> => {
     // Update the Firebase user profile
     await updateProfile(currentUser, { displayName });
     
-    // Return the updated user object
-    return mapFirebaseUser(currentUser);
+    // Also update the Firestore profile to keep it in sync
+    const { UserProfileService } = await import('./userProfileService');
+    const userProfileService = UserProfileService.getInstance();
+    
+    // Get current user profile to preserve avatar data
+    const currentProfile = await userProfileService.getUserProfile(currentUser.uid);
+    
+    // Update only the displayName in Firestore, preserving avatar data
+    if (currentProfile) {
+      // Only update if displayName actually changed
+      if (currentProfile.displayName !== displayName) {
+        const updatedProfile = {
+          ...currentProfile,
+          email: currentUser.email || currentProfile.email || '',
+          displayName: displayName,
+          lastUpdated: new Date()
+        };
+        await userProfileService.updateUserProfile(updatedProfile);
+        return updatedProfile;
+      } else {
+        // No change needed, return current profile with email from Firebase Auth
+        return {
+          ...currentProfile,
+          email: currentUser.email || currentProfile.email || ''
+        };
+      }
+    } else {
+      // If no profile exists, create one with just displayName
+      const newProfile = {
+        id: currentUser.uid,
+        email: currentUser.email || '',
+        displayName: displayName,
+        createdAt: new Date(),
+        lastUpdated: new Date()
+      };
+      await userProfileService.updateUserProfile(newProfile);
+      return newProfile;
+    }
   } catch (error) {
     const err = error as AuthError | Error;
     throw new Error(`Failed to update profile: ${getFriendlyAuthMessage(err)}`);
@@ -207,8 +404,34 @@ export const updateUserProfile = async (displayName: string): Promise<User> => {
 };
 
 export const subscribeToAuthChanges = (cb: (user: User | null) => void): AuthListenerUnsubscribe => {
-  const unsub = onAuthStateChanged(auth, (fbUser) => {
-    cb(fbUser ? mapFirebaseUser(fbUser) : null);
+  const unsub = onAuthStateChanged(auth, async (fbUser) => {
+    if (fbUser) {
+      // Load user profile with avatar data from Firestore
+      try {
+        const { UserProfileService } = await import('./userProfileService');
+        const userProfileService = UserProfileService.getInstance();
+        const userProfile = await userProfileService.getUserProfile(fbUser.uid);
+        if (userProfile) {
+          // Ensure displayName falls back to Firebase user's displayName if not set in Firestore
+          // Always use email from Firebase Auth user, not from Firestore
+          const userWithFallbackDisplayName = {
+            ...userProfile,
+            email: fbUser.email || userProfile.email || '',
+            displayName: userProfile.displayName || fbUser.displayName || undefined
+          };
+          cb(userWithFallbackDisplayName);
+        } else {
+          // Fallback to basic Firebase user data if profile not found
+          cb(mapFirebaseUser(fbUser));
+        }
+      } catch (error) {
+        console.error('Error loading user profile:', error);
+        // Fallback to basic Firebase user data on error
+        cb(mapFirebaseUser(fbUser));
+      }
+    } else {
+      cb(null);
+    }
   });
   return unsub;
 };

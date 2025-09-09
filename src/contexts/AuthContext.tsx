@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { AuthContextType, User } from '../types';
 import { signInWithEmail, signUpWithEmail, signOutUser, subscribeToAuthChanges, resetPassword as resetPasswordService, signInWithGoogle, updateUserProfile as updateUserProfileService } from '../services/auth';
+import AuthService from '../services/authService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { View } from 'react-native';
 
@@ -21,10 +22,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signIn = async (email: string, password: string) => {
+    console.log('🔍 DEBUG: AuthContext signIn called with:', { email, password: password ? '***' : '' });
     setPendingAction(true);
+    console.log('🔍 DEBUG: AuthContext setPendingAction(true)');
     try {
+      console.log('🔍 DEBUG: AuthContext calling signInWithEmail...');
       await signInWithEmail(email, password);
+      console.log('✅ DEBUG: AuthContext signInWithEmail successful');
+    } catch (error) {
+      console.error('❌ DEBUG: AuthContext signInWithEmail error:', error);
+      throw error;
     } finally {
+      console.log('🔍 DEBUG: AuthContext setPendingAction(false)');
       setPendingAction(false);
     }
   };
@@ -39,10 +48,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signUp = async (email: string, password: string, displayName?: string) => {
+    console.log('🔍 DEBUG: AuthContext signUp called with:', { email, displayName, password: password ? '***' : '' });
     setPendingAction(true);
+    console.log('🔍 DEBUG: AuthContext setPendingAction(true)');
     try {
+      console.log('🔍 DEBUG: AuthContext calling signUpWithEmail...');
       await signUpWithEmail(email, password, displayName);
+      console.log('✅ DEBUG: AuthContext signUpWithEmail successful');
+    } catch (error) {
+      console.error('❌ DEBUG: AuthContext signUpWithEmail error:', error);
+      throw error;
     } finally {
+      console.log('🔍 DEBUG: AuthContext setPendingAction(false)');
       setPendingAction(false);
     }
   };
@@ -103,8 +120,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const updateUserAvatar = async (selectedAvatar: string | undefined) => {
+    setPendingAction(true);
+    try {
+      console.log('🔄 AuthContext: Updating user avatar...');
+      
+      // Call the auth service to update the avatar
+      await AuthService.updateUserAvatar(selectedAvatar);
+      
+      // Update local user state
+      setUser(prevUser => prevUser ? { ...prevUser, selectedAvatar } : null);
+      
+      console.log('✅ AuthContext: Avatar updated successfully');
+    } catch (error) {
+      console.error('💥 AuthContext: Avatar update error:', error);
+      throw error;
+    } finally {
+      setPendingAction(false);
+    }
+  };
+
+  const getUserProfileWithAvatar = async (): Promise<User | null> => {
+    try {
+      console.log('🔄 AuthContext: Getting user profile with avatar...');
+      
+      // Call the auth service to get profile with avatar data
+      const profile = await AuthService.getUserProfileWithAvatar();
+      
+      // Update local user state
+      if (profile) {
+        setUser(profile);
+      }
+      
+      console.log('✅ AuthContext: Profile with avatar retrieved successfully');
+      return profile;
+    } catch (error) {
+      console.error('💥 AuthContext: Get profile with avatar error:', error);
+      return user; // Return current user state if error
+    }
+  };
+
   const value = useMemo<AuthContextType>(
-    () => ({ user, loading: loading || pendingAction, signIn, signUp, signOut, resetPassword, signInWithGoogle: signInWithGoogleAuth, updateUserProfile }),
+    () => ({ user, loading: loading, pendingAction, signIn, signUp, signOut, resetPassword, signInWithGoogle: signInWithGoogleAuth, updateUserProfile, updateUserAvatar, getUserProfileWithAvatar }),
     [user, loading, pendingAction]
   );
 

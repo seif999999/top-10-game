@@ -100,6 +100,10 @@ describe('Multiplayer Integration Tests', () => {
       const roomSnap = await getDoc(roomRef);
       const roomData = roomSnap.data();
       
+      if (!roomData) {
+        throw new Error('Room data not found');
+      }
+      
       const player1Score = roomData.players[player1Id].score;
       const player2Score = roomData.players[player2Id].score;
       const expectedPoints = pointsForRank(answerRank);
@@ -165,6 +169,10 @@ describe('Multiplayer Integration Tests', () => {
       const roomSnap = await getDoc(roomRef);
       const roomData = roomSnap.data();
       
+      if (!roomData) {
+        throw new Error('Room data not found');
+      }
+      
       const player1Score = roomData.players[player1Id].score;
       const player2Score = roomData.players[player2Id].score;
       const expectedPoints = pointsForRank(answerRank);
@@ -215,7 +223,7 @@ describe('Multiplayer Integration Tests', () => {
           const roomData = roomSnap.data();
           
           const updatedPlayers = {
-            ...roomData.players,
+            ...(roomData?.players || {}),
             [playerId]: {
               id: playerId,
               name: `Player ${playerId}`,
@@ -240,10 +248,10 @@ describe('Multiplayer Integration Tests', () => {
       const roomSnap = await getDoc(roomRef);
       const roomData = roomSnap.data();
       
-      expect(Object.keys(roomData.players)).toHaveLength(3);
+      expect(Object.keys(roomData?.players || {})).toHaveLength(3);
       playerIds.forEach(playerId => {
-        expect(roomData.players[playerId]).toBeDefined();
-        expect(roomData.players[playerId].name).toBe(`Player ${playerId}`);
+        expect(roomData?.players?.[playerId]).toBeDefined();
+        expect(roomData?.players?.[playerId]?.name).toBe(`Player ${playerId}`);
       });
     });
   });

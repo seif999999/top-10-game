@@ -133,18 +133,12 @@ const multiplayerReducer = (state: MultiplayerState, action: MultiplayerAction):
         answersSubmittedCount: roomData?.answersSubmittedCount
       });
       
-      // Additional debugging for scores and revealed answers
-      if (roomData) {
-        console.log('🎯 CONTEXT_SCORE_DEBUG:', {
-          scores: roomData.scores,
-          revealedAnswers: roomData.revealedAnswers?.map((ra, i) => ({
-            index: i,
-            isRevealed: ra !== null,
-            answerId: ra?.answerId,
-            playerId: ra?.playerId,
-            points: ra?.points
-          }))
-        });
+        // Additional debugging for scores and revealed answers
+        if (roomData) {
+          console.log('🎯 CONTEXT_SCORE_DEBUG:', {
+            scores: roomData.scores,
+            revealedAnswers: roomData.revealedAnswers
+          });
         
         // 📡 FIRESTORE LISTENER UPDATE DEBUG LOGGING
         console.log('📡 FIRESTORE LISTENER UPDATE:', {
@@ -498,7 +492,7 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
       dispatch({ type: 'SET_STARTING', payload: true });
       
       console.log('🎮 ROOM_START: Host starting game...');
-      await multiplayerService.startGameV2(state.currentRoom.roomCode, user.id, 20);
+      await multiplayerService.startGameV2(state.currentRoom.roomCode, user.id, 60);
       console.log('✅ ROOM_START: Game started successfully');
     } catch (error) {
       console.error('❌ ROOM_START: Error starting game:', error);

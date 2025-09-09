@@ -29,34 +29,36 @@ const AppNavigator: React.FC = () => {
   console.log('AppNavigator: Loading:', loading);
 
   return (
-    <Stack.Navigator 
-      screenOptions={{ 
-        headerShown: false,
-        animation: 'slide_from_right'
-      }}
-    >
-      {user ? (
-        <>
-          <Stack.Screen name="Home" component={HomeScreen} />
-          <Stack.Screen name="MainMenu" component={MainMenuScreen} />
-          <Stack.Screen name="Profile" component={ProfileScreen} />
-          <Stack.Screen name="Categories" component={CategoriesCarouselScreen} />
-          <Stack.Screen name="QuestionSelection" component={QuestionSelectionScreen} />
-          <Stack.Screen name="GameLobby" component={GameLobbyScreen} />
-          <Stack.Screen name="GameScreen" component={GameScreen} />
-          <Stack.Screen name="MultiplayerMenu" component={MultiplayerMenuScreen} />
-          <Stack.Screen name="CreateRoom" component={CreateRoomScreen} />
-          <Stack.Screen name="JoinRoom" component={JoinRoomScreen} />
-          <Stack.Screen name="RoomLobby" component={RoomLobbyScreen} />
-        </>
-      ) : (
-        <>
-          <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="Register" component={RegisterScreen} />
-          <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-        </>
-      )}
-    </Stack.Navigator>
+    <>
+      <Stack.Navigator 
+        screenOptions={{ 
+          headerShown: false,
+          animation: 'slide_from_right'
+        }}
+      >
+        {user ? (
+          <>
+            <Stack.Screen name="Home" component={HomeScreen} />
+            <Stack.Screen name="MainMenu" component={MainMenuScreen} />
+            <Stack.Screen name="Profile" component={ProfileScreen} />
+            <Stack.Screen name="Categories" component={CategoriesCarouselScreen} />
+            <Stack.Screen name="QuestionSelection" component={QuestionSelectionScreen} />
+            <Stack.Screen name="GameLobby" component={GameLobbyScreen} />
+            <Stack.Screen name="GameScreen" component={GameScreen} />
+            <Stack.Screen name="MultiplayerMenu" component={MultiplayerMenuScreen} />
+            <Stack.Screen name="CreateRoom" component={CreateRoomScreen} />
+            <Stack.Screen name="JoinRoom" component={JoinRoomScreen} />
+            <Stack.Screen name="RoomLobby" component={RoomLobbyScreen} />
+          </>
+        ) : (
+          <>
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Register" component={RegisterScreen} />
+            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+          </>
+        )}
+      </Stack.Navigator>
+    </>
   );
 };
 

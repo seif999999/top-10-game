@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Alert, Dimensio
 import { COLORS, SPACING } from '../utils/constants';
 import { HomeScreenProps } from '../types/navigation';
 import { useAuth } from '../contexts/AuthContext';
+import AvatarIcon from '../components/AvatarIcon';
 
 const { width, height } = Dimensions.get('window');
 
@@ -65,9 +66,13 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       {/* Header with Profile and Rules Buttons */}
       <View style={styles.header}>
         <TouchableOpacity onPress={handleProfileNavigation} style={styles.profileButton}>
-          <Text style={styles.profileButtonText}>
-            {(user?.displayName || user?.email || 'U').charAt(0).toUpperCase()}
-          </Text>
+          <AvatarIcon 
+            user={user} 
+            size={50} 
+            showBorder={false}
+            backgroundColor={COLORS.primary}
+            textColor={COLORS.background}
+          />
         </TouchableOpacity>
         
         <TouchableOpacity onPress={handleHowToPlay} style={styles.rulesButton}>
@@ -152,7 +157,6 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: COLORS.primary,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: COLORS.primary,
@@ -160,6 +164,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
+    overflow: 'hidden',
   },
   profileButtonText: {
     color: COLORS.background,

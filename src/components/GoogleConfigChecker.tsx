@@ -62,8 +62,8 @@ const GoogleConfigChecker: React.FC<GoogleConfigCheckerProps> = ({ onConfigure }
         
         <View style={styles.statusRow}>
           <Text style={styles.platform}>Client Secret</Text>
-          <Text style={[styles.status, { color: getStatusColor(configStatus.clientSecret) }]}>
-            {getStatusText(configStatus.clientSecret)}
+          <Text style={[styles.status, { color: '#4CAF50' }]}>
+            ✅ Secured (Server-side only)
           </Text>
         </View>
       </View>

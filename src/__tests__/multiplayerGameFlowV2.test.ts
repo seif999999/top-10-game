@@ -64,7 +64,7 @@ describe('Multiplayer Game Flow V2', () => {
     currentTurnIndex: 0,
     currentPlayerId: 'host1',
     turnStartTime: Date.now(),
-    turnTimeLimit: 20
+    turnTimeLimit: 60
   };
 
   describe('isAllowedToSubmit', () => {

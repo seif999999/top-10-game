@@ -14,6 +14,9 @@ A React Native trivia game built with Expo and TypeScript where players compete 
 - 📊 Centralized Scoring System
 - ⏱️ Synchronized Timers
 - 🏆 Real-time Leaderboards
+- 👤 Avatar System with Custom Selection
+- 🎯 Fuzzy Answer Matching with Nicknames
+- 🔄 Atomic Transaction System
 
 ## 🎯 Game Modes
 
@@ -23,6 +26,8 @@ A React Native trivia game built with Expo and TypeScript where players compete 
 - **Flexible Game Length**: Game ends when 10 answers are submitted or host decides to end
 - **Manual Scoring**: Host has full control over point distribution
 - **Category Selection**: Choose from multiple trivia categories
+- **Timer System**: 60-second timer for each question
+- **Answer Table**: Visual display of all submitted answers with rankings
 
 ### Multiplayer Mode
 - **Turn-Based System**: Each player gets individual turns (not team-based)
@@ -95,6 +100,28 @@ The game features an advanced **fuzzy matching system** that makes answer submis
 - **Performance Optimized**: Efficient matching for multiplayer scenarios
 - **Atomic Transactions**: Prevents double-awarding of points with retry mechanisms
 
+## 👤 Avatar System
+
+The game includes a comprehensive avatar system that allows players to personalize their profiles:
+
+### Avatar Features
+- **5 Initial Avatars**: Mix of human and animal avatars
+- **Custom Selection**: Players can choose from available avatars or select "No Avatar"
+- **Cross-Platform Rendering**: Programmatic colored circles with emoji icons for consistent display
+- **Persistent Storage**: Avatar selections are saved to Firebase and persist across sessions
+- **Profile Integration**: Avatars appear in profile screen, home screen, and multiplayer leaderboards
+
+### Avatar Types
+- **Human Avatars**: Blue and red colored circles with 👤 emoji
+- **Animal Avatars**: Orange, green, and purple colored circles with 🐾 emoji
+- **No Avatar Option**: Question mark (?) for players who prefer not to use an avatar
+
+### Technical Implementation
+- **Programmatic Rendering**: Uses React Native `View` and `Text` components for cross-platform compatibility
+- **Color Mapping**: Each avatar has a unique color associated with its ID
+- **Firebase Integration**: Avatar selections stored in user profiles
+- **State Management**: Integrated with authentication context for real-time updates
+
 ## 🎨 User Interface & Experience
 
 ### Clean & Streamlined Design
@@ -102,6 +129,7 @@ The game features an advanced **fuzzy matching system** that makes answer submis
 - **Clear Feedback**: Immediate visual feedback with color-coded animations
 - **Concise Messaging**: Simplified text to reduce clutter and improve readability
 - **Professional Appearance**: Clean, modern UI that focuses on gameplay
+- **Purple Theme**: Consistent purple color scheme throughout the app
 
 ### Recent UI Improvements
 - **Removed Debug Elements**: Eliminated debug buttons and overlays from production
@@ -114,6 +142,8 @@ The game features an advanced **fuzzy matching system** that makes answer submis
   - Removed "Found X of Y answers" counter
   - Simplified turn indicators to "Your turn" and "Waiting for [player]"
 - **Improved Error Handling**: Better error messages and user guidance
+- **Answer Button Styling**: Fully purple answer buttons with consistent theming
+- **Timer Management**: Optimized timer display and removal of redundant timers
 
 ## 🎮 Game Flow
 
@@ -149,6 +179,20 @@ The game features an advanced **fuzzy matching system** that makes answer submis
 
 ## 🏗️ Technical Implementation
 
+### Architecture Overview
+The game follows a modular architecture with clear separation of concerns:
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   UI Layer      │    │  Service Layer  │    │  Data Layer     │
+│                 │    │                 │    │                 │
+│ • Components    │◄───┤ • Auth Service  │◄───┤ • Firebase      │
+│ • Screens       │    │ • Game Logic    │    │ • Firestore     │
+│ • Contexts      │    │ • Multiplayer   │    │ • Auth          │
+│ • Navigation    │    │ • Scoring       │    │ • Storage       │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+```
+
 ### Unified Data Types
 The game uses consistent data structures across single-player and multiplayer modes:
 
@@ -168,9 +212,37 @@ export type Question = {
   category: string;
   difficulty: 'easy' | 'medium' | 'hard';
 };
+
+export type Player = {
+  id: string;
+  name: string;
+  score: number;
+  isHost: boolean;
+  joinedAt: number;
+  isConnected: boolean;
+  lastSeen: number;
+  selectedAvatar?: string;
+};
+
+export type RoomData = {
+  roomCode: string;
+  hostId: string;
+  status: 'lobby' | 'playing' | 'finished' | 'closed';
+  players: { [playerId: string]: Player };
+  currentAnswers: Answer[];
+  revealedAnswers: (null | RevealedAnswer)[];
+  scores: { [playerId: string]: number };
+  // ... additional fields
+};
 ```
 
 ### Core Services
+
+#### Authentication Service (`src/services/auth.ts`)
+- **User Management**: Handle login, logout, and profile updates
+- **Firebase Integration**: Seamless integration with Firebase Auth
+- **Profile Persistence**: Maintain user data across sessions
+- **Avatar Management**: Handle avatar selection and updates
 
 #### Scoring System (`src/services/scoring.ts`)
 - **`pointsForRank(rank)`**: Calculate points for answer rank
@@ -199,13 +271,46 @@ export type Question = {
 - **Alias Matching**: Support for nicknames and variations
 - **Safe String Handling**: Prevent injection and encoding issues
 
+#### User Profile Service (`src/services/userProfileService.ts`)
+- **Profile CRUD**: Create, read, update, and delete user profiles
+- **Avatar Management**: Handle avatar selection and updates
+- **Data Persistence**: Ensure profile data is saved to Firebase
+
 ### State Management
 
+#### AuthContext (`src/contexts/AuthContext.tsx`)
+- **User State**: Manage current user and authentication status
+- **Loading States**: Handle loading and pending action states
+- **Profile Updates**: Real-time profile updates including avatars
+- **Error Handling**: Graceful handling of authentication errors
+
+#### GameContext (`src/contexts/GameContext.tsx`)
+- **Single-Player State**: Manage single-player game state
+- **Question Management**: Handle question selection and progression
+- **Answer Tracking**: Track submitted answers and scores
+
 #### MultiplayerContext (`src/contexts/MultiplayerContext.tsx`)
-- **Role Enforcement**: Manage host vs player permissions
-- **Presence Monitoring**: Track player connections and activity
-- **State Updates**: Real-time synchronization of game state
-- **Error Handling**: Graceful handling of connection issues
+- **Room State**: Manage multiplayer room state
+- **Player Management**: Track players and their status
+- **Turn Management**: Handle turn-based gameplay
+- **Real-time Updates**: Synchronize state across players
+
+### Component Architecture
+
+#### Core Components
+- **`UserAvatar`**: Displays user avatars with fallback support
+- **`AvatarIcon`**: Smaller avatar display for lists and headers
+- **`AvatarSelectionModal`**: Modal for selecting avatars
+- **`AnswerFeedback`**: Visual feedback for answer submissions
+- **`MultiplayerLeaderboard`**: Real-time leaderboard display
+- **`ResultsModal`**: Game results and scoring display
+
+#### Screen Components
+- **`GameScreen`**: Main gameplay interface
+- **`ProfileScreen`**: User profile and avatar management
+- **`CreateRoomScreen`**: Multiplayer room creation
+- **`JoinRoomScreen`**: Join existing multiplayer rooms
+- **`RoomLobbyScreen`**: Pre-game lobby for multiplayer
 
 ## 🧪 Testing
 
@@ -215,11 +320,14 @@ The project includes comprehensive testing for critical game functionality:
 - **Scoring System**: Validate point calculations
 - **Question Normalization**: Test answer matching logic
 - **Answer Validation**: Ensure correct answer detection
+- **Fuzzy Matching**: Test nickname and alias recognition
+- **Avatar System**: Test avatar selection and display
 
 ### Integration Tests
 - **Concurrent Answer Awarding**: Test atomic transactions
 - **Multiplayer Flow**: Validate turn-based gameplay
 - **Edge Case Handling**: Test error scenarios
+- **Authentication Flow**: Test login and profile management
 
 ### Test Files
 - `src/__tests__/scoring.test.ts` - Scoring system tests
@@ -228,7 +336,16 @@ The project includes comprehensive testing for critical game functionality:
 - `src/__tests__/edgeCaseTests.ts` - Edge case handling tests
 - `src/__tests__/fuzzyMatching.test.ts` - Fuzzy matching system tests
 - `src/__tests__/answerAwardAndReveal.test.ts` - Answer scoring and revelation tests
+- `src/__tests__/answerSubmissionFix.test.ts` - Answer submission fixes tests
 - `src/__tests__/multiplayerAnswerFlow.test.ts` - Multiplayer answer flow integration tests
+- `src/__tests__/multiplayerGameFlowV2.test.ts` - Multiplayer game flow v2 tests
+
+### Running Tests
+```bash
+npx jest                   # Run all tests
+npx jest --watch          # Run tests in watch mode
+npx jest --coverage       # Run tests with coverage report
+```
 
 ## 🐛 Recent Bug Fixes & Improvements
 
@@ -250,14 +367,24 @@ The project includes comprehensive testing for critical game functionality:
 - **Better Feedback**: Clear visual indicators for correct/incorrect answers
 - **Streamlined Text**: Simplified messaging throughout the game
 - **Professional Look**: Enhanced overall visual appeal and user experience
+- **Answer Button Styling**: Fixed inner button colors to be fully purple
+- **Timer Management**: Removed redundant timers and optimized display
+- **Layout Improvements**: Moved answer input to bottom, improved turn indicators
+
+### Avatar System
+- **Cross-Platform Rendering**: Fixed avatar display on mobile devices
+- **Programmatic Rendering**: Replaced SVG images with colored circles and emojis
+- **Persistent Storage**: Fixed avatar persistence across app sessions
+- **Profile Integration**: Ensured avatars display correctly in all screens
 
 ## 🚀 Installation & Setup
 
 ### Prerequisites
 - Node.js (v16 or higher)
 - npm or yarn
-- Expo CLI
+- Expo CLI (`npm install -g @expo/cli`)
 - Firebase project
+- Git
 
 ### Installation
 
@@ -325,17 +452,40 @@ npm run web        # Web
 3. Click "Add app" and choose "Web"
 4. Copy the configuration values to your `.env` file
 
+### Step 5: Configure Firestore Rules
+The project includes Firestore security rules in `firestore.rules`:
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // User profiles - users can read/write their own profile
+    match /userProfiles/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Game rooms - authenticated users can read/write
+    match /rooms/{roomId} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
+```
+
 ## 📁 Project Structure
 
 ```
 src/
 ├── components/          # Reusable UI components
 │   ├── AnswerFeedback.tsx      # Answer validation feedback
+│   ├── AvatarIcon.tsx          # Small avatar display component
+│   ├── AvatarSelectionModal.tsx # Avatar selection modal
 │   ├── Button.tsx             # Reusable button component
 │   ├── CategoryCard.tsx       # Category selection cards
 │   ├── MultiplayerLeaderboard.tsx # Real-time leaderboard
 │   ├── ResultsModal.tsx       # Game results display
-│   └── ...
+│   ├── UserAvatar.tsx         # Main avatar display component
+│   └── ...                    # Other components
 ├── contexts/           # State management
 │   ├── AuthContext.tsx        # Authentication state
 │   ├── GameContext.tsx        # Single-player game state
@@ -349,21 +499,29 @@ src/
 │   ├── GameScreen.tsx        # Main gameplay interface
 │   ├── CreateRoomScreen.tsx  # Multiplayer room creation
 │   ├── JoinRoomScreen.tsx    # Join multiplayer room
-│   └── ...
+│   ├── ProfileScreen.tsx     # User profile and avatar management
+│   └── ...                   # Other screens
 ├── services/         # Business logic
 │   ├── auth.ts              # Authentication service
+│   ├── authService.ts       # Additional auth utilities
 │   ├── scoring.ts           # Centralized scoring system
 │   ├── multiplayerService.ts # Multiplayer functionality
 │   ├── multiplayerTransaction.ts # Atomic transactions
 │   ├── timeSync.ts          # Timer synchronization
-│   └── questionsService.ts  # Question management
+│   ├── questionsService.ts  # Question management
+│   ├── userProfileService.ts # User profile management
+│   └── ...                  # Other services
 ├── types/            # TypeScript definitions
 │   ├── game.ts              # Game-related types
 │   ├── navigation.ts        # Navigation types
-│   └── teams.ts             # Team-related types
+│   ├── teams.ts             # Team-related types
+│   └── index.ts             # Main type exports
 └── utils/            # Utility functions
+    ├── avatarConstants.ts   # Avatar definitions and constants
+    ├── avatarUtils.ts       # Avatar utility functions
     ├── constants.ts         # App constants
-    └── gameHelpers.ts       # Game utility functions
+    ├── gameHelpers.ts       # Game utility functions
+    └── ...                  # Other utilities
 ```
 
 ## 🎮 Available Scripts
@@ -372,7 +530,7 @@ src/
 - `npm run android` - Run on Android device/emulator
 - `npm run ios` - Run on iOS device/simulator
 - `npm run web` - Run in web browser
-- `npm test` - Run test suite
+- `npx jest` - Run test suite
 - `npm run typecheck` - Run TypeScript type checking
 
 ## 🔍 Troubleshooting
@@ -403,6 +561,11 @@ src/
 - **Fixed**: "CR7" and "curry" now properly match their respective answers
 - **Fixed**: Feedback animation now correctly shows green for correct answers, red for wrong answers
 
+**Avatar Display Issues**
+- **Fixed**: Avatars now display correctly on both web and mobile
+- **Fixed**: Avatar selection persists across app sessions
+- **Fixed**: Loading spinners no longer appear unnecessarily
+
 ### Debug Tools
 - **EdgeCaseMonitor**: Real-time monitoring dashboard for multiplayer issues
 - **Console Logging**: Comprehensive debug information
@@ -410,13 +573,28 @@ src/
 
 ## 🤝 Contributing
 
+### Development Workflow
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Make your changes
-4. Run tests (`npm test`)
-5. Commit your changes (`git commit -m 'Add amazing feature'`)
-6. Push to the branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
+4. Run tests (`npx jest`)
+5. Run type checking (`npm run typecheck`)
+6. Commit your changes (`git commit -m 'Add amazing feature'`)
+7. Push to the branch (`git push origin feature/amazing-feature`)
+8. Open a Pull Request
+
+### Code Style Guidelines
+- Use TypeScript for all new code
+- Follow existing naming conventions
+- Add tests for new functionality
+- Update documentation for new features
+- Ensure cross-platform compatibility
+
+### Testing Requirements
+- Unit tests for new services and utilities
+- Integration tests for new multiplayer features
+- UI tests for new components
+- Manual testing on both web and mobile platforms
 
 ## 📄 License
 
@@ -431,6 +609,9 @@ This project is licensed under the MIT License - see the [LICENSE.txt](LICENSE.t
 - [x] Resolved multiplayer connection and room creation issues
 - [x] Added comprehensive testing for critical game functionality
 - [x] Implemented atomic transactions with retry mechanisms
+- [x] Added avatar system with cross-platform rendering
+- [x] Fixed answer button styling and timer management
+- [x] Improved layout and theme consistency
 
 ### Planned Features
 - [ ] Custom category creation
@@ -439,6 +620,9 @@ This project is licensed under the MIT License - see the [LICENSE.txt](LICENSE.t
 - [ ] Push notifications
 - [ ] Offline mode
 - [ ] Multiple language support
+- [ ] More avatar options
+- [ ] Team-based multiplayer
+- [ ] Custom question creation
 
 ### Technical Improvements
 - [x] Enhanced error handling and edge case management
@@ -446,7 +630,34 @@ This project is licensed under the MIT License - see the [LICENSE.txt](LICENSE.t
 - [ ] Performance optimization
 - [ ] Advanced analytics
 - [ ] CI/CD pipeline
+- [ ] Code splitting for better performance
+- [ ] Progressive Web App (PWA) support
+
+## 🏗️ Development Architecture
+
+### Key Design Patterns
+- **Context Pattern**: Used for state management across the app
+- **Service Layer Pattern**: Business logic separated from UI components
+- **Atomic Transactions**: Ensures data consistency in multiplayer scenarios
+- **Observer Pattern**: Real-time updates through Firebase listeners
+- **Factory Pattern**: Used for creating game instances and services
+
+### Performance Considerations
+- **Lazy Loading**: Components and services loaded on demand
+- **Memoization**: React.memo used for expensive components
+- **Debouncing**: Input handling and API calls debounced
+- **Connection Pooling**: Efficient Firebase connection management
+- **State Optimization**: Minimal re-renders through careful state management
+
+### Security Measures
+- **Firebase Security Rules**: Proper access control for Firestore
+- **Input Validation**: All user inputs validated and sanitized
+- **Authentication**: Secure user authentication with Firebase
+- **Data Encryption**: Sensitive data encrypted in transit
+- **Rate Limiting**: Protection against abuse and spam
 
 ---
 
 **Built with ❤️ using React Native, Expo, TypeScript, and Firebase**
+
+For developers looking to contribute or understand the codebase, this README provides a comprehensive overview of the game's architecture, features, and implementation details. The codebase is well-structured with clear separation of concerns, making it easy to navigate and extend.

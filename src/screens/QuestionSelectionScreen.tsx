@@ -273,7 +273,7 @@ const styles = StyleSheet.create({
   backButtonArrow: {
     color: '#8B5CF6',
     fontSize: 18,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    fontWeight: '700' as const,
     lineHeight: 20,
   },
   headerContent: {

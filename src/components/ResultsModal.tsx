@@ -223,7 +223,6 @@ const ResultsModal: React.FC<ResultsModalProps> = ({
               title="Back to Categories"
               onPress={onBackToCategories}
               style={styles.backButton}
-              variant="secondary"
             />
           </View>
         </Animated.View>

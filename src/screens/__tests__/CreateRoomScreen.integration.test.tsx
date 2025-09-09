@@ -10,9 +10,9 @@ const mockUseMultiplayer = useMultiplayer as jest.MockedFunction<typeof useMulti
 
 // Mock AuthService
 jest.mock('../../services/authService');
-const mockAuthService = {
+const mockAuthService: any = {
   ensureAuthenticated: jest.fn().mockResolvedValue(undefined),
-  getInstance: jest.fn(() => mockAuthService)
+  getInstance: jest.fn((): any => mockAuthService)
 };
 (AuthService.getInstance as jest.Mock).mockReturnValue(mockAuthService);
 

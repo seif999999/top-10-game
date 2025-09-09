@@ -5,6 +5,7 @@ import GoogleSignInButton from '../../components/GoogleSignInButton';
 import { useAuth } from '../../contexts/AuthContext';
 import { COLORS, SPACING } from '../../utils/constants';
 import { LoginScreenProps } from '../../types/navigation';
+import { InputValidator } from '../../utils/inputValidator';
 
 type Props = LoginScreenProps;
 
@@ -19,25 +20,77 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
 
   const validate = () => {
     const next: { email?: string; password?: string } = {};
-    if (!email.trim()) next.email = 'Email is required';
-    else if (!/[^@\s]+@[^@\s]+\.[^@\s]+/.test(email.trim())) next.email = 'Enter a valid email';
-    if (!password.trim()) next.password = 'Password is required';
+    
+    // Validate email using InputValidator
+    if (!email.trim()) {
+      next.email = 'Email is required';
+    } else if (!InputValidator.validateEmail(email.trim())) {
+      next.email = 'Enter a valid email address';
+    }
+    
+    // Validate password using InputValidator
+    if (!password.trim()) {
+      next.password = 'Password is required';
+    } else {
+      const passwordValidation = InputValidator.validatePassword(password);
+      if (!passwordValidation.valid) {
+        next.password = passwordValidation.errors[0]; // Show first error
+      }
+    }
+    
     setErrors(next);
     return Object.keys(next).length === 0;
   };
 
   const handleSignIn = async () => {
+    console.log('🔍 DEBUG: handleSignIn called');
+    console.log('🔍 DEBUG: Form data:', { email, password: password ? '***' : '' });
+    
     // Clear previous Firebase errors
     setFirebaseError(null);
     
-    if (!validate()) return;
+    const isValid = validate();
+    console.log('🔍 DEBUG: Validation result:', isValid);
+    console.log('🔍 DEBUG: Errors:', errors);
+    
+    if (!isValid) {
+      console.log('❌ DEBUG: Validation failed, not proceeding');
+      return;
+    }
+    
+    console.log('✅ DEBUG: Validation passed, proceeding with signin');
+    
+    // Sanitize inputs
+    console.log('🔍 DEBUG: Starting input sanitization...');
+    let sanitizedEmail, sanitizedPassword;
+    
+    try {
+      sanitizedEmail = InputValidator.sanitizeText(email.trim(), 254);
+      console.log('🔍 DEBUG: Email sanitized');
+      sanitizedPassword = InputValidator.sanitizeText(password, 128);
+      console.log('🔍 DEBUG: Password sanitized');
+    } catch (error) {
+      console.error('❌ DEBUG: Sanitization error:', error);
+      // Fallback to basic sanitization
+      sanitizedEmail = email.trim();
+      sanitizedPassword = password;
+      console.log('🔍 DEBUG: Using fallback sanitization');
+    }
+    
+    console.log('🔍 DEBUG: Sanitized inputs:', { 
+      sanitizedEmail, 
+      sanitizedPassword: sanitizedPassword ? '***' : ''
+    });
+    
     setLocalLoading(true);
     try {
-      await signIn(email.trim(), password);
+      console.log('🔍 DEBUG: Calling signIn...');
+      await signIn(sanitizedEmail, sanitizedPassword);
+      console.log('✅ DEBUG: SignIn successful');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An error occurred';
       setFirebaseError(errorMessage);
-      console.error('Login error:', errorMessage);
+      console.error('❌ DEBUG: Login error:', errorMessage);
     } finally {
       setLocalLoading(false);
     }

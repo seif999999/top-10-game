@@ -47,6 +47,7 @@ export type Player = {
   joinedAt: number;
   isConnected: boolean;
   lastSeen: number;
+  selectedAvatar?: string;
 };
 
 // Revealed answer structure
@@ -84,7 +85,7 @@ export type RoomData = {
   // Turn-based system
   currentPlayerId?: string;     // ID of player whose turn it is
   turnStartTime?: number;       // server timestamp when turn started
-  turnTimeLimit: number;        // seconds per turn (default 20)
+  turnTimeLimit: number;        // seconds per turn (default 60)
   turnOrder: string[];          // array of player IDs in turn order
   currentTurnIndex: number;     // index in turnOrder array
   
@@ -96,11 +97,14 @@ export type RoomData = {
   
   // Legacy fields for backward compatibility
   answerOwners: { [answerText: string]: string }; // Who revealed each answer
+  
+  // Round-based answer submissions (one answer per player per round)
   playerSubmissions: {
     [playerId: string]: {
-      answers: string[];
-      submittedAt: number;
+      answer: string;
+      isCorrect: boolean;
       points: number;
+      timestamp: any; // Firestore timestamp
     }
   };
   

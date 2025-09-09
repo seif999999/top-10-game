@@ -229,7 +229,9 @@ export const getGamePerformance = async (userId: string): Promise<GamePerformanc
       averageTimePerQuestion: Math.round(averageTimePerQuestion),
       bestCategory,
       mostPlayedCategory,
-      recentPerformance
+      recentPerformance,
+      currentStreak: 0, // TODO: Implement streak calculation
+      bestStreak: 0 // TODO: Implement best streak calculation
     };
   } catch (error) {
     console.error('Error getting game performance:', error);
@@ -243,7 +245,9 @@ export const getGamePerformance = async (userId: string): Promise<GamePerformanc
       averageTimePerQuestion: 0,
       bestCategory: '',
       mostPlayedCategory: '',
-      recentPerformance: 'stable'
+      recentPerformance: 'stable',
+      currentStreak: 0,
+      bestStreak: 0
     };
   }
 };

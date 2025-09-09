@@ -24,9 +24,12 @@ import { normalizeQuestion, safeToLower, assertQuestionShape } from './questions
 import { pointsForRank } from './scoring';
 import { awardAnswer, startRound, endRound, updatePlayerPresence, hostStartGame, advanceTurn, submitTurnAnswer as submitTurnAnswerTransaction, forceAdvanceExpiredTurn } from './multiplayerTransaction';
 import { startGame as startGameFlow, submitAnswer as submitAnswerFlow, endGame as endGameFlow, advanceTurnOnTimeout } from './multiplayerGameFlow';
-import { hostStartGame as hostStartGameV2, submitAnswer as submitAnswerV2, advanceTurnOnTimeout as advanceTurnOnTimeoutV2, hostEndGame as hostEndGameV2, getServerOffset, calculateTimeRemaining, isAllowedToSubmit, resetRoomStatus, skipTurn as skipTurnV2, handleHostDisconnection, terminateGame } from './multiplayerGameFlowV2';
+import { hostStartGame as hostStartGameV2, submitAnswer as submitAnswerOriginal, submitAnswerRoundBased, advanceTurnOnTimeout as advanceTurnOnTimeoutV2, hostEndGame as hostEndGameV2, getServerOffset, calculateTimeRemaining, isAllowedToSubmit, resetRoomStatus, skipTurn as skipTurnV2, handleHostDisconnection, terminateGame } from './multiplayerGameFlowV2';
 import { getServerTimeOffset, formatTimeRemaining } from './timeSync';
 import { findBestMatch, normalizeAnswerEnhanced } from './fuzzyMatching';
+import { ServerGameService } from './serverGameService';
+import { RateLimitService } from './rateLimitService';
+import { AnswerValidationService } from './answerValidationService';
 
 // Re-export types from unified game types
 export type { Player, Question, RoomData, AnswerResult, GameResult } from '../types/game';
@@ -85,6 +88,29 @@ class MultiplayerService {
       // Ensure authentication with edge case handling
       const userId = await this.ensureAuthenticated();
       console.log('🔍 DEBUG: User ID after auth:', userId);
+      
+      // Check rate limiting for room creation
+      const rateLimitResult = await RateLimitService.checkRateLimit(
+        userId,
+        'roomCreation',
+        { ipAddress: 'unknown', userAgent: 'mobile' }
+      );
+      
+      if (!rateLimitResult.allowed) {
+        throw new Error(rateLimitResult.error || 'Too many room creation attempts. Please wait before creating another room.');
+      }
+      
+      // Server-side validation for room creation
+      const roomName = hostName || `Room by ${userId}`;
+      const validationResult = await ServerGameService.validateRoomCreation(
+        userId,
+        roomName,
+        10 // max players
+      );
+      
+      if (!validationResult.valid) {
+        throw new Error(validationResult.error || 'Room creation validation failed');
+      }
       
       // Check for rate limiting (disabled for development)
       // if (await this.checkRateLimit(userId, 'room_creation')) {
@@ -157,7 +183,7 @@ class MultiplayerService {
         scores: { [userId]: 0 },
         answersSubmittedCount: 0,
         // Turn system fields
-        turnTimeLimit: 20,
+        turnTimeLimit: 60,
         turnOrder: [userId],
         currentTurnIndex: 0,
         // Legacy fields
@@ -276,6 +302,28 @@ class MultiplayerService {
       console.log(`🔍 DEBUG: Attempting to join room ${roomCode} with player ${playerId}`);
       
       await this.ensureAuthenticated();
+      
+      // Check rate limiting for room joining
+      const rateLimitResult = await RateLimitService.checkRateLimit(
+        playerId,
+        'roomJoining',
+        { roomCode, ipAddress: 'unknown', userAgent: 'mobile' }
+      );
+      
+      if (!rateLimitResult.allowed) {
+        throw new Error(rateLimitResult.error || 'Too many room joining attempts. Please wait before trying again.');
+      }
+      
+      // Server-side validation for player joining
+      const validationResult = await ServerGameService.validatePlayerJoin(
+        roomCode,
+        playerId,
+        playerName
+      );
+      
+      if (!validationResult.valid) {
+        throw new Error(validationResult.error || 'Player join validation failed');
+      }
       
       // Check for malicious activity
       if (await this.handleMaliciousActivity(roomCode, playerId, 'join_room')) {
@@ -510,7 +558,7 @@ class MultiplayerService {
   /**
    * Starts the game (host only) - atomic transition from lobby to playing
    */
-  async startGame(roomCode: string, hostId: string, timeLimit: number = 20): Promise<void> {
+  async startGame(roomCode: string, hostId: string, timeLimit: number = 60): Promise<void> {
     try {
       console.log('🎮 ROOM_START: Starting game in room:', roomCode, 'for host:', hostId);
       
@@ -829,7 +877,7 @@ class MultiplayerService {
   /**
    * V2 Game Flow Methods - Following exact specification
    */
-  async startGameV2(roomCode: string, hostId: string, turnTimeLimitSec: number = 20): Promise<void> {
+  async startGameV2(roomCode: string, hostId: string, turnTimeLimitSec: number = 60): Promise<void> {
     try {
       console.log(`🎮 START_GAME_V2: Starting game in room ${roomCode}`);
       
@@ -863,7 +911,7 @@ class MultiplayerService {
     }
   }
 
-  async submitAnswerV2(roomCode: string, playerId: string, answerText: string): Promise<{ success: boolean; points?: number; error?: string }> {
+  async submitAnswerV2(roomCode: string, playerId: string, answerText: string): Promise<{ success: boolean; points?: number; error?: string; roundEnded?: boolean }> {
     try {
       // 🔧 SERVICE - INPUT DEBUG LOGGING
       console.log('🔧 SERVICE - INPUT:', { 
@@ -875,10 +923,41 @@ class MultiplayerService {
       
       console.log(`📝 SUBMIT_ANSWER_V2: Submitting answer in room ${roomCode} for player ${playerId}`);
       
-      // 🔧 SERVICE - CALLING GAME FLOW DEBUG LOGGING
-      console.log('🔧 SERVICE - CALLING GAME FLOW...');
+      // 1. Check rate limiting for answer submissions
+      const rateLimitResult = await RateLimitService.checkRateLimit(
+        playerId,
+        'answerSubmission',
+        { roomCode }
+      );
       
-      const result = await submitAnswerV2(roomCode, playerId, answerText);
+      if (!rateLimitResult.allowed) {
+        console.error(`❌ SUBMIT_ANSWER_V2: Rate limit exceeded:`, rateLimitResult.error);
+        return { 
+          success: false, 
+          error: rateLimitResult.error || 'Too many answer submissions. Please wait before trying again.' 
+        };
+      }
+      
+      // 2. Client-side validation with AnswerValidationService
+      const formatValidation = AnswerValidationService.validateFormat(answerText);
+      if (!formatValidation.isValid) {
+        console.error(`❌ SUBMIT_ANSWER_V2: Format validation failed:`, formatValidation.error);
+        return { 
+          success: false, 
+          error: formatValidation.error || 'Answer format is invalid' 
+        };
+      }
+      
+      // 3. Proceed directly with the turn-based game flow (which has its own validation)
+      console.log('🔧 CLIENT_SUBMIT_DEBUG:', {
+        roomCode,
+        playerId,
+        answerText,
+        timestamp: new Date().toISOString()
+      });
+      
+      console.log('🔧 SERVICE - CALLING TURN-BASED GAME FLOW...');
+      const result = await submitAnswerOriginal(roomCode, playerId, answerText);
       
       // 🔧 SERVICE - GAME FLOW RESULT DEBUG LOGGING
       console.log('🔧 SERVICE - GAME FLOW RESULT:', {
@@ -893,8 +972,8 @@ class MultiplayerService {
         return { success: false, error: result.error };
       }
       
-      console.log(`✅ SUBMIT_ANSWER_V2: Answer submitted successfully, points: ${result.points}`);
-      return { success: true, points: result.points };
+      console.log(`✅ SUBMIT_ANSWER_V2: Answer submitted successfully, points: ${result.points}, roundEnded: ${result.roundEnded || false}`);
+      return { success: true, points: result.points, roundEnded: result.roundEnded };
     } catch (error) {
       console.error('❌ SUBMIT_ANSWER_V2: Error submitting answer:', error);
       return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
@@ -904,6 +983,21 @@ class MultiplayerService {
   async skipTurnV2(roomCode: string, playerId: string): Promise<{ success: boolean; error?: string }> {
     try {
       console.log(`⏭️ SKIP_TURN_V2: Skipping turn in room ${roomCode} for player ${playerId}`);
+      
+      // Check rate limiting for skip turn
+      const rateLimitResult = await RateLimitService.checkRateLimit(
+        playerId,
+        'skipTurn',
+        { roomCode }
+      );
+      
+      if (!rateLimitResult.allowed) {
+        console.error(`❌ SKIP_TURN_V2: Rate limit exceeded:`, rateLimitResult.error);
+        return { 
+          success: false, 
+          error: rateLimitResult.error || 'Too many skip attempts. Please wait before trying again.' 
+        };
+      }
       
       const result = await skipTurnV2(roomCode, playerId);
       

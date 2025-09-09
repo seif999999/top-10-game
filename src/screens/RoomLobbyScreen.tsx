@@ -12,8 +12,12 @@ import {
   Animated,
   Dimensions,
 } from 'react-native';
+import AvatarIcon from '../components/AvatarIcon';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../types/navigation';
 import { useMultiplayer } from '../contexts/MultiplayerContext';
+import { useAuth } from '../contexts/AuthContext';
 import { COLORS, SPACING, TYPOGRAPHY, ACCESSIBILITY } from '../utils/constants';
 import { Player } from '../services/multiplayerService';
 
@@ -22,8 +26,9 @@ const { width } = Dimensions.get('window');
 interface RoomLobbyScreenProps {}
 
 const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute();
+  const { user } = useAuth();
   const { 
     currentRoom,
     isHost,
@@ -71,7 +76,7 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
   useEffect(() => {
     setNavigationCallback((params: any) => {
       console.log('🎮 RoomLobbyScreen: Auto-navigating to GameScreen with params:', params);
-      navigation.navigate('GameScreen' as never, params as never);
+      navigation.navigate('GameScreen', params);
     });
   }, [navigation]);
 
@@ -327,7 +332,7 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
                 <Text style={styles.gameInfoLabel}>Status</Text>
                 <Text style={[
                   styles.gameInfoValue,
-                  styles[`status${currentRoom.status.charAt(0).toUpperCase() + currentRoom.status.slice(1)}`]
+                  (styles as any)[`status${currentRoom.status.charAt(0).toUpperCase() + currentRoom.status.slice(1)}`]
                 ]}>
                   {currentRoom.status}
                 </Text>
@@ -344,11 +349,17 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
               {players.map((player, index) => (
                 <View key={player.id} style={styles.playerCard}>
                   <View style={styles.playerInfo}>
-                    <View style={styles.playerAvatar}>
-                      <Text style={styles.playerAvatarText}>
-                        {(player.name || 'P').charAt(0).toUpperCase()}
-                      </Text>
-                    </View>
+                    <AvatarIcon 
+                      user={{ 
+                        id: player.id, 
+                        displayName: player.name || 'Player', 
+                        email: `${player.id}@player.local`,
+                        selectedAvatar: player.selectedAvatar 
+                      }} 
+                      size={32} 
+                      showBorder={true}
+                      borderColor={COLORS.primary}
+                    />
                     <View style={styles.playerDetails}>
                       <Text style={styles.playerName}>
                         {player.name || 'Unknown Player'}
@@ -405,7 +416,7 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
                 </TouchableOpacity>
                 
                 <TouchableOpacity
-                  style={[styles.endGameButton, { backgroundColor: COLORS.orange }]}
+                  style={[styles.endGameButton, { backgroundColor: COLORS.warning }]}
                   onPress={handleResetRoom}
                   accessibilityLabel="Reset room status"
                 >
@@ -688,6 +699,16 @@ const styles = StyleSheet.create({
   },
   waitingSpinner: {
     marginTop: SPACING.md,
+  },
+  placeholder: {
+    width: 40,
+    height: 40,
+  },
+  statusWaiting: {
+    color: COLORS.warning,
+  },
+  statusStarting: {
+    color: COLORS.info,
   },
 });
 

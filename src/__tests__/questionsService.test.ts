@@ -59,7 +59,7 @@ describe('Questions Service', () => {
         ]
       };
 
-      const normalized = normalizeQuestion(question);
+      const normalized = normalizeQuestion(question as any);
       expect(normalized).toEqual(question);
     });
 

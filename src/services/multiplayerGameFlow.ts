@@ -70,7 +70,7 @@ export async function startGame(
         // Initialize turn system
         currentPlayerId: turnOrder[0],
         turnStartTime: serverTimestamp(),
-        turnTimeLimit: 20, // 20 seconds per turn
+        turnTimeLimit: 60, // 60 seconds per turn
         turnOrder: turnOrder,
         currentTurnIndex: 0,
         lastActivity: serverTimestamp()
@@ -300,7 +300,7 @@ export async function advanceTurnOnTimeout(
         ? roomData.turnStartTime
         : 0;
       
-      const turnExpired = turnStartTime > 0 && (now - turnStartTime) > (roomData.turnTimeLimit || 20) * 1000;
+      const turnExpired = turnStartTime > 0 && (now - turnStartTime) > (roomData.turnTimeLimit || 60) * 1000;
       
       if (!turnExpired) {
         throw new Error('Turn has not expired yet');

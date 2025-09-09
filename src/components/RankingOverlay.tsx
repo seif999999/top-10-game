@@ -84,7 +84,7 @@ const RankingOverlay: React.FC<RankingOverlayProps> = ({
         
         // Check aliases
         if (answer.aliases && Array.isArray(answer.aliases)) {
-          return answer.aliases.some(alias => 
+          return answer.aliases.some((alias: string) => 
             alias.toLowerCase().trim() === normalizedSubmitted
           );
         }
@@ -133,7 +133,7 @@ const RankingOverlay: React.FC<RankingOverlayProps> = ({
 
                                    <View style={styles.rankingsContainer}>
                     {question.answers
-                      .filter(answer => {
+                      .filter((answer: any) => {
                         // For game end, show all answers. For regular overlay, only show found answers
                         if (isGameEnd) {
                           return true;
@@ -150,7 +150,7 @@ const RankingOverlay: React.FC<RankingOverlayProps> = ({
                             
                             // Check aliases
                             if (answer.aliases && Array.isArray(answer.aliases)) {
-                              return answer.aliases.some(alias => 
+                              return answer.aliases.some((alias: string) => 
                                 alias.toLowerCase().trim() === normalizedSubmitted
                               );
                             }
@@ -159,7 +159,7 @@ const RankingOverlay: React.FC<RankingOverlayProps> = ({
                           }
                         );
                       })
-                      .sort((a, b) => a.rank - b.rank) // Sort by rank
+                      .sort((a: any, b: any) => a.rank - b.rank) // Sort by rank
                       .map((answer: any, index: number) => {
                         const { status, color } = getAnswerStatus(answer);
                         

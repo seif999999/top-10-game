@@ -1,0 +1,46 @@
+{
+  "name": "top10game",
+  "version": "0.1.0",
+  "private": true,
+  "main": "node_modules/expo/AppEntry.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "dependencies": {
+    "@expo/metro-runtime": "~5.0.4",
+    "@react-native-async-storage/async-storage": "^2.1.2",
+    "@react-native-google-signin/google-signin": "^8.2.2",
+    "@react-navigation/native": "^6.1.17",
+    "@react-navigation/native-stack": "^6.9.26",
+    "expo-auth-session": "^5.5.2",
+    "expo-constants": "^16.0.1",
+    "expo-crypto": "^14.1.5",
+    "expo-status-bar": "~2.2.3",
+    "expo-web-browser": "^14.2.0",
+    "fastest-levenshtein": "^1.0.16",
+    "firebase": "^8.6.8",
+    "isomorphic-dompurify": "^0.13.0",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "react-native": "^0.76.9",
+    "react-native-safe-area-context": "5.4.0",
+    "react-native-screens": "~4.11.1",
+    "react-native-web": "^0.20.0",
+    "@types/react-native": "~0.69.1"
+  },
+  "devDependencies": {
+    "@types/jest": "^28.1.6",
+    "@types/react": "~19.0.10",
+    "expo": "^46.0.21",
+    "jest": "^28.1.0",
+    "ts-jest": "^27.0.3",
+    "typescript": "~5.8.3"
+  }
+}

@@ -1,18 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Alert, ScrollView, TextInput } from 'react-native';
 import Button from '../components/Button';
+import UserAvatar from '../components/UserAvatar';
+import AvatarSelectionModal from '../components/AvatarSelectionModal';
 import { COLORS, SPACING } from '../utils/constants';
 import { ProfileScreenProps } from '../types/navigation';
 import { useAuth } from '../contexts/AuthContext';
+import { InputValidator } from '../utils/inputValidator';
+import { RateLimitService } from '../services/rateLimitService';
+import DataRetentionService from '../services/dataRetentionService';
 
 
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
-  const { user, signOut, updateUserProfile } = useAuth();
+  const { user, signOut, updateUserProfile, updateUserAvatar } = useAuth();
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [updatedDisplayName, setUpdatedDisplayName] = useState(user?.displayName || '');
   const [isEditing, setIsEditing] = useState(false);
   const [currentStreak, setCurrentStreak] = useState(0);
   const [bestStreak, setBestStreak] = useState(0);
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
 
   useEffect(() => {
     // For now, use mock data until localStorage is properly set up
@@ -28,24 +34,54 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     }
   }, [user?.displayName]);
 
+
   const handleSaveProfile = async () => {
-    // Validate input
-    if (!displayName || displayName.trim() === '') {
-      Alert.alert('Error', 'Display name cannot be empty');
+    // Check rate limiting for profile updates
+    if (user?.id) {
+      const rateLimitResult = await RateLimitService.checkRateLimit(
+        user.id,
+        'profileUpdate',
+        { ipAddress: 'unknown', userAgent: 'mobile' }
+      );
+      
+      if (!rateLimitResult.allowed) {
+        Alert.alert('Rate Limit Exceeded', rateLimitResult.error || 'Too many profile updates. Please wait before trying again.');
+        return;
+      }
+    }
+    
+    // Validate input using InputValidator
+    const validation = InputValidator.validateDisplayName(displayName);
+    
+    if (!validation.valid) {
+      Alert.alert('Validation Error', validation.errors.join('\n'));
       return;
     }
     
-    if (displayName.trim().length < 2) {
-      Alert.alert('Error', 'Display name must be at least 2 characters long');
-      return;
+    // Additional content moderation for display names
+    if (user?.id) {
+      const moderationResult = await InputValidator.moderateContent(
+        displayName.trim(),
+        'displayName',
+        user.id,
+        { ipAddress: 'unknown', userAgent: 'mobile' } // In production, get real metadata
+      );
+      
+      if (!moderationResult.approved) {
+        Alert.alert('Content Not Approved', moderationResult.errors.join('\n'));
+        return;
+      }
     }
+    
+    // Sanitize the input
+    const sanitizedDisplayName = InputValidator.sanitizeText(displayName.trim(), 30);
     
     try {
       // Call the updateUserProfile function from AuthContext
-      await updateUserProfile(displayName.trim());
+      await updateUserProfile(sanitizedDisplayName);
       
       // Update the local state to show the change
-      setUpdatedDisplayName(displayName.trim());
+      setUpdatedDisplayName(sanitizedDisplayName);
       Alert.alert('Success', 'Profile updated successfully!');
       setIsEditing(false);
     } catch (error) {
@@ -68,12 +104,112 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     }
   };
 
+  const handleExportData = async () => {
+    if (!user?.id) return;
+
+    Alert.alert(
+      'Export Data',
+      'This will export all your personal data. Continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Export', 
+          onPress: async () => {
+            try {
+              const exportData = await DataRetentionService.exportUserData(user.id);
+              Alert.alert(
+                'Data Exported',
+                'Your data has been exported successfully. Check the console for the data.',
+                [{ text: 'OK' }]
+              );
+              console.log('Exported data:', exportData);
+            } catch (error) {
+              Alert.alert(
+                'Export Failed',
+                'Failed to export your data. Please try again.',
+                [{ text: 'OK' }]
+              );
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      'This will permanently delete your account and all associated data. This action cannot be undone.\n\nAre you absolutely sure?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete Account', 
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'Final Confirmation',
+              'Type "DELETE" to confirm account deletion',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Confirm Delete',
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      if (!user?.id) return;
+                      
+                      const deletionRequest = await DataRetentionService.deleteUserData(
+                        user.id,
+                        'User requested account deletion'
+                      );
+                      
+                      if (deletionRequest.status === 'completed') {
+                        Alert.alert(
+                          'Account Deleted',
+                          'Your account and all data have been permanently deleted.',
+                          [{ text: 'OK', onPress: signOut }]
+                        );
+                      } else {
+                        Alert.alert(
+                          'Deletion Failed',
+                          deletionRequest.error || 'Failed to delete account. Please try again.',
+                          [{ text: 'OK' }]
+                        );
+                      }
+                    } catch (error) {
+                      Alert.alert(
+                        'Deletion Failed',
+                        'An error occurred while deleting your account. Please try again.',
+                        [{ text: 'OK' }]
+                      );
+                    }
+                  }
+                }
+              ]
+            );
+          }
+        }
+      ]
+    );
+  };
+
   const handleAchievements = () => {
     Alert.alert('Coming Soon', 'Achievements system will be available soon!');
   };
 
   const handleLeaderboard = () => {
     Alert.alert('Coming Soon', 'Global leaderboard will be available soon!');
+  };
+
+  const handleAvatarSelect = async (selectedAvatar: string | undefined) => {
+    try {
+      await updateUserAvatar(selectedAvatar);
+      setShowAvatarModal(false);
+      Alert.alert('Success', 'Avatar updated successfully!');
+    } catch (error) {
+      console.error('Avatar update error:', error);
+      Alert.alert('Error', 'Failed to update avatar. Please try again.');
+    }
   };
 
   return (
@@ -92,11 +228,17 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.profileSection}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {(updatedDisplayName || user?.displayName || user?.email || 'U').charAt(0).toUpperCase()}
-            </Text>
-          </View>
+          <TouchableOpacity onPress={() => setShowAvatarModal(true)} style={styles.avatarContainer}>
+            <UserAvatar 
+              user={user} 
+              size={120} 
+              showBorder={true}
+              borderColor={COLORS.primary}
+            />
+            <View style={styles.avatarChangeButton}>
+              <Text style={styles.avatarChangeText}>Change</Text>
+            </View>
+          </TouchableOpacity>
           
           <Text style={styles.userName}>{updatedDisplayName || user?.displayName || 'User'}</Text>
           <Text style={styles.userEmail}>{user?.email}</Text>
@@ -188,14 +330,33 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             style={styles.leaderboardButton}
           />
           
-          <Button 
-            title="Sign Out" 
+          <Button
+            title="Export My Data"
+            onPress={handleExportData}
+            style={styles.exportButton}
+          />
+          
+          <Button
+            title="Delete Account"
+            onPress={handleDeleteAccount}
+            style={styles.deleteButton}
+          />
+          
+          <Button
+            title="Sign Out"
             onPress={handleSignOut}
             style={styles.signOutButton}
           />
           
         </View>
       </ScrollView>
+
+      <AvatarSelectionModal
+        visible={showAvatarModal}
+        onClose={() => setShowAvatarModal(false)}
+        onAvatarSelect={(avatar) => handleAvatarSelect(avatar.id === 'no-avatar' ? undefined : avatar.id)}
+        currentAvatarId={user?.selectedAvatar}
+      />
     </SafeAreaView>
   );
 };
@@ -267,19 +428,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: SPACING.xl
   },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: COLORS.primary,
+  avatarContainer: {
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: SPACING.md
+    marginBottom: SPACING.md,
+    position: 'relative',
+    width: 120,
+    height: 120,
   },
-  avatarText: {
-    color: COLORS.text,
-    fontSize: 32,
-    fontWeight: '700'
+  avatarChangeButton: {
+    position: 'absolute',
+    bottom: -8,
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: COLORS.background
+  },
+  avatarChangeText: {
+    color: COLORS.white,
+    fontSize: 12,
+    fontWeight: '600'
   },
   userName: {
     color: COLORS.text,
@@ -288,9 +457,10 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xs
   },
   userEmail: {
-    color: COLORS.muted,
+    color: COLORS.text,
     fontSize: 16,
-    marginBottom: SPACING.sm
+    marginBottom: SPACING.sm,
+    fontWeight: '500'
   },
   memberSince: {
     color: COLORS.muted,
@@ -370,8 +540,17 @@ const styles = StyleSheet.create({
   leaderboardButton: {
     backgroundColor: COLORS.card
   },
+  exportButton: {
+    backgroundColor: COLORS.primary,
+    marginTop: SPACING.lg,
+  },
+  deleteButton: {
+    backgroundColor: '#dc2626',
+    marginTop: SPACING.md,
+  },
   signOutButton: {
-    backgroundColor: '#dc2626'
+    backgroundColor: COLORS.muted,
+    marginTop: SPACING.md,
   }
 });
 

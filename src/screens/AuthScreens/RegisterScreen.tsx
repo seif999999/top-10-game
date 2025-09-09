@@ -2,9 +2,12 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput } from 'react-native';
 import Button from '../../components/Button';
 import GoogleSignInButton from '../../components/GoogleSignInButton';
+import PrivacyPolicyModal from '../../components/PrivacyPolicyModal';
 import { useAuth } from '../../contexts/AuthContext';
 import { COLORS, SPACING } from '../../utils/constants';
 import { RegisterScreenProps } from '../../types/navigation';
+import { InputValidator } from '../../utils/inputValidator';
+import PrivacyPolicyService from '../../services/privacyPolicyService';
 
 type Props = RegisterScreenProps;
 
@@ -17,32 +20,152 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
   const [localLoading, setLocalLoading] = useState(false);
   const [errors, setErrors] = useState<{ displayName?: string; email?: string; password?: string; confirmPassword?: string }>({});
   const [showPassword, setShowPassword] = useState(false);
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
+  const [privacyPolicyAccepted, setPrivacyPolicyAccepted] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [pendingGoogleSignIn, setPendingGoogleSignIn] = useState(false);
 
   const validate = () => {
     const next: { displayName?: string; email?: string; password?: string; confirmPassword?: string } = {};
-    if (!displayName.trim()) next.displayName = 'Display name is required';
-    if (!email.trim()) next.email = 'Email is required';
-    else if (!/[^@\s]+@[^@\s]+\.[^@\s]+/.test(email.trim())) next.email = 'Enter a valid email';
-    if (!password) next.password = 'Password is required';
-    else if (password.length < 6) next.password = 'Minimum 6 characters';
-    if (!confirmPassword) next.confirmPassword = 'Confirm your password';
-    else if (password !== confirmPassword) next.confirmPassword = 'Passwords do not match';
+    
+    // Validate display name using InputValidator
+    if (!displayName.trim()) {
+      next.displayName = 'Display name is required';
+    } else {
+      const nameValidation = InputValidator.validateDisplayName(displayName.trim());
+      if (!nameValidation.valid) {
+        next.displayName = nameValidation.errors[0]; // Show first error
+      }
+    }
+    
+    // Validate email using InputValidator
+    if (!email.trim()) {
+      next.email = 'Email is required';
+    } else if (!InputValidator.validateEmail(email.trim())) {
+      next.email = 'Enter a valid email address';
+    }
+    
+    // Validate password using InputValidator
+    if (!password) {
+      next.password = 'Password is required';
+    } else {
+      const passwordValidation = InputValidator.validatePassword(password);
+      if (!passwordValidation.valid) {
+        next.password = passwordValidation.errors[0]; // Show first error
+      }
+    }
+    
+    if (!confirmPassword) {
+      next.confirmPassword = 'Confirm your password';
+    } else if (password !== confirmPassword) {
+      next.confirmPassword = 'Passwords do not match';
+    }
+    
+    if (!privacyPolicyAccepted) {
+      Alert.alert('Privacy Policy Required', 'You must accept the privacy policy to create an account.');
+      return false;
+    }
+    
     setErrors(next);
     return Object.keys(next).length === 0;
   };
 
-  const handleSignUp = async () => {
-    if (!validate()) return;
-    setLocalLoading(true);
+  const handlePrivacyPolicyAccept = async () => {
     try {
-      await signUp(email.trim(), password, displayName.trim());
+      setPrivacyPolicyAccepted(true);
+      setShowPrivacyPolicy(false);
+      
+      // Record privacy policy acceptance for the user being created
+      await PrivacyPolicyService.recordAnonymousAcceptance({
+        ipAddress: 'unknown',
+        userAgent: 'mobile',
+        deviceInfo: {
+          platform: 'mobile',
+          version: '1.0.0',
+        },
+      });
+      
+      console.log('Privacy policy accepted');
     } catch (error) {
-      Alert.alert('Registration Failed', error instanceof Error ? error.message : 'An error occurred');
-    } finally {
-      setLocalLoading(false);
+      console.error('Error recording privacy policy acceptance:', error);
+      // Still allow the user to proceed
     }
   };
+
+  const handlePrivacyPolicyDecline = () => {
+    Alert.alert(
+      'Privacy Policy Required',
+      'You must accept the privacy policy to create an account.',
+      [{ text: 'OK' }]
+    );
+  };
+
+  const handleSignUp = async () => {
+    console.log('🔍 DEBUG: handleSignUp called');
+    console.log('🔍 DEBUG: Form data:', { displayName, email, password: password ? '***' : '', confirmPassword: confirmPassword ? '***' : '' });
+    
+    // Check if privacy policy is accepted first
+    if (!privacyPolicyAccepted) {
+      setShowPrivacyPolicy(true);
+      return;
+    }
+    
+    const isValid = validate();
+    console.log('🔍 DEBUG: Validation result:', isValid);
+    console.log('🔍 DEBUG: Errors:', errors);
+    
+    if (!isValid) {
+      console.log('❌ DEBUG: Validation failed, not proceeding');
+      return;
+    }
+    
+    console.log('✅ DEBUG: Validation passed, proceeding with signup');
+    
+    // Sanitize inputs
+    console.log('🔍 DEBUG: Starting input sanitization...');
+    let sanitizedEmail, sanitizedPassword, sanitizedDisplayName;
+    
+    try {
+      sanitizedEmail = InputValidator.sanitizeText(email.trim(), 254);
+      console.log('🔍 DEBUG: Email sanitized');
+      sanitizedPassword = InputValidator.sanitizeText(password, 128);
+      console.log('🔍 DEBUG: Password sanitized');
+      sanitizedDisplayName = InputValidator.sanitizeText(displayName.trim(), 30);
+      console.log('🔍 DEBUG: Display name sanitized');
+    } catch (error) {
+      console.error('❌ DEBUG: Sanitization error:', error);
+      // Fallback to basic sanitization
+      sanitizedEmail = email.trim();
+      sanitizedPassword = password;
+      sanitizedDisplayName = displayName.trim();
+      console.log('🔍 DEBUG: Using fallback sanitization');
+    }
+    
+    console.log('🔍 DEBUG: Sanitized inputs:', { 
+      sanitizedEmail, 
+      sanitizedPassword: sanitizedPassword ? '***' : '', 
+      sanitizedDisplayName 
+    });
+    
+    console.log('🔍 DEBUG: Setting local loading to true...');
+    setLocalLoading(true);
+    console.log('🔍 DEBUG: Local loading set to true');
+    
+    try {
+      console.log('🔍 DEBUG: About to call signUp function...');
+      console.log('🔍 DEBUG: signUp function exists:', typeof signUp);
+      await signUp(sanitizedEmail, sanitizedPassword, sanitizedDisplayName);
+      console.log('✅ DEBUG: SignUp successful');
+    } catch (error) {
+      console.error('❌ DEBUG: SignUp error:', error);
+      Alert.alert('Registration Failed', error instanceof Error ? error.message : 'An error occurred');
+    } finally {
+      console.log('🔍 DEBUG: Setting local loading to false...');
+      setLocalLoading(false);
+      console.log('🔍 DEBUG: Local loading set to false');
+    }
+  };
+
 
   const isLoading = loading || localLoading;
 
@@ -114,6 +237,26 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
       </View>
       {errors.confirmPassword ? <Text style={styles.error}>{errors.confirmPassword}</Text> : null}
       
+      <View style={styles.privacyPolicyContainer}>
+        <TouchableOpacity 
+          style={styles.checkboxContainer}
+          onPress={() => setPrivacyPolicyAccepted(!privacyPolicyAccepted)}
+        >
+          <View style={[styles.checkbox, privacyPolicyAccepted && styles.checkboxChecked]}>
+            {privacyPolicyAccepted && <Text style={styles.checkmark}>✓</Text>}
+          </View>
+          <Text style={styles.checkboxLabel}>
+            I accept the{' '}
+            <Text 
+              style={styles.privacyPolicyLink}
+              onPress={() => setShowPrivacyPolicy(true)}
+            >
+              Privacy Policy
+            </Text>
+          </Text>
+        </TouchableOpacity>
+      </View>
+      
       <Button 
         title={isLoading ? 'Creating account…' : 'Create Account'} 
         onPress={handleSignUp}
@@ -146,6 +289,13 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
           <Text style={[styles.linkText, isLoading && styles.disabledText]}>Sign in</Text>
         </TouchableOpacity>
       </View>
+
+      <PrivacyPolicyModal
+        visible={showPrivacyPolicy}
+        onAccept={handlePrivacyPolicyAccept}
+        onDecline={handlePrivacyPolicyDecline}
+        onClose={() => setShowPrivacyPolicy(false)}
+      />
     </View>
   );
 };
@@ -252,7 +402,43 @@ const styles = StyleSheet.create({
   },
   googleButton: {
     marginBottom: SPACING.sm
-  }
+  },
+  privacyPolicyContainer: {
+    marginVertical: SPACING.md,
+  },
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderWidth: 2,
+    borderColor: COLORS.muted,
+    borderRadius: 4,
+    marginRight: SPACING.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  checkmark: {
+    color: COLORS.text,
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  checkboxLabel: {
+    flex: 1,
+    fontSize: 14,
+    color: COLORS.text,
+  },
+  privacyPolicyLink: {
+    color: COLORS.primary,
+    textDecorationLine: 'underline',
+  },
 });
 
 export default RegisterScreen;

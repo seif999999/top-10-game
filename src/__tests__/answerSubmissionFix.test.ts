@@ -12,7 +12,7 @@ jest.mock('../services/fuzzyMatching', () => ({
     // Simple mock that finds exact matches
     const match = correctAnswers.find(answer => 
       answer.text.toLowerCase() === userAnswer.toLowerCase() ||
-      answer.aliases?.some(alias => alias.toLowerCase() === userAnswer.toLowerCase())
+      answer.aliases?.some((alias: string) => alias.toLowerCase() === userAnswer.toLowerCase())
     );
     
     if (match) {
@@ -38,9 +38,9 @@ jest.mock('../services/fuzzyMatching', () => ({
 
 describe('Answer Submission Fix Tests', () => {
   const mockAnswers = [
-    { text: 'Cristiano Ronaldo', rank: 1, aliases: ['CR7', 'Ronaldo'] },
-    { text: 'Lionel Messi', rank: 2, aliases: ['Messi'] },
-    { text: 'LeBron James', rank: 3, aliases: ['LeBron', 'King James'] }
+    { id: 'answer_1', text: 'Cristiano Ronaldo', rank: 1, aliases: ['CR7', 'Ronaldo'] },
+    { id: 'answer_2', text: 'Lionel Messi', rank: 2, aliases: ['Messi'] },
+    { id: 'answer_3', text: 'LeBron James', rank: 3, aliases: ['LeBron', 'King James'] }
   ];
 
   describe('Answer Matching', () => {

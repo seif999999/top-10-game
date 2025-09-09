@@ -74,7 +74,7 @@ export function calculateTimeRemaining(turnStartTime: any, turnTimeLimitSec: num
 /**
  * Check if user answer matches a correct answer using enhanced fuzzy matching
  */
-function findMatchingAnswer(userAnswer: string, correctAnswers: Answer[]): { answer: Answer; index: number } | null {
+export function findMatchingAnswer(userAnswer: string, correctAnswers: Answer[]): { answer: Answer; index: number } | null {
   if (!userAnswer || !correctAnswers || correctAnswers.length === 0) {
     return null;
   }
@@ -113,7 +113,7 @@ function calculatePoints(rank: number): number {
 export async function hostStartGame(
   roomCode: string,
   hostId: string,
-  turnTimeLimitSec: number = 20
+  turnTimeLimitSec: number = 60
 ): Promise<{ success: boolean; error?: string }> {
   console.log(`🎮 HOST_START_GAME: Room ${roomCode}, Host ${hostId}, TimeLimit ${turnTimeLimitSec}s`);
   
@@ -187,6 +187,17 @@ export async function hostStartGame(
         scores,
         lastActivity: serverTimestamp()
       };
+      
+      console.log('🎮 HOST_START_GAME: Updating room with:', {
+        roomCode,
+        hostId,
+        updates: {
+          ...updates,
+          currentAnswers: firstQuestion.answers?.map(a => ({ text: a.text, rank: a.rank })) || [],
+          turnOrder,
+          firstPlayer: turnOrder[0]
+        }
+      });
       
       transaction.update(roomRef, updates);
       
@@ -278,6 +289,15 @@ Room: ${roomCode}`);
         console.log(`⚠️ SCORES_INIT: Initializing scores object`);
         room.scores = {};
       }
+      
+      console.log('🔍 ANSWER_MATCHING_DEBUG:', {
+        userAnswer: answerText,
+        currentQuestion: currentQuestion.text || currentQuestion.title,
+        answersCount: currentQuestion.answers?.length || 0,
+        answers: currentQuestion.answers?.map(a => ({ text: a.text, rank: a.rank })) || [],
+        roomCode,
+        playerId
+      });
       
       const match = findMatchingAnswer(answerText, currentQuestion.answers);
       let points = 0;
@@ -387,6 +407,16 @@ Available answers count: ${currentQuestion?.answers?.length || 0}`);
       // Always advance turn (regardless of correct/wrong answer)
       const nextTurnIndex = (room.currentTurnIndex + 1) % room.turnOrder.length;
       const nextPlayerId = room.turnOrder[nextTurnIndex];
+      
+      console.log('🔄 TURN_ADVANCEMENT_DEBUG:', {
+        currentTurnIndex: room.currentTurnIndex,
+        nextTurnIndex,
+        currentPlayerId: room.currentPlayerId,
+        nextPlayerId,
+        turnOrder: room.turnOrder,
+        roomCode,
+        playerId
+      });
       
       let updates: any = {
         revealedAnswers: newRevealedAnswers,

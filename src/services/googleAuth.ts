@@ -46,7 +46,6 @@ export const signInWithGoogle = async (): Promise<{ idToken: string; accessToken
     // Start the OAuth flow
     const result = await request.promptAsync({
       authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
-      useProxy: Platform.select({ web: false, default: true }),
       // Web-specific configuration
       ...(Platform.OS === 'web' && {
         additionalParameters: {
@@ -61,14 +60,16 @@ export const signInWithGoogle = async (): Promise<{ idToken: string; accessToken
       console.log('✅ Authorization code received, exchanging for tokens...');
       
       // Exchange the authorization code for tokens
+      // ⚠️ SECURITY WARNING: Client secret should be handled server-side
+      // For now, we'll use a placeholder - this should be moved to a secure backend
       const tokenResult = await AuthSession.exchangeCodeAsync(
         {
           clientId: getGoogleClientId(),
-          clientSecret: GOOGLE_CONFIG.CLIENT_SECRET,
+          // clientSecret: GOOGLE_CONFIG.CLIENT_SECRET, // Removed for security
           code: result.params.code,
           redirectUri: request.redirectUri,
           extraParams: {
-            code_verifier: request.codeChallenge
+            code_verifier: request.codeChallenge || ''
           }
         },
         {

@@ -16,6 +16,19 @@ module.exports = async function (env, argv) {
     "stream": false,
     "util": false,
   };
+
+  // Add support for Firebase ESM modules
+  config.resolve.extensionAlias = {
+    '.js': ['.js', '.ts', '.tsx'],
+    '.mjs': ['.mjs', '.js'],
+  };
+
+  // Add module rules for Firebase
+  config.module.rules.push({
+    test: /\.mjs$/,
+    include: /node_modules/,
+    type: 'javascript/auto',
+  });
   
   return config;
 };

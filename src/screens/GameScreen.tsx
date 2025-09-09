@@ -17,6 +17,8 @@ import multiplayerService from '../services/multiplayerService';
 import { QuestionAnswer } from '../types';
 import { FEATURES } from '../config/featureFlags';
 import HostAssignModal from '../components/HostAssignModal';
+import { InputValidator } from '../utils/inputValidator';
+import { RateLimitService } from '../services/rateLimitService';
 
 
 const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
@@ -111,6 +113,14 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   const submitButtonScale = useRef(new Animated.Value(1)).current;
   const answerInputGlow = useRef(new Animated.Value(0)).current;
   const [lastAnswerResult, setLastAnswerResult] = useState<'correct' | 'incorrect' | null>(null);
+  
+  // Timer animation values
+  const timerScale = useRef(new Animated.Value(1)).current;
+  const timerPulse = useRef(new Animated.Value(1)).current;
+  const timerFlash = useRef(new Animated.Value(0)).current;
+  
+  // Track points earned for current answer
+  const [pointsEarned, setPointsEarned] = useState<number | null>(null);
  
   
 
@@ -272,7 +282,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
       });
       
       // Handle game phase changes
-      if (multiplayerState.gamePhase === 'question' && multiplayerState.questionStartTime > 0) {
+      if (multiplayerState.gamePhase === 'question' && multiplayerState.turnStartTime) {
         console.log('🎮 Question phase started');
         // Game is active, show the question
       } else if (multiplayerState.gamePhase === 'answers') {
@@ -292,7 +302,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
         }
       }
     }
-  }, [isMultiplayerMode, multiplayerState?.gamePhase, multiplayerState?.status, multiplayerState?.questionStartTime, multiplayerState?.revealedAnswers?.length]);
+  }, [isMultiplayerMode, multiplayerState?.gamePhase, multiplayerState?.status, multiplayerState?.turnStartTime, multiplayerState?.revealedAnswers?.length]);
 
   // Timeout for multiplayer game loading - simplified dependencies
   useEffect(() => {
@@ -334,10 +344,10 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
       });
       
       const timer = setInterval(() => {
-        // Calculate time remaining using server offset
+        // Calculate time remaining using server offset for turn phase
         const timeRemaining = multiplayerService.calculateTimeRemainingV2(
           multiplayerState.turnStartTime,
-          multiplayerState.turnTimeLimit || 20,
+          multiplayerState.turnTimeLimit || 60, // Changed to 60 seconds
           serverOffset
         );
         
@@ -360,6 +370,58 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
       return () => clearInterval(timer);
     }
   }, [isMultiplayerMode, multiplayerState?.gamePhase, multiplayerState?.turnStartTime, multiplayerState?.turnTimeLimit, multiplayerState?.currentPlayerId, user?.id, serverOffset]);
+
+  // Timer animation effects
+  useEffect(() => {
+    if (isMultiplayerMode && multiplayerTimeRemaining <= 10) {
+      // Warning animation - gentle pulse
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(timerPulse, {
+            toValue: 1.05,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(timerPulse, {
+            toValue: 1,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+
+      if (multiplayerTimeRemaining <= 5) {
+        // Critical animation - flash effect
+        Animated.loop(
+          Animated.sequence([
+            Animated.timing(timerFlash, {
+              toValue: 1,
+              duration: 200,
+              useNativeDriver: true,
+            }),
+            Animated.timing(timerFlash, {
+              toValue: 0,
+              duration: 200,
+              useNativeDriver: true,
+            }),
+          ])
+        ).start();
+      }
+    } else {
+      // Reset animations when not in warning state
+      timerPulse.setValue(1);
+      timerFlash.setValue(0);
+    }
+  }, [isMultiplayerMode, multiplayerTimeRemaining, timerPulse, timerFlash]);
+
+  // Reset feedback state when question changes
+  useEffect(() => {
+    if (isMultiplayerMode && multiplayerState?.currentQuestionIndex !== undefined) {
+      setPointsEarned(null);
+      setLastAnswerResult(null);
+      console.log(`🔄 QUESTION_CHANGE: Reset feedback state for question ${multiplayerState.currentQuestionIndex}`);
+    }
+  }, [isMultiplayerMode, multiplayerState?.currentQuestionIndex]);
 
   // Check if question is complete and show success message - simplified dependencies
   useEffect(() => {
@@ -725,7 +787,11 @@ const handleEndGame = () => {
       currentPlayerId: multiplayerState?.currentPlayerId,
       isMyTurn: multiplayerState?.currentPlayerId === user?.id,
       gamePhase: multiplayerState?.gamePhase,
-      status: multiplayerState?.status
+      status: multiplayerState?.status,
+      turnOrder: multiplayerState?.turnOrder,
+      currentTurnIndex: multiplayerState?.currentTurnIndex,
+      players: Object.keys(multiplayerState?.players || {}),
+      timestamp: new Date().toISOString()
     });
     
     console.log('🎮 handleSubmitAnswer called:', {
@@ -743,22 +809,51 @@ const handleEndGame = () => {
       userId: user?.id
     });
     
-    // Enhanced validation
+    // Check rate limiting for answer submissions
+    if (user?.id) {
+      const rateLimitResult = await RateLimitService.checkRateLimit(
+        user.id,
+        'answerSubmission',
+        { roomCode: multiplayerState?.roomCode }
+      );
+      
+      if (!rateLimitResult.allowed) {
+        console.log('❌ Rate limit exceeded:', rateLimitResult.error);
+        Alert.alert('Rate Limit Exceeded', rateLimitResult.error || 'Too many answer submissions. Please wait before trying again.');
+        return;
+      }
+    }
+    
+    // Enhanced validation using InputValidator
     if (!answerToSubmit || typeof answerToSubmit !== 'string') {
       console.log('❌ No valid answer to submit');
       return;
     }
 
-    const trimmedAnswer = answerToSubmit.trim();
-    if (trimmedAnswer.length === 0) {
-      console.log('❌ Empty answer');
+    const answerValidation = InputValidator.validateGameAnswer(answerToSubmit);
+    if (!answerValidation.valid) {
+      console.log('❌ Invalid answer:', answerValidation.errors);
+      Alert.alert('Invalid Answer', answerValidation.errors.join('\n'));
       return;
+    }
+    
+    // Additional content moderation for game answers
+    if (user?.id) {
+      const moderationResult = await InputValidator.moderateContent(
+        answerToSubmit,
+        'gameAnswer',
+        user.id,
+        { ipAddress: 'unknown', userAgent: 'mobile' } // In production, get real metadata
+      );
+      
+      if (!moderationResult.approved) {
+        console.log('❌ Answer not approved by moderation:', moderationResult.errors);
+        Alert.alert('Content Not Approved', moderationResult.errors.join('\n'));
+        return;
+      }
     }
 
-    if (trimmedAnswer.length > 100) {
-      console.log('❌ Answer too long');
-      return;
-    }
+    const sanitizedAnswer = answerValidation.sanitized;
 
     // Button press animation
     Animated.sequence([
@@ -781,23 +876,24 @@ const handleEndGame = () => {
           const validation = multiplayerService.isAllowedToSubmitV2(user?.id || '', multiplayerState);
           if (!validation.allowed) {
             console.log('❌ Cannot submit:', validation.reason || 'Wait for your turn to submit answers.');
+            Alert.alert('Not Your Turn', validation.reason || 'Wait for your turn to submit answers.');
             return;
           }
         }
         
-        console.log('📝 Submitting multiplayer answer:', trimmedAnswer);
+        console.log('📝 Submitting multiplayer answer:', sanitizedAnswer);
         
         // Use V2 answer submission system
         console.log('🔧 CALLING SERVICE - submitAnswerV2:', {
           roomCode: multiplayerState?.roomCode || '',
           playerId: user?.id || '',
-          answerText: trimmedAnswer
+          answerText: sanitizedAnswer
         });
         
         const result = await multiplayerService.submitAnswerV2(
           multiplayerState?.roomCode || '',
           user?.id || '',
-          trimmedAnswer
+          sanitizedAnswer
         );
         
         // 🎯 SUBMIT ANSWER - SERVICE RESULT DEBUG LOGGING
@@ -805,6 +901,7 @@ const handleEndGame = () => {
           success: result.success,
           points: result.points,
           error: result.error,
+          roundEnded: result.roundEnded,
           matchedAnswer: 'N/A' // Service doesn't return matchedAnswer
         });
         
@@ -815,10 +912,30 @@ const handleEndGame = () => {
           // Show feedback based on whether points were earned (correct answer)
           if (result.points && result.points > 0) {
             setLastAnswerResult('correct');
+            setPointsEarned(result.points);
             console.log(`✅ Correct answer! Earned ${result.points} points`);
+            // Show success message with points
+            Alert.alert(
+              'Correct Answer!',
+              `You earned ${result.points} points!`,
+              [{ text: 'Great!', style: 'default' }]
+            );
           } else {
             setLastAnswerResult('incorrect');
+            setPointsEarned(0);
             console.log(`❌ Wrong answer - no points earned`);
+            // Show error message
+            Alert.alert(
+              'Wrong Answer',
+              'That answer is not correct. Try again!',
+              [{ text: 'OK', style: 'default' }]
+            );
+          }
+          
+          // If round ended, show message
+          if (result.roundEnded) {
+            console.log(`🏁 Round ended! Moving to answers phase.`);
+            // The game phase will automatically change to 'answers' via the multiplayer context
           }
         } else {
           // Show error feedback
@@ -826,18 +943,18 @@ const handleEndGame = () => {
           console.log(`❌ Answer submission failed: ${result.error || 'Failed to submit answer'}`);
         }
       } else {
-        console.log('📝 Submitting single-player answer:', trimmedAnswer);
+        console.log('📝 Submitting single-player answer:', sanitizedAnswer);
         console.log('📝 Before submission - Score:', getPlayerScore('You'));
-        submitAnswer('You', trimmedAnswer);
+        submitAnswer('You', sanitizedAnswer);
         console.log('📝 After submission - Score:', getPlayerScore('You'));
         setAnswer('');
         
         // Determine answer result and show feedback
-        const isCorrect = checkAnswerCorrectness(trimmedAnswer);
+        const isCorrect = checkAnswerCorrectness(sanitizedAnswer);
         setLastAnswerResult(isCorrect ? 'correct' : 'incorrect');
       }
       
-      setSubmittedAnswers(prev => [...prev, trimmedAnswer]);
+      setSubmittedAnswers(prev => [...prev, sanitizedAnswer]);
       setIsAnswerSubmitted(true);
       
       // Animate answer input based on result - use setTimeout to ensure state is updated
@@ -912,7 +1029,7 @@ const handleEndGame = () => {
     categoryId,
     questionsCount: multiplayerState?.questions?.length,
     currentQuestionIndex: multiplayerState?.currentQuestionIndex,
-    questionStartTime: multiplayerState?.questionStartTime
+    turnStartTime: multiplayerState?.turnStartTime
   });
 
   if ((!isMultiplayerMode && (!gameState || !currentQuestion)) || 
@@ -1048,144 +1165,61 @@ const handleEndGame = () => {
               <Text style={styles.enhancedTurnText}>
                 {multiplayerState.currentPlayerId === user?.id ? 'Your Turn' : 'Waiting'}
               </Text>
-              {multiplayerState.turnStartTime && (
-                <Text style={styles.enhancedTimerText}>
-                  {(() => {
-                    const startTime = typeof multiplayerState.turnStartTime === 'object' && multiplayerState.turnStartTime && 'seconds' in multiplayerState.turnStartTime
-                      ? (multiplayerState.turnStartTime as any).seconds * 1000
-                      : typeof multiplayerState.turnStartTime === 'number'
-                      ? multiplayerState.turnStartTime
-                      : 0;
-                    
-                    if (startTime === 0) return 'Starting...';
-                    
-                    const elapsed = Date.now() - startTime;
-                    const remaining = Math.max(0, (multiplayerState.turnTimeLimit || 20) * 1000 - elapsed);
-                    const seconds = Math.ceil(remaining / 1000);
-                    
-                    if (remaining <= 0) return 'Time\'s up!';
-                    return `${seconds}s`;
-                  })()}
-                </Text>
-              )}
             </View>
           </View>
         )}
 
-        {/* Answer Input Section - Moved to top */}
-                {(() => {
-          const shouldShowAnswer = !questionIsComplete && 
-            ((isMultiplayerMode && multiplayerState?.gamePhase !== 'finished') ||
-             (!isMultiplayerMode && gameState?.gamePhase !== 'finished')) && 
-            !(!isMultiplayerMode && isTeamMode);
-          
-          console.log('🎮 Answer input visibility check:', {
-            questionIsComplete,
-            isMultiplayerMode,
-            gamePhase: multiplayerState?.gamePhase,
-            shouldShowAnswer,
-            revealedAnswersCount: multiplayerState?.revealedAnswers?.filter(ra => ra !== null).length || 0,
-            totalAnswers: currentQuestion?.answers?.length || 0
-          });
-          
-          return shouldShowAnswer;
-        })() && (
-          <View style={styles.modernAnswerSection}>
-            <Animated.View style={[
-               styles.answerInputContainer,
-               {
-                 shadowColor: lastAnswerResult === 'correct' ? COLORS.success : 
-                              lastAnswerResult === 'incorrect' ? COLORS.error : COLORS.muted,
-                 shadowOpacity: answerInputGlow.interpolate({
-                   inputRange: [-1, 0, 1],
-                   outputRange: [0.6, 0.1, 0.6]
-                 }),
-                 shadowRadius: answerInputGlow.interpolate({
-                   inputRange: [-1, 0, 1],
-                   outputRange: [20, 8, 20]
-                 }),
-                 borderColor: answerInputGlow.interpolate({
-                   inputRange: [-1, 0, 1],
-                   outputRange: [COLORS.error, COLORS.muted, COLORS.success]
-                 })
-               }
-             ]}>
-               <TextInput 
-                 placeholder="Enter your answer..." 
-                 placeholderTextColor={COLORS.muted}
-                 value={isMultiplayerMode ? (multiplayerCurrentAnswer || '') : currentAnswer} 
-                 onChangeText={isMultiplayerMode ? setMultiplayerAnswer : setAnswer}
-                 style={styles.answerInput}
-                 editable={true}
-               />
-             </Animated.View>
-             
-             {/* Modern Submit Button */}
-             <Animated.View style={[
-               styles.modernSubmitContainer,
-               { transform: [{ scale: submitButtonScale }] }
-             ]}>
-               <TouchableOpacity
-                 style={[
-                   styles.modernSubmitButton,
-                   (!(isMultiplayerMode ? (multiplayerCurrentAnswer || '') : currentAnswer).trim() ||
-                    (isMultiplayerMode && multiplayerState?.currentPlayerId !== user?.id)) && styles.modernSubmitButtonDisabled
-                 ]}
-                 onPress={handleSubmitAnswer}
-                 disabled={
-                   !(isMultiplayerMode ? (multiplayerCurrentAnswer || '') : currentAnswer).trim() ||
-                   (isMultiplayerMode && multiplayerState?.currentPlayerId !== user?.id)
-                 }
-               >
-                 <Text style={styles.modernSubmitButtonText}>
-                   {isMultiplayerMode && multiplayerState?.currentPlayerId !== user?.id ? "Wait for Turn" : "Submit Answer"}
-              </Text>
-               </TouchableOpacity>
-             </Animated.View>
-             
-             {/* Skip Turn Button - Modern Design */}
-             {isMultiplayerMode && multiplayerState?.currentPlayerId === user?.id && (
-               <TouchableOpacity
-                 style={styles.modernSkipButton}
-                 onPress={handleSkipTurn}
-               >
-                 <Text style={styles.modernSkipButtonText}>
-                   Skip Turn
-                 </Text>
-               </TouchableOpacity>
-             )}
-             
-             {/* Answer Feedback Indicator */}
-             {lastAnswerResult && (
-               <Animated.View 
-                 style={[
-                   styles.feedbackIndicator,
-                   {
-                     backgroundColor: lastAnswerResult === 'correct' ? COLORS.successGlow : COLORS.errorGlow,
-                     borderColor: lastAnswerResult === 'correct' ? COLORS.success : COLORS.error,
-                     opacity: answerInputGlow.interpolate({
-                       inputRange: [-1, 0, 1],
-                       outputRange: [1, 0, 1]
-                     })
-                   }
-                 ]}
-               >
-                 <Text style={[
-                   styles.feedbackText,
-                   { color: lastAnswerResult === 'correct' ? COLORS.success : COLORS.error }
-                 ]}>
-                   {lastAnswerResult === 'correct' ? 'Correct!' : 'Wrong Answer'}
-              </Text>
-               </Animated.View>
-             )}
-          </View>
-        )}
 
 
 
         {/* Modern Answer Grid */}
         {currentQuestion && currentQuestion.answers && (
           <View style={styles.answerGridContainer}>
+            {/* Timer above answers */}
+            <Animated.View 
+              style={[
+                styles.answerTimerContainer,
+                isMultiplayerMode && multiplayerTimeRemaining <= 10 && styles.answerTimerContainerWarning,
+                isMultiplayerMode && multiplayerTimeRemaining <= 5 && styles.answerTimerContainerCritical,
+                {
+                  transform: [
+                    { scale: timerPulse },
+                    { scale: timerScale }
+                  ],
+                  opacity: Animated.subtract(1, Animated.multiply(timerFlash, 0.3))
+                }
+              ]}
+              accessibilityRole="timer"
+              accessibilityLabel={`Time remaining: ${isMultiplayerMode ? multiplayerTimeRemaining : (isTeamMode && teamGameState?.timeRemaining) ? teamGameState.timeRemaining : 'unlimited'} seconds`}
+              accessibilityHint={isMultiplayerMode && multiplayerTimeRemaining <= 10 ? "Time is running low" : "Time remaining for this question"}
+            >
+              <Text 
+                style={[
+                  styles.answerTimerLabel,
+                  isMultiplayerMode && multiplayerTimeRemaining <= 10 && styles.answerTimerLabelWarning,
+                  isMultiplayerMode && multiplayerTimeRemaining <= 5 && styles.answerTimerLabelCritical
+                ]}
+                accessibilityRole="text"
+              >
+                Time Remaining
+              </Text>
+              <Text 
+                style={[
+                  styles.answerTimerText,
+                  isMultiplayerMode && multiplayerTimeRemaining <= 10 && styles.answerTimerTextWarning,
+                  isMultiplayerMode && multiplayerTimeRemaining <= 5 && styles.answerTimerTextCritical
+                ]}
+                accessibilityRole="text"
+                accessibilityLabel={`${isMultiplayerMode ? multiplayerTimeRemaining : (isTeamMode && teamGameState?.timeRemaining) ? teamGameState.timeRemaining : 'unlimited'} seconds`}
+              >
+                {isMultiplayerMode 
+                  ? multiplayerTimeRemaining 
+                  : (isTeamMode && teamGameState?.timeRemaining) 
+                    ? teamGameState.timeRemaining 
+                    : '∞'
+                }
+              </Text>
+            </Animated.View>
             <Text style={styles.answerGridTitle}>Answers</Text>
             <View style={styles.answerGrid}>
                              {currentQuestion.answers.map((answer: any, index: number) => {
@@ -1210,15 +1244,18 @@ const handleEndGame = () => {
                  if (isMultiplayerMode) {
                    // In multiplayer mode, check if answer is revealed
                    // Check if this answer position is revealed in the revealedAnswers array
-                   isRevealed = multiplayerState?.revealedAnswers?.[index] !== null && 
-                               multiplayerState?.revealedAnswers?.[index] !== undefined;
+                   const revealedAnswer = multiplayerState?.revealedAnswers?.[index];
+                   isRevealed = revealedAnswer !== null && 
+                               revealedAnswer !== undefined &&
+                               revealedAnswer.answerId !== undefined &&
+                               revealedAnswer.answerId !== null;
                    
                    // Debug logging for answer revelation
                    if (index === 0) { // Only log for first answer to avoid spam
                      console.log('🔍 Answer revelation debug:', {
                        answerText,
                        answerIndex: index,
-                       revealedAnswers: multiplayerState?.revealedAnswers?.map((ra, i) => ({ index: i, answerId: ra?.answerId, playerId: ra?.playerId, points: ra?.points })),
+                       revealedAnswers: multiplayerState?.revealedAnswers,
                        isRevealed,
                        currentRevealedAnswer: multiplayerState?.revealedAnswers?.[index]
                      });
@@ -1236,13 +1273,19 @@ const handleEndGame = () => {
                      });
                    }
                    
+                   // Set the revealed value to the actual answer text
+                   let revealedValue = answerText; // Default to original answer text
+                   if (isRevealed && revealedAnswer) {
+                     revealedValue = revealedAnswer.answerId || answerText;
+                   }
+                   
                    // 🎨 ANSWER DEBUG LOGGING - Update with actual values
                    if (index < 3) {
                      console.log(`🎨 ANSWER ${index + 1} - UPDATED:`, {
                        canonicalName: answerText,
                        answerIndex: index,
                        isRevealed: isRevealed,
-                       revealedValue: multiplayerState?.revealedAnswers?.[index],
+                       revealedValue: revealedValue,
                        shouldShow: isRevealed
                      });
                    }
@@ -1296,28 +1339,31 @@ const handleEndGame = () => {
                      }}
                      disabled={isMultiplayerMode || (isTeamMode && !!assignedTeam)}
                    >
-                     <View style={styles.answerCardHeader}>
-                       <View style={styles.answerRankBadge}>
-                         <Text style={styles.answerRankNumber}>
+                     <View style={styles.answerRankBadge}>
+                       <Text style={styles.answerRankNumber}>
                          {typeof answer === 'string' ? index + 1 : answer.rank}
                        </Text>
                      </View>
-                       <View style={styles.answerCardContent}>
-                         <Text style={styles.answerCardText}>
+                     <View style={[
+                       styles.answerCardContent,
+                       isRevealed && styles.revealedAnswerCardContent,
+                       assignedTeam && styles.assignedAnswerCardContent,
+                       !isMultiplayerMode && isTeamMode && !assignedTeam && styles.unassignedAnswerCardContent
+                     ]}>
+                       <Text style={styles.answerCardText}>
                          {isRevealed ? (
                            isMultiplayerMode 
                              ? (multiplayerState?.revealedAnswers?.[index]?.answerId || (typeof answer === 'string' ? answer : answer.text))
                              : (typeof answer === 'string' ? answer : answer.text)
-                           ) : '••••••'}
+                           ) : '🔒'}
                        </Text>
                        {isRevealed && assignedTeam && (
                            <View style={[styles.teamBadge, { backgroundColor: assignedTeam.color }]}>
                              <Text style={styles.teamBadgeText}>
-                           {assignedTeam.name} (+{assignedPoints})
-                         </Text>
+                               {assignedTeam.name} (+{assignedPoints})
+                             </Text>
                            </View>
                        )}
-                       </View>
                      </View>
                    </TouchableOpacity>
                  );
@@ -1476,6 +1522,140 @@ const handleEndGame = () => {
           />
         )}
 
+        {/* Answer Input Section - Moved to bottom */}
+        {(() => {
+          const shouldShowAnswer = !questionIsComplete && 
+            ((isMultiplayerMode && multiplayerState?.gamePhase !== 'finished' && multiplayerState?.currentPlayerId === user?.id) ||
+             (!isMultiplayerMode && gameState?.gamePhase !== 'finished')) && 
+            !(!isMultiplayerMode && isTeamMode);
+          
+          console.log('🎮 Answer input visibility check:', {
+            questionIsComplete,
+            isMultiplayerMode,
+            gamePhase: multiplayerState?.gamePhase,
+            currentPlayerId: multiplayerState?.currentPlayerId,
+            myUserId: user?.id,
+            isMyTurn: multiplayerState?.currentPlayerId === user?.id,
+            shouldShowAnswer,
+            revealedAnswersCount: multiplayerState?.revealedAnswers?.filter(ra => ra !== null).length || 0,
+            totalAnswers: currentQuestion?.answers?.length || 0
+          });
+          
+          return shouldShowAnswer;
+        })() && (
+          <View style={styles.modernAnswerSection}>
+            {/* Turn Indicator */}
+            {isMultiplayerMode && multiplayerState?.currentPlayerId && (
+              <View style={styles.turnIndicator}>
+                <Text style={styles.turnIndicatorText}>
+                  {multiplayerState.currentPlayerId === user?.id 
+                    ? "Your Turn!" 
+                    : `${multiplayerState.players[multiplayerState.currentPlayerId]?.name || 'Player'}'s Turn`}
+                </Text>
+                <Text style={styles.turnTimerText}>
+                  {multiplayerTimeRemaining}s remaining
+                </Text>
+              </View>
+            )}
+            <Animated.View style={[
+               styles.answerInputContainer,
+               {
+                 shadowColor: lastAnswerResult === 'correct' ? COLORS.success : 
+                              lastAnswerResult === 'incorrect' ? COLORS.error : COLORS.muted,
+                 shadowOpacity: answerInputGlow.interpolate({
+                   inputRange: [-1, 0, 1],
+                   outputRange: [0.6, 0.1, 0.6]
+                 }),
+                 shadowRadius: answerInputGlow.interpolate({
+                   inputRange: [-1, 0, 1],
+                   outputRange: [20, 8, 20]
+                 }),
+                 borderColor: answerInputGlow.interpolate({
+                   inputRange: [-1, 0, 1],
+                   outputRange: [COLORS.error, COLORS.muted, COLORS.success]
+                 })
+               }
+             ]}>
+               <TextInput 
+                 placeholder="Enter your answer..." 
+                 placeholderTextColor={COLORS.muted}
+                 value={isMultiplayerMode ? (multiplayerCurrentAnswer || '') : currentAnswer} 
+                 onChangeText={isMultiplayerMode ? setMultiplayerAnswer : setAnswer}
+                 style={styles.answerInput}
+                 editable={true}
+               />
+             </Animated.View>
+             
+             {/* Modern Submit Button */}
+             <Animated.View style={[
+               styles.modernSubmitContainer,
+               { transform: [{ scale: submitButtonScale }] }
+             ]}>
+               <TouchableOpacity
+                 style={[
+                   styles.modernSubmitButton,
+                   (!(isMultiplayerMode ? (multiplayerCurrentAnswer || '') : currentAnswer).trim() ||
+                    (isMultiplayerMode && multiplayerState?.currentPlayerId !== user?.id)) && styles.modernSubmitButtonDisabled
+                 ]}
+                 onPress={handleSubmitAnswer}
+                 disabled={
+                   !(isMultiplayerMode ? (multiplayerCurrentAnswer || '') : currentAnswer).trim() ||
+                   (isMultiplayerMode && multiplayerState?.currentPlayerId !== user?.id)
+                 }
+               >
+                 <Text style={styles.modernSubmitButtonText}>
+                   {isMultiplayerMode && multiplayerState?.currentPlayerId !== user?.id ? "Wait for Turn" : "Submit Answer"}
+              </Text>
+               </TouchableOpacity>
+             </Animated.View>
+             
+             {/* Skip Turn Button - Modern Design */}
+             {isMultiplayerMode && (
+               <TouchableOpacity
+                 style={[
+                   styles.modernSkipButton,
+                   multiplayerState?.currentPlayerId !== user?.id && styles.modernSkipButtonDisabled
+                 ]}
+                 onPress={handleSkipTurn}
+                 disabled={multiplayerState?.currentPlayerId !== user?.id}
+               >
+                 <Text style={[
+                   styles.modernSkipButtonText,
+                   multiplayerState?.currentPlayerId !== user?.id && styles.modernSkipButtonTextDisabled
+                 ]}>
+                   {multiplayerState?.currentPlayerId === user?.id ? 'Skip Turn' : 'Skip Turn (Not Your Turn)'}
+                 </Text>
+               </TouchableOpacity>
+             )}
+             
+             {/* Answer Feedback Indicator */}
+             {lastAnswerResult && (
+               <Animated.View 
+                 style={[
+                   styles.feedbackIndicator,
+                   {
+                     backgroundColor: lastAnswerResult === 'correct' ? COLORS.successGlow : COLORS.errorGlow,
+                     borderColor: lastAnswerResult === 'correct' ? COLORS.success : COLORS.error,
+                     opacity: answerInputGlow.interpolate({
+                       inputRange: [-1, 0, 1],
+                       outputRange: [1, 0, 1]
+                     })
+                   }
+                 ]}
+               >
+                 <Text style={[
+                   styles.feedbackText,
+                   { color: lastAnswerResult === 'correct' ? COLORS.success : COLORS.error }
+                 ]}>
+                   {lastAnswerResult === 'correct' 
+                     ? `Correct! +${pointsEarned || 0} points` 
+                     : 'Wrong Answer'}
+              </Text>
+               </Animated.View>
+             )}
+          </View>
+        )}
+
         {/* Toast Notification */}
         <ToastNotification
           visible={toastNotification.visible}
@@ -1491,13 +1671,13 @@ const handleEndGame = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC' // Light, clean background like popular trivia games
+    backgroundColor: '#1E1B4B' // Dark purple background for cohesive theme
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0F172A'
+    backgroundColor: '#1E1B4B' // Dark purple background for cohesive theme
   },
   loadingText: {
     color: '#E2E8F0',
@@ -1659,13 +1839,13 @@ const styles = StyleSheet.create({
     lineHeight: 24
   },
   answerSection: {
-    backgroundColor: '#0F172A',
+    backgroundColor: '#1E1B4B', // Dark purple background for cohesive theme
     borderRadius: 20,
     padding: SPACING.xl,
     marginBottom: SPACING.xl,
     gap: SPACING.md,
     borderWidth: 1,
-    borderColor: '#334155'
+    borderColor: '#8B5CF6' // Purple border for cohesive theme
   },
   answerLabel: {
     color: '#F1F5F9',
@@ -1694,11 +1874,11 @@ const styles = StyleSheet.create({
    },
   submitButton: {
     marginTop: SPACING.sm,
-    backgroundColor: '#8B5CF6',
+    backgroundColor: '#6D28D9', // Darker purple to match modern submit button
     borderRadius: 12,
     paddingVertical: SPACING.md,
     borderWidth: 1,
-    borderColor: '#7C3AED'
+    borderColor: '#5B21B6' // Darker purple border
   },
   skipTurnContainer: {
     marginTop: SPACING.sm,
@@ -1714,13 +1894,13 @@ const styles = StyleSheet.create({
     minWidth: 120
   },
   scoreSection: {
-    backgroundColor: '#0F172A',
+    backgroundColor: '#1E1B4B', // Dark purple background for cohesive theme
     borderRadius: 20,
     padding: SPACING.xl,
     marginBottom: SPACING.xl,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#334155'
+    borderColor: '#8B5CF6' // Purple border for cohesive theme
   },
   scoreTitle: {
     color: '#F1F5F9',
@@ -1734,13 +1914,13 @@ const styles = StyleSheet.create({
     borderRadius: 12
   },
   submittedAnswersSection: {
-    backgroundColor: '#0F172A',
+    backgroundColor: '#1E1B4B', // Dark purple background for cohesive theme
     borderRadius: 20,
     padding: SPACING.xl,
     marginBottom: SPACING.xl,
     gap: SPACING.sm,
     borderWidth: 1,
-    borderColor: '#334155'
+    borderColor: '#8B5CF6' // Purple border for cohesive theme
   },
   submittedAnswersTitle: {
     color: '#F1F5F9',
@@ -2185,8 +2365,8 @@ const styles = StyleSheet.create({
      marginHorizontal: 16,
      marginVertical: 8,
      borderWidth: 2,
-     borderColor: '#3B82F6',
-     shadowColor: '#3B82F6',
+     borderColor: '#8B5CF6',
+     shadowColor: '#8B5CF6',
      shadowOffset: { width: 0, height: 2 },
      shadowOpacity: 0.3,
      shadowRadius: 4,
@@ -2207,16 +2387,6 @@ const styles = StyleSheet.create({
      textShadowOffset: { width: 0, height: 1 },
      textShadowRadius: 2
    },
-   enhancedTimerText: {
-     color: '#60A5FA',
-     fontSize: 14,
-     fontWeight: '600',
-     backgroundColor: 'rgba(59, 130, 246, 0.2)',
-     paddingHorizontal: 8,
-     paddingVertical: 4,
-     borderRadius: 6,
-     textAlign: 'center'
-   },
    turnTimerContainer: {
      backgroundColor: '#334155',
      borderRadius: 8,
@@ -2232,7 +2402,7 @@ const styles = StyleSheet.create({
      textAlign: 'center'
    },
    submitButtonDisabled: {
-     backgroundColor: '#64748B',
+     backgroundColor: '#6D28D9', // Same purple color when disabled
      opacity: 0.6
    },
    hostControlsTitle: {
@@ -2417,6 +2587,104 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginVertical: 12,
   },
+  answerTimerContainer: {
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: 'rgba(139, 92, 246, 0.3)',
+    shadowColor: '#8B5CF6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  answerTimerLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#A78BFA',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  answerTimerText: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: '#8B5CF6',
+    textAlign: 'center',
+    textShadowColor: 'rgba(139, 92, 246, 0.5)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  // Warning state (≤10 seconds)
+  answerTimerContainerWarning: {
+    backgroundColor: 'rgba(251, 191, 36, 0.15)',
+    borderColor: 'rgba(251, 191, 36, 0.5)',
+    shadowColor: '#FBBF24',
+  },
+  answerTimerLabelWarning: {
+    color: '#FBBF24',
+  },
+  answerTimerTextWarning: {
+    color: '#FBBF24',
+    textShadowColor: 'rgba(251, 191, 36, 0.5)',
+  },
+  // Critical state (≤5 seconds)
+  answerTimerContainerCritical: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderColor: 'rgba(239, 68, 68, 0.5)',
+    shadowColor: '#EF4444',
+    borderWidth: 3,
+  },
+  answerTimerLabelCritical: {
+    color: '#EF4444',
+  },
+  answerTimerTextCritical: {
+    color: '#EF4444',
+    textShadowColor: 'rgba(239, 68, 68, 0.5)',
+    fontSize: 36,
+  },
+  // Turn Indicator Styles
+  turnIndicator: {
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 2,
+    borderColor: 'rgba(139, 92, 246, 0.3)',
+    alignItems: 'center',
+  },
+  turnIndicatorText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#8B5CF6',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  turnTimerText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#A78BFA',
+    textAlign: 'center',
+  },
+  // High contrast accessibility styles
+  answerTimerContainerHighContrast: {
+    backgroundColor: '#000000',
+    borderColor: '#FFFFFF',
+    borderWidth: 3,
+  },
+  answerTimerLabelHighContrast: {
+    color: '#FFFFFF',
+    fontWeight: '900',
+  },
+  answerTimerTextHighContrast: {
+    color: '#FFFFFF',
+    fontWeight: '900',
+    textShadowColor: 'transparent',
+  },
   answerGridTitle: {
     fontSize: 16,
     fontWeight: '600',
@@ -2431,7 +2699,7 @@ const styles = StyleSheet.create({
   },
   answerCard: {
     width: '48%',
-    backgroundColor: 'rgba(139, 92, 246, 0.1)', // Light purple background
+    backgroundColor: 'rgba(139, 92, 246, 0.2)', // More solid purple background
     borderRadius: 8,
     marginBottom: 8,
     shadowColor: '#8B5CF6', // Purple shadow
@@ -2440,24 +2708,32 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 2,
     borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.3)', // Purple border
-  },
-  revealedAnswerCard: {
-    borderColor: '#10B981',
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-  },
-  assignedAnswerCard: {
-    borderColor: '#6366F1',
-    backgroundColor: 'rgba(99, 102, 241, 0.1)',
-  },
-  unassignedAnswerCard: {
-    borderColor: '#F59E0B',
-    backgroundColor: 'rgba(245, 158, 11, 0.1)',
-  },
-  answerCardHeader: {
+    borderColor: 'rgba(139, 92, 246, 0.8)', // More vibrant purple border
+    padding: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 10,
+  },
+  revealedAnswerCard: {
+    borderColor: 'rgba(16, 185, 129, 0.8)', // Green border for revealed answers
+    backgroundColor: 'rgba(16, 185, 129, 0.2)', // More solid green background
+  },
+  assignedAnswerCard: {
+    borderColor: 'rgba(139, 92, 246, 0.9)', // Vibrant purple border for assigned
+    backgroundColor: 'rgba(99, 102, 241, 0.2)', // More solid purple background
+  },
+  unassignedAnswerCard: {
+    borderColor: 'rgba(167, 139, 250, 0.7)', // Lighter purple border for unassigned
+    backgroundColor: 'rgba(245, 158, 11, 0.2)', // More solid orange background
+  },
+  // Content area styles for different states
+  revealedAnswerCardContent: {
+    backgroundColor: 'rgba(16, 185, 129, 0.3)', // Solid green background for revealed content
+  },
+  assignedAnswerCardContent: {
+    backgroundColor: 'rgba(99, 102, 241, 0.3)', // Solid purple background for assigned content
+  },
+  unassignedAnswerCardContent: {
+    backgroundColor: 'rgba(245, 158, 11, 0.3)', // Solid orange background for unassigned content
   },
   answerRankBadge: {
     width: 32,
@@ -2477,12 +2753,20 @@ const styles = StyleSheet.create({
   },
   answerCardContent: {
     flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+    minHeight: 40,
+    marginLeft: 4, // Small margin from the rank badge
+    backgroundColor: 'rgba(139, 92, 246, 0.3)', // Solid purple background for the inner area
+    borderRadius: 6,
   },
   answerCardText: {
     fontSize: 13,
     fontWeight: '500',
     color: '#E2E8F0', // Light text for dark background
     lineHeight: 18,
+    textAlign: 'center',
   },
   teamBadge: {
     paddingHorizontal: 8,
@@ -2499,21 +2783,23 @@ const styles = StyleSheet.create({
 
   // Modern Answer Input Styles
   modernAnswerSection: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
     marginHorizontal: 16,
     marginVertical: 12,
     borderRadius: 12,
     padding: 16,
-    shadowColor: '#000',
+    shadowColor: '#8B5CF6',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.2,
     shadowRadius: 6,
     elevation: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.3)',
   },
   answerSectionTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#8B5CF6',
     marginBottom: 16,
     textAlign: 'center',
   },
@@ -2523,12 +2809,12 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   modernSubmitButton: {
-    backgroundColor: '#6366F1',
+    backgroundColor: '#6D28D9', // Darker purple
     borderRadius: 12,
     paddingVertical: 16,
     paddingHorizontal: 24,
     alignItems: 'center',
-    shadowColor: '#6366F1',
+    shadowColor: '#6D28D9', // Darker purple shadow
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -2546,13 +2832,13 @@ const styles = StyleSheet.create({
 
   // Modern Skip Button Styles
   modernSkipButton: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#6D28D9', // Darker purple to match submit button
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 20,
     alignItems: 'center',
     marginTop: 8,
-    shadowColor: '#F59E0B',
+    shadowColor: '#6D28D9', // Darker purple shadow
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
@@ -2562,6 +2848,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  modernSkipButtonDisabled: {
+    backgroundColor: '#6D28D9', // Same purple color when disabled
+    shadowOpacity: 0.1,
+    opacity: 0.6, // Make it slightly transparent to show disabled state
+  },
+  modernSkipButtonTextDisabled: {
+    color: '#FFFFFF', // White text when disabled (same as enabled)
   },
 });
 

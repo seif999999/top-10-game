@@ -4,17 +4,19 @@ import { Platform } from 'react-native';
 // You need to get these credentials from Google Cloud Console
 
 export const GOOGLE_CONFIG = {
-  // Web Client ID (for web platform)
+  // Web Client ID (for web platform) - Safe to expose
   WEB_CLIENT_ID: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com',
   
-  // iOS Client ID (for iOS platform)
+  // iOS Client ID (for iOS platform) - Safe to expose
   IOS_CLIENT_ID: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || 'YOUR_IOS_CLIENT_ID.apps.googleusercontent.com',
   
-  // Android Client ID (for Android platform)
+  // Android Client ID (for Android platform) - Safe to expose
   ANDROID_CLIENT_ID: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || 'YOUR_ANDROID_CLIENT_ID.apps.googleusercontent.com',
   
-  // Client Secret (for server-side token exchange)
-  CLIENT_SECRET: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_SECRET || 'YOUR_CLIENT_SECRET',
+  // ⚠️ SECURITY WARNING: Client Secret should NEVER be exposed to client-side code
+  // This should be moved to a secure backend service
+  // For now, we'll remove it from client-side configuration
+  // CLIENT_SECRET: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_SECRET || 'YOUR_CLIENT_SECRET',
   
   // Redirect URI scheme for your app
   REDIRECT_URI_SCHEME: 'top10game',
@@ -61,7 +63,7 @@ export const getGoogleConfigStatus = () => {
     web: GOOGLE_CONFIG.WEB_CLIENT_ID !== 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com',
     ios: GOOGLE_CONFIG.IOS_CLIENT_ID !== 'YOUR_IOS_CLIENT_ID.apps.googleusercontent.com',
     android: GOOGLE_CONFIG.ANDROID_CLIENT_ID !== 'YOUR_ANDROID_CLIENT_ID.apps.googleusercontent.com',
-    clientSecret: GOOGLE_CONFIG.CLIENT_SECRET !== 'YOUR_CLIENT_SECRET',
+    // clientSecret removed for security - should be handled server-side
     currentPlatform: Platform.OS,
     currentClientId: getGoogleClientId()
   };

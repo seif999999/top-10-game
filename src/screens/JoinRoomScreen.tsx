@@ -12,6 +12,8 @@ import {
   Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../types/navigation';
 import { useMultiplayer } from '../contexts/MultiplayerContext';
 import { COLORS, SPACING, TYPOGRAPHY, ACCESSIBILITY } from '../utils/constants';
 import { AuthService } from '../services/authService';
@@ -19,7 +21,7 @@ import { AuthService } from '../services/authService';
 interface JoinRoomScreenProps {}
 
 const JoinRoomScreen: React.FC<JoinRoomScreenProps> = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { 
     joinRoomCode, 
     setJoinRoomCode, 
@@ -67,7 +69,7 @@ const JoinRoomScreen: React.FC<JoinRoomScreenProps> = () => {
       
       const success = await joinRoom(roomCode);
       if (success) {
-        navigation.navigate('RoomLobby' as never, { roomCode } as never);
+        navigation.navigate('RoomLobby', { roomCode });
       }
     } catch (error) {
       // Error is handled by the context

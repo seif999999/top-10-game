@@ -7,6 +7,7 @@ import {
 } from './auth';
 import { User } from '../types';
 import { auth } from './firebase';
+import UserProfileService from './userProfileService';
 
 /**
  * Singleton AuthService class that provides authentication functionality
@@ -139,6 +140,55 @@ export class AuthService {
    */
   public isAuthenticated(): boolean {
     return !!this.currentUser;
+  }
+
+  /**
+   * Update user avatar selection
+   */
+  public async updateUserAvatar(selectedAvatar: string | undefined): Promise<void> {
+    try {
+      if (!this.currentUser) {
+        throw new Error('No user is currently signed in');
+      }
+
+      // Update Firestore profile
+      await UserProfileService.updateUserAvatar(this.currentUser.id, selectedAvatar);
+      
+      // Update local user state
+      this.currentUser.selectedAvatar = selectedAvatar;
+      if (!selectedAvatar) {
+        this.currentUser.avatarUrl = undefined;
+      }
+      
+      console.log(`Avatar updated for user ${this.currentUser.id}: ${selectedAvatar || 'none'}`);
+    } catch (error) {
+      console.error('Error updating user avatar:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get user profile with avatar data from Firestore
+   */
+  public async getUserProfileWithAvatar(): Promise<User | null> {
+    try {
+      if (!this.currentUser) {
+        return null;
+      }
+
+      // Get profile from Firestore (includes avatar data)
+      const profile = await UserProfileService.getUserProfile(this.currentUser.id);
+      
+      if (profile) {
+        // Update local user state with Firestore data
+        this.currentUser = profile;
+      }
+      
+      return this.currentUser;
+    } catch (error) {
+      console.error('Error getting user profile with avatar:', error);
+      return this.currentUser; // Return local state if Firestore fails
+    }
   }
 
   /**

@@ -11,9 +11,18 @@ export type User = {
   displayName?: string;
   createdAt?: Date;
   stats?: GameStats;
+  selectedAvatar?: string; // Avatar ID or undefined for no avatar
+  avatarUrl?: string; // Cached avatar URL
 };
 
 export type UserProfile = User;
+
+export type Avatar = {
+  id: string;
+  name: string;
+  url: string;
+  description: string;
+};
 
 export type Category = {
   id: string;
@@ -108,12 +117,15 @@ export interface GameResults {
 export type AuthContextType = {
   user: User | null;
   loading: boolean;
+  pendingAction: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signInWithGoogle: (idToken: string) => Promise<void>;
   signUp: (email: string, password: string, displayName?: string) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
   updateUserProfile: (displayName: string) => Promise<void>;
+  updateUserAvatar: (selectedAvatar: string | undefined) => Promise<void>;
+  getUserProfileWithAvatar: () => Promise<User | null>;
 };
 
 

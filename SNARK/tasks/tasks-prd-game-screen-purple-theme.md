@@ -30,14 +30,14 @@
   - [x] 3.1 Update team score card backgrounds to purple theme
   - [x] 3.2 Update team score text colors for contrast
   - [x] 3.3 Update game status indicators to purple theme
-- [ ] 4.0 Update Answer Input Section and Submit Buttons
-  - [ ] 4.1 Update answer input section background to purple theme
-  - [ ] 4.2 Update submit button styling to purple theme
-  - [ ] 4.3 Update skip button styling to purple theme
-- [ ] 5.0 Update Container and Background Elements
-  - [ ] 5.1 Update main container background to purple theme
-  - [ ] 5.2 Update any remaining white UI elements to purple theme
-- [ ] 6.0 Test and Validate Purple Theme Implementation
-  - [ ] 6.1 Run TypeScript checks to ensure no type errors
-  - [ ] 6.2 Verify all white elements have been replaced
-  - [ ] 6.3 Test visual consistency across different game states
+- [x] 4.0 Update Answer Input Section and Submit Buttons
+  - [x] 4.1 Update answer input section background to purple theme
+  - [x] 4.2 Update submit button styling to purple theme
+  - [x] 4.3 Update skip button styling to purple theme
+- [x] 5.0 Update Container and Background Elements
+  - [x] 5.1 Update main container background to purple theme
+  - [x] 5.2 Update any remaining white UI elements to purple theme
+- [x] 6.0 Test and Validate Purple Theme Implementation
+  - [x] 6.1 Run TypeScript checks to ensure no type errors
+  - [x] 6.2 Verify all white elements have been replaced
+  - [x] 6.3 Test visual consistency across different game states

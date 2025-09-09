@@ -281,7 +281,7 @@ export const shuffleQuestions = (questions: GameQuestion[]): GameQuestion[] => {
  * This is the key migration function for data structure unification
  */
 export const normalizeQuestion = (legacyQuestion: LegacyQuestion | GameQuestion): Question => {
-  console.log(`🔄 NORMALIZE_QUESTION: Converting question "${legacyQuestion.text}"`);
+  console.log(`🔄 NORMALIZE_QUESTION: Converting question "${'text' in legacyQuestion ? legacyQuestion.text : ('title' in legacyQuestion ? legacyQuestion.title : 'Unknown')}"`);
   
   // Handle GameQuestion format (already has QuestionAnswer[])
   if ('answers' in legacyQuestion && Array.isArray(legacyQuestion.answers) && legacyQuestion.answers.length > 0) {
@@ -292,10 +292,15 @@ export const normalizeQuestion = (legacyQuestion: LegacyQuestion | GameQuestion)
       console.log(`✅ NORMALIZE_QUESTION: Already in Answer format`);
       return {
         id: legacyQuestion.id,
-        text: legacyQuestion.text,
+        text: 'text' in legacyQuestion ? legacyQuestion.text : ('title' in legacyQuestion ? legacyQuestion.title : 'Unknown'),
         category: legacyQuestion.category,
         difficulty: legacyQuestion.difficulty,
-        answers: legacyQuestion.answers as Answer[]
+        answers: legacyQuestion.answers.map((qa: any) => ({
+          id: qa.id || `${legacyQuestion.id}_answer_${qa.rank || 0}`,
+          text: qa.text,
+          rank: qa.rank || 1,
+          aliases: qa.aliases || []
+        }))
       };
     }
     
@@ -311,7 +316,7 @@ export const normalizeQuestion = (legacyQuestion: LegacyQuestion | GameQuestion)
       
       return {
         id: legacyQuestion.id,
-        text: legacyQuestion.text,
+        text: 'text' in legacyQuestion ? legacyQuestion.text : ('title' in legacyQuestion ? legacyQuestion.title : 'Unknown'),
         category: legacyQuestion.category,
         difficulty: legacyQuestion.difficulty,
         answers
@@ -331,7 +336,7 @@ export const normalizeQuestion = (legacyQuestion: LegacyQuestion | GameQuestion)
     
     return {
       id: legacyQuestion.id,
-      text: legacyQuestion.text,
+      text: 'text' in legacyQuestion ? legacyQuestion.text : ('title' in legacyQuestion ? legacyQuestion.title : 'Unknown'),
       category: legacyQuestion.category,
       difficulty: legacyQuestion.difficulty,
       answers
@@ -342,7 +347,7 @@ export const normalizeQuestion = (legacyQuestion: LegacyQuestion | GameQuestion)
   console.warn(`⚠️ NORMALIZE_QUESTION: Unknown format, creating empty question`);
   return {
     id: legacyQuestion.id || `question_${Date.now()}`,
-    text: legacyQuestion.text || 'Unknown Question',
+    text: ('text' in legacyQuestion ? legacyQuestion.text : ('title' in legacyQuestion ? legacyQuestion.title : 'Unknown')) || 'Unknown Question',
     category: legacyQuestion.category || 'General',
     difficulty: legacyQuestion.difficulty || 'medium',
     answers: []
