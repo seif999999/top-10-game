@@ -20,7 +20,7 @@ const MultiplayerMenuScreen: React.FC<MultiplayerMenuScreenProps> = () => {
   const insets = useSafeAreaInsets();
 
   const handleCreateRoom = () => {
-    navigation.navigate('CreateRoom' as never);
+    navigation.navigate('MultiplayerCategory' as never);
   };
 
   const handleJoinRoom = () => {

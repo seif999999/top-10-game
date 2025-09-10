@@ -18,6 +18,8 @@ export type MainStackParamList = {
   GameScreen: { roomId: string; categoryId: string; categoryName?: string; selectedQuestion?: any; isMultiplayer?: boolean; teamConfig?: any; gameMode?: 'single' | 'multiplayer'; roomCode?: string };
   MultiplayerMenu: undefined;
   CreateRoom: undefined;
+  MultiplayerCategory: undefined;
+  MultiplayerQuestions: { categoryName: string };
   JoinRoom: undefined;
   RoomLobby: { roomCode: string; turnDuration?: number };
 };
@@ -38,5 +40,7 @@ export type GameLobbyScreenProps = NativeStackScreenProps<RootStackParamList, 'G
 export type GameScreenProps = NativeStackScreenProps<RootStackParamList, 'GameScreen'>;
 export type MultiplayerMenuScreenProps = NativeStackScreenProps<RootStackParamList, 'MultiplayerMenu'>;
 export type CreateRoomScreenProps = NativeStackScreenProps<RootStackParamList, 'CreateRoom'>;
+export type MultiplayerCategoryScreenProps = NativeStackScreenProps<RootStackParamList, 'MultiplayerCategory'>;
+export type MultiplayerQuestionsScreenProps = NativeStackScreenProps<RootStackParamList, 'MultiplayerQuestions'>;
 export type JoinRoomScreenProps = NativeStackScreenProps<RootStackParamList, 'JoinRoom'>;
 export type RoomLobbyScreenProps = NativeStackScreenProps<RootStackParamList, 'RoomLobby'>;

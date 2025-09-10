@@ -16,6 +16,8 @@ import GameScreen from '../screens/GameScreen';
 import ForgotPasswordScreen from '../screens/AuthScreens/ForgotPasswordScreen';
 import MultiplayerMenuScreen from '../screens/MultiplayerMenuScreen';
 import CreateRoomScreen from '../screens/CreateRoomScreen';
+import MultiplayerCategoryScreen from '../screens/MultiplayerCategoryScreen';
+import MultiplayerQuestionsScreen from '../screens/MultiplayerQuestionsScreen';
 import JoinRoomScreen from '../screens/JoinRoomScreen';
 import RoomLobbyScreen from '../screens/RoomLobbyScreen';
 
@@ -47,6 +49,8 @@ const AppNavigator: React.FC = () => {
             <Stack.Screen name="GameScreen" component={GameScreen} />
             <Stack.Screen name="MultiplayerMenu" component={MultiplayerMenuScreen} />
             <Stack.Screen name="CreateRoom" component={CreateRoomScreen} />
+            <Stack.Screen name="MultiplayerCategory" component={MultiplayerCategoryScreen} />
+            <Stack.Screen name="MultiplayerQuestions" component={MultiplayerQuestionsScreen} />
             <Stack.Screen name="JoinRoom" component={JoinRoomScreen} />
             <Stack.Screen name="RoomLobby" component={RoomLobbyScreen} />
           </>
