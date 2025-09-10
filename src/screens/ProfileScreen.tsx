@@ -252,6 +252,49 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           )}
         </View>
 
+        {/* Avatar Test Section - Temporary for testing */}
+        <View style={styles.testSection}>
+          <Text style={styles.sectionTitle}>Test Avatar Changes</Text>
+          <View style={styles.testButtons}>
+            <TouchableOpacity 
+              style={styles.testButton} 
+              onPress={() => updateUserAvatar('human-1')}
+            >
+              <Text style={styles.testButtonText}>Alex (Human 1)</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.testButton} 
+              onPress={() => updateUserAvatar('human-2')}
+            >
+              <Text style={styles.testButtonText}>Sam (Human 2)</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.testButton} 
+              onPress={() => updateUserAvatar('animal-1')}
+            >
+              <Text style={styles.testButtonText}>Whiskers (Cat)</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.testButton} 
+              onPress={() => updateUserAvatar('animal-2')}
+            >
+              <Text style={styles.testButtonText}>Buddy (Dog)</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.testButton} 
+              onPress={() => updateUserAvatar('animal-3')}
+            >
+              <Text style={styles.testButtonText}>Wise Owl</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.testButton} 
+              onPress={() => updateUserAvatar(undefined)}
+            >
+              <Text style={styles.testButtonText}>No Avatar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         <View style={styles.statsSection}>
           <Text style={styles.sectionTitle}>Game Statistics</Text>
           <View style={styles.statsGrid}>
@@ -467,6 +510,30 @@ const styles = StyleSheet.create({
   memberSince: {
     color: COLORS.muted,
     fontSize: 14
+  },
+  testSection: {
+    backgroundColor: COLORS.surface,
+    padding: SPACING.lg,
+    borderRadius: 12,
+    marginBottom: SPACING.lg
+  },
+  testButtons: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm
+  },
+  testButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: 8,
+    marginBottom: SPACING.sm
+  },
+  testButtonText: {
+    color: COLORS.background,
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center'
   },
   statsSection: {
     marginBottom: SPACING.xl

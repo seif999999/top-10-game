@@ -19,7 +19,7 @@ export type MainStackParamList = {
   MultiplayerMenu: undefined;
   CreateRoom: undefined;
   JoinRoom: undefined;
-  RoomLobby: { roomCode: string };
+  RoomLobby: { roomCode: string; turnDuration?: number };
 };
 
 // Combined Root Stack Types

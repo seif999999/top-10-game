@@ -287,7 +287,7 @@ interface MultiplayerContextType {
   leaveRoom: () => Promise<void>;
   
   // Host Actions
-  startGame: () => Promise<void>;
+  startGame: (roundTimeSeconds?: number) => Promise<void>;
   endGame: () => Promise<void>;
   kickPlayer: (playerId: string) => Promise<void>;
   nextQuestion: () => Promise<void>;
@@ -469,7 +469,7 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
     }
   };
 
-  const startGame = async (): Promise<void> => {
+  const startGame = async (roundTimeSeconds: number = 60): Promise<void> => {
     try {
       if (!state.currentRoom) {
         throw new Error('No room found');
@@ -491,8 +491,8 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
       
       dispatch({ type: 'SET_STARTING', payload: true });
       
-      console.log('🎮 ROOM_START: Host starting game...');
-      await multiplayerService.startGameV2(state.currentRoom.roomCode, user.id, 60);
+      console.log(`🎮 ROOM_START: Host starting game with ${roundTimeSeconds}s rounds...`);
+      await multiplayerService.startGameV2(state.currentRoom.roomCode, user.id, roundTimeSeconds);
       console.log('✅ ROOM_START: Game started successfully');
     } catch (error) {
       console.error('❌ ROOM_START: Error starting game:', error);

@@ -96,6 +96,16 @@ const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
 
 
   const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(null);
+  const [selectedTurnDuration, setSelectedTurnDuration] = useState<number>(60); // Default 60 seconds
+
+  // Timer duration options (in seconds)
+  const turnDurationOptions = [
+    { value: 30, label: '30 seconds', description: 'Quick rounds' },
+    { value: 45, label: '45 seconds', description: 'Fast-paced' },
+    { value: 60, label: '1 minute', description: 'Standard' },
+    { value: 90, label: '1.5 minutes', description: 'Relaxed' },
+    { value: 120, label: '2 minutes', description: 'Leisurely' }
+  ];
 
   useEffect(() => {
     if (error) {
@@ -168,7 +178,10 @@ const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
       });
       
       const roomCode = await createRoom(selectedCategory, convertedQuestions);
-      (navigation as any).navigate('RoomLobby', { roomCode });
+      (navigation as any).navigate('RoomLobby', { 
+        roomCode, 
+        turnDuration: selectedTurnDuration 
+      });
     } catch (error) {
       // Error is handled by the context
     }
@@ -274,6 +287,34 @@ const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
           </View>
         )}
 
+        {/* Timer Duration Selection */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>⏱️ Turn Duration</Text>
+          <Text style={styles.sectionSubtitle}>
+            Choose how long each player has to answer
+          </Text>
+          <View style={styles.durationRow}>
+            {turnDurationOptions.map((option) => (
+              <TouchableOpacity
+                key={option.value}
+                style={[
+                  styles.durationButton,
+                  selectedTurnDuration === option.value && styles.durationButtonSelected
+                ]}
+                onPress={() => setSelectedTurnDuration(option.value)}
+                accessibilityLabel={`Select ${option.value} seconds turn duration`}
+                accessibilityState={{ selected: selectedTurnDuration === option.value }}
+              >
+                <Text style={[
+                  styles.durationButtonText,
+                  selectedTurnDuration === option.value && styles.durationButtonTextSelected
+                ]}>
+                  {option.value}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
 
         {/* Create Room Button */}
         <View style={styles.buttonContainer}>
@@ -418,6 +459,36 @@ const styles = StyleSheet.create({
   createButtonText: {
     fontSize: 18,
     fontWeight: 'bold' as const,
+    color: COLORS.white,
+  },
+  durationRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: SPACING.md,
+    gap: SPACING.sm,
+  },
+  durationButton: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 8,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+    minHeight: 48,
+  },
+  durationButtonSelected: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  durationButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold' as const,
+    color: COLORS.text,
+  },
+  durationButtonTextSelected: {
     color: COLORS.white,
   },
 });

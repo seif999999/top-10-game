@@ -21,6 +21,7 @@ import { useMultiplayer } from '../contexts/MultiplayerContext';
 import { useAuth } from '../contexts/AuthContext';
 import { COLORS, SPACING, TYPOGRAPHY, ACCESSIBILITY } from '../utils/constants';
 import { Player } from '../services/multiplayerService';
+import RoundTimeSelector from '../components/RoundTimeSelector';
 
 const { width } = Dimensions.get('window');
 
@@ -50,6 +51,11 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
 
   const [fadeAnim] = useState(new Animated.Value(0));
   const [scaleAnim] = useState(new Animated.Value(0.8));
+  const [showRoundTimeSelector, setShowRoundTimeSelector] = useState(false);
+  // Get turn duration from route params if available
+  const routeParams = route.params as { roomCode: string; turnDuration?: number };
+  const initialTurnDuration = routeParams?.turnDuration || 60;
+  const [selectedRoundTime, setSelectedRoundTime] = useState(initialTurnDuration);
 
   useEffect(() => {
     if (error) {
@@ -164,8 +170,8 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
           text: 'Start Game', 
           onPress: async () => {
             try {
-              console.log('🎮 Host starting game...');
-              await startGame();
+              console.log(`🎮 Host starting game with ${selectedRoundTime}s rounds...`);
+              await startGame(selectedRoundTime);
               console.log('🎮 Game start command sent, waiting for auto-navigation...');
               // Navigation will be handled automatically by the context
             } catch (error) {
@@ -390,6 +396,25 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
           {isHost && (
             <View style={styles.hostControlsSection}>
               <Text style={styles.hostControlsTitle}>Host Controls</Text>
+              
+              {/* Round Time Selector */}
+              <View style={styles.roundTimeSection}>
+                <Text style={styles.roundTimeLabel}>Round Time</Text>
+                <TouchableOpacity
+                  style={styles.roundTimeButton}
+                  onPress={() => setShowRoundTimeSelector(true)}
+                  accessibilityLabel="Select round time"
+                >
+                  <Text style={styles.roundTimeButtonText}>
+                    {selectedRoundTime === 10 ? '10 seconds' :
+                     selectedRoundTime === 20 ? '20 seconds' :
+                     selectedRoundTime === 40 ? '40 seconds' :
+                     '1 minute'}
+                  </Text>
+                  <Text style={styles.roundTimeButtonIcon}>⚙️</Text>
+                </TouchableOpacity>
+              </View>
+              
               <View style={styles.hostControlsButtons}>
                 <TouchableOpacity
                   style={[
@@ -440,6 +465,17 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
           )}
         </Animated.View>
       </ScrollView>
+      
+      {/* Round Time Selector Modal */}
+      <RoundTimeSelector
+        visible={showRoundTimeSelector}
+        onClose={() => setShowRoundTimeSelector(false)}
+        onSelect={(timeInSeconds) => {
+          setSelectedRoundTime(timeInSeconds);
+          console.log(`🎮 Round time selected: ${timeInSeconds} seconds`);
+        }}
+        currentTime={selectedRoundTime}
+      />
     </SafeAreaView>
   );
 };
@@ -679,6 +715,33 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold' as const,
     color: COLORS.white,
+  },
+  roundTimeSection: {
+    marginBottom: SPACING.lg,
+  },
+  roundTimeLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: SPACING.sm,
+  },
+  roundTimeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.card,
+    borderRadius: 12,
+    padding: SPACING.md,
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+  },
+  roundTimeButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.primary,
+  },
+  roundTimeButtonIcon: {
+    fontSize: 16,
   },
   waitingSection: {
     backgroundColor: COLORS.surface,

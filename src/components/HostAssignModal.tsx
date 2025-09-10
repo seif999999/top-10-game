@@ -33,14 +33,12 @@ const HostAssignModal: React.FC<HostAssignModalProps> = ({
   currentTeamIndex,
 }) => {
   const [selectedTeamId, setSelectedTeamId] = useState(teams[currentTeamIndex]?.id || '');
-  const [points, setPoints] = useState(answer.points.toString());
 
   useEffect(() => {
     if (visible && teams[currentTeamIndex]) {
       setSelectedTeamId(teams[currentTeamIndex].id);
-      setPoints(answer.points.toString());
     }
-  }, [visible, currentTeamIndex, answer.points, teams]);
+  }, [visible, currentTeamIndex, teams]);
 
   const handleAssign = () => {
     try {
@@ -48,7 +46,7 @@ const HostAssignModal: React.FC<HostAssignModalProps> = ({
         answerIndex,
         answer: answer.text,
         selectedTeamId,
-        points: parseInt(points),
+        points: answer.points,
       });
 
       if (!selectedTeamId) {
@@ -56,13 +54,8 @@ const HostAssignModal: React.FC<HostAssignModalProps> = ({
         return;
       }
 
-      const pointsValue = parseInt(points);
-      if (isNaN(pointsValue) || pointsValue < 0) {
-        Alert.alert('Error', 'Please enter a valid number of points');
-        return;
-      }
-
-      onAssign(selectedTeamId, pointsValue);
+      // Use the fixed points value from the answer object
+      onAssign(selectedTeamId, answer.points);
       onClose();
     } catch (error) {
       console.error('❌ HostAssignModal: Error assigning answer:', error);
@@ -128,19 +121,16 @@ const HostAssignModal: React.FC<HostAssignModalProps> = ({
             </View>
           </View>
 
-          {/* Points Input */}
+          {/* Points Display - Read Only */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Points to Award</Text>
-            <TextInput
-              style={styles.pointsInput}
-              value={points}
-              onChangeText={setPoints}
-              placeholder={answer.points.toString()}
-              placeholderTextColor={COLORS.muted}
-              keyboardType="numeric"
-            />
+            <View style={styles.pointsDisplay}>
+              <Text style={styles.pointsDisplayText}>
+                {answer.points} points
+              </Text>
+            </View>
             <Text style={styles.pointsHint}>
-              Maximum {answer.points} points available
+              Points are automatically calculated based on answer rank
             </Text>
           </View>
 
@@ -247,16 +237,20 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: COLORS.muted,
   },
-  pointsInput: {
+  pointsDisplay: {
     backgroundColor: COLORS.card,
     borderRadius: 8,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
-    color: COLORS.text,
-    fontSize: 18,
-    fontWeight: '600',
-    textAlign: 'center',
     marginBottom: SPACING.sm,
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+  },
+  pointsDisplayText: {
+    color: COLORS.primary,
+    fontSize: 18,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   pointsHint: {
     fontSize: 14,
