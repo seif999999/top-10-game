@@ -262,16 +262,19 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
            // Convert custom question to the format expected by the game
            const convertedQuestion = {
              id: customQuestion.id,
-             text: customQuestion.question,
+             title: customQuestion.question, // Use 'title' instead of 'text'
+             text: customQuestion.question, // Keep both for compatibility
              answers: customQuestion.answers.map((answer: string, index: number) => ({
                text: answer,
-               rank: index + 1
+               rank: index + 1,
+               points: 10 - index // Points decrease from 10 to 1
              })),
              category: 'Custom',
              difficulty: 'medium'
            };
            
-           startGame('Custom', ['You'], convertedQuestion);
+           // Use a valid category that exists in the questions service
+           startGame('Sports', ['You'], convertedQuestion);
          } else if (teamConfig) {
            console.log('🎮 Starting team mode game with config:', teamConfig);
            startTeamsGame(categoryId || 'Sports', teamConfig, selectedQuestion);
