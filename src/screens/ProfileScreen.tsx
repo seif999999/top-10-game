@@ -241,6 +241,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               size={120}
               showBorder={true}
             />
+            {/* Debug info - remove this later */}
+            <Text style={{color: 'white', fontSize: 10, marginTop: 5}}>
+              Debug: {user?.selectedAvatar || 'No avatar selected'}
+            </Text>
           </TouchableOpacity>
           
           <TouchableOpacity onPress={() => setIsEditing(true)} style={styles.userNameContainer}>

@@ -10,7 +10,7 @@ import { COLORS, SPACING } from '../design-system';
 
 interface AvatarDisplayProps {
   avatarId?: string | null;
-  size?: 'small' | 'medium' | 'large';
+  size?: 'small' | 'medium' | 'large' | number;
   showBorder?: boolean;
   onPress?: () => void;
   style?: any;
@@ -45,8 +45,12 @@ const AvatarDisplay: React.FC<AvatarDisplayProps> = ({
   onPress,
   style,
 }) => {
-  const avatarSize = AVATAR_SIZES[size];
+  const avatarSize = typeof size === 'number' ? size : AVATAR_SIZES[size];
   const avatarUrl = avatarId ? getAvatarUrl(avatarId) : null;
+  
+  // Debug logging
+  console.log('AvatarDisplay - avatarId:', avatarId);
+  console.log('AvatarDisplay - avatarUrl:', avatarUrl);
 
   const renderAvatar = () => {
     if (avatarUrl) {
@@ -62,6 +66,9 @@ const AvatarDisplay: React.FC<AvatarDisplayProps> = ({
             }
           ]}
           resizeMode="contain"
+          onError={(error) => {
+            console.log('Avatar image error:', error.nativeEvent.error);
+          }}
         />
       );
     }
