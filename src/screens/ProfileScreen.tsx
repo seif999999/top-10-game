@@ -369,7 +369,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 />
               </View>
             </View>
-          )}
+          ) : null}
           
           <Button
             title="📤 Export & Delete Data"
