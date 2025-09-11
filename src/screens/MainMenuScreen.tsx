@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Dimensions, Animated } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Dimensions, Animated, ScrollView } from 'react-native';
 import { COLORS, SPACING, TYPOGRAPHY, ANIMATIONS } from '../utils/constants';
 import { MainMenuScreenProps } from '../types/navigation';
 
@@ -69,7 +69,11 @@ const MainMenuScreen: React.FC<MainMenuScreenProps> = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Header */}
         <View style={styles.header}>
           <Animated.View style={{ transform: [{ scale: backButtonScale }] }}>
@@ -114,14 +118,12 @@ const MainMenuScreen: React.FC<MainMenuScreenProps> = ({ navigation }) => {
               </Text>
             </TouchableOpacity>
           </Animated.View>
-
-
         </View>
 
         {/* Footer */}
         <View style={styles.footer}>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -130,6 +132,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    padding: SPACING.xl,
+    paddingBottom: SPACING.xl + 20, // Extra padding for safe scrolling
   },
   content: {
     flex: 1,

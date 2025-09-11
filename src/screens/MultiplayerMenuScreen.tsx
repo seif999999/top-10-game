@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Dimensions,
+  ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -52,7 +53,11 @@ const MultiplayerMenuScreen: React.FC<MultiplayerMenuScreenProps> = () => {
       </View>
 
       {/* Content */}
-      <View style={styles.content}>
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.welcomeSection}>
           <Text style={styles.welcomeTitle}>Welcome to Multiplayer!</Text>
           <Text style={styles.welcomeSubtitle}>
@@ -119,7 +124,7 @@ const MultiplayerMenuScreen: React.FC<MultiplayerMenuScreenProps> = () => {
             </View>
           </View>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -128,6 +133,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.xl + 20, // Extra padding for safe scrolling
   },
   header: {
     flexDirection: 'row',
@@ -185,7 +198,6 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.xl,
   },
   welcomeSection: {
