@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
   },
   avatarContainer: {
     alignItems: 'center',
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.lg,
     position: 'relative',
     width: 150,
     height: 150,
