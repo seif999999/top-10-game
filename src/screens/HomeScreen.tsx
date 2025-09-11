@@ -66,15 +66,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-
-
-
       {/* Header with Profile and Rules Buttons */}
-      <View style={[styles.header, { paddingTop: insets.top + SPACING.lg }]}>
+      <View style={[styles.header, { paddingTop: insets.top + SPACING.md }]}>
         <TouchableOpacity onPress={handleProfileNavigation} style={styles.profileButton}>
           <AvatarIcon 
             user={user} 
-            size={50} 
+            size={48} 
             showBorder={false}
             backgroundColor={COLORS.primary}
             textColor={COLORS.background}
@@ -86,62 +83,67 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
-      {/* Hero Section */}
-      <View style={styles.heroSection}>
-        <View style={styles.logoContainer}>
-          <Text style={styles.logoTop}>TOP</Text>
-          <Text style={styles.logoNumber}>10</Text>
-        </View>
-        <Text style={styles.welcomeText}>
-          Welcome back, {user?.displayName || user?.email?.split('@')[0] || 'Player'} 👋
-        </Text>
-        <Text style={styles.heroSubtitle}>Test your knowledge and compete for the top spot!</Text>
-      </View>
-
-      {/* Quick Actions */}
-      <View style={styles.quickActionsSection}>
-        <View style={styles.actionRow}>
-          <TouchableOpacity style={styles.startPlayingCard} onPress={handleStartPlaying}>
-            <Text style={styles.startPlayingIcon}>🎮</Text>
-            <Text style={styles.startPlayingTitle}>Start Playing</Text>
-            <Text style={styles.startPlayingSubtitle}>Choose Game Mode</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.leaderboardCard} onPress={handleLeaderboard}>
-            <Text style={styles.leaderboardIcon}>🏆</Text>
-            <Text style={styles.leaderboardTitle}>Leaderboard</Text>
-            <Text style={styles.leaderboardSubtitle}>Global Rankings</Text>
-          </TouchableOpacity>
-        </View>
-        
-        <View style={styles.actionRow}>
-          <TouchableOpacity style={styles.createYourOwnCard} onPress={handleCreateYourOwn}>
-            <Text style={styles.createYourOwnIcon}>✏️</Text>
-            <Text style={styles.createYourOwnTitle}>Create Your Own</Text>
-            <Text style={styles.createYourOwnSubtitle}>Custom Questions</Text>
-          </TouchableOpacity>
-          
-          <View style={styles.placeholderCard} />
-        </View>
-        
-
-      </View>
-
-      {/* Spin Wheel Section */}
-      <View style={styles.spinWheelSection}>
-        <TouchableOpacity 
-          style={[styles.spinWheelCard, isSpinning && styles.spinning]} 
-          onPress={handleSpinWheel}
-          disabled={isSpinning}
-        >
-          <View style={styles.spinWheelContent}>
-            <Text style={[styles.spinWheelIcon, isSpinning && styles.spinningIcon]}>🎡</Text>
-            <View style={styles.spinWheelText}>
-              <Text style={styles.spinWheelTitle}>{isSpinning ? 'Spinning...' : 'Spin the Wheel'}</Text>
-              <Text style={styles.spinWheelSubtitle}>Get a random category to play!</Text>
-            </View>
+      {/* Main Content */}
+      <View style={styles.mainContent}>
+        {/* Hero Section */}
+        <View style={styles.heroSection}>
+          <View style={styles.logoContainer}>
+            <Text style={styles.logoTop}>TOP</Text>
+            <Text style={styles.logoNumber}>10</Text>
           </View>
-        </TouchableOpacity>
+          <Text style={styles.welcomeText}>
+            Welcome back, {user?.displayName || user?.email?.split('@')[0] || 'Player'} 👋
+          </Text>
+          <Text style={styles.heroSubtitle}>Test your knowledge and compete for the top spot!</Text>
+        </View>
+
+        {/* Primary Action - Start Playing */}
+        <View style={styles.primaryActionSection}>
+          <TouchableOpacity style={styles.primaryActionCard} onPress={handleStartPlaying}>
+            <View style={styles.primaryActionContent}>
+              <Text style={styles.primaryActionIcon}>🎮</Text>
+              <View style={styles.primaryActionText}>
+                <Text style={styles.primaryActionTitle}>Start Playing</Text>
+                <Text style={styles.primaryActionSubtitle}>Choose your game mode and category</Text>
+              </View>
+              <Text style={styles.primaryActionArrow}>→</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* Secondary Actions Grid */}
+        <View style={styles.secondaryActionsSection}>
+          <View style={styles.actionRow}>
+            <TouchableOpacity style={styles.secondaryActionCard} onPress={handleCreateYourOwn}>
+              <Text style={styles.secondaryActionIcon}>✏️</Text>
+              <Text style={styles.secondaryActionTitle}>Create Your Own</Text>
+              <Text style={styles.secondaryActionSubtitle}>Custom Questions</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.secondaryActionCard} onPress={handleLeaderboard}>
+              <Text style={styles.secondaryActionIcon}>🏆</Text>
+              <Text style={styles.secondaryActionTitle}>Leaderboard</Text>
+              <Text style={styles.secondaryActionSubtitle}>Global Rankings</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Spin Wheel Section */}
+        <View style={styles.spinWheelSection}>
+          <TouchableOpacity 
+            style={[styles.spinWheelCard, isSpinning && styles.spinning]} 
+            onPress={handleSpinWheel}
+            disabled={isSpinning}
+          >
+            <View style={styles.spinWheelContent}>
+              <Text style={[styles.spinWheelIcon, isSpinning && styles.spinningIcon]}>🎡</Text>
+              <View style={styles.spinWheelText}>
+                <Text style={styles.spinWheelTitle}>{isSpinning ? 'Spinning...' : 'Spin the Wheel'}</Text>
+                <Text style={styles.spinWheelSubtitle}>Get a random category to play!</Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -152,11 +154,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-
-
-
-
-
   header: {
     position: 'absolute',
     top: 0,
@@ -169,9 +166,9 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   profileButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: COLORS.primary,
@@ -181,15 +178,10 @@ const styles = StyleSheet.create({
     elevation: 8,
     overflow: 'hidden',
   },
-  profileButtonText: {
-    color: COLORS.background,
-    fontSize: 20,
-    fontWeight: '700',
-  },
   rulesButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: '#374151',
     justifyContent: 'center',
     alignItems: 'center',
@@ -200,24 +192,17 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   rulesButtonText: {
-    fontSize: 24,
+    fontSize: 22,
   },
-  welcomeText: {
-    color: COLORS.muted,
-    fontSize: 16,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    lineHeight: 24,
-    maxWidth: width * 0.8,
-    marginBottom: SPACING.lg,
+  mainContent: {
+    flex: 1,
+    paddingTop: 100, // Space for header
   },
   heroSection: {
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.xl,
     alignItems: 'center',
-    marginTop: SPACING.md,
     marginBottom: SPACING.xl,
-    zIndex: 5,
   },
   logoContainer: {
     alignItems: 'center',
@@ -226,68 +211,88 @@ const styles = StyleSheet.create({
   },
   logoTop: {
     color: COLORS.primary,
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '900',
-    letterSpacing: 6,
+    letterSpacing: 4,
     textAlign: 'center',
-    marginBottom: -8,
+    marginBottom: -6,
   },
   logoNumber: {
     color: COLORS.text,
-    fontSize: 72,
+    fontSize: 64,
     fontWeight: '900',
     textAlign: 'center',
     textShadowColor: COLORS.primary,
-    textShadowOffset: { width: 0, height: 6 },
-    textShadowRadius: 12,
+    textShadowOffset: { width: 0, height: 4 },
+    textShadowRadius: 8,
+  },
+  welcomeText: {
+    color: COLORS.muted,
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+    lineHeight: 22,
+    maxWidth: width * 0.8,
+    marginBottom: SPACING.sm,
   },
   heroSubtitle: {
     color: COLORS.muted,
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 14,
+    fontWeight: '500',
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: 20,
     maxWidth: width * 0.8,
   },
-  quickActionsSection: {
+  primaryActionSection: {
     paddingHorizontal: SPACING.lg,
-    marginBottom: SPACING.lg,
-    zIndex: 5,
+    marginBottom: SPACING.xl,
+  },
+  primaryActionCard: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 20,
+    padding: SPACING.xl,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  primaryActionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  primaryActionIcon: {
+    fontSize: 32,
+    marginRight: SPACING.lg,
+  },
+  primaryActionText: {
+    flex: 1,
+  },
+  primaryActionTitle: {
+    color: 'white',
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: SPACING.xs,
+  },
+  primaryActionSubtitle: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  primaryActionArrow: {
+    color: 'white',
+    fontSize: 24,
+    fontWeight: '600',
+  },
+  secondaryActionsSection: {
+    paddingHorizontal: SPACING.lg,
+    marginBottom: SPACING.xl,
   },
   actionRow: {
     flexDirection: 'row',
     gap: SPACING.md,
   },
-  startPlayingCard: {
-    flex: 1,
-    backgroundColor: COLORS.primary,
-    borderRadius: 16,
-    padding: SPACING.lg,
-    alignItems: 'center',
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  startPlayingIcon: {
-    fontSize: 28,
-    marginBottom: SPACING.sm,
-  },
-  startPlayingTitle: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: SPACING.xs,
-    textAlign: 'center',
-  },
-  startPlayingSubtitle: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 12,
-    textAlign: 'center',
-    lineHeight: 16,
-  },
-  leaderboardCard: {
+  secondaryActionCard: {
     flex: 1,
     backgroundColor: 'white',
     borderRadius: 16,
@@ -298,62 +303,29 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
   },
-  leaderboardIcon: {
-    fontSize: 28,
+  secondaryActionIcon: {
+    fontSize: 24,
     marginBottom: SPACING.sm,
   },
-  leaderboardTitle: {
+  secondaryActionTitle: {
     color: '#333',
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '600',
     marginBottom: SPACING.xs,
     textAlign: 'center',
   },
-  leaderboardSubtitle: {
+  secondaryActionSubtitle: {
     color: '#666',
-    fontSize: 12,
+    fontSize: 11,
     textAlign: 'center',
     lineHeight: 16,
   },
-  createYourOwnCard: {
-    flex: 1,
-    backgroundColor: '#4ECDC4',
-    borderRadius: 16,
-    padding: SPACING.lg,
-    alignItems: 'center',
-    shadowColor: '#4ECDC4',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  createYourOwnIcon: {
-    fontSize: 28,
-    marginBottom: SPACING.sm,
-  },
-  createYourOwnTitle: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: SPACING.xs,
-    textAlign: 'center',
-  },
-  createYourOwnSubtitle: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 12,
-    textAlign: 'center',
-    lineHeight: 16,
-  },
-  placeholderCard: {
-    flex: 1,
-    // Empty placeholder to maintain layout
-  },
-
   spinWheelSection: {
     paddingHorizontal: SPACING.lg,
-    marginBottom: SPACING.lg,
-    zIndex: 5,
+    marginBottom: SPACING.xl,
   },
   spinWheelCard: {
     backgroundColor: '#FF6B6B',
@@ -373,7 +345,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   spinWheelIcon: {
-    fontSize: 48,
+    fontSize: 40,
     marginRight: SPACING.lg,
   },
   spinningIcon: {
@@ -384,14 +356,14 @@ const styles = StyleSheet.create({
   },
   spinWheelTitle: {
     color: 'white',
-    fontSize: 24,
-    fontWeight: '800',
+    fontSize: 20,
+    fontWeight: '700',
     marginBottom: SPACING.xs,
   },
   spinWheelSubtitle: {
     color: 'rgba(255, 255, 255, 0.9)',
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 18,
   },
 });
 
