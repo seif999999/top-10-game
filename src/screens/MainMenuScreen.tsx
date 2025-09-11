@@ -81,10 +81,7 @@ const MainMenuScreen: React.FC<MainMenuScreenProps> = ({ navigation }) => {
           </Animated.View>
           
           <View style={styles.headerCenter}>
-            <View style={styles.logoContainer}>
-              <Text style={styles.logoTop}>TOP</Text>
-              <Text style={styles.logoNumber}>10</Text>
-            </View>
+            <Text style={styles.modeTitle}>Choose Your Game Mode</Text>
           </View>
           
           <View style={styles.placeholder} />
@@ -92,8 +89,6 @@ const MainMenuScreen: React.FC<MainMenuScreenProps> = ({ navigation }) => {
 
         {/* Game Mode Selection */}
         <View style={styles.modeSelection}>
-          <Text style={styles.modeTitle}>Choose Your Game Mode</Text>
-          
           {/* Single Player Card */}
           <Animated.View style={{ transform: [{ scale: singlePlayerScale }] }}>
             <TouchableOpacity style={styles.modeCard} onPress={handleSinglePlayer}>
@@ -190,27 +185,6 @@ const styles = StyleSheet.create({
     width: 60,
   },
 
-  logoContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoTop: {
-    color: COLORS.primary,
-    fontSize: 32,
-    fontWeight: '900',
-    letterSpacing: 6,
-    textAlign: 'center',
-    marginBottom: -8,
-  },
-  logoNumber: {
-    color: COLORS.text,
-    fontSize: 72,
-    fontWeight: '900',
-    textAlign: 'center',
-    textShadowColor: COLORS.primary,
-    textShadowOffset: { width: 0, height: 6 },
-    textShadowRadius: 12,
-  },
   modeSelection: {
     flex: 1,
     justifyContent: 'center',
