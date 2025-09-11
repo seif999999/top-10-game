@@ -24,49 +24,49 @@ interface AvatarOption {
 const AVATAR_OPTIONS: AvatarOption[] = [
   {
     id: 'avatar-1',
-    name: 'Robot',
+    name: 'Cyber Guardian',
     url: 'https://api.dicebear.com/7.x/bottts/svg?seed=robot1&backgroundColor=2E86AB',
     style: 'bottts'
   },
   {
     id: 'avatar-2',
-    name: 'Person',
+    name: 'Mystic Sage',
     url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=person1&backgroundColor=8B5CF6',
     style: 'avataaars'
   },
   {
     id: 'avatar-3',
-    name: 'Pixel Art',
+    name: 'Pixel Warrior',
     url: 'https://api.dicebear.com/7.x/pixel-art/svg?seed=pixel1&backgroundColor=10B981',
     style: 'pixel-art'
   },
   {
     id: 'avatar-4',
-    name: 'Pixel Art 2',
+    name: 'Retro Explorer',
     url: 'https://api.dicebear.com/7.x/pixel-art/svg?seed=pixel2&backgroundColor=F97316',
     style: 'pixel-art'
   },
   {
     id: 'avatar-5',
-    name: 'Robot 2',
+    name: 'Neon Bot',
     url: 'https://api.dicebear.com/7.x/bottts/svg?seed=robot2&backgroundColor=EF4444',
     style: 'bottts'
   },
   {
     id: 'avatar-6',
-    name: 'Person 2',
+    name: 'Cosmic Traveler',
     url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=person2&backgroundColor=8B5CF6',
     style: 'avataaars'
   },
   {
     id: 'avatar-7',
-    name: 'Robot 3',
+    name: 'Quantum AI',
     url: 'https://api.dicebear.com/7.x/bottts/svg?seed=robot3&backgroundColor=06B6D4',
     style: 'bottts'
   },
   {
     id: 'avatar-8',
-    name: 'Person 3',
+    name: 'Stellar Navigator',
     url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=person3&backgroundColor=F97316',
     style: 'avataaars'
   }

@@ -235,16 +235,12 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.profileSection}>
-          <TouchableOpacity onPress={() => setShowAvatarModal(true)} style={styles.avatarContainer}>
-            <UserAvatar 
-              user={user} 
-              size={120} 
+          <TouchableOpacity onPress={() => navigation.navigate('AvatarSelection' as never)} style={styles.avatarContainer}>
+            <AvatarDisplay 
+              avatarId={user?.selectedAvatar}
+              size="large"
               showBorder={true}
-              borderColor={COLORS.primary}
             />
-            <View style={styles.avatarChangeButton}>
-              <Text style={styles.avatarChangeText}>Change</Text>
-            </View>
           </TouchableOpacity>
           
           <TouchableOpacity onPress={() => setIsEditing(true)} style={styles.userNameContainer}>
@@ -267,13 +263,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         <View style={styles.settingsSection}>
           <Text style={styles.sectionTitle}>Settings</Text>
           
-          
-          <Button
-            title="🎨 Choose Avatar"
-            onPress={() => navigation.navigate('AvatarSelection' as never)}
-            style={styles.avatarSelectionButton}
-            textStyle={styles.buttonText}
-          />
           
           <Button
             title="📤 Export & Delete Data"
@@ -422,21 +411,6 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
   },
-  avatarChangeButton: {
-    position: 'absolute',
-    bottom: -8,
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xs,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: COLORS.background
-  },
-  avatarChangeText: {
-    color: COLORS.white,
-    fontSize: 12,
-    fontWeight: '600'
-  },
   userNameContainer: {
     alignItems: 'center',
     marginBottom: SPACING.sm,
@@ -503,16 +477,6 @@ const styles = StyleSheet.create({
   cancelButton: {
     flex: 1,
     backgroundColor: COLORS.card
-  },
-  avatarSelectionButton: {
-    backgroundColor: '#8B5CF6', // Purple for avatar selection
-    borderWidth: 2,
-    borderColor: '#8B5CF6',
-    borderRadius: 12,
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.lg,
-    marginTop: SPACING.lg,
-    marginBottom: SPACING.md,
   },
   dataManagementButton: {
     backgroundColor: '#3B82F6', // Blue for data management
