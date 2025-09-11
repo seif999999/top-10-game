@@ -537,7 +537,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm
   },
   testButtonText: {
-    color: COLORS.background,
+    color: COLORS.white,
     fontSize: 12,
     fontWeight: '600',
     textAlign: 'center'
@@ -576,13 +576,13 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm
   },
   statNumber: {
-    color: COLORS.primary,
+    color: COLORS.text,
     fontSize: 24,
     fontWeight: '800',
     marginBottom: SPACING.xs
   },
   statLabel: {
-    color: COLORS.muted,
+    color: COLORS.textSecondary,
     fontSize: 12,
     textAlign: 'center'
   },

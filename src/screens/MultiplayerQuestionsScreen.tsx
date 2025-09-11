@@ -480,7 +480,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
   },
   arrowText: {
-    color: COLORS.background,
+    color: COLORS.white,
     fontSize: 18,
     fontWeight: '700'
   },
@@ -544,7 +544,7 @@ const styles = StyleSheet.create({
     borderRadius: 8
   },
   backToCategoriesButtonText: {
-    color: COLORS.background,
+    color: COLORS.white,
     fontSize: 16,
     fontWeight: '600'
   }

@@ -357,7 +357,7 @@ const styles = StyleSheet.create({
     marginLeft: SPACING.md
   },
   arrowText: {
-    color: COLORS.background,
+    color: COLORS.white,
     fontSize: 18,
     fontWeight: '700'
   },
