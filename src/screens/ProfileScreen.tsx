@@ -9,7 +9,6 @@ import { ProfileScreenProps } from '../types/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import { InputValidator } from '../utils/inputValidator';
 import { RateLimitService } from '../services/rateLimitService';
-import DataRetentionService from '../services/dataRetentionService';
 
 
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
@@ -98,113 +97,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     }
   };
 
-  const handleExportData = async () => {
-    if (!user?.id) return;
 
-    Alert.alert(
-      'Export Data',
-      'This will export all your personal data. Continue?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Export', 
-          onPress: async () => {
-            try {
-              const exportData = await DataRetentionService.exportUserData(user.id);
-              Alert.alert(
-                'Data Exported',
-                'Your data has been exported successfully. Check the console for the data.',
-                [{ text: 'OK' }]
-              );
-              console.log('Exported data:', exportData);
-            } catch (error) {
-              Alert.alert(
-                'Export Failed',
-                'Failed to export your data. Please try again.',
-                [{ text: 'OK' }]
-              );
-            }
-          }
-        }
-      ]
-    );
-  };
-
-  const handleDeleteAccount = () => {
-    Alert.alert(
-      'Delete Account',
-      'This will permanently delete your account and all associated data. This action cannot be undone.\n\nAre you absolutely sure?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete Account', 
-          style: 'destructive',
-          onPress: () => {
-            Alert.alert(
-              'Final Confirmation',
-              'Type "DELETE" to confirm account deletion',
-              [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                  text: 'Confirm Delete',
-                  style: 'destructive',
-                  onPress: async () => {
-                    try {
-                      if (!user?.id) return;
-                      
-                      const deletionRequest = await DataRetentionService.deleteUserData(
-                        user.id,
-                        'User requested account deletion'
-                      );
-                      
-                      if (deletionRequest.status === 'completed') {
-                        Alert.alert(
-                          'Account Deleted',
-                          'Your account and all data have been permanently deleted.',
-                          [{ text: 'OK', onPress: signOut }]
-                        );
-                      } else {
-                        Alert.alert(
-                          'Deletion Failed',
-                          deletionRequest.error || 'Failed to delete account. Please try again.',
-                          [{ text: 'OK' }]
-                        );
-                      }
-                    } catch (error) {
-                      Alert.alert(
-                        'Deletion Failed',
-                        'An error occurred while deleting your account. Please try again.',
-                        [{ text: 'OK' }]
-                      );
-                    }
-                  }
-                }
-              ]
-            );
-          }
-        }
-      ]
-    );
-  };
-
-  const handleDataManagement = () => {
-    Alert.alert(
-      'Data Management',
-      'What would you like to do with your data?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Export Data', 
-          onPress: handleExportData
-        },
-        { 
-          text: 'Delete Account', 
-          style: 'destructive',
-          onPress: handleDeleteAccount
-        }
-      ]
-    );
-  };
 
 
   return (
@@ -256,13 +149,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         <View style={styles.settingsSection}>
           <Text style={styles.sectionTitle}>Settings</Text>
           
-          
-          <Button
-            title="📤 Export & Delete Data"
-            onPress={handleDataManagement}
-            style={styles.dataManagementButton}
-            textStyle={styles.buttonText}
-          />
           
           <Button
             title="Sign Out"
@@ -489,16 +375,6 @@ const styles = StyleSheet.create({
   cancelButton: {
     flex: 1,
     backgroundColor: COLORS.card
-  },
-  dataManagementButton: {
-    backgroundColor: '#3B82F6', // Blue for data management
-    borderWidth: 2,
-    borderColor: '#3B82F6',
-    borderRadius: 12,
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.lg,
-    marginTop: SPACING.lg,
-    marginBottom: SPACING.md,
   },
   signOutButton: {
     backgroundColor: '#6B7280', // Gray for sign out
