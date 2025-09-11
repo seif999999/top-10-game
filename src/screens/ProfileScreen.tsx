@@ -242,6 +242,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               showBorder={true}
               fallbackText={user?.displayName?.charAt(0)?.toUpperCase() || 'U'}
             />
+            {/* Edit overlay */}
+            <View style={styles.editOverlay}>
+              <Text style={styles.editOverlayIcon}>✏️</Text>
+            </View>
           </TouchableOpacity>
           
           <TouchableOpacity onPress={() => setIsEditing(true)} style={styles.userNameContainer}>
@@ -412,6 +416,27 @@ const styles = StyleSheet.create({
     width: 150,
     height: 150,
   },
+  editOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: COLORS.background,
+    shadowColor: COLORS.primary,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
   userNameContainer: {
     alignItems: 'center',
     marginBottom: SPACING.sm,
@@ -429,6 +454,10 @@ const styles = StyleSheet.create({
   editIcon: {
     fontSize: 16,
     opacity: 0.7,
+  },
+  editOverlayIcon: {
+    fontSize: 14,
+    color: COLORS.white,
   },
   userEmail: {
     color: COLORS.text,
