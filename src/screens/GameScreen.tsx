@@ -1582,10 +1582,8 @@ const handleEndGame = () => {
                    inputRange: [-1, 0, 1],
                    outputRange: [20, 8, 20]
                  }),
-                 borderColor: answerInputGlow.interpolate({
-                   inputRange: [-1, 0, 1],
-                   outputRange: [COLORS.error, COLORS.muted, COLORS.success]
-                 })
+                 borderColor: lastAnswerResult === 'correct' ? COLORS.success : 
+                              lastAnswerResult === 'incorrect' ? COLORS.error : COLORS.muted
                }
              ]}>
                <TextInput 
