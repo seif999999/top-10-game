@@ -254,7 +254,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           </TouchableOpacity>
           
           <TouchableOpacity onPress={() => setIsEditing(true)} style={styles.userNameContainer}>
-            <Text style={styles.userName}>{updatedDisplayName || user?.displayName || 'User'}</Text>
+            <View style={styles.userNameRow}>
+              <Text style={styles.userName}>{updatedDisplayName || user?.displayName || 'User'}</Text>
+              <Text style={styles.editIcon}>✏️</Text>
+            </View>
           </TouchableOpacity>
           <Text style={styles.userEmail}>{user?.email}</Text>
           
@@ -510,11 +513,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: SPACING.sm,
   },
+  userNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
   userName: {
     color: COLORS.text,
     fontSize: 24,
     fontWeight: '700',
-    marginBottom: SPACING.xs,
+  },
+  editIcon: {
+    fontSize: 16,
+    opacity: 0.7,
   },
   userEmail: {
     color: COLORS.text,
