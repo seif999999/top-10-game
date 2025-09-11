@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Alert, ScrollVi
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Button from '../components/Button';
 import UserAvatar from '../components/UserAvatar';
-import AvatarSelectionModal from '../components/AvatarSelectionModal';
 import AvatarDisplay from '../components/AvatarDisplay';
 import { COLORS, SPACING, COMPONENT_STYLES } from '../design-system';
 import { ProfileScreenProps } from '../types/navigation';
@@ -19,7 +18,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [updatedDisplayName, setUpdatedDisplayName] = useState(user?.displayName || '');
   const [isEditing, setIsEditing] = useState(false);
-  const [showAvatarModal, setShowAvatarModal] = useState(false);
 
 
   // Sync displayName state with user.displayName from AuthContext
@@ -208,16 +206,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     );
   };
 
-  const handleAvatarSelect = async (selectedAvatar: string | undefined) => {
-    try {
-      await updateUserAvatar(selectedAvatar);
-      setShowAvatarModal(false);
-      Alert.alert('Success', 'Avatar updated successfully!');
-    } catch (error) {
-      console.error('Avatar update error:', error);
-      Alert.alert('Error', 'Failed to update avatar. Please try again.');
-    }
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -286,12 +274,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         </View>
       </ScrollView>
 
-      <AvatarSelectionModal
-        visible={showAvatarModal}
-        onClose={() => setShowAvatarModal(false)}
-        onAvatarSelect={(avatar) => handleAvatarSelect(avatar.id === 'no-avatar' ? undefined : avatar.id)}
-        currentAvatarId={user?.selectedAvatar}
-      />
 
       {/* Edit Name Modal */}
       <Modal

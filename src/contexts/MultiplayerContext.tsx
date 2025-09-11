@@ -400,7 +400,7 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
         throw new Error('User not authenticated');
       }
 
-      const roomCode = await multiplayerService.createRoom(user.id, category, questions, user.displayName || user.email?.split('@')[0] || 'Player');
+      const roomCode = await multiplayerService.createRoom(user.id, category, questions, user.displayName || user.email?.split('@')[0] || 'Player', user.selectedAvatar);
       
       // Subscribe to room updates
       const unsubscribe = multiplayerService.subscribeToRoom(roomCode, (roomData) => {
@@ -425,7 +425,7 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
         throw new Error('User not authenticated');
       }
 
-      const success = await multiplayerService.joinRoom(roomCode, user.id, user.displayName || 'Player');
+      const success = await multiplayerService.joinRoom(roomCode, user.id, user.displayName || 'Player', user.selectedAvatar);
       
       if (success) {
         // Subscribe to room updates

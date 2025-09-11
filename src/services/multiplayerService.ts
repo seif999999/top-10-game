@@ -77,7 +77,7 @@ class MultiplayerService {
   /**
    * Creates a new multiplayer room with comprehensive edge case handling
    */
-  async createRoom(hostId: string, category: string, questions: any[], hostName?: string): Promise<string> {
+  async createRoom(hostId: string, category: string, questions: any[], hostName?: string, selectedAvatar?: string): Promise<string> {
     try {
       console.log('🔍 DEBUG: Starting room creation...');
       
@@ -171,7 +171,8 @@ class MultiplayerService {
             isHost: true,
             joinedAt: now,
             isConnected: true,
-            lastSeen: now
+            lastSeen: now,
+            selectedAvatar: selectedAvatar
           }
         },
         gamePhase: 'lobby',
@@ -297,7 +298,7 @@ class MultiplayerService {
   /**
    * Joins an existing room with comprehensive edge case handling
    */
-  async joinRoom(roomCode: string, playerId: string, playerName: string): Promise<boolean> {
+  async joinRoom(roomCode: string, playerId: string, playerName: string, selectedAvatar?: string): Promise<boolean> {
     try {
       console.log(`🔍 DEBUG: Attempting to join room ${roomCode} with player ${playerId}`);
       
@@ -372,7 +373,8 @@ class MultiplayerService {
         isHost: false,
         joinedAt: now,
         isConnected: true,
-        lastSeen: now
+        lastSeen: now,
+        selectedAvatar: selectedAvatar
       };
 
       const success = await this.edgeCaseHandler.handleConcurrentStateChange(roomCode, async () => {
