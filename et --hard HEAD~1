@@ -1,0 +1,5 @@
+[33m86ad6c9[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m Implement stable emoji-based avatar system for 100% reliability across all devices
+[33m088e272[m Increase spacing between avatar and name in profile screen
+[33m74d38db[m Remove export data button and related functions from profile screen
+[33mf00beb6[m Fix avatar updates in multiplayer - pass selectedAvatar when creating/joining rooms, remove old AvatarSelectionModal
+[33mba97c29[m Add edit overlay to profile picture - shows pencil icon in bottom-right corner to indicate it's editable

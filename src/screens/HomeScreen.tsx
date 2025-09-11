@@ -60,6 +60,10 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     );
   };
 
+  const handleCreateYourOwn = () => {
+    navigation.navigate('CreateCustomQuestion');
+  };
+
   return (
     <SafeAreaView style={styles.container}>
 
@@ -108,6 +112,16 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             <Text style={styles.leaderboardTitle}>Leaderboard</Text>
             <Text style={styles.leaderboardSubtitle}>Global Rankings</Text>
           </TouchableOpacity>
+        </View>
+        
+        <View style={styles.actionRow}>
+          <TouchableOpacity style={styles.createYourOwnCard} onPress={handleCreateYourOwn}>
+            <Text style={styles.createYourOwnIcon}>✏️</Text>
+            <Text style={styles.createYourOwnTitle}>Create Your Own</Text>
+            <Text style={styles.createYourOwnSubtitle}>Custom Questions</Text>
+          </TouchableOpacity>
+          
+          <View style={styles.placeholderCard} />
         </View>
         
 
@@ -301,6 +315,39 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'center',
     lineHeight: 16,
+  },
+  createYourOwnCard: {
+    flex: 1,
+    backgroundColor: '#4ECDC4',
+    borderRadius: 16,
+    padding: SPACING.lg,
+    alignItems: 'center',
+    shadowColor: '#4ECDC4',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  createYourOwnIcon: {
+    fontSize: 28,
+    marginBottom: SPACING.sm,
+  },
+  createYourOwnTitle: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: SPACING.xs,
+    textAlign: 'center',
+  },
+  createYourOwnSubtitle: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 12,
+    textAlign: 'center',
+    lineHeight: 16,
+  },
+  placeholderCard: {
+    flex: 1,
+    // Empty placeholder to maintain layout
   },
 
   spinWheelSection: {

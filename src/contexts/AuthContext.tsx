@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { AuthContextType, User } from '../types';
-import { signInWithEmail, signUpWithEmail, signOutUser, subscribeToAuthChanges, resetPassword as resetPasswordService, signInWithGoogle, updateUserProfile as updateUserProfileService } from '../services/auth';
+import { signInWithEmail, signUpWithEmail, signOutUser, subscribeToAuthChanges, getCurrentUser, verifyAuthPersistence, resetPassword as resetPasswordService, signInWithGoogle, updateUserProfile as updateUserProfileService } from '../services/auth';
 import AuthService from '../services/authService';
+import LocalAvatarStorage from '../services/localAvatarStorage';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { View } from 'react-native';
 
@@ -13,12 +14,111 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [pendingAction, setPendingAction] = useState<boolean>(false);
 
   useEffect(() => {
-    const unsub = subscribeToAuthChanges((u) => {
-      console.log('🔄 Auth state changed:', u ? `User: ${u.email}` : 'No user');
-      setUser(u);
-      setLoading(false);
+    console.log('🔐 AuthContext: Setting up authentication...');
+    
+    let isInitialized = false;
+    
+    const initializeAuth = async () => {
+      try {
+        // Add a small delay to allow Firebase to fully initialize
+        console.log('🔍 AuthContext: Waiting for Firebase to initialize...');
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        // First, verify authentication persistence is working
+        console.log('🔍 AuthContext: Verifying authentication persistence...');
+        const persistenceWorking = await verifyAuthPersistence();
+        
+        if (!persistenceWorking) {
+          console.warn('⚠️ AuthContext: Authentication persistence verification failed');
+        }
+        
+        // Then, check if user is already authenticated
+        console.log('🔍 AuthContext: Checking for existing authentication...');
+        const currentUser = await getCurrentUser();
+        
+        if (currentUser) {
+          console.log('✅ AuthContext: User already authenticated:', currentUser.email);
+          
+          // Load locally stored avatar if available
+          try {
+            const localAvatarStorage = LocalAvatarStorage.getInstance();
+            const localAvatar = await localAvatarStorage.getSelectedAvatar();
+            
+            if (localAvatar && (!currentUser.selectedAvatar || currentUser.selectedAvatar !== localAvatar)) {
+              console.log('🖼️ AuthContext: Loading locally stored avatar:', localAvatar);
+              const userWithLocalAvatar = { ...currentUser, selectedAvatar: localAvatar };
+              setUser(userWithLocalAvatar);
+              
+              // Try to sync with server in background
+              try {
+                await localAvatarStorage.updateUserId(currentUser.uid);
+                console.log('✅ AuthContext: Local avatar synced with user ID');
+              } catch (syncError) {
+                console.warn('⚠️ AuthContext: Failed to sync local avatar with user ID:', syncError);
+              }
+            } else {
+              setUser(currentUser);
+            }
+          } catch (localError) {
+            console.warn('⚠️ AuthContext: Failed to load local avatar:', localError);
+            setUser(currentUser);
+          }
+          
+          setLoading(false);
+          isInitialized = true;
+        } else {
+          console.log('🚪 AuthContext: No existing authentication found');
+          setLoading(false);
+          isInitialized = true;
+        }
+      } catch (error) {
+        console.error('❌ AuthContext: Error during authentication initialization:', error);
+        setLoading(false);
+        isInitialized = true;
+      }
+      
+      // Set up the auth state listener for future changes
+      console.log('🔐 AuthContext: Setting up authentication listener...');
+      const unsub = subscribeToAuthChanges((u) => {
+        console.log('🔄 AuthContext: Auth state changed:', u ? `User: ${u.email}` : 'No user');
+        
+        // Only update if we haven't already initialized with getCurrentUser
+        if (!isInitialized) {
+          console.log('🔄 AuthContext: Setting loading to false (from listener)');
+          setUser(u);
+          setLoading(false);
+          isInitialized = true;
+        } else if (u) {
+          // If we already initialized but user changed, update
+          console.log('🔄 AuthContext: User changed after initialization');
+          setUser(u);
+        }
+      });
+      
+      return unsub;
+    };
+    
+    let unsub: (() => void) | undefined;
+    
+    initializeAuth().then((unsubscribe) => {
+      unsub = unsubscribe;
     });
-    return () => unsub();
+    
+    // Add a timeout to ensure loading state doesn't get stuck
+    const loadingTimeout = setTimeout(() => {
+      if (!isInitialized) {
+        console.log('⏰ AuthContext: Loading timeout reached, setting loading to false');
+        setLoading(false);
+        isInitialized = true;
+      }
+    }, 10000); // 10 second timeout
+    
+    return () => {
+      clearTimeout(loadingTimeout);
+      if (unsub) {
+        unsub();
+      }
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
@@ -105,13 +205,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setPendingAction(true);
     try {
       console.log('🔄 AuthContext: Updating user profile...', updates);
+      console.log('🔍 AuthContext: Current user before update:', user ? `ID: ${user.uid}, Email: ${user.email}` : 'None');
       
-      // Call the auth service to update the profile
-      const updatedUser = await updateUserProfileService(updates);
+      // Handle avatar updates with local storage first
+      if (updates.avatarId !== undefined) {
+        console.log('🖼️ AuthContext: Updating avatar locally first...');
+        
+        // Save avatar locally immediately for instant persistence
+        const localAvatarStorage = LocalAvatarStorage.getInstance();
+        await localAvatarStorage.saveSelectedAvatar(updates.avatarId);
+        
+        // Update local user state immediately
+        const updatedUser = user ? { ...user, selectedAvatar: updates.avatarId } : null;
+        if (updatedUser) {
+          setUser(updatedUser);
+          console.log('✅ AuthContext: Avatar updated locally:', updates.avatarId);
+        }
+      }
       
-      // Update local user state with the new data
-      console.log('✅ AuthContext: Profile updated successfully');
-      setUser(updatedUser);
+      // Try to update server in background (don't block user experience)
+      try {
+        console.log('🔄 AuthContext: Attempting server sync...');
+        const updatedUser = await updateUserProfileService(updates);
+        
+        // Update local user state with server data if successful
+        console.log('✅ AuthContext: Server sync successful');
+        console.log('🔍 AuthContext: Updated user:', updatedUser ? `ID: ${updatedUser.uid}, Email: ${updatedUser.email}, Avatar: ${updatedUser.selectedAvatar}` : 'None');
+        setUser(updatedUser);
+      } catch (serverError) {
+        console.warn('⚠️ AuthContext: Server sync failed, but local update succeeded:', serverError);
+        // Don't throw error - local update already succeeded
+        // User can continue using the app with local avatar
+      }
+      
     } catch (error) {
       console.error('💥 AuthContext: Profile update error:', error);
       throw error;
@@ -125,11 +251,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('🔄 AuthContext: Updating user avatar...');
       
-      // Call the auth service to update the avatar
-      await AuthService.updateUserAvatar(selectedAvatar);
+      // Save avatar locally immediately
+      if (selectedAvatar) {
+        const localAvatarStorage = LocalAvatarStorage.getInstance();
+        await localAvatarStorage.saveSelectedAvatar(selectedAvatar);
+        console.log('✅ AuthContext: Avatar saved locally:', selectedAvatar);
+      }
       
-      // Update local user state
+      // Update local user state immediately
       setUser(prevUser => prevUser ? { ...prevUser, selectedAvatar } : null);
+      
+      // Try to sync with server in background
+      try {
+        await AuthService.updateUserAvatar(selectedAvatar);
+        console.log('✅ AuthContext: Avatar synced with server');
+      } catch (serverError) {
+        console.warn('⚠️ AuthContext: Server sync failed, but local update succeeded:', serverError);
+        // Don't throw error - local update already succeeded
+      }
       
       console.log('✅ AuthContext: Avatar updated successfully');
     } catch (error) {

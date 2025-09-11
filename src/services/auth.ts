@@ -243,6 +243,11 @@ export const signInWithEmail = async (email: string, password: string): Promise<
     console.log('🔍 DEBUG: Mapping Firebase user...');
     const user = mapFirebaseUser(cred.user);
     console.log('✅ DEBUG: User mapped successfully:', user);
+    
+    // Store session for persistence
+    await storeUserSession(user);
+    console.log('✅ DEBUG: User session stored for persistence');
+    
     return user;
   } catch (error) {
     console.error('❌ DEBUG: signInWithEmail error:', error);
@@ -317,11 +322,15 @@ export const signOutUser = async (): Promise<void> => {
     await signOut(auth);
     console.log('✅ Firebase sign-out successful');
     
-    // Step 3: Clear auth storage
+    // Step 3: Clear user session
+    console.log('🧹 Clearing user session...');
+    await clearUserSession();
+    
+    // Step 4: Clear auth storage
     console.log('🧹 Clearing authentication storage...');
     await clearAuthStorage();
     
-    // Step 4: Clear user data
+    // Step 5: Clear user data
     console.log('🗑️ Clearing user data...');
     await clearUserData();
     
@@ -332,6 +341,7 @@ export const signOutUser = async (): Promise<void> => {
     // Even if there's an error, try to clear storage
     try {
       console.log('🔄 Attempting to clear storage despite error...');
+      await clearUserSession();
       await clearAuthStorage();
       await clearUserData();
       console.log('✅ Storage cleared despite sign-out error');
@@ -345,15 +355,153 @@ export const signOutUser = async (): Promise<void> => {
   }
 };
 
-export const getCurrentUser = (): User | null => {
-  return auth.currentUser ? mapFirebaseUser(auth.currentUser) : null;
+export const getCurrentUser = async (): Promise<User | null> => {
+  try {
+    console.log('🔍 Checking current authentication state...');
+    console.log('🔍 Auth instance:', auth ? 'Available' : 'Not available');
+    console.log('🔍 Platform:', Platform.OS);
+    
+    const fbUser = auth.currentUser;
+    console.log('🔍 Current Firebase user:', fbUser ? `ID: ${fbUser.uid}, Email: ${fbUser.email}` : 'None');
+    
+    if (fbUser) {
+      console.log('✅ User is already authenticated:', fbUser.email);
+      
+      // Load user profile with avatar data from Firestore
+      try {
+        const { UserProfileService } = await import('./userProfileService');
+        const userProfileService = UserProfileService.getInstance();
+        const userProfile = await userProfileService.getUserProfile(fbUser.uid);
+        
+        if (userProfile) {
+          console.log('✅ User profile loaded from Firestore:', userProfile.displayName || userProfile.email);
+          console.log('🔍 User profile selectedAvatar:', userProfile.selectedAvatar);
+          const user = {
+            ...userProfile,
+            email: fbUser.email || userProfile.email || '',
+            displayName: userProfile.displayName || fbUser.displayName || undefined
+          };
+          
+          console.log('🔍 Final user object selectedAvatar:', user.selectedAvatar);
+          
+          // Store session for persistence
+          await storeUserSession(user);
+          return user;
+        } else {
+          console.log('⚠️ No user profile found in Firestore, using Firebase user data');
+          const user = mapFirebaseUser(fbUser);
+          await storeUserSession(user);
+          return user;
+        }
+      } catch (error) {
+        console.error('❌ Error loading user profile:', error);
+        console.log('🔄 Falling back to basic Firebase user data');
+        const user = mapFirebaseUser(fbUser);
+        await storeUserSession(user);
+        return user;
+      }
+    } else {
+      console.log('🚪 No Firebase user found, checking stored session...');
+      
+      // Try to retrieve from stored session as fallback
+      const storedUser = await retrieveUserSession();
+      if (storedUser) {
+        console.log('✅ Retrieved user from stored session:', storedUser.email);
+        return storedUser;
+      }
+      
+      console.log('🚪 No stored session found');
+      return null;
+    }
+  } catch (error) {
+    console.error('❌ Error checking current user:', error);
+    
+    // Try to retrieve from stored session as fallback
+    try {
+      const storedUser = await retrieveUserSession();
+      if (storedUser) {
+        console.log('✅ Retrieved user from stored session (fallback):', storedUser.email);
+        return storedUser;
+      }
+    } catch (fallbackError) {
+      console.error('❌ Error retrieving stored session:', fallbackError);
+    }
+    
+    return null;
+  }
 };
 
 export const updateUserProfile = async (updates: { displayName?: string; avatarId?: string }): Promise<User> => {
   try {
+    console.log('🔍 updateUserProfile: Starting profile update...');
+    console.log('🔍 updateUserProfile: Auth instance available:', !!auth);
+    console.log('🔍 updateUserProfile: Updates:', updates);
+    
     const currentUser = auth.currentUser;
+    console.log('🔍 updateUserProfile: Current user:', currentUser ? `ID: ${currentUser.uid}, Email: ${currentUser.email}` : 'None');
+    
     if (!currentUser) {
-      throw new Error('No user is currently signed in');
+      console.error('❌ updateUserProfile: No Firebase user found, checking stored session...');
+      
+      // Try to get user from stored session
+      const storedUser = await retrieveUserSession();
+      if (storedUser) {
+        console.log('✅ updateUserProfile: Found stored user, updating Firestore directly');
+        
+        // Update Firestore directly without Firebase Auth
+        const { UserProfileService } = await import('./userProfileService');
+        const userProfileService = UserProfileService.getInstance();
+        
+        // Get current user profile to preserve existing data
+        const currentProfile = await userProfileService.getUserProfile(storedUser.id);
+        
+        if (currentProfile) {
+          // Check if there are actual changes
+          const hasDisplayNameChange = updates.displayName && currentProfile.displayName !== updates.displayName;
+          const hasAvatarChange = updates.avatarId !== undefined && currentProfile.selectedAvatar !== updates.avatarId;
+          
+          if (hasDisplayNameChange || hasAvatarChange) {
+            const updatedProfile = {
+              ...currentProfile,
+              email: storedUser.email || currentProfile.email || '',
+              ...(updates.displayName && { displayName: updates.displayName }),
+              ...(updates.avatarId !== undefined && { selectedAvatar: updates.avatarId }),
+              lastUpdated: new Date()
+            };
+            await userProfileService.updateUserProfile(updatedProfile);
+            
+            // Store updated session for persistence
+            await storeUserSession(updatedProfile);
+            
+            return updatedProfile;
+          } else {
+            // No change needed, return current profile
+            return {
+              ...currentProfile,
+              email: storedUser.email || currentProfile.email || ''
+            };
+          }
+        } else {
+          // If no profile exists, create one with the provided data
+          const newProfile = {
+            id: storedUser.id,
+            email: storedUser.email || '',
+            ...(updates.displayName && { displayName: updates.displayName }),
+            ...(updates.avatarId !== undefined && { selectedAvatar: updates.avatarId }),
+            createdAt: new Date(),
+            lastUpdated: new Date()
+          };
+          await userProfileService.updateUserProfile(newProfile);
+          
+          // Store new session for persistence
+          await storeUserSession(newProfile);
+          
+          return newProfile;
+        }
+      } else {
+        console.error('❌ updateUserProfile: No stored session found either');
+        throw new Error('No user is currently signed in');
+      }
     }
     
     // Update the Firebase user profile if displayName is provided
@@ -383,6 +531,10 @@ export const updateUserProfile = async (updates: { displayName?: string; avatarI
           lastUpdated: new Date()
         };
         await userProfileService.updateUserProfile(updatedProfile);
+        
+        // Store updated session for persistence
+        await storeUserSession(updatedProfile);
+        
         return updatedProfile;
       } else {
         // No change needed, return current profile with email from Firebase Auth
@@ -402,6 +554,10 @@ export const updateUserProfile = async (updates: { displayName?: string; avatarI
         lastUpdated: new Date()
       };
       await userProfileService.updateUserProfile(newProfile);
+      
+      // Store new session for persistence
+      await storeUserSession(newProfile);
+      
       return newProfile;
     }
   } catch (error) {
@@ -410,15 +566,150 @@ export const updateUserProfile = async (updates: { displayName?: string; avatarI
   }
 };
 
+
+// Store user session data for persistence
+const storeUserSession = async (user: User): Promise<void> => {
+  try {
+    console.log('💾 Storing user session for persistence...');
+    
+    const sessionData = {
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName,
+      selectedAvatar: user.selectedAvatar,
+      timestamp: Date.now()
+    };
+    
+    if (Platform.OS === 'web') {
+      localStorage.setItem('user_session', JSON.stringify(sessionData));
+      console.log('✅ User session stored in localStorage');
+    } else {
+      await AsyncStorage.setItem('user_session', JSON.stringify(sessionData));
+      console.log('✅ User session stored in AsyncStorage');
+    }
+  } catch (error) {
+    console.error('❌ Error storing user session:', error);
+  }
+};
+
+// Retrieve user session data for persistence
+const retrieveUserSession = async (): Promise<User | null> => {
+  try {
+    console.log('🔍 Retrieving user session from storage...');
+    
+    let sessionData: string | null = null;
+    
+    if (Platform.OS === 'web') {
+      sessionData = localStorage.getItem('user_session');
+    } else {
+      sessionData = await AsyncStorage.getItem('user_session');
+    }
+    
+    if (!sessionData) {
+      console.log('🚪 No stored user session found');
+      return null;
+    }
+    
+    const parsed = JSON.parse(sessionData);
+    
+    // Check if session is not too old (24 hours)
+    const sessionAge = Date.now() - parsed.timestamp;
+    const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+    
+    if (sessionAge > maxAge) {
+      console.log('⏰ Stored session is too old, clearing...');
+      await clearUserSession();
+      return null;
+    }
+    
+    console.log('✅ User session retrieved from storage:', parsed.email);
+    console.log('🔍 Stored session selectedAvatar:', parsed.selectedAvatar);
+    return parsed as User;
+  } catch (error) {
+    console.error('❌ Error retrieving user session:', error);
+    return null;
+  }
+};
+
+// Clear user session data
+const clearUserSession = async (): Promise<void> => {
+  try {
+    console.log('🧹 Clearing user session from storage...');
+    
+    if (Platform.OS === 'web') {
+      localStorage.removeItem('user_session');
+    } else {
+      await AsyncStorage.removeItem('user_session');
+    }
+    
+    console.log('✅ User session cleared from storage');
+  } catch (error) {
+    console.error('❌ Error clearing user session:', error);
+  }
+};
+
+// Verify authentication persistence is working
+export const verifyAuthPersistence = async (): Promise<boolean> => {
+  try {
+    console.log('🔍 Verifying authentication persistence...');
+    
+    // Check if auth is properly initialized
+    if (!auth) {
+      console.error('❌ Auth instance not available');
+      return false;
+    }
+    
+    // Check if we can access current user
+    const currentUser = auth.currentUser;
+    console.log('🔍 Current user check:', currentUser ? 'User found' : 'No user');
+    
+    // For mobile platforms, check if AsyncStorage is working
+    if (Platform.OS !== 'web') {
+      try {
+        const testKey = 'auth_persistence_test';
+        const testValue = 'test_value_' + Date.now();
+        
+        await AsyncStorage.setItem(testKey, testValue);
+        const retrievedValue = await AsyncStorage.getItem(testKey);
+        
+        if (retrievedValue === testValue) {
+          console.log('✅ AsyncStorage is working correctly');
+          await AsyncStorage.removeItem(testKey);
+        } else {
+          console.error('❌ AsyncStorage test failed');
+          return false;
+        }
+      } catch (storageError) {
+        console.error('❌ AsyncStorage error:', storageError);
+        return false;
+      }
+    }
+    
+    console.log('✅ Authentication persistence verification passed');
+    return true;
+  } catch (error) {
+    console.error('❌ Authentication persistence verification failed:', error);
+    return false;
+  }
+};
+
 export const subscribeToAuthChanges = (cb: (user: User | null) => void): AuthListenerUnsubscribe => {
+  console.log('🔐 subscribeToAuthChanges: Setting up Firebase auth state listener...');
+  
   const unsub = onAuthStateChanged(auth, async (fbUser) => {
+    console.log('🔄 Firebase auth state changed:', fbUser ? `User ID: ${fbUser.uid}, Email: ${fbUser.email}` : 'No user');
+    
     if (fbUser) {
+      console.log('👤 Loading user profile for:', fbUser.uid);
+      
       // Load user profile with avatar data from Firestore
       try {
         const { UserProfileService } = await import('./userProfileService');
         const userProfileService = UserProfileService.getInstance();
         const userProfile = await userProfileService.getUserProfile(fbUser.uid);
+        
         if (userProfile) {
+          console.log('✅ User profile loaded from Firestore:', userProfile.displayName || userProfile.email);
           // Ensure displayName falls back to Firebase user's displayName if not set in Firestore
           // Always use email from Firebase Auth user, not from Firestore
           const userWithFallbackDisplayName = {
@@ -428,18 +719,23 @@ export const subscribeToAuthChanges = (cb: (user: User | null) => void): AuthLis
           };
           cb(userWithFallbackDisplayName);
         } else {
+          console.log('⚠️ No user profile found in Firestore, using Firebase user data');
           // Fallback to basic Firebase user data if profile not found
           cb(mapFirebaseUser(fbUser));
         }
       } catch (error) {
-        console.error('Error loading user profile:', error);
+        console.error('❌ Error loading user profile:', error);
+        console.log('🔄 Falling back to basic Firebase user data');
         // Fallback to basic Firebase user data on error
         cb(mapFirebaseUser(fbUser));
       }
     } else {
+      console.log('🚪 No authenticated user, calling callback with null');
       cb(null);
     }
   });
+  
+  console.log('✅ Firebase auth state listener set up successfully');
   return unsub;
 };
 

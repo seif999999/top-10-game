@@ -21,53 +21,54 @@ interface AvatarOption {
   style: string;
 }
 
+// DiceBear avatar system with mobile-optimized PNG URLs
 const AVATAR_OPTIONS: AvatarOption[] = [
   {
     id: 'avatar-1',
     name: 'Cyber Guardian',
-    url: 'https://api.dicebear.com/7.x/bottts/svg?seed=robot1&backgroundColor=2E86AB',
+    url: 'https://api.dicebear.com/7.x/bottts/png?seed=robot1&backgroundColor=2E86AB&size=128',
     style: 'bottts'
   },
   {
     id: 'avatar-2',
     name: 'Mystic Sage',
-    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=person1&backgroundColor=8B5CF6',
+    url: 'https://api.dicebear.com/7.x/avataaars/png?seed=person1&backgroundColor=8B5CF6&size=128',
     style: 'avataaars'
   },
   {
     id: 'avatar-3',
     name: 'Pixel Warrior',
-    url: 'https://api.dicebear.com/7.x/pixel-art/svg?seed=pixel1&backgroundColor=10B981',
+    url: 'https://api.dicebear.com/7.x/pixel-art/png?seed=pixel1&backgroundColor=10B981&size=128',
     style: 'pixel-art'
   },
   {
     id: 'avatar-4',
-    name: 'Retro Explorer',
-    url: 'https://api.dicebear.com/7.x/pixel-art/svg?seed=pixel2&backgroundColor=F97316',
+    name: 'Flame Master',
+    url: 'https://api.dicebear.com/7.x/pixel-art/png?seed=pixel2&backgroundColor=F97316&size=128',
     style: 'pixel-art'
   },
   {
     id: 'avatar-5',
-    name: 'Neon Bot',
-    url: 'https://api.dicebear.com/7.x/bottts/svg?seed=robot2&backgroundColor=EF4444',
+    name: 'Shield Guardian',
+    url: 'https://api.dicebear.com/7.x/bottts/png?seed=robot2&backgroundColor=EF4444&size=128',
     style: 'bottts'
   },
   {
     id: 'avatar-6',
-    name: 'Cosmic Traveler',
-    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=person2&backgroundColor=8B5CF6',
+    name: 'Masked Hero',
+    url: 'https://api.dicebear.com/7.x/avataaars/png?seed=person2&backgroundColor=8B5CF6&size=128',
     style: 'avataaars'
   },
   {
     id: 'avatar-7',
-    name: 'Quantum AI',
-    url: 'https://api.dicebear.com/7.x/bottts/svg?seed=robot3&backgroundColor=06B6D4',
+    name: 'Lightning Bolt',
+    url: 'https://api.dicebear.com/7.x/bottts/png?seed=robot3&backgroundColor=06B6D4&size=128',
     style: 'bottts'
   },
   {
     id: 'avatar-8',
-    name: 'Stellar Navigator',
-    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=person3&backgroundColor=F97316',
+    name: 'Star Shine',
+    url: 'https://api.dicebear.com/7.x/avataaars/png?seed=person3&backgroundColor=F97316&size=128',
     style: 'avataaars'
   }
 ];
@@ -76,7 +77,7 @@ const AvatarSelectionScreen: React.FC = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { user, updateUserProfile } = useAuth();
-  const [selectedAvatar, setSelectedAvatar] = useState<string | null>(user?.avatarId || null);
+  const [selectedAvatar, setSelectedAvatar] = useState<string | null>(user?.selectedAvatar || null);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleAvatarSelect = (avatarId: string) => {
@@ -126,6 +127,12 @@ const AvatarSelectionScreen: React.FC = () => {
             source={{ uri: avatar.url }}
             style={styles.avatarImage}
             resizeMode="contain"
+            onLoad={() => {
+              console.log('Avatar selection loaded:', avatar.name, avatar.url);
+            }}
+            onError={(error) => {
+              console.log('Avatar selection image error:', error.nativeEvent.error, 'URL:', avatar.url);
+            }}
           />
           {isSelected && (
             <View style={styles.checkmark}>

@@ -23,20 +23,20 @@ const AVATAR_SIZES = {
   large: 64,
 };
 
+// DiceBear avatar system with mobile-optimized PNG URLs
 const getAvatarUrl = (avatarId: string): string => {
-  // Map avatar IDs to DiceBear URLs
   const avatarMap: { [key: string]: string } = {
-    'avatar-1': 'https://api.dicebear.com/7.x/bottts/svg?seed=robot1&backgroundColor=2E86AB',
-    'avatar-2': 'https://api.dicebear.com/7.x/avataaars/svg?seed=person1&backgroundColor=8B5CF6',
-    'avatar-3': 'https://api.dicebear.com/7.x/pixel-art/svg?seed=pixel1&backgroundColor=10B981',
-    'avatar-4': 'https://api.dicebear.com/7.x/pixel-art/svg?seed=pixel2&backgroundColor=F97316',
-    'avatar-5': 'https://api.dicebear.com/7.x/bottts/svg?seed=robot2&backgroundColor=EF4444',
-    'avatar-6': 'https://api.dicebear.com/7.x/avataaars/svg?seed=person2&backgroundColor=8B5CF6',
-    'avatar-7': 'https://api.dicebear.com/7.x/bottts/svg?seed=robot3&backgroundColor=06B6D4',
-    'avatar-8': 'https://api.dicebear.com/7.x/avataaars/svg?seed=person3&backgroundColor=F97316',
+    'avatar-1': 'https://api.dicebear.com/7.x/bottts/png?seed=robot1&backgroundColor=2E86AB&size=128',
+    'avatar-2': 'https://api.dicebear.com/7.x/avataaars/png?seed=person1&backgroundColor=8B5CF6&size=128',
+    'avatar-3': 'https://api.dicebear.com/7.x/pixel-art/png?seed=pixel1&backgroundColor=10B981&size=128',
+    'avatar-4': 'https://api.dicebear.com/7.x/pixel-art/png?seed=pixel2&backgroundColor=F97316&size=128',
+    'avatar-5': 'https://api.dicebear.com/7.x/bottts/png?seed=robot2&backgroundColor=EF4444&size=128',
+    'avatar-6': 'https://api.dicebear.com/7.x/avataaars/png?seed=person2&backgroundColor=8B5CF6&size=128',
+    'avatar-7': 'https://api.dicebear.com/7.x/bottts/png?seed=robot3&backgroundColor=06B6D4&size=128',
+    'avatar-8': 'https://api.dicebear.com/7.x/avataaars/png?seed=person3&backgroundColor=F97316&size=128',
   };
   
-  return avatarMap[avatarId] || 'https://api.dicebear.com/7.x/avataaars/svg?seed=default&backgroundColor=6B7280';
+  return avatarMap[avatarId] || 'https://api.dicebear.com/7.x/avataaars/png?seed=default&backgroundColor=6B7280&size=128';
 };
 
 const AvatarDisplay: React.FC<AvatarDisplayProps> = ({
@@ -52,6 +52,7 @@ const AvatarDisplay: React.FC<AvatarDisplayProps> = ({
 
   const renderAvatar = () => {
     if (avatarUrl) {
+      console.log('Rendering DiceBear avatar:', avatarUrl);
       return (
         <Image
           source={{ uri: avatarUrl }}
@@ -64,14 +65,17 @@ const AvatarDisplay: React.FC<AvatarDisplayProps> = ({
             }
           ]}
           resizeMode="contain"
+          onLoad={() => {
+            console.log('DiceBear avatar loaded successfully:', avatarUrl);
+          }}
           onError={(error) => {
-            console.log('Avatar image error:', error.nativeEvent.error);
+            console.log('DiceBear avatar error:', error.nativeEvent.error, 'URL:', avatarUrl);
           }}
         />
       );
     }
 
-    // Fallback avatar
+    // Fallback avatar with user initial
     return (
       <View style={[
         styles.fallbackAvatar,

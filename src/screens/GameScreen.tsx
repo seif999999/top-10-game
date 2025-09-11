@@ -23,7 +23,7 @@ import { RateLimitService } from '../services/rateLimitService';
 
 
 const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
-  const { roomId, categoryId, isMultiplayer, selectedQuestion, teamConfig } = route.params;
+  const { roomId, categoryId, isMultiplayer, selectedQuestion, teamConfig, customQuestion, isCustomQuestion } = route.params;
   const insets = useSafeAreaInsets();
   const { 
     gameState, 
@@ -255,8 +255,24 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
            setShowGameEndRanking(false);
          }
 
-         // Check if this is a team mode game
-         if (teamConfig) {
+         // Check if this is a custom question
+         if (isCustomQuestion && customQuestion) {
+           console.log('🎮 Starting custom question game:', customQuestion.question);
+           
+           // Convert custom question to the format expected by the game
+           const convertedQuestion = {
+             id: customQuestion.id,
+             text: customQuestion.question,
+             answers: customQuestion.answers.map((answer: string, index: number) => ({
+               text: answer,
+               rank: index + 1
+             })),
+             category: 'Custom',
+             difficulty: 'medium'
+           };
+           
+           startGame('Custom', ['You'], convertedQuestion);
+         } else if (teamConfig) {
            console.log('🎮 Starting team mode game with config:', teamConfig);
            startTeamsGame(categoryId || 'Sports', teamConfig, selectedQuestion);
          } else {
@@ -265,7 +281,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
          }
       }
     }
-  }, [isMultiplayerMode, roomId, categoryId, gameState?.category, multiplayerState?.roomCode, multiplayerState?.gamePhase, multiplayerState?.currentQuestionIndex, multiplayerState?.questions?.length, user?.displayName, user?.email, user?.id, selectedQuestion?.text, selectedQuestion?.title, teamConfig]);
+  }, [isMultiplayerMode, roomId, categoryId, gameState?.category, multiplayerState?.roomCode, multiplayerState?.gamePhase, multiplayerState?.currentQuestionIndex, multiplayerState?.questions?.length, user?.displayName, user?.email, user?.id, selectedQuestion?.text, selectedQuestion?.title, teamConfig, customQuestion, isCustomQuestion]);
 
   // Initialize game based on mode
   useEffect(() => {

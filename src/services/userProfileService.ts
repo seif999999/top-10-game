@@ -26,6 +26,15 @@ export class UserProfileService {
    */
   public async getUserProfile(userId: string): Promise<User | null> {
     try {
+      console.log('🔍 UserProfileService: Getting user profile for userId:', userId);
+      console.log('🔍 UserProfileService: userId type:', typeof userId);
+      console.log('🔍 UserProfileService: userId length:', userId ? userId.length : 'undefined');
+      
+      if (!userId || typeof userId !== 'string') {
+        console.error('❌ UserProfileService: Invalid userId provided:', userId);
+        throw new Error('Invalid userId provided');
+      }
+      
       const userRef = doc(db, 'userProfiles', userId);
       const userSnap = await getDoc(userRef);
       
