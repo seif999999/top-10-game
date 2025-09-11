@@ -273,8 +273,14 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
              difficulty: 'medium'
            };
            
-           // Use a valid category that exists in the questions service
-           startGame('Sports', ['You'], convertedQuestion);
+           // Check if this is a team mode custom question
+           if (teamConfig) {
+             console.log('🎮 Starting custom question team mode game with config:', teamConfig);
+             startTeamsGame('Custom', teamConfig, convertedQuestion);
+           } else {
+             // Regular single player custom question
+             startGame('Sports', ['You'], convertedQuestion);
+           }
          } else if (teamConfig) {
            console.log('🎮 Starting team mode game with config:', teamConfig);
            startTeamsGame(categoryId || 'Sports', teamConfig, selectedQuestion);

@@ -16,12 +16,17 @@ import { COLORS, SPACING, COMPONENT_STYLES } from '../design-system';
 import { CustomQuestionScreenProps } from '../types/navigation';
 import CustomQuestionService, { CustomQuestion } from '../services/customQuestionService';
 import Button from '../components/Button';
+import TeamSetupModal from '../components/TeamSetupModal';
+import { TeamSetupConfig } from '../types/teams';
+import { FEATURES } from '../config/features';
 
 const CustomQuestionScreen: React.FC<CustomQuestionScreenProps> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const [question, setQuestion] = useState('');
   const [answers, setAnswers] = useState(['', '', '', '']); // Start with 4 empty answers
   const [isLoading, setIsLoading] = useState(false);
+  const [showTeamSetup, setShowTeamSetup] = useState(false);
+  const [savedQuestion, setSavedQuestion] = useState<CustomQuestion | null>(null);
 
   const handleAddAnswer = () => {
     if (answers.length < 10) { // Limit to 10 answers
@@ -70,12 +75,20 @@ const CustomQuestionScreen: React.FC<CustomQuestionScreenProps> = ({ navigation 
       const savedQuestion = await customQuestionService.saveCustomQuestion(question.trim(), validAnswers);
       
       console.log('✅ Custom question created:', savedQuestion.id);
+      setSavedQuestion(savedQuestion);
       
-      // Navigate to game with custom question
-      navigation.navigate('GameScreen', {
-        customQuestion: savedQuestion,
-        isCustomQuestion: true
-      });
+      // Check if teams are enabled
+      if (FEATURES.teamsEnabled) {
+        setShowTeamSetup(true);
+      } else {
+        // Navigate directly to game with custom question
+        navigation.navigate('GameScreen', {
+          roomId: 'single-player',
+          categoryId: 'Custom',
+          customQuestion: savedQuestion,
+          isCustomQuestion: true
+        });
+      }
       
     } catch (error) {
       console.error('❌ Error creating custom question:', error);
@@ -87,6 +100,36 @@ const CustomQuestionScreen: React.FC<CustomQuestionScreenProps> = ({ navigation 
 
   const handleBack = () => {
     navigation.goBack();
+  };
+
+  const handleTeamSetupStart = (config: TeamSetupConfig) => {
+    try {
+      console.log('🎮 Starting custom question team game with config:', config);
+      
+      if (!savedQuestion) {
+        Alert.alert('Error', 'No question saved');
+        return;
+      }
+
+      // Navigate to GameScreen with team configuration and custom question
+      navigation.navigate('GameScreen', {
+        roomId: 'single-player',
+        categoryId: 'Custom',
+        customQuestion: savedQuestion,
+        isCustomQuestion: true,
+        teamConfig: config
+      });
+      
+      // Close the modal
+      setShowTeamSetup(false);
+    } catch (error) {
+      console.error('Error starting custom question team game:', error);
+      Alert.alert('Error', 'Failed to start team game. Please try again.');
+    }
+  };
+
+  const handleTeamSetupClose = () => {
+    setShowTeamSetup(false);
   };
 
   return (
@@ -176,6 +219,13 @@ const CustomQuestionScreen: React.FC<CustomQuestionScreenProps> = ({ navigation 
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Team Setup Modal */}
+      <TeamSetupModal
+        visible={showTeamSetup}
+        onClose={handleTeamSetupClose}
+        onStartGame={handleTeamSetupStart}
+      />
     </SafeAreaView>
   );
 };
