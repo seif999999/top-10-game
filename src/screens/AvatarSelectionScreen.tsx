@@ -36,14 +36,14 @@ const AVATAR_OPTIONS: AvatarOption[] = [
   },
   {
     id: 'avatar-3',
-    name: 'Fun Emoji',
-    url: 'https://api.dicebear.com/7.x/fun-emoji/svg?seed=emoji1&backgroundColor=F59E0B',
-    style: 'fun-emoji'
+    name: 'Pixel Art',
+    url: 'https://api.dicebear.com/7.x/pixel-art/svg?seed=pixel1&backgroundColor=10B981',
+    style: 'pixel-art'
   },
   {
     id: 'avatar-4',
-    name: 'Pixel Art',
-    url: 'https://api.dicebear.com/7.x/pixel-art/svg?seed=pixel1&backgroundColor=10B981',
+    name: 'Pixel Art 2',
+    url: 'https://api.dicebear.com/7.x/pixel-art/svg?seed=pixel2&backgroundColor=F97316',
     style: 'pixel-art'
   },
   {
@@ -60,15 +60,15 @@ const AVATAR_OPTIONS: AvatarOption[] = [
   },
   {
     id: 'avatar-7',
-    name: 'Fun Emoji 2',
-    url: 'https://api.dicebear.com/7.x/fun-emoji/svg?seed=emoji2&backgroundColor=06B6D4',
-    style: 'fun-emoji'
+    name: 'Robot 3',
+    url: 'https://api.dicebear.com/7.x/bottts/svg?seed=robot3&backgroundColor=06B6D4',
+    style: 'bottts'
   },
   {
     id: 'avatar-8',
-    name: 'Pixel Art 2',
-    url: 'https://api.dicebear.com/7.x/pixel-art/svg?seed=pixel2&backgroundColor=F97316',
-    style: 'pixel-art'
+    name: 'Person 3',
+    url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=person3&backgroundColor=F97316',
+    style: 'avataaars'
   }
 ];
 

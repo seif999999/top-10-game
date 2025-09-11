@@ -27,12 +27,12 @@ const getAvatarUrl = (avatarId: string): string => {
   const avatarMap: { [key: string]: string } = {
     'avatar-1': 'https://api.dicebear.com/7.x/bottts/svg?seed=robot1&backgroundColor=2E86AB',
     'avatar-2': 'https://api.dicebear.com/7.x/avataaars/svg?seed=person1&backgroundColor=8B5CF6',
-    'avatar-3': 'https://api.dicebear.com/7.x/fun-emoji/svg?seed=emoji1&backgroundColor=F59E0B',
-    'avatar-4': 'https://api.dicebear.com/7.x/pixel-art/svg?seed=pixel1&backgroundColor=10B981',
+    'avatar-3': 'https://api.dicebear.com/7.x/pixel-art/svg?seed=pixel1&backgroundColor=10B981',
+    'avatar-4': 'https://api.dicebear.com/7.x/pixel-art/svg?seed=pixel2&backgroundColor=F97316',
     'avatar-5': 'https://api.dicebear.com/7.x/bottts/svg?seed=robot2&backgroundColor=EF4444',
     'avatar-6': 'https://api.dicebear.com/7.x/avataaars/svg?seed=person2&backgroundColor=8B5CF6',
-    'avatar-7': 'https://api.dicebear.com/7.x/fun-emoji/svg?seed=emoji2&backgroundColor=06B6D4',
-    'avatar-8': 'https://api.dicebear.com/7.x/pixel-art/svg?seed=pixel2&backgroundColor=F97316',
+    'avatar-7': 'https://api.dicebear.com/7.x/bottts/svg?seed=robot3&backgroundColor=06B6D4',
+    'avatar-8': 'https://api.dicebear.com/7.x/avataaars/svg?seed=person3&backgroundColor=F97316',
   };
   
   return avatarMap[avatarId] || 'https://api.dicebear.com/7.x/avataaars/svg?seed=default&backgroundColor=6B7280';
