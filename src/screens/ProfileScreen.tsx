@@ -360,6 +360,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               title="Edit Profile" 
               onPress={() => setIsEditing(true)}
               style={styles.editButton}
+              textStyle={styles.buttonText}
             />
           )}
           
@@ -367,30 +368,35 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             title="🏆 Achievements" 
             onPress={handleAchievements}
             style={styles.achievementsButton}
+            textStyle={styles.buttonText}
           />
           
           <Button 
             title="🏅 Leaderboard" 
             onPress={handleLeaderboard}
             style={styles.leaderboardButton}
+            textStyle={styles.buttonText}
           />
           
           <Button
             title="Export My Data"
             onPress={handleExportData}
             style={styles.exportButton}
+            textStyle={styles.buttonText}
           />
           
           <Button
             title="Delete Account"
             onPress={handleDeleteAccount}
             style={styles.deleteButton}
+            textStyle={styles.buttonText}
           />
           
           <Button
             title="Sign Out"
             onPress={handleSignOut}
             style={styles.signOutButton}
+            textStyle={styles.buttonText}
           />
           
         </View>
@@ -620,25 +626,65 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.card
   },
   editButton: {
-    backgroundColor: COLORS.card
+    backgroundColor: COLORS.primary,
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+    borderRadius: 12,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    marginBottom: SPACING.md,
   },
   achievementsButton: {
-    backgroundColor: COLORS.card
+    backgroundColor: '#F59E0B', // Gold/Orange for achievements
+    borderWidth: 2,
+    borderColor: '#F59E0B',
+    borderRadius: 12,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    marginBottom: SPACING.md,
   },
   leaderboardButton: {
-    backgroundColor: COLORS.card
+    backgroundColor: '#10B981', // Green for leaderboard
+    borderWidth: 2,
+    borderColor: '#10B981',
+    borderRadius: 12,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    marginBottom: SPACING.md,
   },
   exportButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: '#3B82F6', // Blue for export
+    borderWidth: 2,
+    borderColor: '#3B82F6',
+    borderRadius: 12,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
     marginTop: SPACING.lg,
+    marginBottom: SPACING.md,
   },
   deleteButton: {
-    backgroundColor: '#dc2626',
+    backgroundColor: '#EF4444', // Red for delete
+    borderWidth: 2,
+    borderColor: '#EF4444',
+    borderRadius: 12,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
     marginTop: SPACING.md,
+    marginBottom: SPACING.md,
   },
   signOutButton: {
-    backgroundColor: COLORS.muted,
+    backgroundColor: '#6B7280', // Gray for sign out
+    borderWidth: 2,
+    borderColor: '#6B7280',
+    borderRadius: 12,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
     marginTop: SPACING.md,
+  },
+  buttonText: {
+    color: COLORS.white,
+    fontSize: 16,
+    fontWeight: '600',
   }
 });
 
