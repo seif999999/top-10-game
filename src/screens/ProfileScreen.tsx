@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Alert, ScrollView, TextInput } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Alert, ScrollView, TextInput, Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Button from '../components/Button';
 import UserAvatar from '../components/UserAvatar';
@@ -255,7 +255,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           
           <TouchableOpacity onPress={() => setIsEditing(true)} style={styles.userNameContainer}>
             <Text style={styles.userName}>{updatedDisplayName || user?.displayName || 'User'}</Text>
-            <Text style={styles.editHint}>Tap to edit</Text>
           </TouchableOpacity>
           <Text style={styles.userEmail}>{user?.email}</Text>
           
@@ -344,32 +343,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         <View style={styles.settingsSection}>
           <Text style={styles.sectionTitle}>Settings</Text>
           
-          {isEditing ? (
-            <View style={styles.editForm}>
-              <TextInput
-                placeholder="Display Name"
-                placeholderTextColor={COLORS.muted}
-                value={displayName}
-                onChangeText={setDisplayName}
-                style={styles.input}
-              />
-              <View style={styles.editButtons}>
-                <Button 
-                  title="Save" 
-                  onPress={handleSaveProfile}
-                  style={styles.saveButton}
-                />
-                <Button 
-                  title="Cancel" 
-                  onPress={() => {
-                    setDisplayName(user?.displayName || '');
-                    setIsEditing(false);
-                  }}
-                  style={styles.cancelButton}
-                />
-              </View>
-            </View>
-          ) : null}
           
           <Button
             title="📤 Export & Delete Data"
@@ -394,6 +367,47 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         onAvatarSelect={(avatar) => handleAvatarSelect(avatar.id === 'no-avatar' ? undefined : avatar.id)}
         currentAvatarId={user?.selectedAvatar}
       />
+
+      {/* Edit Name Modal */}
+      <Modal
+        visible={isEditing}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setIsEditing(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>Edit Display Name</Text>
+            
+            <TextInput
+              placeholder="Display Name"
+              placeholderTextColor={COLORS.muted}
+              value={displayName}
+              onChangeText={setDisplayName}
+              style={styles.modalInput}
+              autoFocus={true}
+            />
+            
+            <View style={styles.modalButtons}>
+              <Button 
+                title="Cancel" 
+                onPress={() => {
+                  setDisplayName(user?.displayName || '');
+                  setIsEditing(false);
+                }}
+                style={styles.modalCancelButton}
+                textStyle={styles.modalButtonText}
+              />
+              <Button 
+                title="Save" 
+                onPress={handleSaveProfile}
+                style={styles.modalSaveButton}
+                textStyle={styles.modalButtonText}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -501,11 +515,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
     marginBottom: SPACING.xs,
-  },
-  editHint: {
-    color: COLORS.muted,
-    fontSize: 12,
-    fontStyle: 'italic',
   },
   userEmail: {
     color: COLORS.text,
@@ -640,6 +649,67 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
   },
   buttonText: {
+    color: COLORS.white,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 16,
+    padding: SPACING.xl,
+    width: '90%',
+    maxWidth: 400,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: COLORS.text,
+    textAlign: 'center',
+    marginBottom: SPACING.lg,
+  },
+  modalInput: {
+    backgroundColor: COLORS.card,
+    color: COLORS.text,
+    fontSize: 16,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: SPACING.lg,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+  },
+  modalCancelButton: {
+    flex: 1,
+    backgroundColor: COLORS.gray[600],
+    borderWidth: 2,
+    borderColor: COLORS.gray[600],
+    borderRadius: 8,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+  },
+  modalSaveButton: {
+    flex: 1,
+    backgroundColor: COLORS.primary,
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+    borderRadius: 8,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+  },
+  modalButtonText: {
     color: COLORS.white,
     fontSize: 16,
     fontWeight: '600',
