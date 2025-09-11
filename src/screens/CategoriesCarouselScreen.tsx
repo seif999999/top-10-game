@@ -11,11 +11,12 @@ import {
   Animated
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, SPACING, TYPOGRAPHY, ANIMATIONS } from '../utils/constants';
+import { COLORS, SPACING, TYPOGRAPHY, ANIMATIONS } from '../design-system';
+import { RESPONSIVE } from '../utils/responsive';
 import { CategoriesScreenProps } from '../types/navigation';
 
 const { width, height } = Dimensions.get('window');
-const CARD_WIDTH = width * 0.8;
+const CARD_WIDTH = Math.min(width * 0.8, RESPONSIVE.width.maxMd);
 const CARD_SPACING = 20;
 
 const categories = [
@@ -172,9 +173,9 @@ const CategoriesCarouselScreen: React.FC<CategoriesScreenProps> = ({ navigation,
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + SPACING.md }]}>
+      <View style={[styles.header, { paddingTop: SPACING.md }]}>
         <Animated.View style={{ transform: [{ scale: backButtonScale }] }}>
           <TouchableOpacity onPress={handleBackToHome} style={styles.backButton}>
             <View style={styles.backButtonIcon}>
@@ -204,6 +205,9 @@ const CategoriesCarouselScreen: React.FC<CategoriesScreenProps> = ({ navigation,
           decelerationRate="fast"
           contentContainerStyle={styles.carouselContent}
           ItemSeparatorComponent={() => <View style={{ width: CARD_SPACING }} />}
+          bounces={false}
+          scrollEventThrottle={16}
+          removeClippedSubviews={false}
         />
       </View>
 
@@ -289,10 +293,12 @@ const styles = StyleSheet.create({
   },
   carouselContent: {
     paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    alignItems: 'center',
   },
   categoryCard: {
     width: CARD_WIDTH,
-    height: height * 0.6,
+    height: Math.min(height * 0.6, RESPONSIVE.height.card),
     borderRadius: 24,
     padding: SPACING.xl,
     justifyContent: 'space-between',

@@ -7,10 +7,11 @@ import {
   FlatList,
   Dimensions
 } from 'react-native';
-import { COLORS, SPACING } from '../utils/constants';
+import { COLORS, SPACING } from '../design-system';
+import { RESPONSIVE } from '../utils/responsive';
 
 const { width, height } = Dimensions.get('window');
-const CARD_WIDTH = width * 0.8;
+const CARD_WIDTH = Math.min(width * 0.8, RESPONSIVE.width.maxMd);
 const CARD_SPACING = 20;
 
 /**
@@ -146,6 +147,9 @@ const CategoryCarousel: React.FC<CategoryCarouselProps> = ({
           decelerationRate="fast"
           contentContainerStyle={[styles.carouselContent, contentContainerStyle]}
           ItemSeparatorComponent={() => <View style={{ width: CARD_SPACING }} />}
+          bounces={false}
+          scrollEventThrottle={16}
+          removeClippedSubviews={false}
         />
       </View>
 
@@ -171,6 +175,8 @@ const styles = StyleSheet.create({
   },
   carouselContent: {
     paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    alignItems: 'center',
   },
   categoryCard: {
     borderRadius: 24,
