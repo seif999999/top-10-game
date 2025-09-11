@@ -14,6 +14,7 @@ interface AvatarDisplayProps {
   showBorder?: boolean;
   onPress?: () => void;
   style?: any;
+  fallbackText?: string;
 }
 
 const AVATAR_SIZES = {
@@ -44,13 +45,10 @@ const AvatarDisplay: React.FC<AvatarDisplayProps> = ({
   showBorder = true,
   onPress,
   style,
+  fallbackText = '👤',
 }) => {
   const avatarSize = typeof size === 'number' ? size : AVATAR_SIZES[size];
   const avatarUrl = avatarId ? getAvatarUrl(avatarId) : null;
-  
-  // Debug logging
-  console.log('AvatarDisplay - avatarId:', avatarId);
-  console.log('AvatarDisplay - avatarUrl:', avatarUrl);
 
   const renderAvatar = () => {
     if (avatarUrl) {
@@ -87,7 +85,7 @@ const AvatarDisplay: React.FC<AvatarDisplayProps> = ({
           styles.fallbackText,
           { fontSize: avatarSize * 0.4 }
         ]}>
-          👤
+          {fallbackText}
         </Text>
       </View>
     );

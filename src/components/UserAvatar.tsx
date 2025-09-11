@@ -29,6 +29,7 @@ const UserAvatar: React.FC<UserAvatarProps> = ({
       showBorder={showBorder}
       onPress={onPress}
       style={style}
+      fallbackText={user?.displayName?.charAt(0)?.toUpperCase() || 'U'}
     />
   );
 };
