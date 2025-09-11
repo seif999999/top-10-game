@@ -92,7 +92,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             <Text style={styles.logoNumber}>10</Text>
           </View>
           <Text style={styles.welcomeText}>
-            Welcome back, {user?.displayName || user?.email?.split('@')[0] || 'Player'} 👋
+            Welcome back, {user?.displayName || 'Player'} 👋
           </Text>
           <Text style={styles.heroSubtitle}>Test your knowledge and compete for the top spot!</Text>
         </View>
