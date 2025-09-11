@@ -267,7 +267,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
              answers: customQuestion.answers.map((answer: string, index: number) => ({
                text: answer,
                rank: index + 1,
-               points: 10 - index // Points decrease from 10 to 1
+               points: index + 1 // Points increase from 1 to number of answers
              })),
              category: 'Custom',
              difficulty: 'medium'

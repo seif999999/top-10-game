@@ -49,7 +49,7 @@ export const getQuestionsByCategory = async (category: string): Promise<GameQues
         answers: customQ.answers.map((answer: string, index: number) => ({
           text: answer,
           rank: index + 1,
-          points: 10 - index,
+          points: index + 1,
           normalized: answer.toLowerCase().trim(),
           aliases: []
         }))
