@@ -1,21 +1,91 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   SafeAreaView,
-  ScrollView,
-  ActivityIndicator,
   Dimensions,
+  FlatList,
+  Animated
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useMultiplayer } from '../contexts/MultiplayerContext';
-import { COLORS, SPACING, TYPOGRAPHY, ACCESSIBILITY } from '../design-system';
+import { COLORS, SPACING, TYPOGRAPHY, ANIMATIONS } from '../design-system';
 import { RESPONSIVE } from '../utils/responsive';
 import { sampleQuestions } from '../data/sampleQuestions';
-import CategoryCarousel, { Category } from '../components/CategoryCarousel';
+
+const { width, height } = Dimensions.get('window');
+const CARD_WIDTH = Math.min(width * 0.8, RESPONSIVE.width.maxMd);
+const CARD_SPACING = 20;
+
+const categories = [
+  {
+    id: 'Sports',
+    name: 'Sports',
+    icon: '⚽',
+    description: 'Athletics, games, and competitions',
+    color: '#FF6B6B',
+    questions: 10
+  },
+  {
+    id: 'Movies',
+    name: 'Movies & TV',
+    icon: '🎬',
+    description: 'Films, television, and entertainment',
+    color: '#4ECDC4',
+    questions: 10
+  },
+  {
+    id: 'Music',
+    name: 'Music',
+    icon: '🎵',
+    description: 'Songs, artists, and musical genres',
+    color: '#45B7D1',
+    questions: 10
+  },
+  {
+    id: 'Geography',
+    name: 'Geography',
+    icon: '🌍',
+    description: 'Countries, cities, and landmarks',
+    color: '#96CEB4',
+    questions: 10
+  },
+  {
+    id: 'History',
+    name: 'History',
+    icon: '📚',
+    description: 'Historical events and figures',
+    color: '#FFEAA7',
+    questions: 10
+  },
+  {
+    id: 'Science',
+    name: 'Science',
+    icon: '🔬',
+    description: 'Scientific discoveries and facts',
+    color: '#DDA0DD',
+    questions: 10
+  },
+  {
+    id: 'Food',
+    name: 'Food & Drink',
+    icon: '🍕',
+    description: 'Cuisines, dishes, and beverages',
+    color: '#FFB347',
+    questions: 10
+  },
+  {
+    id: 'Technology',
+    name: 'Technology',
+    icon: '💻',
+    description: 'Computers, gadgets, and innovation',
+    color: '#87CEEB',
+    questions: 10
+  }
+];
 
 interface MultiplayerCategoryScreenProps {}
 
@@ -32,60 +102,11 @@ const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () =
     resetAll,
     cleanup
   } = useMultiplayer();
-
-  // Get unique categories from sample questions
-  const availableCategories = [...new Set(sampleQuestions.map(q => q.category))];
   
-  // Get categories dynamically from sample questions
-  const categories: Category[] = availableCategories.map(categoryName => {
-    const iconMap: { [key: string]: string } = {
-      'Sports': '⚽',
-      'Movies': '🎬',
-      'Music': '🎵',
-      'Science': '🔬',
-      'History': '📚',
-      'Geography': '🌍',
-      'Movies & TV': '📺',
-      'Food & Drink': '🍕',
-      'Technology': '💻'
-    };
-    
-    const colorMap: { [key: string]: string } = {
-      'Sports': '#FF6B6B',
-      'Movies': '#4ECDC4',
-      'Music': '#45B7D1',
-      'Science': '#DDA0DD',
-      'History': '#FFEAA7',
-      'Geography': '#96CEB4',
-      'Movies & TV': '#4ECDC4',
-      'Food & Drink': '#FFB347',
-      'Technology': '#87CEEB'
-    };
-    
-    const descriptionMap: { [key: string]: string } = {
-      'Sports': 'Athletics, games, and competitions',
-      'Movies': 'Films, television, and entertainment',
-      'Music': 'Songs, artists, and musical genres',
-      'Science': 'Scientific discoveries and facts',
-      'History': 'Historical events and figures',
-      'Geography': 'Countries, cities, and landmarks',
-      'Movies & TV': 'Films, television, and entertainment',
-      'Food & Drink': 'Cuisines, dishes, and beverages',
-      'Technology': 'Computers, gadgets, and innovation'
-    };
-    
-    // Count questions for this category
-    const questionCount = sampleQuestions.filter(q => q.category === categoryName).length;
-    
-    return {
-      id: categoryName,
-      name: categoryName,
-      icon: iconMap[categoryName] || '❓',
-      description: descriptionMap[categoryName] || 'General knowledge questions',
-      color: colorMap[categoryName] || '#8B5CF6',
-      questions: questionCount
-    };
-  });
+  const flatListRef = useRef<FlatList>(null);
+  
+  // Animation values
+  const backButtonScale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     if (error) {
@@ -94,15 +115,21 @@ const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () =
     }
   }, [error, clearError]);
 
-  const handleCategorySelect = (category: Category) => {
-    setCategory(category.id);
-    // Navigate to questions screen
-    (navigation as any).navigate('MultiplayerQuestions', { 
-      categoryName: category.id 
-    });
-  };
-
   const handleBackToMenu = async () => {
+    // Button press animation
+    Animated.sequence([
+      Animated.timing(backButtonScale, {
+        toValue: 0.9,
+        duration: ANIMATIONS.duration.fast,
+        useNativeDriver: true,
+      }),
+      Animated.timing(backButtonScale, {
+        toValue: 1,
+        duration: ANIMATIONS.duration.fast,
+        useNativeDriver: true,
+      })
+    ]).start();
+    
     try {
       // Clean up any existing room session
       await leaveRoom();
@@ -124,47 +151,96 @@ const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () =
     }
   };
 
+  const handleCategoryPress = (category: typeof categories[0]) => {
+    setCategory(category.id);
+    
+    console.log('🎯 Category pressed:', category.name);
+    console.log('🎯 Game mode: multiplayer');
+    
+    // Navigate to MultiplayerQuestions with the selected category
+    (navigation as any).navigate('MultiplayerQuestions', { 
+      categoryName: category.name 
+    });
+  };
+
+  const renderCategoryCard = ({ item, index }: { item: typeof categories[0]; index: number }) => {
+    const isSelected = selectedCategory === item.id;
+    
+    return (
+      <TouchableOpacity
+        style={[
+          styles.categoryCard,
+          { 
+            backgroundColor: item.color,
+            borderWidth: isSelected ? 3 : 0,
+            borderColor: isSelected ? 'rgba(255, 255, 255, 0.8)' : 'transparent'
+          }
+        ]}
+        onPress={() => handleCategoryPress(item)}
+        activeOpacity={0.8}
+      >
+        <View style={styles.cardContent}>
+          <Text style={styles.categoryIcon}>{item.icon}</Text>
+          <Text style={styles.categoryName}>{item.name}</Text>
+          <Text style={styles.categoryDescription}>{item.description}</Text>
+          <View style={styles.questionCount}>
+            <Text style={styles.questionCountText}>{item.questions} Questions</Text>
+          </View>
+        </View>
+        
+        {/* Play Button */}
+        <View style={styles.playButton}>
+          <Text style={styles.playButtonText}>🎯 Select</Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: SPACING.md }]}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={handleBackToMenu}
-          accessibilityLabel="Back to multiplayer menu"
-          accessibilityRole="button"
-          accessibilityHint="Returns to the multiplayer menu screen"
-        >
-          <Text style={styles.backButtonText}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>Choose Category</Text>
-        <View style={styles.placeholder} />
+        <Animated.View style={{ transform: [{ scale: backButtonScale }] }}>
+          <TouchableOpacity onPress={handleBackToMenu} style={styles.backButton}>
+            <View style={styles.backButtonIcon}>
+              <Text style={styles.backButtonArrow}>‹</Text>
+            </View>
+          </TouchableOpacity>
+        </Animated.View>
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>Choose Category</Text>
+          <Text style={styles.headerSubtitle}>
+            Multiplayer Mode
+          </Text>
+        </View>
+        <View style={styles.headerPlaceholder} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Category Selection */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Select a Category</Text>
-          <Text style={styles.sectionSubtitle}>
-            Choose the category for your multiplayer game
-          </Text>
-          <View style={styles.carouselContainer}>
-            <CategoryCarousel
-              categories={categories}
-              selectedCategory={selectedCategory}
-              onCategorySelect={handleCategorySelect}
-              showInstructions={true}
-              instructionsText="Swipe to browse categories • Tap to select"
-              cardWidth={RESPONSIVE.width.maxMd}
-              cardHeight={RESPONSIVE.height.card}
-              showQuestionCount={true}
-              buttonText="🎯 Select"
-              accessibilityLabel="Category selection carousel"
-              accessibilityHint="Swipe left or right to browse categories, then tap to select one"
-            />
-          </View>
-        </View>
-      </ScrollView>
+      {/* Categories Carousel */}
+      <View style={styles.carouselContainer}>
+        <FlatList
+          ref={flatListRef}
+          data={categories}
+          renderItem={renderCategoryCard}
+          keyExtractor={(item) => item.id}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          snapToInterval={CARD_WIDTH + CARD_SPACING}
+          decelerationRate="fast"
+          contentContainerStyle={styles.carouselContent}
+          ItemSeparatorComponent={() => <View style={{ width: CARD_SPACING }} />}
+          bounces={false}
+          scrollEventThrottle={16}
+          removeClippedSubviews={false}
+        />
+      </View>
+
+      {/* Instructions */}
+      <View style={styles.instructions}>
+        <Text style={styles.instructionsText}>
+          Swipe to browse categories • Tap to start playing
+        </Text>
+      </View>
     </SafeAreaView>
   );
 };
@@ -179,52 +255,143 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-    paddingBottom: SPACING.lg,
+    paddingVertical: SPACING.lg,
+    paddingBottom: SPACING.xl,
   },
   backButton: {
-    padding: SPACING.sm,
-    backgroundColor: COLORS.surface,
-    borderRadius: 8,
-    minWidth: 80,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: 22,
+    backgroundColor: 'rgba(139, 92, 246, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.2)',
+    shadowColor: '#8B5CF6',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  backButtonIcon: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  backButtonText: {
-    fontSize: 16,
-    color: COLORS.text,
-    fontWeight: '600' as const,
-  },
-  title: {
-    fontSize: 20,
+  backButtonArrow: {
+    color: '#8B5CF6',
+    fontSize: 18,
     fontWeight: 'bold' as const,
-    color: COLORS.text,
+    lineHeight: 20,
   },
-  placeholder: {
-    width: 80,
-  },
-  content: {
+  headerContent: {
     flex: 1,
-    paddingHorizontal: SPACING.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  section: {
-    marginTop: SPACING.xl,
-    marginBottom: SPACING.lg,
+  headerPlaceholder: {
+    width: 60,
   },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold' as const,
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '700',
     color: COLORS.text,
-    marginBottom: SPACING.sm,
+    marginBottom: 2,
   },
-  sectionSubtitle: {
+  headerSubtitle: {
     fontSize: 14,
     color: COLORS.muted,
-    marginBottom: SPACING.md,
+    fontWeight: '500',
   },
   carouselContainer: {
-    height: RESPONSIVE.height.card,
-    marginTop: SPACING.xl,
+    flex: 1,
+    justifyContent: 'center',
+    paddingTop: SPACING.xl,
+  },
+  carouselContent: {
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    alignItems: 'center',
+  },
+  categoryCard: {
+    width: CARD_WIDTH,
+    height: Math.min(height * 0.6, RESPONSIVE.height.card),
+    borderRadius: 24,
+    padding: SPACING.xl,
+    justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  cardContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  categoryIcon: {
+    fontSize: 64,
+    marginBottom: SPACING.lg,
+  },
+  categoryName: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: 'white',
     marginBottom: SPACING.md,
+    textAlign: 'center',
+  },
+  categoryDescription: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.9)',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: SPACING.lg,
+  },
+  questionCount: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: 20,
+  },
+  questionCountText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'white',
+  },
+  playButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.xl,
+    borderRadius: 16,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  playButtonText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: 'white',
+  },
+  instructions: {
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.xl,
+    alignItems: 'center',
+  },
+  instructionsText: {
+    fontSize: 14,
+    color: COLORS.muted,
+    textAlign: 'center',
   },
 });
 
