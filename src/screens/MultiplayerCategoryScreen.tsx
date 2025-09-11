@@ -304,11 +304,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: COLORS.text,
     marginBottom: 2,
+    textAlign: 'center',
   },
   headerSubtitle: {
     fontSize: 14,
     color: COLORS.muted,
     fontWeight: '500',
+    textAlign: 'center',
   },
   carouselContainer: {
     flex: 1,

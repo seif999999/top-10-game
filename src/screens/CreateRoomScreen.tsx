@@ -371,6 +371,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold' as const,
     color: COLORS.text,
+    textAlign: 'center',
   },
   placeholder: {
     width: 60,
@@ -392,11 +393,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold' as const,
     color: COLORS.text,
     marginBottom: SPACING.sm,
+    textAlign: 'center',
   },
   sectionSubtitle: {
     fontSize: 14,
     color: COLORS.muted,
     marginBottom: SPACING.md,
+    textAlign: 'center',
   },
   carouselContainer: {
     height: RESPONSIVE.height.card,

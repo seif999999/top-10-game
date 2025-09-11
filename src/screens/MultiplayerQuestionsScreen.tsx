@@ -361,7 +361,8 @@ const styles = StyleSheet.create({
   title: {
     color: COLORS.text,
     fontSize: 20,
-    fontWeight: '700'
+    fontWeight: '700',
+    textAlign: 'center'
   },
   placeholder: {
     width: 60,
@@ -432,6 +433,7 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontSize: 24,
     fontWeight: '800',
+    textAlign: 'center',
   },
   questionsContainer: {
     paddingBottom: SPACING.xl

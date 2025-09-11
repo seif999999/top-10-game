@@ -1830,7 +1830,8 @@ const styles = StyleSheet.create({
     color: '#F1F5F9',
     fontSize: 26,
     fontWeight: '800',
-    marginBottom: SPACING.sm
+    marginBottom: SPACING.sm,
+    textAlign: 'center'
   },
   successMessage: {
     color: '#94A3B8',
@@ -1906,7 +1907,8 @@ const styles = StyleSheet.create({
   scoreTitle: {
     color: '#F1F5F9',
     fontSize: 28,
-    fontWeight: '800'
+    fontWeight: '800',
+    textAlign: 'center'
   },
   nextButton: {
     backgroundColor: '#8B5CF6',

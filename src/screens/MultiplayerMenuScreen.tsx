@@ -192,6 +192,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold' as const,
     color: COLORS.text,
+    textAlign: 'center',
   },
   placeholder: {
     width: 60, // Same width as back button for centering

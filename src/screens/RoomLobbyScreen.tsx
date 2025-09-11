@@ -506,6 +506,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold' as const,
     color: COLORS.text,
+    textAlign: 'center',
   },
   leaveButton: {
     padding: SPACING.sm,
@@ -583,6 +584,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold' as const,
     color: COLORS.text,
     marginBottom: SPACING.md,
+    textAlign: 'center',
   },
   gameInfoGrid: {
     flexDirection: 'row',
@@ -622,6 +624,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold' as const,
     color: COLORS.text,
     marginBottom: SPACING.md,
+    textAlign: 'center',
   },
   playersList: {
     gap: SPACING.sm,
@@ -687,6 +690,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold' as const,
     color: COLORS.text,
     marginBottom: SPACING.md,
+    textAlign: 'center',
   },
   hostControlsButtons: {
     gap: SPACING.md,
@@ -755,6 +759,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold' as const,
     color: COLORS.text,
     marginBottom: SPACING.sm,
+    textAlign: 'center',
   },
   waitingSubtitle: {
     fontSize: 16,

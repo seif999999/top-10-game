@@ -290,7 +290,8 @@ const styles = StyleSheet.create({
   title: {
     color: COLORS.text,
     fontSize: 20,
-    fontWeight: '700'
+    fontWeight: '700',
+    textAlign: 'center'
   },
   placeholder: {
     width: 60
@@ -314,11 +315,13 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontSize: 24,
     fontWeight: '800',
-    marginBottom: SPACING.sm
+    marginBottom: SPACING.sm,
+    textAlign: 'center'
   },
   categorySubtitle: {
     color: COLORS.muted,
-    fontSize: 16
+    fontSize: 16,
+    textAlign: 'center'
   },
   questionsList: {
     paddingBottom: SPACING.xl

@@ -253,6 +253,7 @@ const styles = StyleSheet.create({
      color: COLORS.text,
      marginBottom: SPACING.md,
      letterSpacing: 0.5,
+     textAlign: 'center',
    },
      modeDescription: {
      fontSize: 16,
