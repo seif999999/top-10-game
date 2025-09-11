@@ -238,7 +238,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           <TouchableOpacity onPress={() => navigation.navigate('AvatarSelection' as never)} style={styles.avatarContainer}>
             <AvatarDisplay 
               avatarId={user?.selectedAvatar}
-              size="large"
+              size={120}
               showBorder={true}
             />
           </TouchableOpacity>
@@ -408,8 +408,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: SPACING.md,
     position: 'relative',
-    width: 120,
-    height: 120,
+    width: 150,
+    height: 150,
   },
   userNameContainer: {
     alignItems: 'center',

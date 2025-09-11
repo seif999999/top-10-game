@@ -92,9 +92,8 @@ const AvatarSelectionScreen: React.FC = () => {
     setIsLoading(true);
     try {
       await updateUserProfile({ avatarId: selectedAvatar });
-      Alert.alert('Success', 'Avatar updated successfully!', [
-        { text: 'OK', onPress: () => navigation.goBack() }
-      ]);
+      // Automatically go back after successful save
+      navigation.goBack();
     } catch (error) {
       Alert.alert('Error', 'Failed to update avatar. Please try again.');
     } finally {
