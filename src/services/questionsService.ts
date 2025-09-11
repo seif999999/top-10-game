@@ -2,6 +2,7 @@ import { GameQuestion, QuestionAnswer, sampleQuestions } from '../data/sampleQue
 import { Question, Answer, LegacyQuestion } from '../types/game';
 import { pointsForRank } from './scoring';
 import { validateAnswerFuzzy } from './fuzzyMatching';
+import CustomQuestionService, { CustomQuestion } from './customQuestionService';
 
 export interface AnswerValidationResult {
   isCorrect: boolean;
@@ -29,9 +30,40 @@ export interface UserQuestionData {
 /**
  * Get questions by category - SIMPLE AND DIRECT
  */
-export const getQuestionsByCategory = (category: string): GameQuestion[] => {
+export const getQuestionsByCategory = async (category: string): Promise<GameQuestion[]> => {
   console.log(`🔍 getQuestionsByCategory("${category}") called`);
   
+  // Handle Custom category - load from custom questions service
+  if (category === 'Custom') {
+    console.log(`🔍 Loading custom questions...`);
+    try {
+      const customQuestionService = CustomQuestionService.getInstance();
+      const customQuestions = await customQuestionService.getAllCustomQuestions();
+      
+      // Convert custom questions to GameQuestion format
+      const gameQuestions: GameQuestion[] = customQuestions.map((customQ: CustomQuestion) => ({
+        id: customQ.id,
+        category: 'Custom',
+        title: customQ.question,
+        difficulty: 'medium',
+        answers: customQ.answers.map((answer: string, index: number) => ({
+          text: answer,
+          rank: index + 1,
+          points: 10 - index,
+          normalized: answer.toLowerCase().trim(),
+          aliases: []
+        }))
+      }));
+      
+      console.log(`🔍 Found ${gameQuestions.length} custom questions`);
+      return gameQuestions;
+    } catch (error) {
+      console.error(`❌ Error loading custom questions:`, error);
+      return [];
+    }
+  }
+  
+  // Handle regular categories
   // Add safety check for sampleQuestions
   if (!sampleQuestions || !Array.isArray(sampleQuestions)) {
     console.error(`❌ sampleQuestions is not available or not an array`);
@@ -62,14 +94,14 @@ export const getQuestionsByCategory = (category: string): GameQuestion[] => {
 /**
  * Get a random question from a category
  */
-export const getRandomQuestion = (category?: string): GameQuestion => {
+export const getRandomQuestion = async (category?: string): Promise<GameQuestion> => {
   // Add safety check for sampleQuestions
   if (!sampleQuestions || !Array.isArray(sampleQuestions)) {
     console.error(`❌ sampleQuestions is not available or not an array`);
     return {} as GameQuestion; // Return empty object as fallback
   }
   
-  const questions = category ? getQuestionsByCategory(category) : sampleQuestions;
+  const questions = category ? await getQuestionsByCategory(category) : sampleQuestions;
   if (questions.length === 0) {
     console.error(`❌ No questions found for category: ${category}`);
     return sampleQuestions[0] || {} as GameQuestion; // Fallback
@@ -220,7 +252,7 @@ export const submitUserQuestion = async (questionData: UserQuestionData): Promis
 /**
  * Get question statistics
  */
-export const getQuestionStats = (category?: string) => {
+export const getQuestionStats = async (category?: string) => {
   // Add safety check for sampleQuestions
   if (!sampleQuestions || !Array.isArray(sampleQuestions)) {
     console.error(`❌ sampleQuestions is not available or not an array`);
@@ -232,7 +264,7 @@ export const getQuestionStats = (category?: string) => {
     };
   }
   
-  const questions = category ? getQuestionsByCategory(category) : sampleQuestions;
+  const questions = category ? await getQuestionsByCategory(category) : sampleQuestions;
   
   return {
     totalQuestions: questions.length,
@@ -248,7 +280,7 @@ export const getQuestionStats = (category?: string) => {
 /**
  * Get questions by difficulty level
  */
-export const getQuestionsByDifficulty = (difficulty: 'easy' | 'medium' | 'hard', category?: string): GameQuestion[] => {
+export const getQuestionsByDifficulty = async (difficulty: 'easy' | 'medium' | 'hard', category?: string): Promise<GameQuestion[]> => {
   // Add safety check for sampleQuestions
   if (!sampleQuestions || !Array.isArray(sampleQuestions)) {
     console.error(`❌ sampleQuestions is not available or not an array`);
@@ -258,7 +290,7 @@ export const getQuestionsByDifficulty = (difficulty: 'easy' | 'medium' | 'hard',
   let questions = sampleQuestions;
   
   if (category) {
-    questions = getQuestionsByCategory(category);
+    questions = await getQuestionsByCategory(category);
   }
   
   return questions.filter((q: GameQuestion) => q.difficulty === difficulty);

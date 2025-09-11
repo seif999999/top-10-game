@@ -18,6 +18,7 @@ interface GameContextState {
 
 type GameAction =
   | { type: 'START_GAME'; payload: { category: string; players: string[]; selectedQuestion?: any } }
+  | { type: 'START_GAME_SUCCESS'; payload: { gameState: GameState } }
   | { type: 'SET_ANSWER'; payload: string }
   | { type: 'SUBMIT_ANSWER'; payload: { playerId: string; answer: string } }
   | { type: 'NEXT_QUESTION' }
@@ -28,6 +29,7 @@ type GameAction =
   | { type: 'RESET_GAME' }
   // Team mode actions
   | { type: 'START_TEAMS_GAME'; payload: { category: string; selectedQuestion?: any; config: TeamSetupConfig } }
+  | { type: 'START_TEAMS_GAME_SUCCESS'; payload: { gameState: GameState; config: TeamSetupConfig } }
   | { type: 'ASSIGN_ANSWER_TO_TEAM'; payload: { answerIndex: number; teamId: string; points: number } }
   | { type: 'END_TEAM_TURN' }
   | { type: 'SET_TEAM_TIMER'; payload: number }
@@ -45,20 +47,16 @@ const initialState: GameContextState = {
 
 const gameReducer = (state: GameContextState, action: GameAction): GameContextState => {
   switch (action.type) {
-    case 'START_GAME':
+    case 'START_GAME_SUCCESS':
       try {
-        const { category, players, selectedQuestion } = action.payload;
-        console.log(`🎮 START_GAME action - Category: ${category}, Players: ${players}, SelectedQuestion: ${selectedQuestion ? 'YES' : 'NO'}`);
-        
-        const newGameState = startNewGame(category, players, selectedQuestion ? 1 : 10, selectedQuestion);
-        console.log(`🎮 START_GAME - New game state created:`, {
+        const { gameState: newGameState } = action.payload;
+        console.log(`🎮 START_GAME_SUCCESS - New game state created:`, {
           category: newGameState.category,
           totalRounds: newGameState.totalRounds,
           currentQuestion: newGameState.currentQuestion?.title,
           shuffledQuestionsCount: newGameState.shuffledQuestions?.length
         });
         
-
         newGameState.gamePhase = 'question';
         return {
           ...state,
@@ -68,7 +66,7 @@ const gameReducer = (state: GameContextState, action: GameAction): GameContextSt
           error: null
         };
       } catch (error) {
-        console.error(`❌ START_GAME error:`, error);
+        console.error(`❌ START_GAME_SUCCESS error:`, error);
         return {
           ...state,
           error: 'Failed to start game'
@@ -163,14 +161,12 @@ const gameReducer = (state: GameContextState, action: GameAction): GameContextSt
       return initialState;
 
     // Team mode cases
-    case 'START_TEAMS_GAME':
+    case 'START_TEAMS_GAME_SUCCESS':
       try {
-        const { category, selectedQuestion, config } = action.payload;
-        console.log(`🎮 START_TEAMS_GAME action - Category: ${category}, Config:`, config);
+        const { gameState: newGameState, config } = action.payload;
+        console.log(`🎮 START_TEAMS_GAME_SUCCESS action - Category: ${newGameState.category}, Config:`, config);
         
-        // Create the regular game state first (needed for questions)
-        const newGameState = startNewGame(category, ['Host'], selectedQuestion ? 1 : 10, selectedQuestion);
-        console.log(`🎮 START_TEAMS_GAME - Game state created:`, {
+        console.log(`🎮 START_TEAMS_GAME_SUCCESS - Game state created:`, {
           category: newGameState.category,
           totalRounds: newGameState.totalRounds,
           currentQuestion: newGameState.currentQuestion?.title,
@@ -370,11 +366,13 @@ interface GameProviderProps {
 export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
   const [state, dispatch] = useReducer(gameReducer, initialState);
 
-  const startGame = useCallback((category: string, players: string[], selectedQuestion?: any) => {
+  const startGame = useCallback(async (category: string, players: string[], selectedQuestion?: any) => {
     dispatch({ type: 'SET_LOADING', payload: true });
     try {
-      dispatch({ type: 'START_GAME', payload: { category, players, selectedQuestion } });
+      const newGameState = await startNewGame(category, players, selectedQuestion ? 1 : 10, selectedQuestion);
+      dispatch({ type: 'START_GAME_SUCCESS', payload: { gameState: newGameState } });
     } catch (error) {
+      console.error('❌ Error starting game:', error);
       dispatch({ type: 'SET_ERROR', payload: 'Failed to start game' });
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
@@ -452,11 +450,13 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
   }, []);
 
   // Team mode functions
-  const startTeamsGame = useCallback((category: string, config: TeamSetupConfig, selectedQuestion?: any) => {
+  const startTeamsGame = useCallback(async (category: string, config: TeamSetupConfig, selectedQuestion?: any) => {
     dispatch({ type: 'SET_LOADING', payload: true });
     try {
-      dispatch({ type: 'START_TEAMS_GAME', payload: { category, selectedQuestion, config } });
+      const newGameState = await startNewGame(category, ['Host'], selectedQuestion ? 1 : 10, selectedQuestion);
+      dispatch({ type: 'START_TEAMS_GAME_SUCCESS', payload: { gameState: newGameState, config } });
     } catch (error) {
+      console.error('❌ Error starting team game:', error);
       dispatch({ type: 'SET_ERROR', payload: 'Failed to start team game' });
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });

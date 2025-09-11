@@ -40,7 +40,7 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
   const loadQuestions = async () => {
     try {
       setLoading(true);
-      const categoryQuestions = getQuestionsByCategory(categoryName);
+      const categoryQuestions = await getQuestionsByCategory(categoryName);
       setQuestions(categoryQuestions);
     } catch (error) {
       console.error('Error loading questions:', error);

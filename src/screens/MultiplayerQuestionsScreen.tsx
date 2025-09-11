@@ -70,7 +70,7 @@ const MultiplayerQuestionsScreen: React.FC = () => {
   const loadQuestions = async () => {
     try {
       setLoadingQuestions(true);
-      const categoryQuestions = getQuestionsByCategory(categoryName);
+      const categoryQuestions = await getQuestionsByCategory(categoryName);
       setQuestionsState(categoryQuestions);
     } catch (error) {
       console.error('Error loading questions:', error);

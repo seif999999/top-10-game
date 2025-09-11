@@ -216,12 +216,12 @@ export const generateGameResults = (gameState: GameState): GameResults => {
 };
 
 // Start a new game
-export const startNewGame = (
+export const startNewGame = async (
   category: string,
   players: string[],
   totalRounds: number = 10,
   selectedQuestion?: any
-): GameState => {
+): Promise<GameState> => {
   if (!players || !Array.isArray(players) || players.length === 0) {
     throw new Error('Invalid players parameter: must be a non-empty array');
   }
@@ -229,7 +229,7 @@ export const startNewGame = (
   console.log(`🎮 startNewGame called with category: "${category}", players: ${players}, totalRounds: ${totalRounds}, selectedQuestion: ${selectedQuestion ? 'YES' : 'NO'}`);
   
   // Get questions for this specific category
-  const questions = getQuestionsByCategory(category);
+  const questions = await getQuestionsByCategory(category);
   if (!questions || !Array.isArray(questions)) {
     console.error(`❌ Invalid questions returned for category: ${category}`);
     throw new Error(`Invalid questions returned for category: ${category}`);
