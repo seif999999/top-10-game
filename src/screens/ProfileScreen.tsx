@@ -18,15 +18,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [updatedDisplayName, setUpdatedDisplayName] = useState(user?.displayName || '');
   const [isEditing, setIsEditing] = useState(false);
-  const [currentStreak, setCurrentStreak] = useState(0);
-  const [bestStreak, setBestStreak] = useState(0);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
 
-  useEffect(() => {
-    // For now, use mock data until localStorage is properly set up
-    setCurrentStreak(3);
-    setBestStreak(5);
-  }, []);
 
   // Sync displayName state with user.displayName from AuthContext
   useEffect(() => {
@@ -268,80 +261,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           )}
         </View>
 
-        {/* Avatar Test Section - Temporary for testing */}
-        <View style={styles.testSection}>
-          <Text style={styles.sectionTitle}>Test Avatar Changes</Text>
-          <View style={styles.testButtons}>
-            <TouchableOpacity 
-              style={styles.testButton} 
-              onPress={() => updateUserAvatar('human-1')}
-            >
-              <Text style={styles.testButtonText}>Alex (Human 1)</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.testButton} 
-              onPress={() => updateUserAvatar('human-2')}
-            >
-              <Text style={styles.testButtonText}>Sam (Human 2)</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.testButton} 
-              onPress={() => updateUserAvatar('animal-1')}
-            >
-              <Text style={styles.testButtonText}>Whiskers (Cat)</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.testButton} 
-              onPress={() => updateUserAvatar('animal-2')}
-            >
-              <Text style={styles.testButtonText}>Buddy (Dog)</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.testButton} 
-              onPress={() => updateUserAvatar('animal-3')}
-            >
-              <Text style={styles.testButtonText}>Wise Owl</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.testButton} 
-              onPress={() => updateUserAvatar(undefined)}
-            >
-              <Text style={styles.testButtonText}>No Avatar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
 
-        <View style={styles.statsSection}>
-          <Text style={styles.sectionTitle}>Game Statistics</Text>
-          <View style={styles.statsGrid}>
-            <View style={styles.statCard}>
-              <Text style={styles.statIcon}>🎮</Text>
-              <Text style={styles.statNumber}>0</Text>
-              <Text style={styles.statLabel}>Games Played</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statIcon}>🏆</Text>
-              <Text style={styles.statNumber}>0</Text>
-              <Text style={styles.statLabel}>Wins</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statIcon}>📊</Text>
-              <Text style={styles.statNumber}>0</Text>
-              <Text style={styles.statLabel}>Total Score</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statIcon}>📈</Text>
-              <Text style={styles.statNumber}>0</Text>
-              <Text style={styles.statLabel}>Avg Score</Text>
-            </View>
-            
-            <View style={styles.statCard}>
-              <Text style={styles.statIcon}>🔥</Text>
-              <Text style={styles.statNumber}>{bestStreak}</Text>
-              <Text style={styles.statLabel}>Best Streak</Text>
-            </View>
-          </View>
-        </View>
 
         <View style={styles.settingsSection}>
           <Text style={styles.sectionTitle}>Settings</Text>
@@ -537,75 +457,11 @@ const styles = StyleSheet.create({
     color: COLORS.muted,
     fontSize: 14
   },
-  testSection: {
-    backgroundColor: COLORS.surface,
-    padding: SPACING.lg,
-    borderRadius: 12,
-    marginBottom: SPACING.lg,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  testButtons: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.sm
-  },
-  testButton: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: 8,
-    marginBottom: SPACING.sm
-  },
-  testButtonText: {
-    color: COLORS.white,
-    fontSize: 12,
-    fontWeight: '600',
-    textAlign: 'center'
-  },
-  statsSection: {
-    marginBottom: SPACING.xl,
-    padding: SPACING.lg,
-    backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
   sectionTitle: {
     color: COLORS.text,
     fontSize: 20,
     fontWeight: '700',
     marginBottom: SPACING.md
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.md
-  },
-  statCard: {
-    backgroundColor: COLORS.card,
-    padding: SPACING.md,
-    borderRadius: 12,
-    alignItems: 'center',
-    flex: 1,
-    minWidth: '45%',
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-  },
-  statIcon: {
-    fontSize: 24,
-    marginBottom: SPACING.sm
-  },
-  statNumber: {
-    color: COLORS.text,
-    fontSize: 24,
-    fontWeight: '800',
-    marginBottom: SPACING.xs
-  },
-  statLabel: {
-    color: COLORS.textSecondary,
-    fontSize: 12,
-    textAlign: 'center'
   },
   settingsSection: {
     gap: SPACING.md,
