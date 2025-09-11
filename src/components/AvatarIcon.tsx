@@ -1,6 +1,7 @@
 import React from 'react';
 import { User } from '../types';
 import AvatarDisplay from './AvatarDisplay';
+import { COLORS } from '../design-system';
 
 interface AvatarIconProps {
   user: User | null;
