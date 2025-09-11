@@ -101,13 +101,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const updateUserProfile = async (displayName: string) => {
+  const updateUserProfile = async (updates: { displayName?: string; avatarId?: string }) => {
     setPendingAction(true);
     try {
-      console.log('🔄 AuthContext: Updating user profile...');
+      console.log('🔄 AuthContext: Updating user profile...', updates);
       
       // Call the auth service to update the profile
-      const updatedUser = await updateUserProfileService(displayName);
+      const updatedUser = await updateUserProfileService(updates);
       
       // Update local user state with the new data
       console.log('✅ AuthContext: Profile updated successfully');

@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Button from '../components/Button';
 import UserAvatar from '../components/UserAvatar';
 import AvatarSelectionModal from '../components/AvatarSelectionModal';
+import AvatarDisplay from '../components/AvatarDisplay';
 import { COLORS, SPACING, COMPONENT_STYLES } from '../design-system';
 import { ProfileScreenProps } from '../types/navigation';
 import { useAuth } from '../contexts/AuthContext';
@@ -268,6 +269,13 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           
           
           <Button
+            title="🎨 Choose Avatar"
+            onPress={() => navigation.navigate('AvatarSelection' as never)}
+            style={styles.avatarSelectionButton}
+            textStyle={styles.buttonText}
+          />
+          
+          <Button
             title="📤 Export & Delete Data"
             onPress={handleDataManagement}
             style={styles.dataManagementButton}
@@ -495,6 +503,16 @@ const styles = StyleSheet.create({
   cancelButton: {
     flex: 1,
     backgroundColor: COLORS.card
+  },
+  avatarSelectionButton: {
+    backgroundColor: '#8B5CF6', // Purple for avatar selection
+    borderWidth: 2,
+    borderColor: '#8B5CF6',
+    borderRadius: 12,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    marginTop: SPACING.lg,
+    marginBottom: SPACING.md,
   },
   dataManagementButton: {
     backgroundColor: '#3B82F6', // Blue for data management

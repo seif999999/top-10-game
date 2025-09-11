@@ -22,6 +22,7 @@ export type MainStackParamList = {
   MultiplayerQuestions: { categoryName: string };
   JoinRoom: undefined;
   RoomLobby: { roomCode: string; turnDuration?: number };
+  AvatarSelection: undefined;
 };
 
 // Combined Root Stack Types

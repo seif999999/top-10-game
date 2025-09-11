@@ -349,31 +349,37 @@ export const getCurrentUser = (): User | null => {
   return auth.currentUser ? mapFirebaseUser(auth.currentUser) : null;
 };
 
-export const updateUserProfile = async (displayName: string): Promise<User> => {
+export const updateUserProfile = async (updates: { displayName?: string; avatarId?: string }): Promise<User> => {
   try {
     const currentUser = auth.currentUser;
     if (!currentUser) {
       throw new Error('No user is currently signed in');
     }
     
-    // Update the Firebase user profile
-    await updateProfile(currentUser, { displayName });
+    // Update the Firebase user profile if displayName is provided
+    if (updates.displayName) {
+      await updateProfile(currentUser, { displayName: updates.displayName });
+    }
     
     // Also update the Firestore profile to keep it in sync
     const { UserProfileService } = await import('./userProfileService');
     const userProfileService = UserProfileService.getInstance();
     
-    // Get current user profile to preserve avatar data
+    // Get current user profile to preserve existing data
     const currentProfile = await userProfileService.getUserProfile(currentUser.uid);
     
-    // Update only the displayName in Firestore, preserving avatar data
+    // Update only the provided fields in Firestore, preserving other data
     if (currentProfile) {
-      // Only update if displayName actually changed
-      if (currentProfile.displayName !== displayName) {
+      // Check if there are actual changes
+      const hasDisplayNameChange = updates.displayName && currentProfile.displayName !== updates.displayName;
+      const hasAvatarChange = updates.avatarId !== undefined && currentProfile.selectedAvatar !== updates.avatarId;
+      
+      if (hasDisplayNameChange || hasAvatarChange) {
         const updatedProfile = {
           ...currentProfile,
           email: currentUser.email || currentProfile.email || '',
-          displayName: displayName,
+          ...(updates.displayName && { displayName: updates.displayName }),
+          ...(updates.avatarId !== undefined && { selectedAvatar: updates.avatarId }),
           lastUpdated: new Date()
         };
         await userProfileService.updateUserProfile(updatedProfile);
@@ -386,11 +392,12 @@ export const updateUserProfile = async (displayName: string): Promise<User> => {
         };
       }
     } else {
-      // If no profile exists, create one with just displayName
+      // If no profile exists, create one with the provided data
       const newProfile = {
         id: currentUser.uid,
         email: currentUser.email || '',
-        displayName: displayName,
+        ...(updates.displayName && { displayName: updates.displayName }),
+        ...(updates.avatarId !== undefined && { selectedAvatar: updates.avatarId }),
         createdAt: new Date(),
         lastUpdated: new Date()
       };

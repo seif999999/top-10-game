@@ -20,6 +20,7 @@ import MultiplayerCategoryScreen from '../screens/MultiplayerCategoryScreen';
 import MultiplayerQuestionsScreen from '../screens/MultiplayerQuestionsScreen';
 import JoinRoomScreen from '../screens/JoinRoomScreen';
 import RoomLobbyScreen from '../screens/RoomLobbyScreen';
+import AvatarSelectionScreen from '../screens/AvatarSelectionScreen';
 
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -53,6 +54,7 @@ const AppNavigator: React.FC = () => {
             <Stack.Screen name="MultiplayerQuestions" component={MultiplayerQuestionsScreen} />
             <Stack.Screen name="JoinRoom" component={JoinRoomScreen} />
             <Stack.Screen name="RoomLobby" component={RoomLobbyScreen} />
+            <Stack.Screen name="AvatarSelection" component={AvatarSelectionScreen} />
           </>
         ) : (
           <>
