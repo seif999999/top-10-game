@@ -1,4 +1,5 @@
 import { Avatar } from '../types';
+import { CHARACTER_AVATARS, CharacterAvatar } from '../assets/avatars/characters';
 
 // Avatar configuration constants
 export const AVATAR_CONFIG = {
@@ -23,39 +24,13 @@ export const AVATAR_CONFIG = {
   },
 } as const;
 
-// Initial set of 5 avatars with visual descriptions
-export const AVAILABLE_AVATARS: Avatar[] = [
-  {
-    id: 'human-1',
-    name: 'Alex',
-    url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
-    description: 'A friendly young person with a warm smile',
-  },
-  {
-    id: 'human-2', 
-    name: 'Sam',
-    url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
-    description: 'A cheerful person with bright eyes',
-  },
-  {
-    id: 'animal-1',
-    name: 'Whiskers',
-    url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
-    description: 'A cute orange tabby cat with green eyes',
-  },
-  {
-    id: 'animal-2',
-    name: 'Buddy',
-    url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
-    description: 'A happy golden retriever with a wagging tail',
-  },
-  {
-    id: 'animal-3',
-    name: 'Wise Owl',
-    url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
-    description: 'A majestic brown owl with wise golden eyes',
-  },
-];
+// Convert character avatars to the Avatar type format
+export const AVAILABLE_AVATARS: Avatar[] = CHARACTER_AVATARS.map((char: CharacterAvatar) => ({
+  id: char.id,
+  name: char.name,
+  url: '', // We'll use the character data instead of URLs
+  description: char.description,
+}));
 
 // No Avatar option
 export const NO_AVATAR_OPTION: Avatar = {

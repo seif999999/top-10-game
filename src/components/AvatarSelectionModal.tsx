@@ -19,6 +19,7 @@ import {
   AVATAR_GRID_CONFIG 
 } from '../utils/avatarConstants';
 import { getAvatarUrl, getAvatarDisplayName, isNoAvatar } from '../utils/avatarUtils';
+import { getCharacterById } from '../assets/avatars/characters';
 
 interface AvatarSelectionModalProps {
   visible: boolean;
@@ -57,22 +58,11 @@ const AvatarSelectionModal: React.FC<AvatarSelectionModalProps> = ({
     }
   };
 
-  const getAvatarColor = (avatarId: string) => {
-    const colors = {
-      'human-1': '#4078A6',
-      'human-2': '#E74C3C', 
-      'animal-1': '#F39C12',
-      'animal-2': '#27AE60',
-      'animal-3': '#8E44AD'
-    };
-    return colors[avatarId as keyof typeof colors] || COLORS.primary;
-  };
-
   const renderAvatarItem = ({ item: avatar }: { item: Avatar }) => {
     const isSelected = selectedAvatarId === avatar.id;
     const isNoAvatarOption = isNoAvatar(avatar);
-    const avatarUrl = getAvatarUrl(avatar);
     const displayName = getAvatarDisplayName(avatar);
+    const character = getCharacterById(avatar.id);
 
     return (
       <TouchableOpacity
@@ -91,16 +81,29 @@ const AvatarSelectionModal: React.FC<AvatarSelectionModalProps> = ({
             <View style={styles.noAvatarIcon}>
               <Text style={styles.noAvatarText}>?</Text>
             </View>
+          ) : character ? (
+            <View style={[
+              styles.characterAvatar,
+              { 
+                backgroundColor: character.backgroundColor,
+                borderColor: character.color,
+              }
+            ]}>
+              <Text style={[
+                styles.characterEmoji,
+                { color: character.color }
+              ]}>
+                {character.emoji}
+              </Text>
+            </View>
           ) : (
             <View style={[
               styles.coloredAvatar,
               { 
-                backgroundColor: getAvatarColor(avatar.id)
+                backgroundColor: COLORS.primary
               }
             ]}>
-              <Text style={styles.avatarEmoji}>
-                {avatar.id.includes('human') ? '👤' : '🐾'}
-              </Text>
+              <Text style={styles.avatarEmoji}>👤</Text>
             </View>
           )}
         </View>
@@ -266,6 +269,26 @@ const styles = StyleSheet.create({
     height: avatarSize - 4,
     borderRadius: (avatarSize - 4) / 2,
   } as any,
+  characterAvatar: {
+    width: avatarSize - 4,
+    height: avatarSize - 4,
+    borderRadius: (avatarSize - 4) / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  characterEmoji: {
+    fontSize: TYPOGRAPHY.fontSize.xl,
+    textAlign: 'center',
+  },
   coloredAvatar: {
     width: avatarSize - 4,
     height: avatarSize - 4,

@@ -15,6 +15,7 @@ import {
   isNoAvatar,
   hasUserAvatar 
 } from '../utils/avatarUtils';
+import { getCharacterById } from '../assets/avatars/characters';
 
 interface AvatarIconProps {
   user: User | null;
@@ -42,38 +43,33 @@ const AvatarIcon: React.FC<AvatarIconProps> = ({
   const fallbackText = getAvatarFallbackText(user);
   const hasAvatar = hasUserAvatar(user);
 
-  const getAvatarColor = (avatarId: string) => {
-    const colors = {
-      'human-1': '#4078A6',
-      'human-2': '#E74C3C', 
-      'animal-1': '#F39C12',
-      'animal-2': '#27AE60',
-      'animal-3': '#8E44AD'
-    };
-    return colors[avatarId as keyof typeof colors] || COLORS.primary;
-  };
-
   const renderContent = () => {
-    // Show colored circle avatar if available
+    // Show character avatar if available
     if (hasAvatar && !isNoAvatar(avatar) && avatar?.id) {
-      const avatarColor = getAvatarColor(avatar.id);
-      return (
-        <View style={[
-          styles.coloredAvatar,
-          { 
-            width: size, 
-            height: size,
-            backgroundColor: avatarColor
-          }
-        ]}>
-          <Text style={[
-            styles.avatarEmoji,
-            { fontSize: size * 0.5 }
+      const character = getCharacterById(avatar.id);
+      if (character) {
+        return (
+          <View style={[
+            styles.characterAvatar,
+            { 
+              width: size, 
+              height: size,
+              backgroundColor: character.backgroundColor,
+              borderColor: character.color,
+            }
           ]}>
-            {avatar.id.includes('human') ? '👤' : '🐾'}
-          </Text>
-        </View>
-      );
+            <Text style={[
+              styles.characterEmoji,
+              { 
+                fontSize: size * 0.5,
+                color: character.color
+              }
+            ]}>
+              {character.emoji}
+            </Text>
+          </View>
+        );
+      }
     }
 
     // Show fallback text (first letter of name)
@@ -145,6 +141,23 @@ const styles = StyleSheet.create({
   },
   fallbackText: {
     fontWeight: TYPOGRAPHY.fontWeight.bold as any,
+    textAlign: 'center',
+  },
+  characterAvatar: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 50, // Makes it circular
+    borderWidth: 2,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  characterEmoji: {
     textAlign: 'center',
   },
   coloredAvatar: {
