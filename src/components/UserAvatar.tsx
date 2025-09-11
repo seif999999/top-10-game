@@ -1,6 +1,7 @@
 import React from 'react';
 import { User } from '../types';
 import AvatarDisplay from './AvatarDisplay';
+import { COLORS } from '../design-system';
 
 interface UserAvatarProps {
   user: User | null;
@@ -16,7 +17,7 @@ const UserAvatar: React.FC<UserAvatarProps> = ({
   user,
   size = 'medium',
   showBorder = true,
-  borderColor = '#8B5CF6',
+  borderColor = COLORS.primary,
   onPress,
   style,
   showLoading = false,
