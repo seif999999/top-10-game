@@ -277,6 +277,57 @@ export const COMPONENT_STYLES = {
     }
   },
   
+  // Outline Styles - Consistent project identity
+  outline: {
+    // Primary outline for main content areas
+    primary: {
+      borderWidth: 1,
+      borderColor: COLORS.border,
+      borderRadius: 12,
+    },
+    // Secondary outline for sub-sections
+    secondary: {
+      borderWidth: 1,
+      borderColor: COLORS.borderLight,
+      borderRadius: 8,
+    },
+    // Accent outline for highlighted content
+    accent: {
+      borderWidth: 2,
+      borderColor: COLORS.primary,
+      borderRadius: 12,
+    },
+    // Success outline for positive feedback
+    success: {
+      borderWidth: 2,
+      borderColor: COLORS.success,
+      borderRadius: 12,
+    },
+    // Error outline for negative feedback
+    error: {
+      borderWidth: 2,
+      borderColor: COLORS.error,
+      borderRadius: 12,
+    },
+    // Subtle outline for minimal emphasis
+    subtle: {
+      borderWidth: 1,
+      borderColor: COLORS.borderDark,
+      borderRadius: 8,
+    },
+    // Glow outline for interactive elements
+    glow: {
+      borderWidth: 2,
+      borderColor: COLORS.primary,
+      borderRadius: 12,
+      shadowColor: COLORS.primary,
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 4,
+    }
+  },
+  
   // Input Styles
   input: {
     default: {

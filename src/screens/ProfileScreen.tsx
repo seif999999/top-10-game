@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Button from '../components/Button';
 import UserAvatar from '../components/UserAvatar';
 import AvatarSelectionModal from '../components/AvatarSelectionModal';
-import { COLORS, SPACING } from '../design-system';
+import { COLORS, SPACING, COMPONENT_STYLES } from '../design-system';
 import { ProfileScreenProps } from '../types/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import { InputValidator } from '../utils/inputValidator';
@@ -471,7 +471,12 @@ const styles = StyleSheet.create({
   },
   profileSection: {
     alignItems: 'center',
-    marginBottom: SPACING.xl
+    marginBottom: SPACING.xl,
+    padding: SPACING.lg,
+    backgroundColor: COLORS.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   avatarContainer: {
     alignItems: 'center',
@@ -515,7 +520,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     padding: SPACING.lg,
     borderRadius: 12,
-    marginBottom: SPACING.lg
+    marginBottom: SPACING.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   testButtons: {
     flexDirection: 'row',
@@ -536,7 +543,12 @@ const styles = StyleSheet.create({
     textAlign: 'center'
   },
   statsSection: {
-    marginBottom: SPACING.xl
+    marginBottom: SPACING.xl,
+    padding: SPACING.lg,
+    backgroundColor: COLORS.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   sectionTitle: {
     color: COLORS.text,
@@ -555,7 +567,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     flex: 1,
-    minWidth: '45%'
+    minWidth: '45%',
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
   },
   statIcon: {
     fontSize: 24,
@@ -573,7 +587,12 @@ const styles = StyleSheet.create({
     textAlign: 'center'
   },
   settingsSection: {
-    gap: SPACING.md
+    gap: SPACING.md,
+    padding: SPACING.lg,
+    backgroundColor: COLORS.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   input: {
     backgroundColor: COLORS.card,

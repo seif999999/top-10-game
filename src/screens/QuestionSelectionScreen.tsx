@@ -12,7 +12,7 @@ import {
   Animated
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, SPACING, TYPOGRAPHY, ANIMATIONS } from '../design-system';
+import { COLORS, SPACING, TYPOGRAPHY, ANIMATIONS, COMPONENT_STYLES } from '../design-system';
 import { QuestionSelectionScreenProps } from '../types/navigation';
 import { getQuestionsByCategory } from '../services/questionsService';
 import { FEATURES } from '../config/featureFlags';
@@ -330,7 +330,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'transparent'
+    borderColor: COLORS.border,
+    marginBottom: SPACING.md,
   },
   questionContent: {
     flex: 1

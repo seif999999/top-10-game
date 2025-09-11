@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { COLORS, SPACING, TYPOGRAPHY, ANIMATIONS } from '../design-system';
+import { COLORS, SPACING, TYPOGRAPHY, ANIMATIONS, COMPONENT_STYLES } from '../design-system';
 import { getQuestionsByCategory } from '../services/questionsService';
 import { useMultiplayer } from '../contexts/MultiplayerContext';
 
@@ -382,6 +382,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: SPACING.lg,
     marginBottom: SPACING.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   timerTitle: {
     fontSize: 16,
@@ -441,7 +443,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'transparent'
+    borderColor: COLORS.border,
+    marginBottom: SPACING.md,
   },
   questionCardSelected: {
     borderColor: COLORS.primary,
