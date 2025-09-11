@@ -10,7 +10,8 @@ import {
   Alert,
   SafeAreaView,
 } from 'react-native';
-import { COLORS, SPACING, TYPOGRAPHY } from '../utils/constants';
+import { COLORS, SPACING, TYPOGRAPHY } from '../design-system';
+import { RESPONSIVE } from '../utils/responsive';
 import { TeamSetupConfig, TEAM_COLORS, ROUND_TIMER_OPTIONS } from '../types/teams';
 
 interface TeamSetupModalProps {
@@ -279,7 +280,7 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    minHeight: 300,
+    minHeight: RESPONSIVE.isSmallScreen ? 250 : 300,
   },
   scrollContent: {
     flexGrow: 1,

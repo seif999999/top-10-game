@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Button from '../components/Button';
 import UserAvatar from '../components/UserAvatar';
 import AvatarSelectionModal from '../components/AvatarSelectionModal';
-import { COLORS, SPACING } from '../utils/constants';
+import { COLORS, SPACING } from '../design-system';
 import { ProfileScreenProps } from '../types/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import { InputValidator } from '../utils/inputValidator';

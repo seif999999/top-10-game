@@ -12,7 +12,7 @@ import {
   Animated
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, SPACING, TYPOGRAPHY, ANIMATIONS } from '../utils/constants';
+import { COLORS, SPACING, TYPOGRAPHY, ANIMATIONS } from '../design-system';
 import { QuestionSelectionScreenProps } from '../types/navigation';
 import { getQuestionsByCategory } from '../services/questionsService';
 import { FEATURES } from '../config/featureFlags';
@@ -189,8 +189,8 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + SPACING.md }]}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <View style={[styles.header, { paddingTop: SPACING.md }]}>
         <Animated.View style={{ transform: [{ scale: backButtonScale }] }}>
           <TouchableOpacity onPress={handleBackToCategories} style={styles.backButton}>
             <View style={styles.backButtonIcon}>
@@ -204,7 +204,11 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
         <View style={styles.placeholder} />
       </View>
 
-      <View style={styles.content}>
+      <ScrollView 
+        style={styles.content} 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
         <View style={styles.categoryInfo}>
           <Text style={styles.categoryTitle}>{categoryName}</Text>
           <Text style={styles.categorySubtitle}>
@@ -212,15 +216,15 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
           </Text>
         </View>
 
-        <FlatList
-          data={questions}
-          renderItem={renderQuestionItem}
-          keyExtractor={(item) => item.id || item.title}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.questionsList}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
-        />
-      </View>
+        <View style={styles.questionsList}>
+          {questions.map((item, index) => (
+            <View key={item.id || item.title}>
+              {renderQuestionItem({ item, index })}
+              {index < questions.length - 1 && <View style={styles.separator} />}
+            </View>
+          ))}
+        </View>
+      </ScrollView>
 
       {/* Team Setup Modal */}
       <TeamSetupModal
@@ -294,6 +298,10 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: SPACING.lg
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: SPACING.xl,
   },
   categoryInfo: {
     backgroundColor: COLORS.card,

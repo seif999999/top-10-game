@@ -10,7 +10,7 @@ import {
   Image,
   Alert,
 } from 'react-native';
-import { COLORS, SPACING, TYPOGRAPHY } from '../utils/constants';
+import { COLORS, SPACING, TYPOGRAPHY } from '../design-system';
 import { Avatar } from '../types';
 import { 
   AVAILABLE_AVATARS, 

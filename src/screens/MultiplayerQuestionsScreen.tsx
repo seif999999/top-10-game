@@ -9,11 +9,13 @@ import {
   ActivityIndicator,
   FlatList,
   Alert,
-  Animated
+  Animated,
+  KeyboardAvoidingView,
+  Platform
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { COLORS, SPACING, TYPOGRAPHY, ANIMATIONS } from '../utils/constants';
+import { COLORS, SPACING, TYPOGRAPHY, ANIMATIONS } from '../design-system';
 import { getQuestionsByCategory } from '../services/questionsService';
 import { useMultiplayer } from '../contexts/MultiplayerContext';
 
@@ -144,7 +146,13 @@ const MultiplayerQuestionsScreen: React.FC = () => {
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <Animated.View style={{ transform: [{ scale: backButtonScale }] }}>
-            <TouchableOpacity onPress={handleBackToCategories} style={styles.backButton}>
+            <TouchableOpacity 
+              onPress={handleBackToCategories} 
+              style={styles.backButton}
+              accessibilityLabel="Go back to category selection"
+              accessibilityRole="button"
+              accessibilityHint="Returns to the category selection screen"
+            >
               <View style={styles.backButtonIcon}>
                 <Text style={styles.backButtonArrow}>‹</Text>
               </View>
@@ -165,6 +173,9 @@ const MultiplayerQuestionsScreen: React.FC = () => {
             <TouchableOpacity 
               style={styles.backToCategoriesButton} 
               onPress={handleBackToCategories}
+              accessibilityLabel="Go back to category selection"
+              accessibilityRole="button"
+              accessibilityHint="Returns to the category selection screen"
             >
               <Text style={styles.backToCategoriesButtonText}>Back to Categories</Text>
             </TouchableOpacity>
@@ -181,6 +192,10 @@ const MultiplayerQuestionsScreen: React.FC = () => {
         selectedQuestion?.id === item.id && styles.questionCardSelected
       ]} 
       onPress={() => handleQuestionSelect(item)}
+      accessibilityLabel={`Question ${index + 1}: ${item.title}`}
+      accessibilityRole="button"
+      accessibilityHint={`Select this question. ${item.answers?.length || 0} answers available.`}
+      accessibilityState={{ selected: selectedQuestion?.id === item.id }}
     >
       <View style={styles.questionContent}>
         <Text style={[
@@ -208,8 +223,8 @@ const MultiplayerQuestionsScreen: React.FC = () => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + SPACING.md }]}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <View style={[styles.header, { paddingTop: SPACING.md }]}>
         <Animated.View style={{ transform: [{ scale: backButtonScale }] }}>
           <TouchableOpacity onPress={handleBackToCategories} style={styles.backButton}>
             <View style={styles.backButtonIcon}>
@@ -223,7 +238,11 @@ const MultiplayerQuestionsScreen: React.FC = () => {
         <View style={styles.placeholder} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
         {/* Timer Duration Selection - Embedded at top */}
         <View style={styles.timerSection}>
           <Text style={styles.timerTitle}>⏱️ Turn Duration</Text>
@@ -350,6 +369,13 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: SPACING.lg
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: SPACING.xl,
+  },
+  keyboardAvoidingView: {
+    flex: 1,
   },
   timerSection: {
     backgroundColor: COLORS.surface,

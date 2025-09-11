@@ -9,7 +9,7 @@ import RankingOverlay from '../components/RankingOverlay';
 import MultiplayerLeaderboardScreen from './MultiplayerLeaderboardScreen';
 import ToastNotification from '../components/ToastNotification';
 import { showCrossPlatformAlert } from '../components/CrossPlatformAlert';
-import { COLORS, SPACING, TYPOGRAPHY, ANIMATIONS } from '../utils/constants';
+import { COLORS, SPACING, TYPOGRAPHY, ANIMATIONS } from '../design-system';
 import { GameScreenProps } from '../types/navigation';
 import { useGame } from '../contexts/GameContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -1090,7 +1090,11 @@ const handleEndGame = () => {
         </View>
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView 
+        style={styles.content}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Multiplayer Leaderboard */}
         {isMultiplayerMode && multiplayerState && (
           <>
@@ -1664,24 +1668,24 @@ const handleEndGame = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1E1B4B' // Dark purple background for cohesive theme
+    backgroundColor: COLORS.backgroundTertiary
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#1E1B4B' // Dark purple background for cohesive theme
+    backgroundColor: COLORS.backgroundTertiary
   },
   loadingText: {
-    color: '#E2E8F0',
-    fontSize: 18,
-    fontWeight: '600'
+    color: COLORS.textSecondary,
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold
   },
   connectionStatus: {
-    color: '#94A3B8',
-    fontSize: 14,
+    color: COLORS.textMuted,
+    fontSize: TYPOGRAPHY.fontSize.sm,
     marginTop: SPACING.sm,
-    fontWeight: '500'
+    fontWeight: TYPOGRAPHY.fontWeight.medium
   },
      header: {
      flexDirection: 'row',
@@ -1689,9 +1693,9 @@ const styles = StyleSheet.create({
      justifyContent: 'space-between',
      paddingHorizontal: SPACING.lg,
      paddingVertical: SPACING.md,
-     backgroundColor: '#0F172A',
+     backgroundColor: COLORS.backgroundSecondary,
      borderBottomWidth: 1,
-     borderBottomColor: '#334155'
+     borderBottomColor: COLORS.border
    },
    backButton: {
      flexDirection: 'row',
@@ -1777,6 +1781,10 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: SPACING.lg,
     backgroundColor: '#0F172A'
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: SPACING.xl,
   },
   questionSection: {
     backgroundColor: '#0F172A',

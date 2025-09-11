@@ -12,11 +12,10 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useMultiplayer } from '../contexts/MultiplayerContext';
-import { COLORS, SPACING, TYPOGRAPHY, ACCESSIBILITY } from '../utils/constants';
+import { COLORS, SPACING, TYPOGRAPHY, ACCESSIBILITY } from '../design-system';
+import { RESPONSIVE } from '../utils/responsive';
 import { sampleQuestions } from '../data/sampleQuestions';
 import CategoryCarousel, { Category } from '../components/CategoryCarousel';
-
-const { width, height } = Dimensions.get('window');
 
 interface MultiplayerCategoryScreenProps {}
 
@@ -126,13 +125,15 @@ const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () =
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + SPACING.md }]}>
+      <View style={[styles.header, { paddingTop: SPACING.md }]}>
         <TouchableOpacity 
           style={styles.backButton}
           onPress={handleBackToMenu}
           accessibilityLabel="Back to multiplayer menu"
+          accessibilityRole="button"
+          accessibilityHint="Returns to the multiplayer menu screen"
         >
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
@@ -154,10 +155,12 @@ const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () =
               onCategorySelect={handleCategorySelect}
               showInstructions={true}
               instructionsText="Swipe to browse categories • Tap to select"
-              cardWidth={width * 0.8}
-              cardHeight={height * 0.5}
+              cardWidth={RESPONSIVE.width.maxMd}
+              cardHeight={RESPONSIVE.height.card}
               showQuestionCount={true}
               buttonText="🎯 Select"
+              accessibilityLabel="Category selection carousel"
+              accessibilityHint="Swipe left or right to browse categories, then tap to select one"
             />
           </View>
         </View>
@@ -219,7 +222,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   carouselContainer: {
-    height: height * 0.6,
+    height: RESPONSIVE.height.card,
     marginTop: SPACING.xl,
     marginBottom: SPACING.md,
   },
