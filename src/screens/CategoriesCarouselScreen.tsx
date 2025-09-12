@@ -16,8 +16,8 @@ import { RESPONSIVE } from '../utils/responsive';
 import { CategoriesScreenProps } from '../types/navigation';
 
 const { width, height } = Dimensions.get('window');
-const CARD_WIDTH = Math.min(width * 0.9, RESPONSIVE.width.maxMd);
-const CARD_SPACING = 24;
+const CARD_WIDTH = Math.min(width * 0.75, RESPONSIVE.width.maxMd);
+const CARD_SPACING = 16;
 
 const categories = [
   {
@@ -288,13 +288,14 @@ const styles = StyleSheet.create({
   },
   carouselContainer: {
     flex: 1,
-    justifyContent: 'center',
-    paddingTop: SPACING.lg,
+    justifyContent: 'flex-start',
+    paddingTop: SPACING.md,
   },
   carouselContent: {
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     alignItems: 'center',
+    paddingTop: SPACING.xl,
   },
   categoryCard: {
     width: CARD_WIDTH,
