@@ -16,8 +16,8 @@ import { RESPONSIVE } from '../utils/responsive';
 import { CategoriesScreenProps } from '../types/navigation';
 
 const { width, height } = Dimensions.get('window');
-const CARD_WIDTH = Math.min(width * 0.8, RESPONSIVE.width.maxMd);
-const CARD_SPACING = 20;
+const CARD_WIDTH = Math.min(width * 0.85, RESPONSIVE.width.maxMd);
+const CARD_SPACING = 24;
 
 const categories = [
   {
@@ -173,9 +173,9 @@ const CategoriesCarouselScreen: React.FC<CategoriesScreenProps> = ({ navigation,
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: SPACING.md }]}>
+      <View style={[styles.header, { paddingTop: insets.top + SPACING.lg }]}>
         <Animated.View style={{ transform: [{ scale: backButtonScale }] }}>
           <TouchableOpacity onPress={handleBackToHome} style={styles.backButton}>
             <View style={styles.backButtonIcon}>
@@ -298,18 +298,18 @@ const styles = StyleSheet.create({
   },
   categoryCard: {
     width: CARD_WIDTH,
-    height: Math.min(height * 0.6, RESPONSIVE.height.card),
-    borderRadius: 24,
-    padding: SPACING.xl,
+    height: Math.min(height * 0.7, RESPONSIVE.height.card + 50),
+    borderRadius: 28,
+    padding: SPACING.xl + SPACING.md,
     justifyContent: 'space-between',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 8,
+      height: 12,
     },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 12,
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
+    elevation: 16,
   },
   cardContent: {
     flex: 1,
@@ -317,45 +317,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   categoryIcon: {
-    fontSize: 64,
-    marginBottom: SPACING.lg,
+    fontSize: 72,
+    marginBottom: SPACING.lg + SPACING.sm,
   },
   categoryName: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '800',
     color: 'white',
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.md + SPACING.sm,
     textAlign: 'center',
   },
   categoryDescription: {
-    fontSize: 16,
+    fontSize: 18,
     color: 'rgba(255, 255, 255, 0.9)',
     textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: SPACING.lg,
+    lineHeight: 26,
+    marginBottom: SPACING.lg + SPACING.sm,
   },
   questionCount: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderRadius: 24,
   },
   questionCountText: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
     color: 'white',
   },
   playButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.xl,
-    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    paddingVertical: SPACING.lg,
+    paddingHorizontal: SPACING.xl + SPACING.sm,
+    borderRadius: 20,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.4)',
   },
   playButtonText: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
     color: 'white',
   },
