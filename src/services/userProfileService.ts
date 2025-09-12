@@ -32,7 +32,9 @@ export class UserProfileService {
       
       if (!userId || typeof userId !== 'string') {
         console.error('❌ UserProfileService: Invalid userId provided:', userId);
-        throw new Error('Invalid userId provided');
+        console.error('❌ UserProfileService: userId type:', typeof userId);
+        console.error('❌ UserProfileService: userId length:', userId ? userId.length : 'undefined');
+        throw new Error('UserId missing from session. Ensure session stores Firebase UID.');
       }
       
       const userRef = doc(db, 'userProfiles', userId);

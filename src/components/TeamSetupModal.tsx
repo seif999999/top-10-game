@@ -28,7 +28,6 @@ const TeamSetupModal: React.FC<TeamSetupModalProps> = ({
   const [numberOfTeams, setNumberOfTeams] = useState(2);
   const [teamNames, setTeamNames] = useState(['Team 1', 'Team 2', 'Team 3', 'Team 4']);
   const [roundTimer, setRoundTimer] = useState(60);
-  const [maxRounds, setMaxRounds] = useState<number | undefined>(undefined);
 
   const handleNumberOfTeamsChange = (value: number) => {
     console.log(`🎮 TeamSetupModal: Changing numberOfTeams from ${numberOfTeams} to ${value}`);
@@ -61,7 +60,6 @@ const TeamSetupModal: React.FC<TeamSetupModalProps> = ({
         numberOfTeams,
         teamNames: teamNames.slice(0, numberOfTeams),
         roundTimer,
-        maxRounds,
         isHostedLocal: true, // Always host
       });
 
@@ -84,7 +82,7 @@ const TeamSetupModal: React.FC<TeamSetupModalProps> = ({
         numberOfTeams,
         teamNames: validTeamNames,
         roundTimer,
-        maxRounds,
+        maxRounds: undefined, // No max rounds limit
         isHostedLocal: true, // Always host
       };
 
@@ -199,47 +197,6 @@ const TeamSetupModal: React.FC<TeamSetupModalProps> = ({
               </View>
             </View>
 
-            {/* Max Rounds */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Max Rounds</Text>
-              <View style={styles.maxRoundsContainer}>
-                <TouchableOpacity
-                  style={[
-                    styles.maxRoundsButton,
-                    maxRounds === undefined && styles.selectedMaxRoundsButton,
-                  ]}
-                  onPress={() => setMaxRounds(undefined)}
-                >
-                  <Text
-                    style={[
-                      styles.maxRoundsButtonText,
-                      maxRounds === undefined && styles.selectedMaxRoundsButtonText,
-                    ]}
-                  >
-                    Unlimited
-                  </Text>
-                </TouchableOpacity>
-                {[1, 3, 5].map((rounds) => (
-                  <TouchableOpacity
-                    key={rounds}
-                    style={[
-                      styles.maxRoundsButton,
-                      maxRounds === rounds && styles.selectedMaxRoundsButton,
-                    ]}
-                    onPress={() => setMaxRounds(rounds)}
-                  >
-                    <Text
-                      style={[
-                        styles.maxRoundsButtonText,
-                        maxRounds === rounds && styles.selectedMaxRoundsButtonText,
-                      ]}
-                    >
-                      {rounds}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
 
 
           </ScrollView>
@@ -365,6 +322,8 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.sm,
     color: COLORS.text,
     fontSize: 16,
+    borderWidth: 0.5,
+    borderColor: '#8B5CF6',
   },
   timerSelector: {
     flexDirection: 'row',
@@ -375,8 +334,8 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
     borderRadius: 8,
     backgroundColor: COLORS.card,
-    borderWidth: 2,
-    borderColor: COLORS.muted,
+    borderWidth: 0.5,
+    borderColor: '#8B5CF6',
   },
   selectedTimerButton: {
     backgroundColor: COLORS.primary,
@@ -388,30 +347,6 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   selectedTimerButtonText: {
-    color: COLORS.background,
-  },
-  maxRoundsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  maxRoundsButton: {
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: 8,
-    backgroundColor: COLORS.card,
-    borderWidth: 2,
-    borderColor: COLORS.muted,
-  },
-  selectedMaxRoundsButton: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  maxRoundsButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.text,
-  },
-  selectedMaxRoundsButtonText: {
     color: COLORS.background,
   },
   checkboxContainer: {

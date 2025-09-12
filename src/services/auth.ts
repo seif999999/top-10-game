@@ -447,6 +447,13 @@ export const updateUserProfile = async (updates: { displayName?: string; avatarI
       const storedUser = await retrieveUserSession();
       if (storedUser) {
         console.log('✅ updateUserProfile: Found stored user, updating Firestore directly');
+        console.log('🔍 updateUserProfile: Stored user ID:', storedUser.id);
+        
+        // Validate that stored user has a valid ID
+        if (!storedUser.id) {
+          console.error('❌ updateUserProfile: Stored session missing user ID, forcing re-authentication');
+          throw new Error('User session is invalid. Please sign in again.');
+        }
         
         // Update Firestore directly without Firebase Auth
         const { UserProfileService } = await import('./userProfileService');
@@ -571,9 +578,10 @@ export const updateUserProfile = async (updates: { displayName?: string; avatarI
 const storeUserSession = async (user: User): Promise<void> => {
   try {
     console.log('💾 Storing user session for persistence...');
+    console.log('🔍 Storing user data:', { id: user.id, email: user.email, displayName: user.displayName, selectedAvatar: user.selectedAvatar });
     
     const sessionData = {
-      uid: user.uid,
+      id: user.id,
       email: user.email,
       displayName: user.displayName,
       selectedAvatar: user.selectedAvatar,
@@ -624,6 +632,31 @@ const retrieveUserSession = async (): Promise<User | null> => {
     
     console.log('✅ User session retrieved from storage:', parsed.email);
     console.log('🔍 Stored session selectedAvatar:', parsed.selectedAvatar);
+    console.log('🔍 Stored session id:', parsed.id);
+    console.log('🔍 Full stored session data:', parsed);
+    
+    // Handle migration from old session format (uid -> id)
+    if (!parsed.id && parsed.uid) {
+      console.log('🔄 Migrating session from old format (uid -> id)');
+      parsed.id = parsed.uid;
+      delete parsed.uid;
+      
+      // Update the stored session with the new format
+      try {
+        await storeUserSession(parsed as User);
+        console.log('✅ Session migrated and updated');
+      } catch (migrationError) {
+        console.warn('⚠️ Failed to migrate session:', migrationError);
+      }
+    }
+    
+    // Validate that we have a valid user ID
+    if (!parsed.id) {
+      console.error('❌ Stored session missing user ID, clearing session...');
+      await clearUserSession();
+      return null;
+    }
+    
     return parsed as User;
   } catch (error) {
     console.error('❌ Error retrieving user session:', error);
@@ -645,6 +678,26 @@ const clearUserSession = async (): Promise<void> => {
     console.log('✅ User session cleared from storage');
   } catch (error) {
     console.error('❌ Error clearing user session:', error);
+  }
+};
+
+// Force clear all authentication data and require re-login
+export const forceReAuthentication = async (): Promise<void> => {
+  try {
+    console.log('🔄 Forcing re-authentication...');
+    
+    // Clear Firebase auth
+    await signOut(auth);
+    
+    // Clear all stored sessions
+    await clearUserSession();
+    await clearAuthStorage();
+    await clearUserData();
+    
+    console.log('✅ Re-authentication forced successfully');
+  } catch (error) {
+    console.error('❌ Error forcing re-authentication:', error);
+    throw error;
   }
 };
 

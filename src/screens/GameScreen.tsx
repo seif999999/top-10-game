@@ -635,14 +635,15 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
           text: 'Exit', 
           style: 'destructive', 
                                           onPress: () => {
-                       if (isMultiplayerMode) {
-                         leaveRoom();
-                         forceDisconnect();
-                       } else {
-                         resetGame();
-                       }
-                       navigation.navigate('MainMenu');
-                     }
+            if (isMultiplayerMode) {
+              leaveRoom();
+              forceDisconnect();
+              navigation.navigate('MainMenu');
+            } else {
+              resetGame();
+              navigation.navigate('Categories', { gameMode: 'single' });
+            }
+          }
         }
       ]
     );

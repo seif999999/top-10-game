@@ -80,6 +80,7 @@ class MultiplayerService {
   async createRoom(hostId: string, category: string, questions: any[], hostName?: string, selectedAvatar?: string): Promise<string> {
     try {
       console.log('🔍 DEBUG: Starting room creation...');
+      console.log('🔍 DEBUG: HostId parameter:', hostId);
       
       // Check current auth state
       const currentUser = this.authService.getCurrentUserId();
@@ -88,6 +89,13 @@ class MultiplayerService {
       // Ensure authentication with edge case handling
       const userId = await this.ensureAuthenticated();
       console.log('🔍 DEBUG: User ID after auth:', userId);
+      
+      // Validate that the authenticated user matches the hostId parameter
+      if (userId !== hostId) {
+        console.warn('⚠️ DEBUG: Authenticated user ID does not match hostId parameter:', { userId, hostId });
+        // Use the authenticated user ID instead of the parameter
+        hostId = userId;
+      }
       
       // Check rate limiting for room creation
       const rateLimitResult = await RateLimitService.checkRateLimit(

@@ -70,8 +70,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     const sanitizedDisplayName = InputValidator.sanitizeText(displayName.trim(), 30);
     
     try {
-      // Call the updateUserProfile function from AuthContext
-      await updateUserProfile(sanitizedDisplayName);
+      // Call the updateUserProfile function from AuthContext with proper object format
+      await updateUserProfile({ displayName: sanitizedDisplayName });
       
       // Update the local state to show the change
       setUpdatedDisplayName(sanitizedDisplayName);
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     color: COLORS.text,
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: '700'
   },
   placeholder: {
@@ -316,7 +316,7 @@ const styles = StyleSheet.create({
   },
   userName: {
     color: COLORS.text,
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '700',
   },
   editIcon: {
@@ -329,13 +329,13 @@ const styles = StyleSheet.create({
   },
   userEmail: {
     color: COLORS.text,
-    fontSize: 16,
+    fontSize: 18,
     marginBottom: SPACING.sm,
     fontWeight: '500'
   },
   memberSince: {
-    color: COLORS.muted,
-    fontSize: 14
+    color: '#8B5CF6', // Purple color
+    fontSize: 16
   },
   sectionTitle: {
     color: COLORS.text,

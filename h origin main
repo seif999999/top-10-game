@@ -1,0 +1,18 @@
+warning: in the working copy of 'src/contexts/AuthContext.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/screens/ProfileScreen.tsx', LF will be replaced by CRLF the next time Git touches it
+src/components/TeamSetupModal.tsx
+src/contexts/AuthContext.tsx
+src/contexts/MultiplayerContext.tsx
+src/screens/CategoriesCarouselScreen.tsx
+src/screens/CustomQuestionScreen.tsx
+src/screens/GameScreen.tsx
+src/screens/JoinRoomScreen.tsx
+src/screens/MainMenuScreen.tsx
+src/screens/MultiplayerCategoryScreen.tsx
+src/screens/MultiplayerQuestionsScreen.tsx
+src/screens/ProfileScreen.tsx
+src/screens/QuestionSelectionScreen.tsx
+src/services/auth.ts
+src/services/authService.ts
+src/services/multiplayerService.ts
+src/services/userProfileService.ts

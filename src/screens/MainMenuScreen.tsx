@@ -85,7 +85,7 @@ const MainMenuScreen: React.FC<MainMenuScreenProps> = ({ navigation }) => {
           </Animated.View>
           
           <View style={styles.headerCenter}>
-            <Text style={styles.modeTitle}>Choose Your Game Mode</Text>
+            <Text style={styles.modeTitle}>Game Mode</Text>
           </View>
           
           <View style={styles.placeholder} />

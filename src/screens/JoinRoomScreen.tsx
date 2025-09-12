@@ -100,21 +100,17 @@ const JoinRoomScreen: React.FC<JoinRoomScreenProps> = () => {
     }
   };
 
-  const handlePasteCode = async () => {
-    // This would integrate with clipboard in a real app
-    Alert.alert('Paste Code', 'Paste functionality would be implemented here');
-  };
 
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + SPACING.md }]}>
         <TouchableOpacity 
-          style={styles.leaveButton}
+          style={[styles.leaveButton, { position: 'absolute', left: SPACING.lg }]}
           onPress={handleLeaveRoom}
           accessibilityLabel="Leave room and end session"
         >
-          <Text style={styles.leaveButtonText}>Leave Room</Text>
+          <Text style={styles.leaveButtonText}>Exit</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Join Room</Text>
         <View style={styles.placeholder} />
@@ -153,13 +149,6 @@ const JoinRoomScreen: React.FC<JoinRoomScreenProps> = () => {
               accessibilityLabel="Room code input"
               accessibilityHint="Enter the 6-character room code"
             />
-            <TouchableOpacity
-              style={styles.pasteButton}
-              onPress={handlePasteCode}
-              accessibilityLabel="Paste room code"
-            >
-              <Text style={styles.pasteButtonText}>Paste</Text>
-            </TouchableOpacity>
           </View>
           
           {/* Validation Messages */}
@@ -237,21 +226,22 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
+    position: 'relative',
   },
   leaveButton: {
-    padding: SPACING.sm,
+    padding: SPACING.xs,
     backgroundColor: COLORS.error,
-    borderRadius: 8,
-    minWidth: 100,
+    borderRadius: 6,
+    minWidth: 60,
     alignItems: 'center',
   },
   leaveButtonText: {
-    fontSize: 16,
+    fontSize: 14,
     color: COLORS.white,
     fontWeight: '600' as const,
   },
@@ -262,6 +252,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   placeholder: {
+    position: 'absolute',
+    right: SPACING.lg,
     width: 60,
   },
   content: {
@@ -319,14 +311,6 @@ const styles = StyleSheet.create({
   },
   roomCodeInputInvalid: {
     color: COLORS.error,
-  },
-  pasteButton: {
-    padding: SPACING.sm,
-  },
-  pasteButtonText: {
-    fontSize: 14,
-    color: COLORS.primary,
-    fontWeight: '600' as const,
   },
   validationError: {
     fontSize: 12,

@@ -3,6 +3,7 @@ import { RoomData, Player, Question } from '../types/game';
 import multiplayerService from '../services/multiplayerService';
 import { useAuth } from './AuthContext';
 import { updatePlayerPresence } from '../services/multiplayerTransaction';
+import { AuthService } from '../services/authService';
 
 // Enhanced multiplayer state interface
 interface MultiplayerState {
@@ -400,6 +401,10 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
         throw new Error('User not authenticated');
       }
 
+      // Sync AuthService with current user state to prevent race conditions
+      const authService = AuthService.getInstance();
+      authService.syncWithUser(user);
+
       const roomCode = await multiplayerService.createRoom(user.id, category, questions, user.displayName || user.email?.split('@')[0] || 'Player', user.selectedAvatar);
       
       // Subscribe to room updates
@@ -424,6 +429,10 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
       if (!user) {
         throw new Error('User not authenticated');
       }
+
+      // Sync AuthService with current user state to prevent race conditions
+      const authService = AuthService.getInstance();
+      authService.syncWithUser(user);
 
       const success = await multiplayerService.joinRoom(roomCode, user.id, user.displayName || 'Player', user.selectedAvatar);
       

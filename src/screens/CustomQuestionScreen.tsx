@@ -154,7 +154,7 @@ const CustomQuestionScreen: React.FC<CustomQuestionScreenProps> = ({ navigation 
             <TextInput
               style={[styles.questionInput, COMPONENT_STYLES.outline]}
               placeholder="Enter your question here..."
-              placeholderTextColor={COLORS.muted}
+              placeholderTextColor="white"
               value={question}
               onChangeText={setQuestion}
               multiline
@@ -181,7 +181,7 @@ const CustomQuestionScreen: React.FC<CustomQuestionScreenProps> = ({ navigation 
                 <TextInput
                   style={[styles.answerInput, COMPONENT_STYLES.outline]}
                   placeholder={`Answer ${index + 1}`}
-                  placeholderTextColor={COLORS.muted}
+                  placeholderTextColor="white"
                   value={answer}
                   onChangeText={(value) => handleAnswerChange(index, value)}
                 />
@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   headerTitle: {
-    color: COLORS.text,
+    color: 'white',
     fontSize: 18,
     fontWeight: '700',
   },
@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xl,
   },
   sectionTitle: {
-    color: COLORS.text,
+    color: 'white',
     fontSize: 16,
     fontWeight: '600',
     marginBottom: SPACING.md,
@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: SPACING.md,
     fontSize: 16,
-    color: COLORS.text,
+    color: 'white',
     minHeight: 80,
     textAlignVertical: 'top',
   },
@@ -312,7 +312,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: SPACING.md,
     fontSize: 16,
-    color: COLORS.text,
+    color: 'white',
     marginRight: SPACING.sm,
   },
   removeButton: {
@@ -336,13 +336,13 @@ const styles = StyleSheet.create({
     ...COMPONENT_STYLES.outline,
   },
   instructionsTitle: {
-    color: COLORS.text,
+    color: 'white',
     fontSize: 16,
     fontWeight: '600',
     marginBottom: SPACING.sm,
   },
   instructionsText: {
-    color: COLORS.muted,
+    color: 'white',
     fontSize: 14,
     lineHeight: 20,
   },

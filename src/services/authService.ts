@@ -40,29 +40,80 @@ export class AuthService {
    */
   public async ensureAuthenticated(): Promise<string> {
     try {
-      // Check if user is already authenticated
+      console.log('🔍 AuthService.ensureAuthenticated: Starting authentication check...');
+      
+      // Check if user is already authenticated in AuthService
       if (this.currentUser) {
+        console.log('✅ AuthService.ensureAuthenticated: User already authenticated in AuthService:', this.currentUser.email);
         return this.currentUser.id;
       }
 
-      // Check Firebase auth state
+      // Check Firebase auth state directly
       const firebaseUser = auth.currentUser;
+      console.log('🔍 AuthService.ensureAuthenticated: Firebase user:', firebaseUser ? `ID: ${firebaseUser.uid}, Email: ${firebaseUser.email}` : 'None');
+      
       if (firebaseUser) {
-        this.currentUser = {
-          id: firebaseUser.uid,
-          email: firebaseUser.email ?? '',
-          displayName: firebaseUser.displayName ?? undefined,
-          createdAt: firebaseUser.metadata?.creationTime ? new Date(firebaseUser.metadata.creationTime) : undefined,
-          stats: undefined
-        };
-        return this.currentUser.id;
+        console.log('🔄 AuthService.ensureAuthenticated: Firebase user found, loading profile...');
+        
+        // Load user profile with avatar data from Firestore
+        try {
+          const userProfile = await UserProfileService.getUserProfile(firebaseUser.uid);
+          
+          if (userProfile) {
+            console.log('✅ AuthService.ensureAuthenticated: User profile loaded from Firestore');
+            this.currentUser = {
+              ...userProfile,
+              email: firebaseUser.email || userProfile.email || '',
+              displayName: userProfile.displayName || firebaseUser.displayName || undefined
+            };
+          } else {
+            console.log('⚠️ AuthService.ensureAuthenticated: No user profile found, using Firebase user data');
+            this.currentUser = {
+              id: firebaseUser.uid,
+              email: firebaseUser.email ?? '',
+              displayName: firebaseUser.displayName ?? undefined,
+              createdAt: firebaseUser.metadata?.creationTime ? new Date(firebaseUser.metadata.creationTime) : undefined,
+              stats: undefined
+            };
+          }
+          
+          console.log('✅ AuthService.ensureAuthenticated: User authenticated successfully:', this.currentUser.email);
+          return this.currentUser.id;
+        } catch (profileError) {
+          console.error('❌ AuthService.ensureAuthenticated: Error loading user profile:', profileError);
+          console.log('🔄 AuthService.ensureAuthenticated: Falling back to basic Firebase user data');
+          
+          this.currentUser = {
+            id: firebaseUser.uid,
+            email: firebaseUser.email ?? '',
+            displayName: firebaseUser.displayName ?? undefined,
+            createdAt: firebaseUser.metadata?.creationTime ? new Date(firebaseUser.metadata.creationTime) : undefined,
+            stats: undefined
+          };
+          
+          console.log('✅ AuthService.ensureAuthenticated: User authenticated with fallback data:', this.currentUser.email);
+          return this.currentUser.id;
+        }
+      }
+
+      // If no user is authenticated, try to get current user from auth service
+      console.log('🔄 AuthService.ensureAuthenticated: No Firebase user, trying getCurrentUser...');
+      try {
+        const currentUser = await getCurrentUser();
+        if (currentUser) {
+          console.log('✅ AuthService.ensureAuthenticated: User retrieved from getCurrentUser:', currentUser.email);
+          this.currentUser = currentUser;
+          return this.currentUser.id;
+        }
+      } catch (getCurrentUserError) {
+        console.error('❌ AuthService.ensureAuthenticated: getCurrentUser failed:', getCurrentUserError);
       }
 
       // If no user is authenticated, we need to handle this
-      // For now, throw an error - in a real app you might want to redirect to login
+      console.error('❌ AuthService.ensureAuthenticated: No user found in any authentication method');
       throw new Error('User not authenticated. Please sign in to continue.');
     } catch (error) {
-      console.error('Error ensuring authentication:', error);
+      console.error('❌ AuthService.ensureAuthenticated: Error ensuring authentication:', error);
       throw error;
     }
   }
@@ -79,6 +130,17 @@ export class AuthService {
    */
   public getCurrentUser(): User | null {
     return this.currentUser;
+  }
+
+  /**
+   * Sync with external user state (e.g., from AuthContext)
+   * This helps resolve race conditions between AuthService and AuthContext
+   */
+  public syncWithUser(user: User | null): void {
+    if (user && (!this.currentUser || this.currentUser.id !== user.id)) {
+      console.log('🔄 AuthService: Syncing with external user state:', user.email);
+      this.currentUser = user;
+    }
   }
 
   /**

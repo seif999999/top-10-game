@@ -223,8 +223,8 @@ const MultiplayerQuestionsScreen: React.FC = () => {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <View style={[styles.header, { paddingTop: SPACING.md }]}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
+      <View style={[styles.header, { paddingTop: insets.top + SPACING.lg }]}>
         <Animated.View style={{ transform: [{ scale: backButtonScale }] }}>
           <TouchableOpacity onPress={handleBackToCategories} style={styles.backButton}>
             <View style={styles.backButtonIcon}>

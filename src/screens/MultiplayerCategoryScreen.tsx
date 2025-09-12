@@ -17,7 +17,7 @@ import { RESPONSIVE } from '../utils/responsive';
 import { sampleQuestions } from '../data/sampleQuestions';
 
 const { width, height } = Dimensions.get('window');
-const CARD_WIDTH = Math.min(width * 0.75, RESPONSIVE.width.maxMd);
+const CARD_WIDTH = Math.min(width * 0.98, RESPONSIVE.width.maxMd);
 const CARD_SPACING = 16;
 
 const categories = [
@@ -209,9 +209,6 @@ const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () =
         </Animated.View>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Categories</Text>
-          <Text style={styles.headerSubtitle}>
-            Multiplayer Mode
-          </Text>
         </View>
         <View style={styles.headerPlaceholder} />
       </View>
@@ -315,13 +312,13 @@ const styles = StyleSheet.create({
   carouselContainer: {
     flex: 1,
     justifyContent: 'flex-start',
-    paddingTop: SPACING.md,
+    paddingTop: 0,
   },
   carouselContent: {
     paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
+    paddingVertical: 0,
     alignItems: 'center',
-    paddingTop: SPACING.xl,
+    paddingTop: 0,
   },
   categoryCard: {
     width: CARD_WIDTH,
@@ -388,7 +385,7 @@ const styles = StyleSheet.create({
   },
   instructions: {
     paddingHorizontal: SPACING.lg,
-    paddingBottom: SPACING.xl,
+    paddingBottom: SPACING.md,
     alignItems: 'center',
   },
   instructionsText: {
