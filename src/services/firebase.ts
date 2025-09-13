@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { Platform } from 'react-native';
-import { initializeAuth, getAuth, getReactNativePersistence } from 'firebase/auth';
+import { initializeAuth, getAuth } from 'firebase/auth';
 import { getFirestore, serverTimestamp } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -18,6 +18,9 @@ const firebaseConfig = {
   appId: '1:807249280703:web:3706f3bbf0029ef43d500a',
   measurementId: 'G-NCGRYEPFKZ'
 };
+
+// Note: App name for email templates is configured in Firebase Console
+// Go to Authentication > Templates to set the app name for email templates
 
 // Debug logging to see what's actually loaded
 console.log('🔍 Firebase Config Debug:');
@@ -50,25 +53,21 @@ try {
     auth = initializeAuth(app);
     console.log('✅ Firebase Auth initialized for web with localStorage persistence');
   } else {
-    // For React Native platforms, use AsyncStorage persistence
+    // For React Native platforms, use default auth initialization
     try {
-      auth = initializeAuth(app, {
-        persistence: getReactNativePersistence(AsyncStorage),
-      });
-      console.log('✅ Firebase Auth initialized with AsyncStorage persistence for mobile');
-    } catch (persistenceError) {
-      console.error('❌ Failed to initialize with AsyncStorage persistence:', persistenceError);
-      
-      // Try alternative approach for older Firebase versions
-      try {
-        auth = initializeAuth(app);
-        console.log('✅ Firebase Auth initialized with default persistence (fallback)');
-      } catch (fallbackError) {
-        console.error('❌ Failed to initialize Firebase Auth:', fallbackError);
-        throw new Error('Failed to initialize Firebase Auth');
-      }
+      auth = initializeAuth(app);
+      console.log('✅ Firebase Auth initialized for React Native');
+    } catch (error) {
+      console.error('❌ Failed to initialize Firebase Auth:', error);
+      throw new Error('Failed to initialize Firebase Auth');
     }
   }
+}
+
+// Configure auth settings for better email delivery
+if (auth) {
+  auth.languageCode = 'en';
+  // Note: auth.app.name is read-only, cannot be modified
 }
 
 // Optional: Analytics (web only)

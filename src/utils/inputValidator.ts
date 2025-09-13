@@ -163,7 +163,8 @@ export class InputValidator {
   }
 
   /**
-   * Validate password strength
+   * Validate password strength - aligned with Firebase requirements
+   * This ensures consistency between app validation and Firebase Auth
    */
   static validatePassword(password: string): { valid: boolean; errors: string[]; strength: 'weak' | 'medium' | 'strong' } {
     const errors: string[] = [];
@@ -174,14 +175,17 @@ export class InputValidator {
       return { valid: false, errors, strength };
     }
 
+    // Firebase minimum requirement (6 characters) - but we enforce 8 for security
     if (password.length < 8) {
       errors.push('Password must be at least 8 characters');
     }
 
+    // Reasonable maximum length
     if (password.length > 128) {
       errors.push('Password must be less than 128 characters');
     }
 
+    // Character type requirements for security
     if (!/[A-Z]/.test(password)) {
       errors.push('Password must contain at least one uppercase letter');
     }
@@ -209,6 +213,57 @@ export class InputValidator {
       valid: errors.length === 0, 
       errors, 
       strength 
+    };
+  }
+
+  /**
+   * Validate password for Firebase compatibility
+   * This ensures the password meets both app and Firebase requirements
+   */
+  static validatePasswordForFirebase(password: string): { valid: boolean; errors: string[]; firebaseCompatible: boolean } {
+    const errors: string[] = [];
+    let firebaseCompatible = true;
+
+    if (!password || typeof password !== 'string') {
+      errors.push('Password is required');
+      return { valid: false, errors, firebaseCompatible: false };
+    }
+
+    // Firebase minimum requirement
+    if (password.length < 6) {
+      errors.push('Password must be at least 6 characters (Firebase minimum)');
+      firebaseCompatible = false;
+    }
+
+    // App security requirements
+    if (password.length < 8) {
+      errors.push('Password must be at least 8 characters for security');
+    }
+
+    if (password.length > 128) {
+      errors.push('Password must be less than 128 characters');
+    }
+
+    if (!/[A-Z]/.test(password)) {
+      errors.push('Password must contain at least one uppercase letter');
+    }
+
+    if (!/[a-z]/.test(password)) {
+      errors.push('Password must contain at least one lowercase letter');
+    }
+
+    if (!/\d/.test(password)) {
+      errors.push('Password must contain at least one number');
+    }
+
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+      errors.push('Password must contain at least one special character');
+    }
+
+    return { 
+      valid: errors.length === 0, 
+      errors, 
+      firebaseCompatible 
     };
   }
 

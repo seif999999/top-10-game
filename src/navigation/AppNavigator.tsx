@@ -14,6 +14,8 @@ import MainMenuScreen from '../screens/MainMenuScreen';
 import CategoriesCarouselScreen from '../screens/CategoriesCarouselScreen';
 import GameScreen from '../screens/GameScreen';
 import ForgotPasswordScreen from '../screens/AuthScreens/ForgotPasswordScreen';
+import PasswordResetSuccessScreen from '../screens/AuthScreens/PasswordResetSuccessScreen';
+import ResetPasswordScreen from '../screens/AuthScreens/ResetPasswordScreen';
 import MultiplayerMenuScreen from '../screens/MultiplayerMenuScreen';
 import CreateRoomScreen from '../screens/CreateRoomScreen';
 import MultiplayerCategoryScreen from '../screens/MultiplayerCategoryScreen';
@@ -63,6 +65,8 @@ const AppNavigator: React.FC = () => {
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Register" component={RegisterScreen} />
             <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+            <Stack.Screen name="PasswordResetSuccess" component={PasswordResetSuccessScreen} />
+            <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
           </>
         )}
       </Stack.Navigator>

@@ -46,7 +46,16 @@ export const getGoogleClientId = (): string => {
 
 // Helper function to get the redirect URI
 export const getGoogleRedirectUri = (): string => {
-  return `${GOOGLE_CONFIG.REDIRECT_URI_SCHEME}://auth`;
+  // For Expo development, use the proper Expo OAuth redirect URI format
+  // This will be: https://auth.expo.io/@your-username/your-app-slug
+  // For production, you might want to use a custom scheme
+  if (__DEV__) {
+    // In development, use Expo's OAuth redirect URI
+    return 'https://auth.expo.io/@anonymous/top10game';
+  } else {
+    // In production, you can use custom scheme
+    return `${GOOGLE_CONFIG.REDIRECT_URI_SCHEME}://auth`;
+  }
 };
 
 // Helper function to check if Google Sign-In is properly configured
@@ -59,12 +68,16 @@ export const isGoogleSignInConfigured = (): boolean => {
 
 // Helper function to get configuration status
 export const getGoogleConfigStatus = () => {
-  return {
+  const status = {
     web: GOOGLE_CONFIG.WEB_CLIENT_ID !== 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com',
     ios: GOOGLE_CONFIG.IOS_CLIENT_ID !== 'YOUR_IOS_CLIENT_ID.apps.googleusercontent.com',
     android: GOOGLE_CONFIG.ANDROID_CLIENT_ID !== 'YOUR_ANDROID_CLIENT_ID.apps.googleusercontent.com',
     // clientSecret removed for security - should be handled server-side
     currentPlatform: Platform.OS,
-    currentClientId: getGoogleClientId()
+    currentClientId: getGoogleClientId(),
+    redirectUri: getGoogleRedirectUri()
   };
+  
+  console.log('🔧 Google OAuth Configuration Status:', status);
+  return status;
 };

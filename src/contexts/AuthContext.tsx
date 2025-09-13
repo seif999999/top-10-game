@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { AuthContextType, User } from '../types';
 import { signInWithEmail, signUpWithEmail, signOutUser, subscribeToAuthChanges, getCurrentUser, verifyAuthPersistence, resetPassword as resetPasswordService, signInWithGoogle, updateUserProfile as updateUserProfileService, forceReAuthentication } from '../services/auth';
-import AuthService from '../services/authService';
+import { AuthService } from '../services/authService';
 import LocalAvatarStorage from '../services/localAvatarStorage';
 import LocalDisplayNameStorage from '../services/localDisplayNameStorage';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { RateLimitService } from '../services/rateLimitService';
 import { View } from 'react-native';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -14,20 +15,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState<boolean>(true);
   const [pendingAction, setPendingAction] = useState<boolean>(false);
 
+  // Sync AuthService with AuthContext user state
+  const syncAuthService = (user: User | null) => {
+    try {
+      const authService = AuthService.getInstance();
+      authService.syncWithUser(user);
+    } catch (error) {
+      console.warn('⚠️ AuthContext: Failed to sync with AuthService:', error);
+    }
+  };
+
   useEffect(() => {
     console.log('🔐 AuthContext: Setting up authentication...');
     
     let isInitialized = false;
-    
-    // Sync AuthService with AuthContext user state
-    const syncAuthService = (user: User | null) => {
-      try {
-        const authService = AuthService.getInstance();
-        authService.syncWithUser(user);
-      } catch (error) {
-        console.warn('⚠️ AuthContext: Failed to sync with AuthService:', error);
-      }
-    };
     
     const initializeAuth = async () => {
       try {
@@ -197,10 +198,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  /**
+   * Initiates password reset process with rate limiting protection
+   * 
+   * This function provides secure password reset functionality with:
+   * - Rate limiting: 3 attempts per email per hour
+   * - Input validation through the calling component
+   * - User-friendly error messages
+   * - Proper loading state management
+   * 
+   * Security features:
+   * - Prevents spam and abuse with rate limiting
+   * - Uses email as identifier for rate limiting
+   * - Tracks attempts in Firestore for persistence
+   * - Provides clear error messages for rate limiting
+   * 
+   * @param email - The email address to send reset instructions to
+   * @throws Error if rate limited or if password reset fails
+   */
   const resetPassword = async (email: string) => {
     setPendingAction(true);
     try {
+      console.log('🔐 AuthContext: Starting password reset process for:', email);
+      
+      // Check rate limiting for password reset requests
+      console.log('🔐 AuthContext: Checking rate limits...');
+      const rateLimitResult = await RateLimitService.checkRateLimit(
+        email, // Use email as identifier for password reset
+        'passwordReset',
+        { ipAddress: 'unknown', userAgent: 'mobile' }
+      );
+      
+      console.log('🔐 AuthContext: Rate limit result:', rateLimitResult);
+      
+      if (!rateLimitResult.allowed) {
+        console.log('❌ AuthContext: Rate limit exceeded');
+        throw new Error(rateLimitResult.error || 'Too many password reset attempts. Please try again later.');
+      }
+      
+      console.log('✅ AuthContext: Rate limit check passed, calling resetPasswordService...');
       await resetPasswordService(email);
+      console.log('✅ AuthContext: Password reset service completed successfully');
+    } catch (error) {
+      console.error('❌ AuthContext: Password reset error:', error);
+      throw error;
     } finally {
       setPendingAction(false);
     }

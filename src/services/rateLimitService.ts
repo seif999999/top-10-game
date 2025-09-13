@@ -84,6 +84,12 @@ export class RateLimitService {
       windowMs: 3600000, // 1 hour window
       blockDurationMs: 1800000, // 30 minute block
       actionType: 'profile_update'
+    },
+    passwordReset: {
+      maxAttempts: 3, // 3 password reset requests per email per hour
+      windowMs: 3600000, // 1 hour window
+      blockDurationMs: 3600000, // 1 hour block
+      actionType: 'password_reset'
     }
   };
 

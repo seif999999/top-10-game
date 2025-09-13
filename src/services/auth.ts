@@ -299,8 +299,19 @@ export const signInWithGoogle = async (idToken: string): Promise<User> => {
 
 export const resetPassword = async (email: string): Promise<void> => {
   try {
+    console.log('🔐 DEBUG: Starting password reset for email:', email);
+    console.log('🔐 DEBUG: Firebase Auth instance:', auth ? 'Available' : 'Not available');
+    console.log('🔐 DEBUG: Auth domain:', auth?.config?.authDomain);
+    
+    // Configure auth settings for better email delivery
+    if (auth) {
+      auth.languageCode = 'en';
+    }
+    
     await sendPasswordResetEmail(auth, email);
+    console.log('✅ DEBUG: Password reset email sent successfully');
   } catch (error) {
+    console.error('❌ DEBUG: Password reset error:', error);
     const err = error as AuthError | Error;
     throw new Error(getFriendlyAuthMessage(err));
   }
@@ -806,24 +817,32 @@ const getFriendlyAuthMessage = (error: AuthError | Error): string => {
   if ((error as AuthError).code) {
     const code = (error as AuthError).code;
     
-    // Login-specific errors
-    if (code === 'auth/invalid-credential') {
-      return 'Invalid email or password. Please check your credentials and try again.';
+    // Common errors that apply to multiple operations
+    if (code === 'auth/invalid-email') {
+      return 'Invalid email format. Please enter a valid email address.';
     }
     if (code === 'auth/user-not-found') {
       return 'No account found with this email address. Please check your email or create a new account.';
     }
-    if (code === 'auth/wrong-password') {
-      return 'Incorrect password. Please try again.';
+    if (code === 'auth/network-request-failed') {
+      return 'Network error. Please check your internet connection and try again.';
     }
-    if (code === 'auth/invalid-email') {
-      return 'Invalid email format. Please enter a valid email address.';
+    if (code === 'auth/too-many-requests') {
+      return 'Too many attempts. Please try again later.';
+    }
+    if (code === 'auth/operation-not-allowed') {
+      return 'This operation is not enabled. Please contact support.';
     }
     if (code === 'auth/user-disabled') {
       return 'This account has been disabled. Please contact support.';
     }
-    if (code === 'auth/too-many-requests') {
-      return 'Too many failed login attempts. Please try again later.';
+    
+    // Login-specific errors
+    if (code === 'auth/invalid-credential') {
+      return 'Invalid email or password. Please check your credentials and try again.';
+    }
+    if (code === 'auth/wrong-password') {
+      return 'Incorrect password. Please try again.';
     }
     
     // Registration-specific errors
@@ -832,14 +851,6 @@ const getFriendlyAuthMessage = (error: AuthError | Error): string => {
     }
     if (code === 'auth/weak-password') {
       return 'Password is too weak. Please choose a stronger password (at least 6 characters).';
-    }
-    
-    // General errors
-    if (code === 'auth/network-request-failed') {
-      return 'Network error. Please check your internet connection and try again.';
-    }
-    if (code === 'auth/operation-not-allowed') {
-      return 'Email/password sign-in is not enabled. Please contact support.';
     }
   }
   

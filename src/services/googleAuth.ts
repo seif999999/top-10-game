@@ -13,10 +13,8 @@ const GOOGLE_SCOPES = GOOGLE_CONFIG.SCOPES;
 
 // Create the auth request
 const createAuthRequest = () => {
-  const redirectUri = AuthSession.makeRedirectUri({
-    scheme: GOOGLE_CONFIG.REDIRECT_URI_SCHEME,
-    path: 'auth'
-  });
+  // Use the proper redirect URI from our config
+  const redirectUri = getGoogleRedirectUri();
 
   const request = new AuthSession.AuthRequest({
     clientId: getGoogleClientId(),
@@ -36,6 +34,10 @@ const createAuthRequest = () => {
 export const signInWithGoogle = async (): Promise<{ idToken: string; accessToken: string } | null> => {
   try {
     console.log('🔐 Starting Google Sign-In flow...');
+    
+    // Log configuration status
+    const { getGoogleConfigStatus } = await import('../config/google');
+    getGoogleConfigStatus();
     
     const request = createAuthRequest();
     

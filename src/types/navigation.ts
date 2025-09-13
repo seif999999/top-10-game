@@ -5,6 +5,8 @@ export type AuthStackParamList = {
   Login: undefined;
   Register: undefined;
   ForgotPassword: undefined;
+  PasswordResetSuccess: undefined;
+  ResetPassword: { oobCode: string };
 };
 
 // Main Stack Navigation Types  
@@ -33,6 +35,8 @@ export type RootStackParamList = AuthStackParamList & MainStackParamList;
 export type LoginScreenProps = NativeStackScreenProps<RootStackParamList, 'Login'>;
 export type RegisterScreenProps = NativeStackScreenProps<RootStackParamList, 'Register'>;
 export type ForgotPasswordScreenProps = NativeStackScreenProps<RootStackParamList, 'ForgotPassword'>;
+export type PasswordResetSuccessScreenProps = NativeStackScreenProps<RootStackParamList, 'PasswordResetSuccess'>;
+export type ResetPasswordScreenProps = NativeStackScreenProps<RootStackParamList, 'ResetPassword'>;
 export type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
 export type ProfileScreenProps = NativeStackScreenProps<RootStackParamList, 'Profile'>;
 export type MainMenuScreenProps = NativeStackScreenProps<RootStackParamList, 'MainMenu'>;
