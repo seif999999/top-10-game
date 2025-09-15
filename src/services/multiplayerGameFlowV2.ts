@@ -103,7 +103,7 @@ export function findMatchingAnswer(userAnswer: string, correctAnswers: Answer[])
 /**
  * Calculate points for answer based on rank using centralized scoring
  */
-function calculatePoints(rank: number): number {
+export function calculatePoints(rank: number): number {
   return pointsForRank(rank);
 }
 
@@ -241,15 +241,11 @@ Room: ${roomCode}`);
   
   console.log(`📝 SUBMIT_ANSWER: Room ${roomCode}, Player ${playerId}, Answer: "${answerText}"`);
   
-  // Retry mechanism for failed-precondition errors
-  const maxRetries = 3;
-  let lastError: Error | null = null;
-  
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      console.log(`🔄 TRANSACTION ATTEMPT ${attempt}/${maxRetries}`);
-      
-      const result = await runTransaction(db, async (transaction) => {
+  // Simplified approach - use single attempt with better error handling
+  try {
+    console.log(`🔄 SUBMIT_ANSWER: Starting submission for player ${playerId}`);
+    
+    const result = await runTransaction(db, async (transaction) => {
       const roomRef = doc(db, 'multiplayerGames', roomCode);
       const roomSnap = await transaction.get(roomRef);
       
@@ -279,8 +275,8 @@ Room: ${roomCode}`);
       }
       
       // Ensure revealedAnswers array is properly initialized
-      if (!room.revealedAnswers || room.revealedAnswers.length !== 10) {
-        console.log(`⚠️ REVEALED_ANSWERS_INIT: Initializing revealedAnswers array (was length ${room.revealedAnswers?.length || 0})`);
+      if (!Array.isArray(room.revealedAnswers) || room.revealedAnswers.length !== 10) {
+        console.log(`⚠️ REVEALED_ANSWERS_INIT: Initializing revealedAnswers array (was: ${typeof room.revealedAnswers}, length: ${room.revealedAnswers?.length || 0})`);
         room.revealedAnswers = Array(10).fill(null);
       }
       
@@ -292,7 +288,7 @@ Room: ${roomCode}`);
       
       console.log('🔍 ANSWER_MATCHING_DEBUG:', {
         userAnswer: answerText,
-        currentQuestion: currentQuestion.text || currentQuestion.title,
+        currentQuestion: currentQuestion.text,
         answersCount: currentQuestion.answers?.length || 0,
         answers: currentQuestion.answers?.map(a => ({ text: a.text, rank: a.rank })) || [],
         roomCode,
@@ -418,15 +414,22 @@ Available answers count: ${currentQuestion?.answers?.length || 0}`);
         playerId
       });
       
+      // Simplified updates to reduce transaction conflicts
       let updates: any = {
-        revealedAnswers: newRevealedAnswers,
-        scores: newScores,
-        answersSubmittedCount: newAnswersSubmittedCount,
-        currentTurnIndex: nextTurnIndex,
-        currentPlayerId: nextPlayerId,
-        turnStartTime: serverTimestamp(),
         lastActivity: serverTimestamp()
       };
+      
+      // Only update scores if there are points to award
+      if (points > 0) {
+        updates.scores = newScores;
+        updates.revealedAnswers = newRevealedAnswers;
+        updates.answersSubmittedCount = newAnswersSubmittedCount;
+      }
+      
+      // Always update turn information
+      updates.currentTurnIndex = nextTurnIndex;
+      updates.currentPlayerId = nextPlayerId;
+      updates.turnStartTime = serverTimestamp();
       
       // Check if question is complete (10 answers revealed) - only for correct answers
       if (newAnswersSubmittedCount >= 10) {
@@ -524,33 +527,23 @@ Should have updated:
     });
     
     // If we get here, the transaction succeeded
-    console.log(`✅ TRANSACTION SUCCESS on attempt ${attempt}`);
+    console.log(`✅ SUBMIT_ANSWER: Transaction completed successfully`);
     return result;
     
-    } catch (error) {
-      lastError = error as Error;
-      console.error(`❌ TRANSACTION ATTEMPT ${attempt} FAILED:`, error);
-      
-      // Check if it's a failed-precondition error and we have retries left
-      if (error instanceof Error && 
-          error.message.includes('failed-precondition') && 
-          attempt < maxRetries) {
-        console.log(`🔄 RETRYING in ${attempt * 1000}ms due to failed-precondition...`);
-        await new Promise(resolve => setTimeout(resolve, attempt * 1000)); // Exponential backoff
-        continue;
-      }
-      
-      // If it's not a retryable error or we've exhausted retries, break
-      break;
-    }
-  }
-  
-  // If we get here, all attempts failed
-  console.error(`❌ SUBMIT_ANSWER: All ${maxRetries} attempts failed`);
-  
-  // Try a simpler fallback approach without transactions
-  console.log(`🔄 FALLBACK: Trying simple update without transaction...`);
-  try {
+  } catch (error) {
+    console.error(`❌ SUBMIT_ANSWER: Transaction failed:`, {
+      error: error,
+      message: error instanceof Error ? error.message : 'Unknown error',
+      name: error instanceof Error ? error.name : 'Unknown',
+      stack: error instanceof Error ? error.stack : 'No stack trace',
+      roomCode,
+      playerId,
+      answerText
+    });
+    
+    // Try a simpler fallback approach without transactions
+    console.log(`🔄 FALLBACK: Trying simple update without transaction...`);
+    try {
     const roomRef = doc(db, 'multiplayerGames', roomCode);
     const roomSnap = await getDoc(roomRef);
     
@@ -571,6 +564,12 @@ Should have updated:
       const { answer, index } = match;
       const points = calculatePoints(answer.rank);
       
+      // Check if answer is already revealed
+      if (room.revealedAnswers[index] !== null) {
+        console.log(`❌ FALLBACK: Answer at index ${index} is already revealed`);
+        return { success: false, error: 'Answer already revealed' };
+      }
+      
       // Simple update without transaction
       const updates = {
         [`scores.${playerId}`]: (room.scores?.[playerId] || 0) + points,
@@ -579,6 +578,7 @@ Should have updated:
           playerId: playerId,
           points: points
         },
+        answersSubmittedCount: room.answersSubmittedCount + 1,
         lastActivity: serverTimestamp()
       };
       
@@ -595,22 +595,20 @@ Revealed answer at index ${index}`);
       
       return { success: true, points };
     }
+    
+    // If no match found, still return success but with 0 points
+    console.log(`❌ FALLBACK: No match found for answer "${answerText}"`);
+    return { success: true, points: 0 };
+    
   } catch (fallbackError) {
     console.error(`❌ FALLBACK FAILED:`, fallbackError);
+    
+    return {
+      success: false,
+      error: `Transaction and fallback both failed: ${error?.message || 'Unknown error'}`
+    };
   }
-  
-  // Debug logging for error occurred
-  if (__DEV__) {
-    console.log(`🚨 DEBUG 6: ERROR!
-Message: ${lastError?.message || 'Unknown error'}
-Function: submitAnswer
-Attempts: ${maxRetries}`);
-  }
-  
-  return {
-    success: false,
-    error: lastError?.message || 'Unknown error'
-  };
+}
 }
 
 /**

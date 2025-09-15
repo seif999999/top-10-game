@@ -78,7 +78,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               <Text style={styles.gameModeIcon}>🎯</Text>
               <View style={styles.gameModeText}>
                 <Text style={styles.gameModeTitle}>Single Player</Text>
-                <Text style={styles.gameModeSubtitle}>Play solo and test your knowledge</Text>
+                <Text style={styles.gameModeSubtitle}>Play with friends offline and be the host</Text>
               </View>
             </View>
           </TouchableOpacity>
@@ -88,7 +88,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               <Text style={styles.gameModeIcon}>👥</Text>
               <View style={styles.gameModeText}>
                 <Text style={styles.gameModeTitle}>Multiplayer</Text>
-                <Text style={styles.gameModeSubtitle}>Play with friends and compete</Text>
+                <Text style={styles.gameModeSubtitle}>Create and join rooms using the code</Text>
               </View>
             </View>
           </TouchableOpacity>
@@ -98,7 +98,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               <Text style={styles.secondaryActionIcon}>✏️</Text>
               <View style={styles.secondaryActionText}>
                 <Text style={styles.secondaryActionTitle}>Create Your Own</Text>
-                <Text style={styles.secondaryActionSubtitle}>Custom Questions</Text>
+                <Text style={styles.secondaryActionSubtitle}>Create your own questions with your own answers</Text>
               </View>
             </View>
           </TouchableOpacity>

@@ -16,17 +16,24 @@ const createAuthRequest = () => {
   // Use the proper redirect URI from our config
   const redirectUri = getGoogleRedirectUri();
 
+  console.log('🔧 Creating AuthRequest with:', {
+    clientId: getGoogleClientId(),
+    redirectUri,
+    scopes: GOOGLE_SCOPES
+  });
+
   const request = new AuthSession.AuthRequest({
     clientId: getGoogleClientId(),
     scopes: GOOGLE_SCOPES,
     redirectUri,
-    responseType: AuthSession.ResponseType.Code,
+    responseType: AuthSession.ResponseType.Token, // Use token response type for simpler flow
     extraParams: {
       access_type: 'offline',
-      prompt: 'consent'
+      prompt: 'select_account'
     }
   });
 
+  console.log('✅ AuthRequest created successfully');
   return request;
 };
 
@@ -45,57 +52,50 @@ export const signInWithGoogle = async (): Promise<{ idToken: string; accessToken
     console.log('🔑 Client ID:', getGoogleClientId());
     console.log('🔗 Redirect URI:', request.redirectUri);
     
-    // Start the OAuth flow
-    const result = await request.promptAsync({
-      authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
-      // Web-specific configuration
-      ...(Platform.OS === 'web' && {
-        additionalParameters: {
-          prompt: 'select_account'
-        }
-      })
-    });
+    // Check if client ID is properly configured
+    const clientId = getGoogleClientId();
+    if (clientId.includes('YOUR_') || clientId.includes('your_')) {
+      throw new Error('Google OAuth client ID not properly configured. Please check your .env file.');
+    }
+    
+    console.log('🚀 Starting OAuth prompt...');
+    
+    // Get the discovery document for Google OAuth
+    const discovery = await AuthSession.fetchDiscoveryAsync('https://accounts.google.com');
+    
+    // Start the OAuth flow with timeout
+    const result = await Promise.race([
+      request.promptAsync(discovery),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('OAuth prompt timed out after 30 seconds')), 30000)
+      )
+    ]);
 
     console.log('📋 Auth result type:', result.type);
     
-    if (result.type === 'success' && result.params.code) {
-      console.log('✅ Authorization code received, exchanging for tokens...');
+    if (result.type === 'success' && result.params.access_token) {
+      console.log('✅ Access token received directly from OAuth flow');
       
-      // Exchange the authorization code for tokens
-      // ⚠️ SECURITY WARNING: Client secret should be handled server-side
-      // For now, we'll use a placeholder - this should be moved to a secure backend
-      const tokenResult = await AuthSession.exchangeCodeAsync(
-        {
-          clientId: getGoogleClientId(),
-          // clientSecret: GOOGLE_CONFIG.CLIENT_SECRET, // Removed for security
-          code: result.params.code,
-          redirectUri: request.redirectUri,
-          extraParams: {
-            code_verifier: request.codeChallenge || ''
-          }
-        },
-        {
-          tokenEndpoint: 'https://oauth2.googleapis.com/token'
-        }
-      );
-
-      console.log('🎯 Token exchange result:', {
-        hasAccessToken: !!tokenResult.accessToken,
-        hasIdToken: !!tokenResult.idToken,
-        tokenType: tokenResult.tokenType
+      const accessToken = result.params.access_token;
+      const idToken = result.params.id_token;
+      
+      console.log('🎯 OAuth result:', {
+        hasAccessToken: !!accessToken,
+        hasIdToken: !!idToken,
+        tokenType: result.params.token_type
       });
 
-      if (tokenResult.accessToken && tokenResult.idToken) {
+      if (accessToken && idToken) {
         console.log('✅ Google Sign-In successful!');
         return {
-          idToken: tokenResult.idToken,
-          accessToken: tokenResult.accessToken
+          idToken: idToken,
+          accessToken: accessToken
         };
       } else {
-        throw new Error('Token exchange failed - missing required tokens');
+        throw new Error('OAuth flow failed - missing required tokens');
       }
-    } else if (result.type === 'cancel') {
-      console.log('❌ User cancelled Google Sign-In');
+    } else if (result.type === 'cancel' || result.type === 'dismiss') {
+      console.log('❌ User cancelled or dismissed Google Sign-In');
       return null;
     } else if (result.type === 'error') {
       console.error('❌ Google Sign-In error:', result.error);

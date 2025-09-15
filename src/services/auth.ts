@@ -451,74 +451,75 @@ export const updateUserProfile = async (updates: { displayName?: string; avatarI
     const currentUser = auth.currentUser;
     console.log('🔍 updateUserProfile: Current user:', currentUser ? `ID: ${currentUser.uid}, Email: ${currentUser.email}` : 'None');
     
-    if (!currentUser) {
-      console.error('❌ updateUserProfile: No Firebase user found, checking stored session...');
+    // Always try to get user from stored session first, as it's more reliable
+    const storedUser = await retrieveUserSession();
+    console.log('🔍 updateUserProfile: Stored user:', storedUser ? `ID: ${storedUser.id}, Email: ${storedUser.email}` : 'None');
+    
+    if (!currentUser && !storedUser) {
+      console.error('❌ updateUserProfile: No Firebase user or stored session found');
+      throw new Error('No user is currently signed in');
+    }
+    
+    // Use stored user if Firebase Auth is not synced
+    if (!currentUser && storedUser) {
+      console.log('✅ updateUserProfile: Using stored user (Firebase Auth not synced)');
+      console.log('🔍 updateUserProfile: Stored user ID:', storedUser.id);
       
-      // Try to get user from stored session
-      const storedUser = await retrieveUserSession();
-      if (storedUser) {
-        console.log('✅ updateUserProfile: Found stored user, updating Firestore directly');
-        console.log('🔍 updateUserProfile: Stored user ID:', storedUser.id);
+      // Validate that stored user has a valid ID
+      if (!storedUser.id) {
+        console.error('❌ updateUserProfile: Stored session missing user ID, forcing re-authentication');
+        throw new Error('User session is invalid. Please sign in again.');
+      }
+      
+      // Update Firestore directly without Firebase Auth
+      const { UserProfileService } = await import('./userProfileService');
+      const userProfileService = UserProfileService.getInstance();
+      
+      // Get current user profile to preserve existing data
+      const currentProfile = await userProfileService.getUserProfile(storedUser.id);
+      
+      if (currentProfile) {
+        // Check if there are actual changes
+        const hasDisplayNameChange = updates.displayName && currentProfile.displayName !== updates.displayName;
+        const hasAvatarChange = updates.avatarId !== undefined && currentProfile.selectedAvatar !== updates.avatarId;
         
-        // Validate that stored user has a valid ID
-        if (!storedUser.id) {
-          console.error('❌ updateUserProfile: Stored session missing user ID, forcing re-authentication');
-          throw new Error('User session is invalid. Please sign in again.');
-        }
-        
-        // Update Firestore directly without Firebase Auth
-        const { UserProfileService } = await import('./userProfileService');
-        const userProfileService = UserProfileService.getInstance();
-        
-        // Get current user profile to preserve existing data
-        const currentProfile = await userProfileService.getUserProfile(storedUser.id);
-        
-        if (currentProfile) {
-          // Check if there are actual changes
-          const hasDisplayNameChange = updates.displayName && currentProfile.displayName !== updates.displayName;
-          const hasAvatarChange = updates.avatarId !== undefined && currentProfile.selectedAvatar !== updates.avatarId;
-          
-          if (hasDisplayNameChange || hasAvatarChange) {
-            const updatedProfile = {
-              ...currentProfile,
-              email: storedUser.email || currentProfile.email || '',
-              ...(updates.displayName && { displayName: updates.displayName }),
-              ...(updates.avatarId !== undefined && { selectedAvatar: updates.avatarId }),
-              lastUpdated: new Date()
-            };
-            await userProfileService.updateUserProfile(updatedProfile);
-            
-            // Store updated session for persistence
-            await storeUserSession(updatedProfile);
-            
-            return updatedProfile;
-          } else {
-            // No change needed, return current profile
-            return {
-              ...currentProfile,
-              email: storedUser.email || currentProfile.email || ''
-            };
-          }
-        } else {
-          // If no profile exists, create one with the provided data
-          const newProfile = {
-            id: storedUser.id,
-            email: storedUser.email || '',
+        if (hasDisplayNameChange || hasAvatarChange) {
+          const updatedProfile = {
+            ...currentProfile,
+            email: storedUser.email || currentProfile.email || '',
             ...(updates.displayName && { displayName: updates.displayName }),
             ...(updates.avatarId !== undefined && { selectedAvatar: updates.avatarId }),
-            createdAt: new Date(),
             lastUpdated: new Date()
           };
-          await userProfileService.updateUserProfile(newProfile);
+          await userProfileService.updateUserProfile(updatedProfile);
           
-          // Store new session for persistence
-          await storeUserSession(newProfile);
+          // Store updated session for persistence
+          await storeUserSession(updatedProfile);
           
-          return newProfile;
+          return updatedProfile;
+        } else {
+          // No change needed, return current profile
+          return {
+            ...currentProfile,
+            email: storedUser.email || currentProfile.email || ''
+          };
         }
       } else {
-        console.error('❌ updateUserProfile: No stored session found either');
-        throw new Error('No user is currently signed in');
+        // If no profile exists, create one with the provided data
+        const newProfile = {
+          id: storedUser.id,
+          email: storedUser.email || '',
+          ...(updates.displayName && { displayName: updates.displayName }),
+          ...(updates.avatarId !== undefined && { selectedAvatar: updates.avatarId }),
+          createdAt: new Date(),
+          lastUpdated: new Date()
+        };
+        await userProfileService.updateUserProfile(newProfile);
+        
+        // Store new session for persistence
+        await storeUserSession(newProfile);
+        
+        return newProfile;
       }
     }
     

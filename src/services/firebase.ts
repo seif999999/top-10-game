@@ -38,7 +38,7 @@ if (!hasValidConfig) {
 
 export const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
-// Initialize Auth with proper React Native persistence
+// Initialize Auth with default persistence
 let auth: any;
 
 // Check if auth already exists
@@ -46,21 +46,15 @@ try {
   auth = getAuth(app);
   console.log('✅ Using existing Firebase Auth instance');
 } catch (error) {
-  console.log('🔐 Initializing new Firebase Auth with persistence...');
+  console.log('🔐 Initializing new Firebase Auth...');
   
-  if (Platform.OS === 'web') {
-    // For web platform, use default auth (localStorage persistence)
+  try {
+    // Initialize auth with default persistence (works for both web and React Native)
     auth = initializeAuth(app);
-    console.log('✅ Firebase Auth initialized for web with localStorage persistence');
-  } else {
-    // For React Native platforms, use default auth initialization
-    try {
-      auth = initializeAuth(app);
-      console.log('✅ Firebase Auth initialized for React Native');
-    } catch (error) {
-      console.error('❌ Failed to initialize Firebase Auth:', error);
-      throw new Error('Failed to initialize Firebase Auth');
-    }
+    console.log('✅ Firebase Auth initialized successfully');
+  } catch (error) {
+    console.error('❌ Failed to initialize Firebase Auth:', error);
+    throw new Error('Failed to initialize Firebase Auth');
   }
 }
 

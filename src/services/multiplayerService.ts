@@ -1142,6 +1142,12 @@ class MultiplayerService {
         throw new Error('Only the host can reveal answers');
       }
 
+      // Ensure revealedAnswers is an array
+      if (!Array.isArray(roomData.revealedAnswers)) {
+        console.warn('⚠️ SERVICE: revealedAnswers is not an array, initializing:', roomData.revealedAnswers);
+        roomData.revealedAnswers = Array(10).fill(null);
+      }
+      
       // Check if answer is already revealed
       if (roomData.revealedAnswers.some(ra => ra && ra.answerId === answer)) {
         throw new Error('Answer already revealed');

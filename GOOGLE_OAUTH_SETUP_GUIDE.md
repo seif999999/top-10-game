@@ -58,8 +58,8 @@ Go to: **APIs & Services → Credentials**
 3. **Name**: `Top10Game Android Client`
 4. **Package name**: `com.top10game.app`
 5. **SHA-1 certificate fingerprint**: 
-   - For development: `DF:6E:9C:74:0C:1A:8F:15:CB:8D:10:08:07:3C:4A:3C:2D:4B:19:2F`
-   - (This is Expo's debug certificate)
+   - For development: `CA:9A:F9:C8:39:70:44:0E:4D:6C:4F:62:F8:A3:67:99:CF:09:58:BE`
+   - (This is your specific development certificate - use this exact value)
 6. Click **"Create"**
 7. **Copy the Client ID** - this is your `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID`
 

@@ -278,15 +278,15 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + SPACING.md }]}>
-        <View style={styles.placeholder} />
-        <Text style={styles.title}>Room Lobby</Text>
         <TouchableOpacity 
-          style={styles.leaveButton}
+          style={styles.exitButton}
           onPress={handleLeaveRoom}
-          accessibilityLabel="Leave room and end session"
+          accessibilityLabel="Exit room and end session"
         >
-          <Text style={styles.leaveButtonText}>Leave Room</Text>
+          <Text style={styles.exitButtonText}>Exit</Text>
         </TouchableOpacity>
+        <Text style={styles.title}>Room Lobby</Text>
+        <View style={styles.placeholder} />
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -304,16 +304,6 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
             <Text style={styles.roomCodeLabel}>Room Code</Text>
             <View style={styles.roomCodeContainer}>
               <Text style={styles.roomCodeText}>{currentRoom.roomCode}</Text>
-              <TouchableOpacity
-                style={styles.copyButton}
-                onPress={() => {
-                  // Copy to clipboard functionality would go here
-                  Alert.alert('Copied!', 'Room code copied to clipboard');
-                }}
-                accessibilityLabel="Copy room code"
-              >
-                <Text style={styles.copyButtonText}>Copy</Text>
-              </TouchableOpacity>
             </View>
             <Text style={styles.roomCodeHint}>
               Share this code with friends to invite them
@@ -329,8 +319,10 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
                 <Text style={styles.gameInfoValue}>{currentRoom.category}</Text>
               </View>
               <View style={styles.gameInfoItem}>
-                <Text style={styles.gameInfoLabel}>Questions</Text>
-                <Text style={styles.gameInfoValue}>{currentRoom.questions.length}</Text>
+                <Text style={styles.gameInfoLabel}>Question</Text>
+                <Text style={[styles.gameInfoValue, styles.questionText]}>
+                  {currentRoom.questions[0]?.text || 'No question selected'}
+                </Text>
               </View>
               <View style={styles.gameInfoItem}>
                 <Text style={styles.gameInfoLabel}>Players</Text>
@@ -508,12 +500,16 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     textAlign: 'center',
   },
-  leaveButton: {
-    padding: SPACING.sm,
+  exitButton: {
+    padding: SPACING.xs,
+    backgroundColor: COLORS.error,
+    borderRadius: 6,
+    minWidth: 60,
+    alignItems: 'center',
   },
-  leaveButtonText: {
-    fontSize: 16,
-    color: COLORS.error,
+  exitButtonText: {
+    fontSize: 14,
+    color: COLORS.white,
     fontWeight: '600' as const,
   },
   content: {
@@ -557,17 +553,6 @@ const styles = StyleSheet.create({
     letterSpacing: 4,
     marginRight: SPACING.md,
   },
-  copyButton: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: 8,
-  },
-  copyButtonText: {
-    color: COLORS.white,
-    fontWeight: '600' as const,
-    fontSize: 14,
-  },
   roomCodeHint: {
     fontSize: 14,
     color: COLORS.muted,
@@ -603,6 +588,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600' as const,
     color: COLORS.text,
+  },
+  questionText: {
+    flex: 1,
+    flexWrap: 'nowrap',
+    textAlign: 'left',
   },
   statusLobby: {
     color: COLORS.primary,
@@ -658,6 +648,7 @@ const styles = StyleSheet.create({
   },
   playerDetails: {
     flex: 1,
+    marginLeft: SPACING.md,
   },
   playerName: {
     fontSize: 16,

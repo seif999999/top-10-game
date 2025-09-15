@@ -5,13 +5,13 @@ import { Platform } from 'react-native';
 
 export const GOOGLE_CONFIG = {
   // Web Client ID (for web platform) - Safe to expose
-  WEB_CLIENT_ID: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com',
+  WEB_CLIENT_ID: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '807249280703-ahikkv2k0efoi1n2ar14fr04b9pcehgi.apps.googleusercontent.com',
   
   // iOS Client ID (for iOS platform) - Safe to expose
-  IOS_CLIENT_ID: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || 'YOUR_IOS_CLIENT_ID.apps.googleusercontent.com',
+  IOS_CLIENT_ID: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '807249280703-59r51ljb6pr3dd9k1mc87tpo0jo0opah.apps.googleusercontent.com',
   
   // Android Client ID (for Android platform) - Safe to expose
-  ANDROID_CLIENT_ID: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || 'YOUR_ANDROID_CLIENT_ID.apps.googleusercontent.com',
+  ANDROID_CLIENT_ID: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '807249280703-9evbdhlaguccc9dcd39b9ssudn37chgo.apps.googleusercontent.com',
   
   // ⚠️ SECURITY WARNING: Client Secret should NEVER be exposed to client-side code
   // This should be moved to a secure backend service
@@ -31,17 +31,9 @@ export const GOOGLE_CONFIG = {
 
 // Helper function to get the appropriate client ID for the current platform
 export const getGoogleClientId = (): string => {
-  switch (Platform.OS) {
-    case 'ios':
-      return GOOGLE_CONFIG.IOS_CLIENT_ID;
-    case 'android':
-      return GOOGLE_CONFIG.ANDROID_CLIENT_ID;
-    case 'web':
-      return GOOGLE_CONFIG.WEB_CLIENT_ID;
-    default:
-      // Fallback to web client ID for other platforms
-      return GOOGLE_CONFIG.WEB_CLIENT_ID;
-  }
+  // For Expo OAuth flows, always use the Web Client ID
+  // because Expo's auth service is web-based
+  return GOOGLE_CONFIG.WEB_CLIENT_ID;
 };
 
 // Helper function to get the redirect URI
@@ -51,7 +43,8 @@ export const getGoogleRedirectUri = (): string => {
   // For production, you might want to use a custom scheme
   if (__DEV__) {
     // In development, use Expo's OAuth redirect URI
-    return 'https://auth.expo.io/@anonymous/top10game';
+    // Note: Expo sometimes uses @anonymol instead of @anonymous
+    return 'https://auth.expo.io/@anonymol/top10game';
   } else {
     // In production, you can use custom scheme
     return `${GOOGLE_CONFIG.REDIRECT_URI_SCHEME}://auth`;
@@ -75,7 +68,12 @@ export const getGoogleConfigStatus = () => {
     // clientSecret removed for security - should be handled server-side
     currentPlatform: Platform.OS,
     currentClientId: getGoogleClientId(),
-    redirectUri: getGoogleRedirectUri()
+    redirectUri: getGoogleRedirectUri(),
+    envVars: {
+      web: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+      ios: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+      android: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID
+    }
   };
   
   console.log('🔧 Google OAuth Configuration Status:', status);

@@ -21,8 +21,9 @@ A React Native trivia game built with Expo and TypeScript where players compete 
 ## 🎯 Game Modes
 
 ### Single-Player Mode
+- **Offline Play with Friends**: Play with friends in the same room without internet
 - **Host-Controlled Flow**: A host manages the entire game session
-- **Answer Assignment**: Host assigns points based on answer accuracy and ranking
+- **Answer Assignment**: Host assigns points to the team that gets the right answer
 - **Flexible Game Length**: Game ends when 10 answers are submitted or host decides to end
 - **Manual Scoring**: Host has full control over point distribution
 - **Category Selection**: Choose from multiple trivia categories
@@ -30,14 +31,14 @@ A React Native trivia game built with Expo and TypeScript where players compete 
 - **Answer Table**: Visual display of all submitted answers with rankings
 
 ### Multiplayer Mode
-- **Turn-Based System**: Each player gets individual turns (not team-based)
-- **Strict Timing**: Each turn is exactly 60 seconds long
-- **Answer Submission**: Players can only submit answers during their turn
-- **Turn End Conditions**:
-  - Timer expires (60 seconds)
-  - Player submits an answer (correct or incorrect)
+- **Online Play with Friends**: Play with friends online by creating and joining rooms using the code
+- **Room-Based System**: Create or join game rooms with unique codes
+- **Real-Time Synchronization**: All players see updates in real-time
+- **Host Controls**: Room creator controls game flow and can start/end games
+- **Answer Submission**: Players submit answers and compete for the top score
 - **Game End Conditions**:
   - All 10 answers have been submitted
+  - Host decides to end the game
   - Host decides to close the room
 - **Host Privileges**:
   - Start the game

@@ -12,7 +12,6 @@ export type AuthStackParamList = {
 // Main Stack Navigation Types  
 export type MainStackParamList = {
   Home: undefined;
-  MainMenu: undefined;
   Profile: undefined;
   Categories: { gameMode: 'single' | 'multiplayer' };
   QuestionSelection: { categoryName: string; gameMode?: 'single' | 'multiplayer' };
@@ -39,7 +38,6 @@ export type PasswordResetSuccessScreenProps = NativeStackScreenProps<RootStackPa
 export type ResetPasswordScreenProps = NativeStackScreenProps<RootStackParamList, 'ResetPassword'>;
 export type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
 export type ProfileScreenProps = NativeStackScreenProps<RootStackParamList, 'Profile'>;
-export type MainMenuScreenProps = NativeStackScreenProps<RootStackParamList, 'MainMenu'>;
 export type CategoriesScreenProps = NativeStackScreenProps<RootStackParamList, 'Categories'>;
 export type QuestionSelectionScreenProps = NativeStackScreenProps<RootStackParamList, 'QuestionSelection'>;
 export type GameLobbyScreenProps = NativeStackScreenProps<RootStackParamList, 'GameLobby'>;

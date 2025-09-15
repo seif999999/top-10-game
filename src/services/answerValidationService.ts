@@ -1,5 +1,4 @@
-import { findMatchingAnswer } from './fuzzyMatching';
-import { calculatePoints } from './scoring';
+import { findMatchingAnswer, calculatePoints } from './multiplayerGameFlowV2';
 import { Answer } from '../types/game';
 
 export interface ValidationResult {
@@ -31,13 +30,13 @@ export class AnswerValidationService {
         };
       }
       
-      if (sanitizedAnswer.length < 2) {
-        return {
-          isValid: false,
-          isCorrect: false,
-          error: 'Answer must be at least 2 characters long'
-        };
-      }
+    if (sanitizedAnswer.length < 1) {
+      return {
+        isValid: false,
+        isCorrect: false,
+        error: 'Answer must be at least 1 character long'
+      };
+    }
       
       if (sanitizedAnswer.length > 100) {
         return {
@@ -119,8 +118,8 @@ export class AnswerValidationService {
       return { isValid: false, error: 'Answer cannot be empty' };
     }
     
-    if (trimmed.length < 2) {
-      return { isValid: false, error: 'Answer must be at least 2 characters long' };
+    if (trimmed.length < 1) {
+      return { isValid: false, error: 'Answer must be at least 1 character long' };
     }
     
     if (trimmed.length > 100) {

@@ -10,7 +10,6 @@ import HomeScreen from '../screens/HomeScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import QuestionSelectionScreen from '../screens/QuestionSelectionScreen';
 import GameLobbyScreen from '../screens/GameLobbyScreen';
-import MainMenuScreen from '../screens/MainMenuScreen';
 import CategoriesCarouselScreen from '../screens/CategoriesCarouselScreen';
 import GameScreen from '../screens/GameScreen';
 import ForgotPasswordScreen from '../screens/AuthScreens/ForgotPasswordScreen';
@@ -45,7 +44,6 @@ const AppNavigator: React.FC = () => {
         {user ? (
           <>
             <Stack.Screen name="Home" component={HomeScreen} />
-            <Stack.Screen name="MainMenu" component={MainMenuScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />
             <Stack.Screen name="Categories" component={CategoriesCarouselScreen} />
             <Stack.Screen name="QuestionSelection" component={QuestionSelectionScreen} />

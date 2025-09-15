@@ -20,6 +20,7 @@ import { FEATURES } from '../config/featureFlags';
 import HostAssignModal from '../components/HostAssignModal';
 import { InputValidator } from '../utils/inputValidator';
 import { RateLimitService } from '../services/rateLimitService';
+import { findMatchingAnswer } from '../services/multiplayerGameFlowV2';
 
 
 const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
@@ -105,6 +106,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   // Team mode state
   const [showHostAssignModal, setShowHostAssignModal] = useState(false);
   const [selectedAnswerIndex, setSelectedAnswerIndex] = useState<number>(-1);
+  const [hasSubmittedThisTurn, setHasSubmittedThisTurn] = useState(false);
   
   // Multiplayer timer state
   const [multiplayerTimeRemaining, setMultiplayerTimeRemaining] = useState(60);
@@ -156,16 +158,26 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   
   const getMultiplayerCorrectAnswers = () => {
     if (!isMultiplayerMode || !multiplayerState) return 0;
-    // Count only non-null revealed answers
-    return multiplayerState.revealedAnswers?.filter(ra => ra !== null).length || 0;
+    // Count only non-null revealed answers - ensure revealedAnswers is an array
+    const revealedAnswers = multiplayerState.revealedAnswers;
+    if (!Array.isArray(revealedAnswers)) {
+      console.warn('⚠️ revealedAnswers is not an array:', revealedAnswers);
+      return 0;
+    }
+    return revealedAnswers.filter(ra => ra !== null).length;
   };
   
   const isMultiplayerQuestionComplete = () => {
     if (!isMultiplayerMode || !multiplayerState || !currentQuestion) return false;
     const totalAnswers = currentQuestion.answers?.length || 0;
-    // Count only non-null revealed answers
-    const revealedAnswers = multiplayerState.revealedAnswers?.filter(ra => ra !== null).length || 0;
-    return revealedAnswers >= totalAnswers;
+    // Count only non-null revealed answers - ensure revealedAnswers is an array
+    const revealedAnswers = multiplayerState.revealedAnswers;
+    if (!Array.isArray(revealedAnswers)) {
+      console.warn('⚠️ revealedAnswers is not an array:', revealedAnswers);
+      return false;
+    }
+    const revealedCount = revealedAnswers.filter(ra => ra !== null).length;
+    return revealedCount >= totalAnswers;
   };
   
   const currentScore = isMultiplayerMode ? getMultiplayerScore() : getPlayerScore('You');
@@ -320,7 +332,10 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
       } else if (multiplayerState.gamePhase === 'finished') {
         console.log('🎮 Game finished');
         // Check if all 10 answers are revealed before showing leaderboard
-        const revealedAnswersCount = multiplayerState.revealedAnswers?.filter(ra => ra !== null).length || 0;
+        const revealedAnswers = multiplayerState.revealedAnswers;
+        const revealedAnswersCount = Array.isArray(revealedAnswers) 
+          ? revealedAnswers.filter(ra => ra !== null).length 
+          : 0;
         if (revealedAnswersCount >= 10) {
           setShowMultiplayerLeaderboard(true);
           setShowGameEndRanking(false); // Ensure no overlapping modals
@@ -526,6 +541,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   // Monitor player disconnections and handle host migration
   const previousPlayersRef = useRef<string[]>([]);
   const previousHostIdRef = useRef<string | null>(null);
+  const previousCurrentPlayerIdRef = useRef<string | null>(null);
   
   useEffect(() => {
     if (isMultiplayerMode && multiplayerState && user?.id) {
@@ -580,6 +596,36 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
       previousHostIdRef.current = currentHostId;
     }
   }, [isMultiplayerMode, multiplayerState?.players, multiplayerState?.hostId, user?.id, handleHostDisconnection, terminateGame]);
+
+  // Reset submission state when current player changes
+  useEffect(() => {
+    if (isMultiplayerMode && multiplayerState && user?.id) {
+      const currentPlayerId = multiplayerState.currentPlayerId;
+      
+      // If the current player changed, reset submission state
+      if (previousCurrentPlayerIdRef.current !== currentPlayerId) {
+        console.log('🔄 Current player changed, resetting submission state:', {
+          previous: previousCurrentPlayerIdRef.current,
+          current: currentPlayerId,
+          isMyTurn: currentPlayerId === user.id
+        });
+        
+        // Reset submission state for all players when turn changes
+        setHasSubmittedThisTurn(false);
+        
+        // Update the ref
+        previousCurrentPlayerIdRef.current = currentPlayerId;
+      }
+    }
+  }, [isMultiplayerMode, multiplayerState?.currentPlayerId, user?.id]);
+
+  // Reset submission state when question changes
+  useEffect(() => {
+    if (isMultiplayerMode && multiplayerState) {
+      console.log('🔄 Question changed, resetting submission state');
+      setHasSubmittedThisTurn(false);
+    }
+  }, [isMultiplayerMode, multiplayerState?.currentQuestionIndex]);
 
   // Handle back button in multiplayer mode
   useEffect(() => {
@@ -638,7 +684,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
             if (isMultiplayerMode) {
               leaveRoom();
               forceDisconnect();
-              navigation.navigate('MainMenu');
+              navigation.navigate('Home');
             } else {
               resetGame();
               navigation.navigate('Categories', { gameMode: 'single' });
@@ -702,7 +748,7 @@ const handleEndGame = () => {
       } else {
         resetGame();
       }
-      navigation.navigate('MainMenu');
+      navigation.navigate('Home');
     };
 
            const handleBackToCategories = () => {
@@ -713,7 +759,7 @@ const handleEndGame = () => {
       } else {
         resetGame();
       }
-      navigation.navigate('MainMenu');
+      navigation.navigate('Home');
     };
 
   const handleQuitMultiplayerGame = () => {
@@ -899,6 +945,13 @@ const handleEndGame = () => {
 
     try {
       if (isMultiplayerMode) {
+        // Check if player has already submitted this turn
+        if (hasSubmittedThisTurn) {
+          console.log('❌ Already submitted this turn');
+          Alert.alert('Already Submitted', 'You have already submitted an answer this turn. Wait for your next turn.');
+          return;
+        }
+        
         // Check if it's the current player's turn using V2 validation
         if (multiplayerState) {
           const validation = multiplayerService.isAllowedToSubmitV2(user?.id || '', multiplayerState);
@@ -906,6 +959,28 @@ const handleEndGame = () => {
             console.log('❌ Cannot submit:', validation.reason || 'Wait for your turn to submit answers.');
             Alert.alert('Not Your Turn', validation.reason || 'Wait for your turn to submit answers.');
             return;
+          }
+        }
+        
+        // Check if the answer has already been revealed
+        if (multiplayerState && multiplayerState.revealedAnswers) {
+          const currentQuestion = multiplayerState.questions?.[multiplayerState.currentQuestionIndex];
+          if (currentQuestion && currentQuestion.answers) {
+            // Find if the user's answer matches any of the correct answers
+            const match = findMatchingAnswer(sanitizedAnswer, currentQuestion.answers);
+            if (match) {
+              const { index } = match;
+              // Check if this answer position is already revealed
+              if (multiplayerState.revealedAnswers[index] !== null) {
+                console.log('❌ Answer already revealed:', {
+                  userAnswer: sanitizedAnswer,
+                  matchedAnswer: currentQuestion.answers[index]?.text,
+                  revealedAnswer: multiplayerState.revealedAnswers[index]
+                });
+                Alert.alert('Answer Already Revealed', 'This answer has already been revealed by another player. Please try a different answer.');
+                return;
+              }
+            }
           }
         }
         
@@ -935,6 +1010,7 @@ const handleEndGame = () => {
         
         if (result.success) {
           setMultiplayerAnswer('');
+          setHasSubmittedThisTurn(true); // Mark that player has submitted this turn
           // The answer is already added to multiplayerSubmittedAnswers by the context
           
           // Show feedback based on whether points were earned (correct answer)
@@ -1032,6 +1108,11 @@ const handleEndGame = () => {
     if (!currentQuestion?.answers || !answer || typeof answer !== 'string') return false;
     
     const normalizedAnswer = answer.toLowerCase().trim();
+    if (!Array.isArray(currentQuestion.answers)) {
+      console.warn('⚠️ currentQuestion.answers is not an array:', currentQuestion.answers);
+      return false;
+    }
+    
     return currentQuestion.answers.some((correctAnswer: any) => {
       if (!correctAnswer || !correctAnswer.text) return false;
       
@@ -1254,7 +1335,7 @@ const handleEndGame = () => {
             </Animated.View>
             <Text style={styles.answerGridTitle}>Answers</Text>
             <View style={styles.answerGrid}>
-                             {currentQuestion.answers.map((answer: any, index: number) => {
+                             {Array.isArray(currentQuestion.answers) ? currentQuestion.answers.map((answer: any, index: number) => {
                  // Get answer text
                  const answerText = typeof answer === 'string' ? answer : answer.text;
                  
@@ -1399,7 +1480,9 @@ const handleEndGame = () => {
                      </View>
                    </TouchableOpacity>
                  );
-               })}
+               }) : (
+                 <Text style={styles.noAnswersText}>No answers available</Text>
+               )}
             </View>
 
           </View>
@@ -1569,7 +1652,9 @@ const handleEndGame = () => {
             myUserId: user?.id,
             isMyTurn: multiplayerState?.currentPlayerId === user?.id,
             shouldShowAnswer,
-            revealedAnswersCount: multiplayerState?.revealedAnswers?.filter(ra => ra !== null).length || 0,
+            revealedAnswersCount: Array.isArray(multiplayerState?.revealedAnswers) 
+              ? multiplayerState.revealedAnswers.filter(ra => ra !== null).length 
+              : 0,
             totalAnswers: currentQuestion?.answers?.length || 0
           });
           
@@ -1613,20 +1698,24 @@ const handleEndGame = () => {
                    styles.modernSubmitButton,
                    // Only apply grey styling when it's not your turn
                    (isMultiplayerMode && multiplayerState?.currentPlayerId !== user?.id) && styles.modernSubmitButtonNotMyTurn,
-                   // Only apply disabled styling when there's no answer AND it's your turn
+                   // Apply disabled styling when there's no answer AND it's your turn
                    (!(isMultiplayerMode ? (multiplayerCurrentAnswer || '') : currentAnswer).trim() && 
-                    !(isMultiplayerMode && multiplayerState?.currentPlayerId !== user?.id)) && styles.modernSubmitButtonDisabled
+                    !(isMultiplayerMode && multiplayerState?.currentPlayerId !== user?.id)) && styles.modernSubmitButtonDisabled,
+                   // Apply submitted styling when player has already submitted this turn
+                   (isMultiplayerMode && hasSubmittedThisTurn) && styles.modernSubmitButtonSubmitted
                  ]}
                  onPress={handleSubmitAnswer}
                  disabled={
-                   !(isMultiplayerMode ? (multiplayerCurrentAnswer || '') : currentAnswer).trim()
+                   !(isMultiplayerMode ? (multiplayerCurrentAnswer || '') : currentAnswer).trim() ||
+                   (isMultiplayerMode && hasSubmittedThisTurn)
                  }
                >
                  <Text style={[
                    styles.modernSubmitButtonText,
-                   (isMultiplayerMode && multiplayerState?.currentPlayerId !== user?.id) && styles.modernSubmitButtonTextNotMyTurn
+                   (isMultiplayerMode && multiplayerState?.currentPlayerId !== user?.id) && styles.modernSubmitButtonTextNotMyTurn,
+                   (isMultiplayerMode && hasSubmittedThisTurn) && styles.modernSubmitButtonTextSubmitted
                  ]}>
-                   Submit Answer
+                   {isMultiplayerMode && hasSubmittedThisTurn ? 'Submitted ✓' : 'Submit Answer'}
               </Text>
                </TouchableOpacity>
              </Animated.View>
@@ -2863,6 +2952,13 @@ const styles = StyleSheet.create({
   modernSubmitButtonTextNotMyTurn: {
     color: '#9CA3AF', // Grey text when not my turn
   },
+  modernSubmitButtonSubmitted: {
+    backgroundColor: '#10B981', // Green when submitted
+    shadowOpacity: 0.2,
+  },
+  modernSubmitButtonTextSubmitted: {
+    color: '#FFFFFF', // White text when submitted
+  },
 
   // Modern Skip Button Styles
   modernSkipButton: {
@@ -2897,6 +2993,13 @@ const styles = StyleSheet.create({
   },
   modernSkipButtonTextDisabled: {
     color: '#FFFFFF', // White text when disabled (same as enabled)
+  },
+  noAnswersText: {
+    fontSize: 16,
+    color: COLORS.muted,
+    textAlign: 'center',
+    padding: SPACING.lg,
+    fontStyle: 'italic',
   },
 });
 

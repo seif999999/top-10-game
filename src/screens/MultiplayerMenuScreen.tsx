@@ -101,13 +101,13 @@ const MultiplayerMenuScreen: React.FC<MultiplayerMenuScreenProps> = () => {
             <View style={styles.infoItem}>
               <Text style={styles.infoBullet}>•</Text>
               <Text style={styles.infoText}>
-                Create a room to host a game with up to 8 players
+                Create a room to host an online game with up to 8 players
               </Text>
             </View>
             <View style={styles.infoItem}>
               <Text style={styles.infoBullet}>•</Text>
               <Text style={styles.infoText}>
-                Share the room code with friends to invite them
+                Share the room code with friends to invite them to join
               </Text>
             </View>
             <View style={styles.infoItem}>

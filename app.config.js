@@ -13,13 +13,7 @@ module.exports = () => ({
     
     // Deep linking configuration for Google Sign-In
     plugins: [
-      // Add OAuth configuration for proper redirect handling
-      [
-        "expo-auth-session",
-        {
-          "schemes": ["top10game"]
-        }
-      ]
+      // OAuth configuration is handled by the app scheme and redirect URIs
     ],
     
     // Platform-specific configurations

@@ -151,6 +151,12 @@ const multiplayerReducer = (state: MultiplayerState, action: MultiplayerAction):
           totalPlayers: Object.keys(roomData.players || {}).length
         });
       }
+      // Ensure revealedAnswers is always an array to prevent crashes
+      if (roomData && (!Array.isArray(roomData.revealedAnswers))) {
+        console.warn('⚠️ CONTEXT: revealedAnswers is not an array, initializing:', roomData.revealedAnswers);
+        roomData.revealedAnswers = Array(10).fill(null);
+      }
+      
       // Check for system messages in room data
       let newState = {
         ...state,
