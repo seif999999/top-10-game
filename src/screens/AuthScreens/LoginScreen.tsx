@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from '../../components/Button';
-import GoogleSignInButton from '../../components/GoogleSignInButton';
 import { useAuth } from '../../contexts/AuthContext';
 import { COLORS, SPACING } from '../../utils/constants';
 import { LoginScreenProps } from '../../types/navigation';
@@ -145,26 +144,6 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
         disabled={isLoading}
       />
 
-      {/* Divider */}
-      <View style={styles.divider}>
-        <View style={styles.dividerLine} />
-        <Text style={styles.dividerText}>OR</Text>
-        <View style={styles.dividerLine} />
-      </View>
-
-      {/* Google Sign-In Button */}
-      <GoogleSignInButton
-        onSuccess={() => {
-          // Navigation will be handled automatically by AuthContext
-          console.log('Google sign-in successful');
-        }}
-        onError={(error) => {
-          console.error('Google sign-in error:', error);
-          Alert.alert('Sign-In Error', error);
-        }}
-        style={styles.googleButton}
-      />
-
       <TouchableOpacity style={styles.linkCenter} onPress={() => navigation.navigate('ForgotPassword')} disabled={isLoading}>
         <Text style={styles.linkText}>Forgot password?</Text>
       </TouchableOpacity>
@@ -275,26 +254,6 @@ const styles = StyleSheet.create({
     opacity: 0.8,
     color: COLORS.muted
   },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: SPACING.lg
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: COLORS.muted,
-    opacity: 0.3
-  },
-  dividerText: {
-    color: COLORS.muted,
-    fontSize: 14,
-    marginHorizontal: SPACING.md,
-    fontWeight: '500'
-  },
-  googleButton: {
-    marginBottom: SPACING.sm
-  }
 });
 
 export default LoginScreen;
