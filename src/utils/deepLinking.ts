@@ -1,5 +1,6 @@
 import { Linking } from 'react-native';
 import { NavigationContainerRef } from '@react-navigation/native';
+import { logger } from './logger';
 
 /**
  * Deep linking utility for handling Firebase password reset links
@@ -16,7 +17,7 @@ export const handlePasswordResetLink = (url: string, navigation: NavigationConta
     
     // Check if this is a password reset link
     if (mode === 'resetPassword' && oobCode) {
-      console.log('🔗 Password reset link detected:', { oobCode, mode });
+      logger.log('🔗 Password reset link detected:', { oobCode, mode });
       
       // Navigate to our custom password reset screen
       navigation.navigate('ResetPassword', { oobCode });
@@ -25,7 +26,7 @@ export const handlePasswordResetLink = (url: string, navigation: NavigationConta
     
     return false;
   } catch (error) {
-    console.error('Error parsing password reset link:', error);
+    logger.error('Error parsing password reset link:', error);
     return false;
   }
 };

@@ -8,6 +8,7 @@ import { COLORS, SPACING } from '../../utils/constants';
 import { RegisterScreenProps } from '../../types/navigation';
 import { InputValidator } from '../../utils/inputValidator';
 import PrivacyPolicyService from '../../services/privacyPolicyService';
+import { logger } from '../../utils/logger';
 
 type Props = RegisterScreenProps;
 
@@ -84,9 +85,9 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
         },
       });
       
-      console.log('Privacy policy accepted');
+      logger.log('Privacy policy accepted');
     } catch (error) {
-      console.error('Error recording privacy policy acceptance:', error);
+      logger.error('Error recording privacy policy acceptance:', error);
       // Still allow the user to proceed
     }
   };
@@ -100,8 +101,8 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const handleSignUp = async () => {
-    console.log('🔍 DEBUG: handleSignUp called');
-    console.log('🔍 DEBUG: Form data:', { displayName, email, password: password ? '***' : '', confirmPassword: confirmPassword ? '***' : '' });
+    logger.log('🔍 DEBUG: handleSignUp called');
+    logger.log('🔍 DEBUG: Form data:', { displayName, email, password: password ? '***' : '', confirmPassword: confirmPassword ? '***' : '' });
     
     // Check if privacy policy is accepted first
     if (!privacyPolicyAccepted) {
@@ -110,58 +111,58 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
     }
     
     const isValid = validate();
-    console.log('🔍 DEBUG: Validation result:', isValid);
-    console.log('🔍 DEBUG: Errors:', errors);
+    logger.log('🔍 DEBUG: Validation result:', isValid);
+    logger.log('🔍 DEBUG: Errors:', errors);
     
     if (!isValid) {
-      console.log('❌ DEBUG: Validation failed, not proceeding');
+      logger.log('❌ DEBUG: Validation failed, not proceeding');
       return;
     }
     
-    console.log('✅ DEBUG: Validation passed, proceeding with signup');
+    logger.log('✅ DEBUG: Validation passed, proceeding with signup');
     
     // Sanitize inputs
-    console.log('🔍 DEBUG: Starting input sanitization...');
+    logger.log('🔍 DEBUG: Starting input sanitization...');
     let sanitizedEmail, sanitizedPassword, sanitizedDisplayName;
     
     try {
       sanitizedEmail = InputValidator.sanitizeText(email.trim(), 254);
-      console.log('🔍 DEBUG: Email sanitized');
+      logger.log('🔍 DEBUG: Email sanitized');
       sanitizedPassword = InputValidator.sanitizeText(password, 128);
-      console.log('🔍 DEBUG: Password sanitized');
+      logger.log('🔍 DEBUG: Password sanitized');
       sanitizedDisplayName = InputValidator.sanitizeText(displayName.trim(), 30);
-      console.log('🔍 DEBUG: Display name sanitized');
+      logger.log('🔍 DEBUG: Display name sanitized');
     } catch (error) {
-      console.error('❌ DEBUG: Sanitization error:', error);
+      logger.error('❌ DEBUG: Sanitization error:', error);
       // Fallback to basic sanitization
       sanitizedEmail = email.trim();
       sanitizedPassword = password;
       sanitizedDisplayName = displayName.trim();
-      console.log('🔍 DEBUG: Using fallback sanitization');
+      logger.log('🔍 DEBUG: Using fallback sanitization');
     }
     
-    console.log('🔍 DEBUG: Sanitized inputs:', { 
+    logger.log('🔍 DEBUG: Sanitized inputs:', { 
       sanitizedEmail, 
       sanitizedPassword: sanitizedPassword ? '***' : '', 
       sanitizedDisplayName 
     });
     
-    console.log('🔍 DEBUG: Setting local loading to true...');
+    logger.log('🔍 DEBUG: Setting local loading to true...');
     setLocalLoading(true);
-    console.log('🔍 DEBUG: Local loading set to true');
+    logger.log('🔍 DEBUG: Local loading set to true');
     
     try {
-      console.log('🔍 DEBUG: About to call signUp function...');
-      console.log('🔍 DEBUG: signUp function exists:', typeof signUp);
+      logger.log('🔍 DEBUG: About to call signUp function...');
+      logger.log('🔍 DEBUG: signUp function exists:', typeof signUp);
       await signUp(sanitizedEmail, sanitizedPassword, sanitizedDisplayName);
-      console.log('✅ DEBUG: SignUp successful');
+      logger.log('✅ DEBUG: SignUp successful');
     } catch (error) {
-      console.error('❌ DEBUG: SignUp error:', error);
+      logger.error('❌ DEBUG: SignUp error:', error);
       Alert.alert('Registration Failed', error instanceof Error ? error.message : 'An error occurred');
     } finally {
-      console.log('🔍 DEBUG: Setting local loading to false...');
+      logger.log('🔍 DEBUG: Setting local loading to false...');
       setLocalLoading(false);
-      console.log('🔍 DEBUG: Local loading set to false');
+      logger.log('🔍 DEBUG: Local loading set to false');
     }
   };
 

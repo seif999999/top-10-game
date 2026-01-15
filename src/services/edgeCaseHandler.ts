@@ -1,6 +1,8 @@
 import { doc, getDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from './firebase';
 import { RoomData, Player } from './multiplayerService';
+import { logger } from '../utils/logger';
+import { TIMING, COLLECTIONS } from '../utils/constants';
 
 /**
  * Comprehensive Edge Case Handler for Multiplayer System
@@ -26,11 +28,11 @@ export interface EdgeCaseConfig {
 }
 
 export const DEFAULT_EDGE_CASE_CONFIG: EdgeCaseConfig = {
-  hostDisconnectTimeout: 30000, // 30 seconds
-  playerDisconnectTimeout: 60000, // 60 seconds
+  hostDisconnectTimeout: TIMING.TIMEOUT_30_SECONDS,
+  playerDisconnectTimeout: TIMING.TIMEOUT_60_SECONDS,
   maxDisconnectTime: 300000, // 5 minutes
   reconnectionAttempts: 3,
-  maxRoomAge: 86400000, // 24 hours
+  maxRoomAge: TIMING.SESSION_DURATION_24_HOURS,
   maxPlayers: 8,
   roomCleanupDelay: 600000, // 10 minutes
   maxSubmissionsPerMinute: 10,
@@ -66,13 +68,13 @@ export class EdgeCaseHandler {
    */
   async handleHostDisconnection(roomCode: string, disconnectedHostId: string): Promise<boolean> {
     try {
-      console.log(`🚨 Handling host disconnection in room ${roomCode}`);
+      logger.log(`🚨 Handling host disconnection in room ${roomCode}`);
       
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await getDoc(roomRef);
       
       if (!roomSnap.exists()) {
-        console.log('Room not found, host disconnection handled');
+        logger.log('Room not found, host disconnection handled');
         return true;
       }
 
@@ -96,11 +98,11 @@ export class EdgeCaseHandler {
       // Notify all players
       await this.notifyHostChange(roomCode, newHost.name);
       
-      console.log(`✅ Host promoted: ${newHost.name} (${newHost.id})`);
+      logger.log(`✅ Host promoted: ${newHost.name} (${newHost.id})`);
       return true;
 
     } catch (error) {
-      console.error('❌ Error handling host disconnection:', error);
+      logger.error('❌ Error handling host disconnection:', error);
       // Fallback: End game gracefully
       await this.endGameWithError(roomCode, 'Host connection lost');
       return false;
@@ -112,9 +114,9 @@ export class EdgeCaseHandler {
    */
   async handlePlayerDisconnection(roomCode: string, playerId: string): Promise<void> {
     try {
-      console.log(`🔌 Handling player disconnection: ${playerId}`);
+      logger.log(`🔌 Handling player disconnection: ${playerId}`);
       
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       
       // Mark player as disconnected but keep in game
       await updateDoc(roomRef, {
@@ -130,10 +132,10 @@ export class EdgeCaseHandler {
 
       this.roomCleanupTimers.set(`${roomCode}-${playerId}`, cleanupTimer);
       
-      console.log(`✅ Player marked as disconnected: ${playerId}`);
+      logger.log(`✅ Player marked as disconnected: ${playerId}`);
 
     } catch (error) {
-      console.error('❌ Error handling player disconnection:', error);
+      logger.error('❌ Error handling player disconnection:', error);
     }
   }
 
@@ -141,7 +143,7 @@ export class EdgeCaseHandler {
    * Handle Firebase service outage
    */
   async handleFirebaseOutage(): Promise<void> {
-    console.log('🚨 Firebase service outage detected');
+    logger.log('🚨 Firebase service outage detected');
     
     // Show error message to all active users
     this.broadcastErrorToAllUsers('Firebase service temporarily unavailable. Attempting to reconnect...');
@@ -153,18 +155,18 @@ export class EdgeCaseHandler {
     while (attempt < maxAttempts) {
       try {
         await this.testFirebaseConnection();
-        console.log('✅ Firebase connection restored');
+        logger.log('✅ Firebase connection restored');
         this.broadcastSuccessToAllUsers('Connection restored!');
         return;
       } catch (error) {
         attempt++;
         const delay = Math.pow(2, attempt) * 1000; // Exponential backoff
-        console.log(`⏳ Reconnection attempt ${attempt} failed, retrying in ${delay}ms`);
+        logger.log(`⏳ Reconnection attempt ${attempt} failed, retrying in ${delay}ms`);
         await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
     
-    console.error('❌ Failed to restore Firebase connection after all attempts');
+    logger.error('❌ Failed to restore Firebase connection after all attempts');
     this.broadcastErrorToAllUsers('Unable to restore connection. Please refresh the app.');
   }
 
@@ -176,7 +178,7 @@ export class EdgeCaseHandler {
    * Handle duplicate room codes
    */
   async handleDuplicateRoomCode(roomCode: string): Promise<string> {
-    console.log(`🔄 Handling duplicate room code: ${roomCode}`);
+    logger.log(`🔄 Handling duplicate room code: ${roomCode}`);
     
     // Generate new code with additional entropy
     const timestamp = Date.now().toString(36);
@@ -186,7 +188,7 @@ export class EdgeCaseHandler {
     // Verify new code is unique
     const isAvailable = await this.isRoomCodeAvailable(newRoomCode);
     if (isAvailable) {
-      console.log(`✅ Generated new unique room code: ${newRoomCode}`);
+      logger.log(`✅ Generated new unique room code: ${newRoomCode}`);
       return newRoomCode;
     }
     
@@ -199,13 +201,13 @@ export class EdgeCaseHandler {
    */
   async handleRoomDataCorruption(roomCode: string): Promise<boolean> {
     try {
-      console.log(`🔧 Repairing corrupted room data: ${roomCode}`);
+      logger.log(`🔧 Repairing corrupted room data: ${roomCode}`);
       
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await getDoc(roomRef);
       
       if (!roomSnap.exists()) {
-        console.log('Room not found, cannot repair');
+        logger.log('Room not found, cannot repair');
         return false;
       }
 
@@ -220,11 +222,11 @@ export class EdgeCaseHandler {
         lastRepair: serverTimestamp()
       });
       
-      console.log(`✅ Room data repaired: ${roomCode}`);
+      logger.log(`✅ Room data repaired: ${roomCode}`);
       return true;
 
     } catch (error) {
-      console.error('❌ Error repairing room data:', error);
+      logger.error('❌ Error repairing room data:', error);
       return false;
     }
   }
@@ -234,9 +236,9 @@ export class EdgeCaseHandler {
    */
   async handleOrphanedRoom(roomCode: string): Promise<void> {
     try {
-      console.log(`🧹 Cleaning up orphaned room: ${roomCode}`);
+      logger.log(`🧹 Cleaning up orphaned room: ${roomCode}`);
       
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await getDoc(roomRef);
       
       if (!roomSnap.exists()) {
@@ -255,12 +257,12 @@ export class EdgeCaseHandler {
         
         if (timeSinceLastActivity > this.config.roomCleanupDelay) {
           await this.cleanupRoom(roomCode);
-          console.log(`✅ Orphaned room cleaned up: ${roomCode}`);
+          logger.log(`✅ Orphaned room cleaned up: ${roomCode}`);
         }
       }
 
     } catch (error) {
-      console.error('❌ Error handling orphaned room:', error);
+      logger.error('❌ Error handling orphaned room:', error);
     }
   }
 
@@ -273,22 +275,22 @@ export class EdgeCaseHandler {
    */
   async handleAuthenticationFailure(userId: string): Promise<boolean> {
     try {
-      console.log(`🔐 Handling authentication failure for user: ${userId}`);
+      logger.log(`🔐 Handling authentication failure for user: ${userId}`);
       
       // Attempt automatic re-authentication
       const authService = (await import('./authService')).AuthService.getInstance();
       
       try {
         await authService.ensureAuthenticated();
-        console.log('✅ Authentication restored');
+        logger.log('✅ Authentication restored');
         return true;
       } catch (error) {
-        console.error('❌ Re-authentication failed:', error);
+        logger.error('❌ Re-authentication failed:', error);
         return false;
       }
 
     } catch (error) {
-      console.error('❌ Error handling authentication failure:', error);
+      logger.error('❌ Error handling authentication failure:', error);
       return false;
     }
   }
@@ -300,11 +302,11 @@ export class EdgeCaseHandler {
     try {
       // Don't flag join_room actions as suspicious - they're normal user behavior
       if (action === 'join_room') {
-        console.log(`✅ Normal join attempt from player ${playerId}`);
+        logger.log(`✅ Normal join attempt from player ${playerId}`);
         return false;
       }
       
-      console.log(`🚨 Detecting malicious activity from player ${playerId}: ${action}`);
+      logger.log(`🚨 Detecting malicious activity from player ${playerId}: ${action}`);
       
       // Track player activity for non-join actions
       const now = Date.now();
@@ -321,7 +323,7 @@ export class EdgeCaseHandler {
       
       // Check if player exceeds suspicious activity threshold
       if (playerActivity.actions > this.config.suspiciousActivityThreshold) {
-        console.log(`🚨 Player ${playerId} flagged for suspicious activity`);
+        logger.log(`🚨 Player ${playerId} flagged for suspicious activity`);
         
         // Temporarily restrict player actions
         await this.restrictPlayerActions(roomCode, playerId, 300000); // 5 minutes
@@ -335,7 +337,7 @@ export class EdgeCaseHandler {
       return false;
 
     } catch (error) {
-      console.error('❌ Error handling malicious player:', error);
+      logger.error('❌ Error handling malicious player:', error);
       return false;
     }
   }
@@ -349,7 +351,7 @@ export class EdgeCaseHandler {
    */
   async handleLateJoinAttempt(roomCode: string, playerId: string): Promise<{ allowed: boolean; reason?: string }> {
     try {
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await getDoc(roomRef);
       
       if (!roomSnap.exists()) {
@@ -378,7 +380,7 @@ export class EdgeCaseHandler {
       return { allowed: true };
 
     } catch (error) {
-      console.error('❌ Error handling late join attempt:', error);
+      logger.error('❌ Error handling late join attempt:', error);
       return { allowed: false, reason: 'Error checking room status' };
     }
   }
@@ -388,9 +390,9 @@ export class EdgeCaseHandler {
    */
   async handleZeroSubmissions(roomCode: string): Promise<void> {
     try {
-      console.log(`📝 Handling zero submissions in room ${roomCode}`);
+      logger.log(`📝 Handling zero submissions in room ${roomCode}`);
       
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       
       // Advance to next question automatically
       await updateDoc(roomRef, {
@@ -402,10 +404,10 @@ export class EdgeCaseHandler {
       // Notify players
       await this.notifyPlayers(roomCode, 'No answers submitted. Moving to next question.');
       
-      console.log('✅ Advanced to next question due to zero submissions');
+      logger.log('✅ Advanced to next question due to zero submissions');
 
     } catch (error) {
-      console.error('❌ Error handling zero submissions:', error);
+      logger.error('❌ Error handling zero submissions:', error);
     }
   }
 
@@ -421,7 +423,7 @@ export class EdgeCaseHandler {
       // Use server timestamp as authoritative time
       const serverTime = Date.now(); // This would be actual server time in production
       
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       await updateDoc(roomRef, {
         lastSyncTime: serverTime,
         lastActivity: serverTimestamp()
@@ -430,7 +432,7 @@ export class EdgeCaseHandler {
       return serverTime;
 
     } catch (error) {
-      console.error('❌ Error synchronizing time:', error);
+      logger.error('❌ Error synchronizing time:', error);
       return Date.now(); // Fallback to client time
     }
   }
@@ -443,19 +445,19 @@ export class EdgeCaseHandler {
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        console.log(`🔄 Concurrent state change attempt ${attempt} for room ${roomCode}`);
+        logger.log(`🔄 Concurrent state change attempt ${attempt} for room ${roomCode}`);
         await updateFunction();
-        console.log(`✅ Concurrent state change successful on attempt ${attempt}`);
+        logger.log(`✅ Concurrent state change successful on attempt ${attempt}`);
         return true;
       } catch (error: any) {
-        console.error(`❌ Concurrent state change attempt ${attempt} failed:`, error);
+        logger.error(`❌ Concurrent state change attempt ${attempt} failed:`, error);
         
         // Check if it's a validation error (don't retry these)
         if (error.message?.includes('invalid data') || 
             error.message?.includes('Unsupported field value: undefined') ||
             error.message?.includes('Data sanitization failed') ||
             error.message?.includes('Room data validation failed')) {
-          console.error('❌ Firestore validation error: undefined values detected');
+          logger.error('❌ Firestore validation error: undefined values detected');
           throw new Error('Invalid data: undefined values not allowed in Firestore');
         }
         
@@ -463,14 +465,14 @@ export class EdgeCaseHandler {
           // Conflict detected, retry
           if (attempt < maxRetries) {
             const delay = 1000 * attempt; // Exponential backoff
-            console.log(`⏳ Retrying in ${delay}ms...`);
+            logger.log(`⏳ Retrying in ${delay}ms...`);
             await new Promise(resolve => setTimeout(resolve, delay));
             continue;
           }
         }
         
         if (attempt === maxRetries) {
-          console.error('❌ Failed to handle concurrent state change after all retries');
+          logger.error('❌ Failed to handle concurrent state change after all retries');
           throw new Error(`Failed to create room due to concurrent state changes`);
         }
       }
@@ -487,18 +489,18 @@ export class EdgeCaseHandler {
    * Handle memory leaks from listeners
    */
   cleanupListeners(): void {
-    console.log('🧹 Cleaning up Firebase listeners');
+    logger.log('🧹 Cleaning up Firebase listeners');
     
     this.activeListeners.forEach((unsubscribe, key) => {
       try {
         unsubscribe();
         this.activeListeners.delete(key);
       } catch (error) {
-        console.error(`❌ Error cleaning up listener ${key}:`, error);
+        logger.error(`❌ Error cleaning up listener ${key}:`, error);
       }
     });
     
-    console.log(`✅ Cleaned up ${this.activeListeners.size} listeners`);
+    logger.log(`✅ Cleaned up ${this.activeListeners.size} listeners`);
   }
 
   /**
@@ -506,9 +508,9 @@ export class EdgeCaseHandler {
    */
   async optimizeLargeRoom(roomCode: string): Promise<void> {
     try {
-      console.log(`⚡ Optimizing large room: ${roomCode}`);
+      logger.log(`⚡ Optimizing large room: ${roomCode}`);
       
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await getDoc(roomRef);
       
       if (!roomSnap.exists()) return;
@@ -520,11 +522,11 @@ export class EdgeCaseHandler {
         // Implement pagination for player list
         // Use minimal data updates
         // Optimize real-time listeners
-        console.log(`✅ Room optimized for ${playerCount} players`);
+        logger.log(`✅ Room optimized for ${playerCount} players`);
       }
 
     } catch (error) {
-      console.error('❌ Error optimizing large room:', error);
+      logger.error('❌ Error optimizing large room:', error);
     }
   }
 
@@ -564,12 +566,12 @@ export class EdgeCaseHandler {
 
   private async notifyHostChange(roomCode: string, newHostName: string): Promise<void> {
     // This would integrate with your notification system
-    console.log(`📢 Host changed to: ${newHostName} in room ${roomCode}`);
+    logger.log(`📢 Host changed to: ${newHostName} in room ${roomCode}`);
   }
 
   private async notifyPlayers(roomCode: string, message: string): Promise<void> {
     // This would integrate with your notification system
-    console.log(`📢 Room ${roomCode}: ${message}`);
+    logger.log(`📢 Room ${roomCode}: ${message}`);
   }
 
   private repairRoomData(roomData: any): any {
@@ -588,7 +590,7 @@ export class EdgeCaseHandler {
 
   private async isRoomCodeAvailable(roomCode: string): Promise<boolean> {
     try {
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await getDoc(roomRef);
       return !roomSnap.exists();
     } catch (error) {
@@ -607,7 +609,7 @@ export class EdgeCaseHandler {
 
   private async removeDisconnectedPlayer(roomCode: string, playerId: string): Promise<void> {
     try {
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       await updateDoc(roomRef, {
         [`players.${playerId}`]: null,
         lastActivity: serverTimestamp()
@@ -621,19 +623,19 @@ export class EdgeCaseHandler {
         this.roomCleanupTimers.delete(timerKey);
       }
       
-      console.log(`✅ Removed disconnected player: ${playerId}`);
+      logger.log(`✅ Removed disconnected player: ${playerId}`);
     } catch (error) {
-      console.error('❌ Error removing disconnected player:', error);
+      logger.error('❌ Error removing disconnected player:', error);
     }
   }
 
   private async cleanupRoom(roomCode: string): Promise<void> {
     try {
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       await deleteDoc(roomRef);
-      console.log(`✅ Room cleaned up: ${roomCode}`);
+      logger.log(`✅ Room cleaned up: ${roomCode}`);
     } catch (error) {
-      console.error('❌ Error cleaning up room:', error);
+      logger.error('❌ Error cleaning up room:', error);
     }
   }
 
@@ -649,22 +651,22 @@ export class EdgeCaseHandler {
 
   private broadcastErrorToAllUsers(message: string): void {
     // This would integrate with your notification system
-    console.log(`📢 System Error: ${message}`);
+    logger.log(`📢 System Error: ${message}`);
   }
 
   private broadcastSuccessToAllUsers(message: string): void {
     // This would integrate with your notification system
-    console.log(`📢 System Success: ${message}`);
+    logger.log(`📢 System Success: ${message}`);
   }
 
   private async restrictPlayerActions(roomCode: string, playerId: string, duration: number): Promise<void> {
     // Implement player action restriction
-    console.log(`🚫 Restricting player ${playerId} for ${duration}ms`);
+    logger.log(`🚫 Restricting player ${playerId} for ${duration}ms`);
   }
 
   private async notifyHostOfSuspiciousActivity(roomCode: string, playerId: string): Promise<void> {
     // Notify host of suspicious activity
-    console.log(`🚨 Notified host of suspicious activity from player ${playerId}`);
+    logger.log(`🚨 Notified host of suspicious activity from player ${playerId}`);
   }
 
   private startPeriodicCleanup(): void {
@@ -677,7 +679,7 @@ export class EdgeCaseHandler {
 
   private async cleanupExpiredRooms(): Promise<void> {
     // Implement periodic room cleanup
-    console.log('🧹 Running periodic room cleanup');
+    logger.log('🧹 Running periodic room cleanup');
   }
 }
 

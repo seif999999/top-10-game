@@ -2,6 +2,7 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../contexts/AuthContext';
 import { RootStackParamList } from '../types/navigation';
+import { logger } from '../utils/logger';
 
 // Import screens
 import LoginScreen from '../screens/AuthScreens/LoginScreen';
@@ -30,8 +31,8 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 const AppNavigator: React.FC = () => {
   const { user, loading } = useAuth();
 
-  console.log('AppNavigator: Current user:', user?.email || 'null');
-  console.log('AppNavigator: Loading:', loading);
+  logger.log('AppNavigator: Current user:', user?.email || 'null');
+  logger.log('AppNavigator: Loading:', loading);
 
   return (
     <>

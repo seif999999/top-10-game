@@ -4,6 +4,7 @@ import multiplayerService from '../services/multiplayerService';
 import { useAuth } from './AuthContext';
 import { updatePlayerPresence } from '../services/multiplayerTransaction';
 import { AuthService } from '../services/authService';
+import { logger } from '../utils/logger';
 
 // Enhanced multiplayer state interface
 interface MultiplayerState {
@@ -119,7 +120,7 @@ const multiplayerReducer = (state: MultiplayerState, action: MultiplayerAction):
     
     case 'SET_ROOM':
       const { roomData, userId } = action.payload;
-      console.log('🎮 MultiplayerContext - Room data updated:', {
+      logger.log('🎮 MultiplayerContext - Room data updated:', {
         roomCode: roomData?.roomCode,
         gamePhase: roomData?.gamePhase,
         status: roomData?.status,
@@ -136,13 +137,13 @@ const multiplayerReducer = (state: MultiplayerState, action: MultiplayerAction):
       
         // Additional debugging for scores and revealed answers
         if (roomData) {
-          console.log('🎯 CONTEXT_SCORE_DEBUG:', {
+          logger.log('🎯 CONTEXT_SCORE_DEBUG:', {
             scores: roomData.scores,
             revealedAnswers: roomData.revealedAnswers
           });
         
         // 📡 FIRESTORE LISTENER UPDATE DEBUG LOGGING
-        console.log('📡 FIRESTORE LISTENER UPDATE:', {
+        logger.log('📡 FIRESTORE LISTENER UPDATE:', {
           timestamp: new Date().toISOString(),
           playersData: roomData.players,
           revealedAnswers: roomData.revealedAnswers,
@@ -153,7 +154,7 @@ const multiplayerReducer = (state: MultiplayerState, action: MultiplayerAction):
       }
       // Ensure revealedAnswers is always an array to prevent crashes
       if (roomData && (!Array.isArray(roomData.revealedAnswers))) {
-        console.warn('⚠️ CONTEXT: revealedAnswers is not an array, initializing:', roomData.revealedAnswers);
+        logger.warn('⚠️ CONTEXT: revealedAnswers is not an array, initializing:', roomData.revealedAnswers);
         roomData.revealedAnswers = Array(10).fill(null);
       }
       
@@ -169,7 +170,7 @@ const multiplayerReducer = (state: MultiplayerState, action: MultiplayerAction):
       
       // Handle system messages from room data
       if (roomData?.systemMessage && roomData.systemMessage.type) {
-        console.log('🔔 SYSTEM_MESSAGE: Received system message from room data:', roomData.systemMessage);
+        logger.log('🔔 SYSTEM_MESSAGE: Received system message from room data:', roomData.systemMessage);
         newState = {
           ...newState,
           systemMessage: {
@@ -351,7 +352,7 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
 
   // Auto-navigate to GameScreen when game starts - simplified dependencies
   useEffect(() => {
-    console.log('🎮 NAVIGATION_CHECK:', {
+    logger.log('🎮 NAVIGATION_CHECK:', {
       hasRoom: !!state.currentRoom,
       status: state.currentRoom?.status,
       gamePhase: state.currentRoom?.gamePhase,
@@ -360,7 +361,7 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
     });
     
     if (state.currentRoom && state.currentRoom.status === 'playing' && state.currentRoom.gamePhase === 'question' && state.navigationCallback) {
-      console.log('🎮 CLIENT_NAVIGATE: Auto-navigating to GameScreen...');
+      logger.log('🎮 CLIENT_NAVIGATE: Auto-navigating to GameScreen...');
       state.navigationCallback({
         roomId: state.currentRoom.roomCode,
         categoryId: state.currentRoom.category,
@@ -378,7 +379,7 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
       try {
         await updatePlayerPresence(state.currentRoom!.roomCode, user.id, true);
       } catch (error) {
-        console.warn('⚠️ PRESENCE: Failed to update presence:', error);
+        logger.warn('⚠️ PRESENCE: Failed to update presence:', error);
       }
     };
 
@@ -392,7 +393,7 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
     return () => {
       clearInterval(presenceInterval);
       if (state.currentRoom && user?.id) {
-        updatePlayerPresence(state.currentRoom.roomCode, user.id, false).catch(console.warn);
+        updatePlayerPresence(state.currentRoom.roomCode, user.id, false).catch(logger.warn);
       }
     };
   }, [state.currentRoom?.roomCode, user?.id]);
@@ -465,7 +466,7 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
     try {
       if (!state.currentRoom) return;
       
-      console.log('🚪 Leaving room:', state.currentRoom.roomCode);
+      logger.log('🚪 Leaving room:', state.currentRoom.roomCode);
       await multiplayerService.leaveRoom(state.currentRoom.roomCode, user?.id || '');
       
       // Clean up subscription
@@ -476,9 +477,9 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
       
       // Reset all state to allow creating new rooms
       dispatch({ type: 'RESET_ALL' });
-      console.log('✅ Room left successfully, state reset for new room creation');
+      logger.log('✅ Room left successfully, state reset for new room creation');
     } catch (error) {
-      console.error('❌ Error leaving room:', error);
+      logger.error('❌ Error leaving room:', error);
       dispatch({ type: 'SET_ERROR', payload: error instanceof Error ? error.message : 'Failed to leave room' });
       throw error;
     }
@@ -500,17 +501,17 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
       
       // Prevent double starts
       if (state.isStarting) {
-        console.log('⚠️ Start game already in progress, ignoring duplicate request');
+        logger.log('⚠️ Start game already in progress, ignoring duplicate request');
         return;
       }
       
       dispatch({ type: 'SET_STARTING', payload: true });
       
-      console.log(`🎮 ROOM_START: Host starting game with ${roundTimeSeconds}s rounds...`);
+      logger.log(`🎮 ROOM_START: Host starting game with ${roundTimeSeconds}s rounds...`);
       await multiplayerService.startGameV2(state.currentRoom.roomCode, user.id, roundTimeSeconds);
-      console.log('✅ ROOM_START: Game started successfully');
+      logger.log('✅ ROOM_START: Game started successfully');
     } catch (error) {
-      console.error('❌ ROOM_START: Error starting game:', error);
+      logger.error('❌ ROOM_START: Error starting game:', error);
       dispatch({ type: 'SET_ERROR', payload: error instanceof Error ? error.message : 'Failed to start game' });
       throw error;
     } finally {
@@ -532,11 +533,11 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
         throw new Error('User not authenticated');
       }
       
-      console.log('🏁 END_GAME: Host ending game...');
+      logger.log('🏁 END_GAME: Host ending game...');
       await multiplayerService.endGameV2(state.currentRoom.roomCode, user.id);
-      console.log('✅ END_GAME: Game ended successfully');
+      logger.log('✅ END_GAME: Game ended successfully');
     } catch (error) {
-      console.error('❌ END_GAME: Error ending game:', error);
+      logger.error('❌ END_GAME: Error ending game:', error);
       dispatch({ type: 'SET_ERROR', payload: error instanceof Error ? error.message : 'Failed to end game' });
       throw error;
     }
@@ -619,7 +620,7 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
     try {
       if (!state.currentRoom) return;
       
-      console.log(`🚪 Handling host disconnection: ${disconnectedHostId}`);
+      logger.log(`🚪 Handling host disconnection: ${disconnectedHostId}`);
       
       const result = await multiplayerService.handleHostDisconnectionV2(
         state.currentRoom.roomCode, 
@@ -638,7 +639,7 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
           }
         });
         
-        console.log(`✅ Host migrated to: ${result.newHostName || result.newHostId}`);
+        logger.log(`✅ Host migrated to: ${result.newHostName || result.newHostId}`);
       } else if (result.action === 'terminated') {
         dispatch({
           type: 'SET_SYSTEM_MESSAGE',
@@ -648,16 +649,16 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
           }
         });
         
-        console.log(`🏁 Room terminated due to host disconnection`);
+        logger.log(`🏁 Room terminated due to host disconnection`);
       } else if (result.action === 'error') {
-        console.error(`❌ Host disconnection handling failed:`, result.error);
+        logger.error(`❌ Host disconnection handling failed:`, result.error);
         dispatch({ 
           type: 'SET_ERROR', 
           payload: result.error || 'Failed to handle host disconnection' 
         });
       }
     } catch (error) {
-      console.error('❌ Error handling host disconnection:', error);
+      logger.error('❌ Error handling host disconnection:', error);
       dispatch({ 
         type: 'SET_ERROR', 
         payload: error instanceof Error ? error.message : 'Failed to handle host disconnection' 
@@ -677,7 +678,7 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
     try {
       if (!state.currentRoom) return;
       
-      console.log(`🏁 Terminating game due to player disconnection: ${disconnectedPlayerId}`);
+      logger.log(`🏁 Terminating game due to player disconnection: ${disconnectedPlayerId}`);
       
       const result = await multiplayerService.terminateGameV2(
         state.currentRoom.roomCode, 
@@ -693,16 +694,16 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
           }
         });
         
-        console.log(`✅ Game terminated successfully due to player disconnection`);
+        logger.log(`✅ Game terminated successfully due to player disconnection`);
       } else {
-        console.error(`❌ Failed to terminate game:`, result.error);
+        logger.error(`❌ Failed to terminate game:`, result.error);
         dispatch({ 
           type: 'SET_ERROR', 
           payload: result.error || 'Failed to terminate game' 
         });
       }
     } catch (error) {
-      console.error('❌ Error terminating game:', error);
+      logger.error('❌ Error terminating game:', error);
       dispatch({ 
         type: 'SET_ERROR', 
         payload: error instanceof Error ? error.message : 'Failed to terminate game' 

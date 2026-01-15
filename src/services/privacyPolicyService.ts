@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from './firebase';
+import { logger } from '../utils/logger';
 
 export interface PrivacyPolicyAcceptance {
   userId: string;
@@ -52,7 +53,7 @@ class PrivacyPolicyService {
       
       return false;
     } catch (error) {
-      console.error('Error checking privacy policy acceptance:', error);
+      logger.error('Error checking privacy policy acceptance:', error);
       return false;
     }
   }
@@ -92,9 +93,9 @@ class PrivacyPolicyService {
       // Also store locally for offline access
       await AsyncStorage.setItem(this.STORAGE_KEY, JSON.stringify(acceptance));
 
-      console.log('Privacy policy acceptance recorded for user:', userId);
+      logger.log('Privacy policy acceptance recorded for user:', userId);
     } catch (error) {
-      console.error('Error recording privacy policy acceptance:', error);
+      logger.error('Error recording privacy policy acceptance:', error);
       throw new Error('Failed to record privacy policy acceptance');
     }
   }
@@ -126,9 +127,9 @@ class PrivacyPolicyService {
       // Store locally for anonymous users
       await AsyncStorage.setItem(this.STORAGE_KEY, JSON.stringify(acceptance));
 
-      console.log('Privacy policy acceptance recorded for anonymous user');
+      logger.log('Privacy policy acceptance recorded for anonymous user');
     } catch (error) {
-      console.error('Error recording anonymous privacy policy acceptance:', error);
+      logger.error('Error recording anonymous privacy policy acceptance:', error);
       throw new Error('Failed to record privacy policy acceptance');
     }
   }
@@ -167,7 +168,7 @@ class PrivacyPolicyService {
       const hasAccepted = await this.hasAcceptedCurrentVersion(userId);
       return !hasAccepted;
     } catch (error) {
-      console.error('Error checking if re-acceptance needed:', error);
+      logger.error('Error checking if re-acceptance needed:', error);
       return true; // Default to requiring acceptance on error
     }
   }
@@ -188,9 +189,9 @@ class PrivacyPolicyService {
       // Remove from local storage
       await AsyncStorage.removeItem(this.STORAGE_KEY);
 
-      console.log('Privacy policy acceptance revoked for user:', userId);
+      logger.log('Privacy policy acceptance revoked for user:', userId);
     } catch (error) {
-      console.error('Error revoking privacy policy acceptance:', error);
+      logger.error('Error revoking privacy policy acceptance:', error);
       throw new Error('Failed to revoke privacy policy acceptance');
     }
   }
@@ -212,7 +213,7 @@ class PrivacyPolicyService {
         anonymousAcceptances: 0,
       };
     } catch (error) {
-      console.error('Error getting acceptance stats:', error);
+      logger.error('Error getting acceptance stats:', error);
       return {
         totalAcceptances: 0,
         currentVersionAcceptances: 0,
@@ -243,7 +244,7 @@ class PrivacyPolicyService {
       
       return null;
     } catch (error) {
-      console.error('Error exporting user privacy policy data:', error);
+      logger.error('Error exporting user privacy policy data:', error);
       return null;
     }
   }
@@ -282,7 +283,7 @@ class PrivacyPolicyService {
         needsUpdate: true,
       };
     } catch (error) {
-      console.error('Error validating privacy policy acceptance:', error);
+      logger.error('Error validating privacy policy acceptance:', error);
       return {
         valid: false,
         version: 'error',

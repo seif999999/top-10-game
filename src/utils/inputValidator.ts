@@ -5,6 +5,7 @@
 
 const DOMPurify = require('isomorphic-dompurify');
 import { ContentModerationService } from '../services/contentModerationService';
+import { logger } from './logger';
 
 // Basic profanity list - in production, this should be loaded from a secure source
 const PROFANITY_LIST = [
@@ -45,7 +46,7 @@ export class InputValidator {
         throw new Error('DOMPurify not available');
       }
     } catch (error) {
-      console.warn('DOMPurify not available, using basic sanitization:', error);
+      logger.warn('DOMPurify not available, using basic sanitization:', error);
       // Fallback to basic sanitization
       sanitized = input;
     }
@@ -353,7 +354,7 @@ export class InputValidator {
         errors: []
       };
     } catch (error) {
-      console.error('Content moderation error:', error);
+      logger.error('Content moderation error:', error);
       return {
         approved: false,
         sanitized: this.sanitizeText(content, 100),

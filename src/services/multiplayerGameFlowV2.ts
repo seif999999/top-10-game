@@ -14,6 +14,7 @@ import { db } from './firebase';
 import { RoomData, RevealedAnswer, Answer } from '../types/game';
 import { findBestMatch, normalizeAnswerEnhanced } from './fuzzyMatching';
 import { pointsForRank } from './scoring';
+import { logger } from '../utils/logger';
 
 // Server time offset cache
 let serverOffset: number | null = null;
@@ -42,11 +43,11 @@ export async function getServerOffset(): Promise<number> {
     if (serverTs) {
       serverOffset = serverTs - now;
       serverOffsetTimestamp = now;
-      console.log(`🕐 Server offset calculated: ${serverOffset}ms`);
+      logger.log(`🕐 Server offset calculated: ${serverOffset}ms`);
       return serverOffset;
     }
   } catch (error) {
-    console.error('❌ Failed to calculate server offset:', error);
+    logger.error('❌ Failed to calculate server offset:', error);
   }
   
   // Fallback to 0 if calculation fails
@@ -91,12 +92,12 @@ export function findMatchingAnswer(userAnswer: string, correctAnswers: Answer[])
     );
     
     if (index !== -1) {
-      console.log(`✅ FUZZY MATCH: "${userAnswer}" -> "${matchResult.officialAnswer}" (confidence: ${matchResult.confidence}, similarity: ${matchResult.similarity.toFixed(3)})`);
+      logger.log(`✅ FUZZY MATCH: "${userAnswer}" -> "${matchResult.officialAnswer}" (confidence: ${matchResult.confidence}, similarity: ${matchResult.similarity.toFixed(3)})`);
       return { answer: matchResult.matchedAnswer, index };
     }
   }
   
-  console.log(`❌ NO MATCH: "${userAnswer}" (best similarity: ${matchResult.similarity.toFixed(3)})`);
+  logger.log(`❌ NO MATCH: "${userAnswer}" (best similarity: ${matchResult.similarity.toFixed(3)})`);
   return null;
 }
 
@@ -115,7 +116,7 @@ export async function hostStartGame(
   hostId: string,
   turnTimeLimitSec: number = 60
 ): Promise<{ success: boolean; error?: string }> {
-  console.log(`🎮 HOST_START_GAME: Room ${roomCode}, Host ${hostId}, TimeLimit ${turnTimeLimitSec}s`);
+  logger.log(`🎮 HOST_START_GAME: Room ${roomCode}, Host ${hostId}, TimeLimit ${turnTimeLimitSec}s`);
   
   try {
     const result = await runTransaction(db, async (transaction) => {
@@ -130,7 +131,7 @@ export async function hostStartGame(
       
       // Transaction checks
       if (room.status !== 'lobby') {
-        console.error(`❌ HOST_START_GAME: Room status check failed`, {
+        logger.error(`❌ HOST_START_GAME: Room status check failed`, {
           roomCode,
           currentStatus: room.status,
           expectedStatus: 'lobby',
@@ -188,7 +189,7 @@ export async function hostStartGame(
         lastActivity: serverTimestamp()
       };
       
-      console.log('🎮 HOST_START_GAME: Updating room with:', {
+      logger.log('🎮 HOST_START_GAME: Updating room with:', {
         roomCode,
         hostId,
         updates: {
@@ -201,13 +202,13 @@ export async function hostStartGame(
       
       transaction.update(roomRef, updates);
       
-      console.log(`✅ HOST_START_GAME: Game started, first player: ${turnOrder[0]}`);
+      logger.log(`✅ HOST_START_GAME: Game started, first player: ${turnOrder[0]}`);
       return { success: true };
     });
     
     return result;
   } catch (error) {
-    console.error(`❌ HOST_START_GAME: Failed to start game:`, error);
+    logger.error(`❌ HOST_START_GAME: Failed to start game:`, error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -224,7 +225,7 @@ export async function submitAnswer(
   answerText: string
 ): Promise<{ success: boolean; error?: string; points?: number }> {
   // ⚙️ GAME FLOW - START DEBUG LOGGING
-  console.log('⚙️ GAME FLOW - START:', {
+  logger.log('⚙️ GAME FLOW - START:', {
     roomCode,
     playerId,
     answerText,
@@ -233,17 +234,17 @@ export async function submitAnswer(
   
   // Debug logging for function entry
   if (__DEV__) {
-    console.log(`🎯 DEBUG 1: Starting submitAnswer
+    logger.log(`🎯 DEBUG 1: Starting submitAnswer
 Player: ${playerId.substring(0, 8)}
 Answer: "${answerText}"
 Room: ${roomCode}`);
   }
   
-  console.log(`📝 SUBMIT_ANSWER: Room ${roomCode}, Player ${playerId}, Answer: "${answerText}"`);
+  logger.log(`📝 SUBMIT_ANSWER: Room ${roomCode}, Player ${playerId}, Answer: "${answerText}"`);
   
   // Simplified approach - use single attempt with better error handling
   try {
-    console.log(`🔄 SUBMIT_ANSWER: Starting submission for player ${playerId}`);
+    logger.log(`🔄 SUBMIT_ANSWER: Starting submission for player ${playerId}`);
     
     const result = await runTransaction(db, async (transaction) => {
       const roomRef = doc(db, 'multiplayerGames', roomCode);
@@ -276,17 +277,17 @@ Room: ${roomCode}`);
       
       // Ensure revealedAnswers array is properly initialized
       if (!Array.isArray(room.revealedAnswers) || room.revealedAnswers.length !== 10) {
-        console.log(`⚠️ REVEALED_ANSWERS_INIT: Initializing revealedAnswers array (was: ${typeof room.revealedAnswers}, length: ${room.revealedAnswers?.length || 0})`);
+        logger.log(`⚠️ REVEALED_ANSWERS_INIT: Initializing revealedAnswers array (was: ${typeof room.revealedAnswers}, length: ${room.revealedAnswers?.length || 0})`);
         room.revealedAnswers = Array(10).fill(null);
       }
       
       // Ensure scores object is properly initialized
       if (!room.scores) {
-        console.log(`⚠️ SCORES_INIT: Initializing scores object`);
+        logger.log(`⚠️ SCORES_INIT: Initializing scores object`);
         room.scores = {};
       }
       
-      console.log('🔍 ANSWER_MATCHING_DEBUG:', {
+      logger.log('🔍 ANSWER_MATCHING_DEBUG:', {
         userAnswer: answerText,
         currentQuestion: currentQuestion.text,
         answersCount: currentQuestion.answers?.length || 0,
@@ -308,7 +309,7 @@ Room: ${roomCode}`);
         
         // Debug logging for match found
         if (__DEV__) {
-          console.log(`✅ DEBUG 2: Match Found!
+          logger.log(`✅ DEBUG 2: Match Found!
 User Input: "${answerText}"
 Matched: "${answer.text}"
 Rank: ${answer.rank}
@@ -316,7 +317,7 @@ Points: ${pointsToAdd}`);
         }
         
         // ✅ MATCH FOUND DEBUG LOGGING
-        console.log('✅ MATCH FOUND:', {
+        logger.log('✅ MATCH FOUND:', {
           userInput: answerText,
           matchedAnswer: answer,
           points: pointsToAdd,
@@ -324,7 +325,7 @@ Points: ${pointsToAdd}`);
           canonicalAnswer: answer.text
         });
         
-        console.log(`🎯 MATCH FOUND:`, {
+        logger.log(`🎯 MATCH FOUND:`, {
           userInput: answerText,
           officialAnswer: answer.text,
           answerRank: answer.rank,
@@ -334,30 +335,30 @@ Points: ${pointsToAdd}`);
         
         // Check if answer is already revealed
         if (room.revealedAnswers[index] !== null) {
-          console.log(`❌ ALREADY_REVEALED: Answer at index ${index} is already revealed`);
+          logger.log(`❌ ALREADY_REVEALED: Answer at index ${index} is already revealed`);
           throw new Error('Answer already revealed');
         }
         
         // Validate array bounds
         if (index < 0 || index >= 10) {
-          console.log(`❌ INVALID_INDEX: Answer index ${index} is out of bounds (0-9)`);
+          logger.log(`❌ INVALID_INDEX: Answer index ${index} is out of bounds (0-9)`);
           throw new Error('Invalid answer index');
         }
         
         // Calculate points
         points = calculatePoints(answer.rank);
-        console.log(`💰 POINTS_CALCULATED: Rank ${answer.rank} = ${points} points`);
+        logger.log(`💰 POINTS_CALCULATED: Rank ${answer.rank} = ${points} points`);
         
         // Debug logging before transaction
         if (__DEV__) {
-          console.log(`💾 DEBUG 3: Starting Transaction
+          logger.log(`💾 DEBUG 3: Starting Transaction
 Points to add: ${points}
 Reveal index: ${index}
 Canonical name: "${answer.text}"`);
         }
         
         // 💾 STARTING FIRESTORE TRANSACTION DEBUG LOGGING
-        console.log('💾 STARTING FIRESTORE TRANSACTION:', {
+        logger.log('💾 STARTING FIRESTORE TRANSACTION:', {
           playerId,
           pointsToAdd: points,
           canonicalAnswer: answer.text,
@@ -377,7 +378,7 @@ Canonical name: "${answer.text}"`);
       newAnswersSubmittedCount = room.answersSubmittedCount + 1;
       
       // 🔥 CRITICAL: Ensure we're updating the correct player score
-      console.log(`🔥 CRITICAL SCORE UPDATE:`, {
+      logger.log(`🔥 CRITICAL SCORE UPDATE:`, {
         playerId,
         oldScore: room.scores[playerId] || 0,
         pointsToAdd: points,
@@ -385,16 +386,16 @@ Canonical name: "${answer.text}"`);
         scoresObject: newScores
       });
         
-        console.log(`✅ SUBMIT_ANSWER: Correct answer "${answerText}" -> "${answer.text}" awarded ${points} points`);
-        console.log(`📊 SCORE_UPDATE: Player ${playerId} score: ${room.scores[playerId] || 0} -> ${newScores[playerId]}`);
-        console.log(`📋 REVEAL_UPDATE: Answer at index ${index} will be revealed`);
+        logger.log(`✅ SUBMIT_ANSWER: Correct answer "${answerText}" -> "${answer.text}" awarded ${points} points`);
+        logger.log(`📊 SCORE_UPDATE: Player ${playerId} score: ${room.scores[playerId] || 0} -> ${newScores[playerId]}`);
+        logger.log(`📋 REVEAL_UPDATE: Answer at index ${index} will be revealed`);
       } else {
         // Wrong answer - no points, but turn still advances
-        console.log(`❌ SUBMIT_ANSWER: Wrong answer "${answerText}" - no points awarded`);
+        logger.log(`❌ SUBMIT_ANSWER: Wrong answer "${answerText}" - no points awarded`);
         
         // Debug logging for no match found
         if (__DEV__) {
-          console.log(`❌ DEBUG 5: No Match Found
+          logger.log(`❌ DEBUG 5: No Match Found
 Input: "${answerText}"
 Available answers count: ${currentQuestion?.answers?.length || 0}`);
         }
@@ -404,7 +405,7 @@ Available answers count: ${currentQuestion?.answers?.length || 0}`);
       const nextTurnIndex = (room.currentTurnIndex + 1) % room.turnOrder.length;
       const nextPlayerId = room.turnOrder[nextTurnIndex];
       
-      console.log('🔄 TURN_ADVANCEMENT_DEBUG:', {
+      logger.log('🔄 TURN_ADVANCEMENT_DEBUG:', {
         currentTurnIndex: room.currentTurnIndex,
         nextTurnIndex,
         currentPlayerId: room.currentPlayerId,
@@ -443,7 +444,7 @@ Available answers count: ${currentQuestion?.answers?.length || 0}`);
             status: 'finished' as const,
             gamePhase: 'finished' as const
           };
-          console.log(`🏁 SUBMIT_ANSWER: Game finished - all questions completed`);
+          logger.log(`🏁 SUBMIT_ANSWER: Game finished - all questions completed`);
         } else {
           // Move to next question
           const nextQuestion = room.questions[nextQuestionIndex];
@@ -458,15 +459,15 @@ Available answers count: ${currentQuestion?.answers?.length || 0}`);
             currentPlayerId: room.turnOrder[0],
             turnStartTime: serverTimestamp()
           };
-          console.log(`✅ SUBMIT_ANSWER: Moved to question ${nextQuestionIndex}`);
+          logger.log(`✅ SUBMIT_ANSWER: Moved to question ${nextQuestionIndex}`);
         }
       } else {
         // Question not complete - just advance turn
-        console.log(`✅ SUBMIT_ANSWER: Turn advanced to player ${nextPlayerId}`);
+        logger.log(`✅ SUBMIT_ANSWER: Turn advanced to player ${nextPlayerId}`);
       }
       
       // 🔥 FIRESTORE - TRANSACTION OPERATIONS DEBUG LOGGING
-      console.log('🔥 FIRESTORE - TRANSACTION OPERATIONS:', {
+      logger.log('🔥 FIRESTORE - TRANSACTION OPERATIONS:', {
         scoreIncrement: match ? calculatePoints(match.answer.rank) : 0,
         revealIndex: match ? match.index : 'N/A',
         canonicalName: match ? match.answer.text : 'N/A',
@@ -481,22 +482,22 @@ Available answers count: ${currentQuestion?.answers?.length || 0}`);
       
       // Debug logging after transaction
       if (__DEV__ && match) {
-        console.log(`✅ DEBUG 4: Transaction Complete!
+        logger.log(`✅ DEBUG 4: Transaction Complete!
 Should have updated:
 - Player score by +${points}
 - Revealed answer at index ${match.index}`);
       }
       
       // ✅ FIRESTORE TRANSACTION COMPLETE DEBUG LOGGING
-      console.log('✅ FIRESTORE TRANSACTION COMPLETE:', {
+      logger.log('✅ FIRESTORE TRANSACTION COMPLETE:', {
         success: true,
         updatedScore: newScores[playerId],
         updatedRevealedAnswers: newRevealedAnswers.filter(ra => ra !== null).length,
         timestamp: new Date().toISOString()
       });
       
-      console.log(`✅ SUBMIT_ANSWER: Transaction completed successfully`);
-      console.log(`📊 FINAL_STATE:`, {
+      logger.log(`✅ SUBMIT_ANSWER: Transaction completed successfully`);
+      logger.log(`📊 FINAL_STATE:`, {
         pointsAwarded: points,
         newScores: newScores,
         newRevealedAnswers: newRevealedAnswers.map((ra, i) => ({ index: i, answerId: ra?.answerId, playerId: ra?.playerId, points: ra?.points })),
@@ -504,14 +505,14 @@ Should have updated:
       });
       
       // Additional debugging for score and revelation
-      console.log(`🎯 SCORE_DEBUG: Player ${playerId} score update:`, {
+      logger.log(`🎯 SCORE_DEBUG: Player ${playerId} score update:`, {
         oldScore: room.scores[playerId] || 0,
         pointsAwarded: points,
         newScore: newScores[playerId],
         scoreUpdated: points > 0
       });
       
-      console.log(`🎉 REVELATION_DEBUG: Answer revelation update:`, {
+      logger.log(`🎉 REVELATION_DEBUG: Answer revelation update:`, {
         answerIndex: match ? match.index : 'N/A',
         canonicalAnswer: match ? match.answer.text : 'N/A',
         revealedAnswersArray: newRevealedAnswers.map((ra, i) => ({
@@ -527,11 +528,11 @@ Should have updated:
     });
     
     // If we get here, the transaction succeeded
-    console.log(`✅ SUBMIT_ANSWER: Transaction completed successfully`);
+    logger.log(`✅ SUBMIT_ANSWER: Transaction completed successfully`);
     return result;
     
   } catch (error) {
-    console.error(`❌ SUBMIT_ANSWER: Transaction failed:`, {
+    logger.error(`❌ SUBMIT_ANSWER: Transaction failed:`, {
       error: error,
       message: error instanceof Error ? error.message : 'Unknown error',
       name: error instanceof Error ? error.name : 'Unknown',
@@ -542,7 +543,7 @@ Should have updated:
     });
     
     // Try a simpler fallback approach without transactions
-    console.log(`🔄 FALLBACK: Trying simple update without transaction...`);
+    logger.log(`🔄 FALLBACK: Trying simple update without transaction...`);
     try {
     const roomRef = doc(db, 'multiplayerGames', roomCode);
     const roomSnap = await getDoc(roomRef);
@@ -566,7 +567,7 @@ Should have updated:
       
       // Check if answer is already revealed
       if (room.revealedAnswers[index] !== null) {
-        console.log(`❌ FALLBACK: Answer at index ${index} is already revealed`);
+        logger.log(`❌ FALLBACK: Answer at index ${index} is already revealed`);
         return { success: false, error: 'Answer already revealed' };
       }
       
@@ -584,11 +585,11 @@ Should have updated:
       
       await updateDoc(roomRef, updates);
       
-      console.log(`✅ FALLBACK SUCCESS: Awarded ${points} points to player ${playerId}`);
+      logger.log(`✅ FALLBACK SUCCESS: Awarded ${points} points to player ${playerId}`);
       
       // Debug logging for fallback success
       if (__DEV__) {
-        console.log(`✅ DEBUG 4: Fallback Success!
+        logger.log(`✅ DEBUG 4: Fallback Success!
 Awarded ${points} points to player ${playerId}
 Revealed answer at index ${index}`);
       }
@@ -597,11 +598,11 @@ Revealed answer at index ${index}`);
     }
     
     // If no match found, still return success but with 0 points
-    console.log(`❌ FALLBACK: No match found for answer "${answerText}"`);
+    logger.log(`❌ FALLBACK: No match found for answer "${answerText}"`);
     return { success: true, points: 0 };
     
   } catch (fallbackError) {
-    console.error(`❌ FALLBACK FAILED:`, fallbackError);
+    logger.error(`❌ FALLBACK FAILED:`, fallbackError);
     
     return {
       success: false,
@@ -618,7 +619,7 @@ export async function advanceTurnOnTimeout(
   roomCode: string,
   callingPlayerId: string
 ): Promise<{ success: boolean; error?: string }> {
-  console.log(`⏰ ADVANCE_TURN_TIMEOUT: Room ${roomCode}, Calling Player ${callingPlayerId}`);
+  logger.log(`⏰ ADVANCE_TURN_TIMEOUT: Room ${roomCode}, Calling Player ${callingPlayerId}`);
   
   try {
     const result = await runTransaction(db, async (transaction) => {
@@ -657,13 +658,13 @@ export async function advanceTurnOnTimeout(
       
       transaction.update(roomRef, updates);
       
-      console.log(`✅ ADVANCE_TURN_TIMEOUT: Turn advanced to player ${nextPlayerId}`);
+      logger.log(`✅ ADVANCE_TURN_TIMEOUT: Turn advanced to player ${nextPlayerId}`);
       return { success: true };
     });
     
     return result;
   } catch (error) {
-    console.error(`❌ ADVANCE_TURN_TIMEOUT: Failed to advance turn:`, error);
+    logger.error(`❌ ADVANCE_TURN_TIMEOUT: Failed to advance turn:`, error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -678,7 +679,7 @@ export async function hostEndGame(
   roomCode: string,
   hostId: string
 ): Promise<{ success: boolean; error?: string }> {
-  console.log(`🏁 HOST_END_GAME: Room ${roomCode}, Host ${hostId}`);
+  logger.log(`🏁 HOST_END_GAME: Room ${roomCode}, Host ${hostId}`);
   
   try {
     const result = await runTransaction(db, async (transaction) => {
@@ -705,13 +706,13 @@ export async function hostEndGame(
       
       transaction.update(roomRef, updates);
       
-      console.log(`✅ HOST_END_GAME: Room closed by host`);
+      logger.log(`✅ HOST_END_GAME: Room closed by host`);
       return { success: true };
     });
     
     return result;
   } catch (error) {
-    console.error(`❌ HOST_END_GAME: Failed to end game:`, error);
+    logger.error(`❌ HOST_END_GAME: Failed to end game:`, error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -727,7 +728,7 @@ export async function resetRoomStatus(
   roomCode: string,
   hostId: string
 ): Promise<{ success: boolean; error?: string }> {
-  console.log(`🔄 RESET_ROOM_STATUS: Resetting room ${roomCode} to lobby state`);
+  logger.log(`🔄 RESET_ROOM_STATUS: Resetting room ${roomCode} to lobby state`);
   
   try {
     const result = await runTransaction(db, async (transaction) => {
@@ -766,13 +767,13 @@ export async function resetRoomStatus(
       
       transaction.update(roomRef, updates);
       
-      console.log(`✅ RESET_ROOM_STATUS: Room reset to lobby state`);
+      logger.log(`✅ RESET_ROOM_STATUS: Room reset to lobby state`);
       return { success: true };
     });
     
     return result;
   } catch (error) {
-    console.error(`❌ RESET_ROOM_STATUS: Failed to reset room:`, error);
+    logger.error(`❌ RESET_ROOM_STATUS: Failed to reset room:`, error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -787,7 +788,7 @@ export async function skipTurn(
   roomCode: string,
   playerId: string
 ): Promise<{ success: boolean; error?: string }> {
-  console.log(`⏭️ SKIP_TURN: Room ${roomCode}, Player ${playerId}`);
+  logger.log(`⏭️ SKIP_TURN: Room ${roomCode}, Player ${playerId}`);
   
   try {
     const result = await runTransaction(db, async (transaction) => {
@@ -826,13 +827,13 @@ export async function skipTurn(
       
       transaction.update(roomRef, updates);
       
-      console.log(`✅ SKIP_TURN: Turn skipped, advanced to player ${nextPlayerId}`);
+      logger.log(`✅ SKIP_TURN: Turn skipped, advanced to player ${nextPlayerId}`);
       return { success: true };
     });
     
     return result;
   } catch (error) {
-    console.error(`❌ SKIP_TURN: Failed to skip turn:`, error);
+    logger.error(`❌ SKIP_TURN: Failed to skip turn:`, error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -868,7 +869,7 @@ export async function migrateHost(
   disconnectedHostId: string
 ): Promise<{ success: boolean; newHostId?: string; newHostName?: string; error?: string }> {
   try {
-    console.log(`🔄 MIGRATE_HOST: Room ${roomCode}, Disconnected Host ${disconnectedHostId}`);
+    logger.log(`🔄 MIGRATE_HOST: Room ${roomCode}, Disconnected Host ${disconnectedHostId}`);
     
     const roomRef = doc(db, 'multiplayerGames', roomCode);
     const roomSnap = await getDoc(roomRef);
@@ -925,10 +926,10 @@ export async function migrateHost(
       });
     });
     
-    console.log(`✅ MIGRATE_HOST: Successfully migrated host to ${newHostName} (${newHostId})`);
+    logger.log(`✅ MIGRATE_HOST: Successfully migrated host to ${newHostName} (${newHostId})`);
     return { success: true, newHostId, newHostName };
   } catch (error) {
-    console.error(`❌ MIGRATE_HOST: Error migrating host:`, error);
+    logger.error(`❌ MIGRATE_HOST: Error migrating host:`, error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -945,7 +946,7 @@ export async function terminateRoom(
   disconnectedHostId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    console.log(`🏁 TERMINATE_ROOM: Room ${roomCode}, Disconnected Host ${disconnectedHostId}`);
+    logger.log(`🏁 TERMINATE_ROOM: Room ${roomCode}, Disconnected Host ${disconnectedHostId}`);
     
     const roomRef = doc(db, 'multiplayerGames', roomCode);
     const roomSnap = await getDoc(roomRef);
@@ -993,10 +994,10 @@ export async function terminateRoom(
       // The room will be cleaned up by a separate cleanup process
     });
     
-    console.log(`✅ TERMINATE_ROOM: Successfully terminated room ${roomCode}`);
+    logger.log(`✅ TERMINATE_ROOM: Successfully terminated room ${roomCode}`);
     return { success: true };
   } catch (error) {
-    console.error(`❌ TERMINATE_ROOM: Error terminating room:`, error);
+    logger.error(`❌ TERMINATE_ROOM: Error terminating room:`, error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -1012,7 +1013,7 @@ export async function handleHostDisconnection(
   roomCode: string,
   disconnectedHostId: string
 ): Promise<{ action: 'migrated' | 'terminated' | 'error'; newHostId?: string; newHostName?: string; error?: string }> {
-  console.log(`🚪 HOST_DISCONNECTION: Room ${roomCode}, Host ${disconnectedHostId}`);
+  logger.log(`🚪 HOST_DISCONNECTION: Room ${roomCode}, Host ${disconnectedHostId}`);
   
   try {
     const roomRef = doc(db, 'multiplayerGames', roomCode);
@@ -1025,7 +1026,7 @@ export async function handleHostDisconnection(
     const room = roomSnap.data() as RoomData;
     const remainingPlayers = Object.keys(room.players).filter(playerId => playerId !== disconnectedHostId);
     
-    console.log(`📊 HOST_DISCONNECTION: Remaining players: ${remainingPlayers.length}`);
+    logger.log(`📊 HOST_DISCONNECTION: Remaining players: ${remainingPlayers.length}`);
     
     if (remainingPlayers.length >= 3) {
       // Migrate host to another player - 3+ players remain (Sporcle-style)
@@ -1053,7 +1054,7 @@ export async function handleHostDisconnection(
       return { action: 'terminated' };
     }
   } catch (error) {
-    console.error(`❌ HOST_DISCONNECTION: Error handling host disconnection:`, error);
+    logger.error(`❌ HOST_DISCONNECTION: Error handling host disconnection:`, error);
     return {
       action: 'error',
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -1069,7 +1070,7 @@ export async function terminateGame(
   disconnectedPlayerId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    console.log(`🏁 TERMINATE_GAME: Room ${roomCode}, Disconnected Player ${disconnectedPlayerId}`);
+    logger.log(`🏁 TERMINATE_GAME: Room ${roomCode}, Disconnected Player ${disconnectedPlayerId}`);
     
     const roomRef = doc(db, 'multiplayerGames', roomCode);
     const roomSnap = await getDoc(roomRef);
@@ -1114,10 +1115,10 @@ export async function terminateGame(
       });
     });
     
-    console.log(`✅ TERMINATE_GAME: Successfully terminated game in room ${roomCode}`);
+    logger.log(`✅ TERMINATE_GAME: Successfully terminated game in room ${roomCode}`);
     return { success: true };
   } catch (error) {
-    console.error(`❌ TERMINATE_GAME: Error terminating game:`, error);
+    logger.error(`❌ TERMINATE_GAME: Error terminating game:`, error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'

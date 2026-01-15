@@ -6,6 +6,7 @@ import { COLORS, SPACING } from '../../utils/constants';
 import { InputValidator } from '../../utils/inputValidator';
 import { confirmPasswordReset, verifyPasswordResetCode } from 'firebase/auth';
 import { auth } from '../../services/firebase';
+import { logger } from '../../utils/logger';
 
 /**
  * ResetPasswordScreen Component
@@ -114,7 +115,7 @@ const ResetPasswordScreen: React.FC<any> = ({ navigation, route }) => {
         ]
       );
     } catch (error: any) {
-      console.error('Password reset error:', error);
+      logger.error('Password reset error:', error);
       
       let errorMessage = 'Failed to reset password. Please try again.';
       

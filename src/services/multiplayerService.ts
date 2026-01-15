@@ -28,8 +28,10 @@ import { hostStartGame as hostStartGameV2, submitAnswer as submitAnswerOriginal,
 import { getServerTimeOffset, formatTimeRemaining } from './timeSync';
 import { findBestMatch, normalizeAnswerEnhanced } from './fuzzyMatching';
 import { ServerGameService } from './serverGameService';
+import { logger } from '../utils/logger';
 import { RateLimitService } from './rateLimitService';
 import { AnswerValidationService } from './answerValidationService';
+import { TIMING, COLLECTIONS } from '../utils/constants';
 
 // Re-export types from unified game types
 export type { Player, Question, RoomData, AnswerResult, GameResult } from '../types/game';
@@ -65,11 +67,11 @@ class MultiplayerService {
    */
   private async isRoomCodeAvailable(roomCode: string): Promise<boolean> {
     try {
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await getDoc(roomRef);
       return !roomSnap.exists();
     } catch (error) {
-      console.error('Error checking room code availability:', error);
+      logger.error('Error checking room code availability:', error);
       return false;
     }
   }
@@ -79,20 +81,20 @@ class MultiplayerService {
    */
   async createRoom(hostId: string, category: string, questions: any[], hostName?: string, selectedAvatar?: string): Promise<string> {
     try {
-      console.log('🔍 DEBUG: Starting room creation...');
-      console.log('🔍 DEBUG: HostId parameter:', hostId);
+      logger.log('🔍 DEBUG: Starting room creation...');
+      logger.log('🔍 DEBUG: HostId parameter:', hostId);
       
       // Check current auth state
       const currentUser = this.authService.getCurrentUserId();
-      console.log('🔍 DEBUG: Current user before auth:', currentUser);
+      logger.log('🔍 DEBUG: Current user before auth:', currentUser);
       
       // Ensure authentication with edge case handling
       const userId = await this.ensureAuthenticated();
-      console.log('🔍 DEBUG: User ID after auth:', userId);
+      logger.log('🔍 DEBUG: User ID after auth:', userId);
       
       // Validate that the authenticated user matches the hostId parameter
       if (userId !== hostId) {
-        console.warn('⚠️ DEBUG: Authenticated user ID does not match hostId parameter:', { userId, hostId });
+        logger.warn('⚠️ DEBUG: Authenticated user ID does not match hostId parameter:', { userId, hostId });
         // Use the authenticated user ID instead of the parameter
         hostId = userId;
       }
@@ -126,7 +128,7 @@ class MultiplayerService {
       // }
       
       // Test a simple write first with Firebase outage handling
-      console.log('🔍 DEBUG: Testing basic Firestore write...');
+      logger.log('🔍 DEBUG: Testing basic Firestore write...');
       try {
         const testRef = doc(db, 'test', 'testDoc');
         await setDoc(testRef, { 
@@ -134,16 +136,16 @@ class MultiplayerService {
           userId: userId,
           timestamp: serverTimestamp()
         });
-        console.log('✅ DEBUG: Basic Firestore write successful!');
+        logger.log('✅ DEBUG: Basic Firestore write successful!');
       } catch (testError) {
-        console.error('❌ DEBUG: Basic Firestore write failed:', testError);
+        logger.error('❌ DEBUG: Basic Firestore write failed:', testError);
         // Handle Firebase outage
         await this.edgeCaseHandler.handleFirebaseOutage();
         throw testError;
       }
       
       // Generate unique room code with collision handling
-      console.log('🔍 DEBUG: Generating room code...');
+      logger.log('🔍 DEBUG: Generating room code...');
       let roomCode: string;
       let attempts = 0;
       do {
@@ -155,13 +157,13 @@ class MultiplayerService {
           break;
         }
       } while (!(await this.isRoomCodeAvailable(roomCode)));
-      console.log('🔍 DEBUG: Room code generated:', roomCode);
+      logger.log('🔍 DEBUG: Room code generated:', roomCode);
 
       const now = Date.now();
       
       // Normalize questions to unified format
       const preparedQuestions = (questions || []).map(q => normalizeQuestion(q));
-      console.log('🔍 DEBUG: Normalized questions:', preparedQuestions);
+      logger.log('🔍 DEBUG: Normalized questions:', preparedQuestions);
       
       const roomData: RoomData = {
         roomCode,
@@ -213,7 +215,7 @@ class MultiplayerService {
       // Validate that no undefined values remain
       const hasUndefined = JSON.stringify(sanitizedRoomData).includes('undefined');
       if (hasUndefined) {
-        console.error('❌ Sanitized data still contains undefined values:', sanitizedRoomData);
+        logger.error('❌ Sanitized data still contains undefined values:', sanitizedRoomData);
         throw new Error('Data sanitization failed - undefined values detected');
       }
       
@@ -224,12 +226,12 @@ class MultiplayerService {
       
       // Apply additional Firestore compatibility validation
       const validatedRoomData = this.validateRoomDataForFirestore(sanitizedRoomData);
-      console.log('🔍 DEBUG: Final validated room data:', JSON.stringify(validatedRoomData, null, 2));
+      logger.log('🔍 DEBUG: Final validated room data:', JSON.stringify(validatedRoomData, null, 2));
       
       // Write with concurrent state change handling
-      console.log('🔍 DEBUG: Writing to Firestore collection: multiplayerGames, doc:', roomCode);
+      logger.log('🔍 DEBUG: Writing to Firestore collection: multiplayerGames, doc:', roomCode);
       const success = await this.edgeCaseHandler.handleConcurrentStateChange(roomCode, async () => {
-        const roomRef = doc(db, 'multiplayerGames', roomCode);
+        const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
         await setDoc(roomRef, validatedRoomData);
       });
 
@@ -243,15 +245,15 @@ class MultiplayerService {
       if (!verifySnap.exists()) {
         throw new Error('Failed to create room - verification failed');
       }
-      console.log('✅ DEBUG: Room creation verified successfully');
+      logger.log('✅ DEBUG: Room creation verified successfully');
 
       // Start connection monitoring for the host
       this.startConnectionMonitoring(roomCode, userId, true);
 
-      console.log('✅ DEBUG: Room created successfully:', roomCode);
+      logger.log('✅ DEBUG: Room created successfully:', roomCode);
       return roomCode;
     } catch (error) {
-      console.error('❌ DEBUG: Error in createRoom:', {
+      logger.error('❌ DEBUG: Error in createRoom:', {
         message: error instanceof Error ? error.message : 'Unknown error',
         code: (error as any)?.code,
         stack: error instanceof Error ? error.stack : undefined
@@ -271,11 +273,11 @@ class MultiplayerService {
    */
   async createRoomSimple(): Promise<string> {
     try {
-      console.log('🔍 Testing simplified room creation...');
+      logger.log('🔍 Testing simplified room creation...');
       
       // Ensure user is authenticated
       const userId = await this.ensureAuthenticated();
-      console.log('Creating room with user:', userId);
+      logger.log('Creating room with user:', userId);
       
       // Generate simple room code
       const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -288,17 +290,17 @@ class MultiplayerService {
         status: 'lobby'
       };
       
-      console.log('🔍 DEBUG: Simple room data:', roomData);
+      logger.log('🔍 DEBUG: Simple room data:', roomData);
       
       // Try to write
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       await setDoc(roomRef, roomData);
       
-      console.log('✅ Simple room created:', roomCode);
+      logger.log('✅ Simple room created:', roomCode);
       return roomCode;
       
     } catch (error) {
-      console.error('❌ Simple room creation failed:', error);
+      logger.error('❌ Simple room creation failed:', error);
       throw error;
     }
   }
@@ -308,7 +310,7 @@ class MultiplayerService {
    */
   async joinRoom(roomCode: string, playerId: string, playerName: string, selectedAvatar?: string): Promise<boolean> {
     try {
-      console.log(`🔍 DEBUG: Attempting to join room ${roomCode} with player ${playerId}`);
+      logger.log(`🔍 DEBUG: Attempting to join room ${roomCode} with player ${playerId}`);
       
       await this.ensureAuthenticated();
       
@@ -339,13 +341,13 @@ class MultiplayerService {
         throw new Error('Suspicious activity detected. Please try again later.');
       }
       
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await getDoc(roomRef);
       
-      console.log(`🔍 DEBUG: Room exists check: ${roomSnap.exists()}`);
+      logger.log(`🔍 DEBUG: Room exists check: ${roomSnap.exists()}`);
       
       if (!roomSnap.exists()) {
-        console.log(`❌ Room ${roomCode} not found in Firestore`);
+        logger.log(`❌ Room ${roomCode} not found in Firestore`);
         throw new Error('Room not found');
       }
 
@@ -399,10 +401,10 @@ class MultiplayerService {
       // Start connection monitoring for the player
       this.startConnectionMonitoring(roomCode, playerId, false);
 
-      console.log(`✅ Player ${playerName} joined room ${roomCode}`);
+      logger.log(`✅ Player ${playerName} joined room ${roomCode}`);
       return true;
     } catch (error) {
-      console.error('Error joining room:', error);
+      logger.error('Error joining room:', error);
       
       // Handle authentication failures
       if (error instanceof Error && error.message.includes('authentication')) {
@@ -418,7 +420,7 @@ class MultiplayerService {
    */
   async leaveRoom(roomCode: string, playerId: string): Promise<void> {
     try {
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await getDoc(roomRef);
       
       if (!roomSnap.exists()) {
@@ -429,40 +431,40 @@ class MultiplayerService {
       
       // Validate room data
       if (!roomData.hostId) {
-        console.error('❌ Room has no hostId, cannot process leave request');
+        logger.error('❌ Room has no hostId, cannot process leave request');
         // Try to delete the corrupted room
         try {
           await deleteDoc(roomRef);
-          console.log('✅ Deleted corrupted room with no hostId');
+          logger.log('✅ Deleted corrupted room with no hostId');
         } catch (deleteError) {
-          console.error('❌ Failed to delete corrupted room:', deleteError);
+          logger.error('❌ Failed to delete corrupted room:', deleteError);
         }
         return;
       }
       
       if (!roomData.players || !roomData.players[playerId]) {
-        console.error('❌ Player not found in room, cannot process leave request');
+        logger.error('❌ Player not found in room, cannot process leave request');
         return;
       }
       
       // Handle host disconnection with proper validation
       if (roomData.hostId === playerId) {
-        console.log(`🚪 HOST_LEAVING: Host ${playerId} is leaving room ${roomCode}`);
+        logger.log(`🚪 HOST_LEAVING: Host ${playerId} is leaving room ${roomCode}`);
         
         // Get remaining players (excluding the leaving host)
         const remainingPlayerIds = Object.keys(roomData.players).filter(id => id !== playerId);
-        console.log(`📊 HOST_LEAVING: Remaining players: ${remainingPlayerIds.length}`, remainingPlayerIds);
+        logger.log(`📊 HOST_LEAVING: Remaining players: ${remainingPlayerIds.length}`, remainingPlayerIds);
         
         if (remainingPlayerIds.length === 0) {
           // No players left, delete the room
-          console.log(`🏁 HOST_LEAVING: No players left, deleting room ${roomCode}`);
+          logger.log(`🏁 HOST_LEAVING: No players left, deleting room ${roomCode}`);
             await deleteDoc(roomRef);
           return;
         } else if (remainingPlayerIds.length <= 2) {
           // 2 or fewer players remain, terminate the game
-          console.log(`🏁 HOST_LEAVING: ≤2 players remain, terminating game in room ${roomCode}`);
+          logger.log(`🏁 HOST_LEAVING: ≤2 players remain, terminating game in room ${roomCode}`);
           await runTransaction(db, async (transaction) => {
-            const roomRef = doc(db, 'multiplayerGames', roomCode);
+            const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
             const roomSnap = await transaction.get(roomRef);
             
             if (!roomSnap.exists()) {
@@ -492,16 +494,16 @@ class MultiplayerService {
             await updateDoc(roomRef, updateData);
           }
           
-          console.log(`✅ HOST_LEAVING: Game terminated and host removed from room ${roomCode}`);
+          logger.log(`✅ HOST_LEAVING: Game terminated and host removed from room ${roomCode}`);
         } else {
           // 3+ players remain, migrate host to first remaining player
           const newHostId = remainingPlayerIds[0];
           const newHostName = roomData.players[newHostId]?.name || 'Unknown Player';
           
-          console.log(`🔄 HOST_LEAVING: Migrating host to ${newHostName} (${newHostId})`);
+          logger.log(`🔄 HOST_LEAVING: Migrating host to ${newHostName} (${newHostId})`);
           
           await runTransaction(db, async (transaction) => {
-            const roomRef = doc(db, 'multiplayerGames', roomCode);
+            const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
             const roomSnap = await transaction.get(roomRef);
             
             if (!roomSnap.exists()) {
@@ -541,7 +543,7 @@ class MultiplayerService {
         }
       } else {
         // Regular player leaving
-        console.log(`👤 PLAYER_LEAVING: Player ${playerId} is leaving room ${roomCode}`);
+        logger.log(`👤 PLAYER_LEAVING: Player ${playerId} is leaving room ${roomCode}`);
         
         const updateData: any = {
           [`players.${playerId}`]: arrayRemove(roomData.players[playerId]),
@@ -552,15 +554,15 @@ class MultiplayerService {
         if (updateData[`players.${playerId}`] !== undefined) {
           await updateDoc(roomRef, updateData);
         } else {
-          console.error('❌ Invalid update data for player removal:', updateData);
+          logger.error('❌ Invalid update data for player removal:', updateData);
           // Fallback: delete the room
           await deleteDoc(roomRef);
         }
       }
 
-      console.log(`✅ Player ${playerId} left room ${roomCode}`);
+      logger.log(`✅ Player ${playerId} left room ${roomCode}`);
     } catch (error) {
-      console.error('Error leaving room:', error);
+      logger.error('Error leaving room:', error);
       throw error;
     }
   }
@@ -570,7 +572,7 @@ class MultiplayerService {
    */
   async startGame(roomCode: string, hostId: string, timeLimit: number = 60): Promise<void> {
     try {
-      console.log('🎮 ROOM_START: Starting game in room:', roomCode, 'for host:', hostId);
+      logger.log('🎮 ROOM_START: Starting game in room:', roomCode, 'for host:', hostId);
       
       // Use atomic hostStartGame transaction
       const result = await hostStartGame(roomCode, hostId, timeLimit);
@@ -579,9 +581,9 @@ class MultiplayerService {
         throw new Error(result.error || 'Failed to start game');
       }
 
-      console.log(`✅ ROOM_START: Game started in room ${roomCode}`);
+      logger.log(`✅ ROOM_START: Game started in room ${roomCode}`);
     } catch (error) {
-      console.error('❌ ROOM_START: Error starting game:', error);
+      logger.error('❌ ROOM_START: Error starting game:', error);
       throw error;
     }
   }
@@ -591,7 +593,7 @@ class MultiplayerService {
    */
   async endGame(roomCode: string, hostId: string): Promise<void> {
     try {
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await getDoc(roomRef);
       
       if (!roomSnap.exists()) {
@@ -611,9 +613,9 @@ class MultiplayerService {
         lastActivity: Date.now()
       });
 
-      console.log(`✅ Game ended in room ${roomCode}`);
+      logger.log(`✅ Game ended in room ${roomCode}`);
     } catch (error) {
-      console.error('Error ending game:', error);
+      logger.error('Error ending game:', error);
       throw error;
     }
   }
@@ -623,7 +625,7 @@ class MultiplayerService {
    */
   async kickPlayer(roomCode: string, hostId: string, targetPlayerId: string): Promise<void> {
     try {
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await getDoc(roomRef);
       
       if (!roomSnap.exists()) {
@@ -647,9 +649,9 @@ class MultiplayerService {
         lastActivity: Date.now()
       });
 
-      console.log(`✅ Player ${targetPlayerId} kicked from room ${roomCode}`);
+      logger.log(`✅ Player ${targetPlayerId} kicked from room ${roomCode}`);
     } catch (error) {
-      console.error('Error kicking player:', error);
+      logger.error('Error kicking player:', error);
       throw error;
     }
   }
@@ -677,7 +679,7 @@ class MultiplayerService {
         throw new Error('No valid answers provided');
       }
 
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await getDoc(roomRef);
       
       if (!roomSnap.exists()) {
@@ -707,7 +709,7 @@ class MultiplayerService {
           // Find matching answer in current question
           const currentQuestion = roomData.questions?.[roomData.currentQuestionIndex || 0];
           if (!currentQuestion) {
-            console.log(`Answer "${answer}" - no current question`);
+            logger.log(`Answer "${answer}" - no current question`);
             continue;
           }
 
@@ -723,15 +725,15 @@ class MultiplayerService {
                 points: awardResult.points,
                 rank: matchedAnswer.rank
               });
-              console.log(`✅ AWARD_ANSWER: Awarded ${awardResult.points} points for "${answer}"`);
+              logger.log(`✅ AWARD_ANSWER: Awarded ${awardResult.points} points for "${answer}"`);
             } else {
-              console.log(`⚠️ AWARD_ANSWER: Failed to award points for "${answer}": ${awardResult.error}`);
+              logger.log(`⚠️ AWARD_ANSWER: Failed to award points for "${answer}": ${awardResult.error}`);
             }
           } else {
-            console.log(`Answer "${answer}" was not correct`);
+            logger.log(`Answer "${answer}" was not correct`);
           }
         } catch (error) {
-          console.log(`Answer "${answer}" processing error:`, error instanceof Error ? error.message : 'Unknown error');
+          logger.log(`Answer "${answer}" processing error:`, error instanceof Error ? error.message : 'Unknown error');
         }
       }
 
@@ -746,9 +748,9 @@ class MultiplayerService {
         lastActivity: now
       });
 
-      console.log(`✅ Player ${playerId} submitted answers for room ${roomCode}, earned ${totalPoints} points`);
+      logger.log(`✅ Player ${playerId} submitted answers for room ${roomCode}, earned ${totalPoints} points`);
     } catch (error) {
-      console.error('Error submitting answers:', error);
+      logger.error('Error submitting answers:', error);
       throw error;
     }
   }
@@ -758,7 +760,7 @@ class MultiplayerService {
    */
   async advanceTurn(roomCode: string, playerId: string): Promise<void> {
     try {
-      console.log(`🔄 ADVANCE_TURN: Advancing turn in room ${roomCode} for player ${playerId}`);
+      logger.log(`🔄 ADVANCE_TURN: Advancing turn in room ${roomCode} for player ${playerId}`);
       
       const result = await advanceTurn(roomCode, playerId);
       
@@ -766,9 +768,9 @@ class MultiplayerService {
         throw new Error(result.error || 'Failed to advance turn');
       }
       
-      console.log(`✅ ADVANCE_TURN: Turn advanced successfully`);
+      logger.log(`✅ ADVANCE_TURN: Turn advanced successfully`);
     } catch (error) {
-      console.error('❌ ADVANCE_TURN: Error advancing turn:', error);
+      logger.error('❌ ADVANCE_TURN: Error advancing turn:', error);
       throw error;
     }
   }
@@ -778,7 +780,7 @@ class MultiplayerService {
    */
   async forceAdvanceExpiredTurn(roomCode: string, playerId: string): Promise<void> {
     try {
-      console.log(`🔄 FORCE_ADVANCE_EXPIRED_TURN: Force advancing expired turn in room ${roomCode} for player ${playerId}`);
+      logger.log(`🔄 FORCE_ADVANCE_EXPIRED_TURN: Force advancing expired turn in room ${roomCode} for player ${playerId}`);
       
       const result = await forceAdvanceExpiredTurn(roomCode, playerId);
       
@@ -786,9 +788,9 @@ class MultiplayerService {
         throw new Error(result.error || 'Failed to force advance expired turn');
       }
       
-      console.log(`✅ FORCE_ADVANCE_EXPIRED_TURN: Expired turn advanced successfully`);
+      logger.log(`✅ FORCE_ADVANCE_EXPIRED_TURN: Expired turn advanced successfully`);
     } catch (error) {
-      console.error('❌ FORCE_ADVANCE_EXPIRED_TURN: Error force advancing expired turn:', error);
+      logger.error('❌ FORCE_ADVANCE_EXPIRED_TURN: Error force advancing expired turn:', error);
       throw error;
     }
   }
@@ -798,7 +800,7 @@ class MultiplayerService {
    */
   async submitTurnAnswer(roomCode: string, playerId: string, answers: string[]): Promise<void> {
     try {
-      console.log(`📝 SUBMIT_TURN_ANSWER: Submitting turn answer in room ${roomCode} for player ${playerId}`);
+      logger.log(`📝 SUBMIT_TURN_ANSWER: Submitting turn answer in room ${roomCode} for player ${playerId}`);
       
       const result = await submitTurnAnswerTransaction(roomCode, playerId, answers);
       
@@ -806,9 +808,9 @@ class MultiplayerService {
         throw new Error(result.error || 'Failed to submit turn answer');
       }
       
-      console.log(`✅ SUBMIT_TURN_ANSWER: Turn answer submitted successfully`);
+      logger.log(`✅ SUBMIT_TURN_ANSWER: Turn answer submitted successfully`);
     } catch (error) {
-      console.error('❌ SUBMIT_TURN_ANSWER: Error submitting turn answer:', error);
+      logger.error('❌ SUBMIT_TURN_ANSWER: Error submitting turn answer:', error);
       throw error;
     }
   }
@@ -818,7 +820,7 @@ class MultiplayerService {
    */
   async startGameClean(roomCode: string, hostId: string): Promise<void> {
     try {
-      console.log(`🎮 START_GAME_CLEAN: Starting game in room ${roomCode}`);
+      logger.log(`🎮 START_GAME_CLEAN: Starting game in room ${roomCode}`);
       
       const result = await startGameFlow(roomCode, hostId);
       
@@ -826,16 +828,16 @@ class MultiplayerService {
         throw new Error(result.error || 'Failed to start game');
       }
       
-      console.log(`✅ START_GAME_CLEAN: Game started successfully`);
+      logger.log(`✅ START_GAME_CLEAN: Game started successfully`);
     } catch (error) {
-      console.error('❌ START_GAME_CLEAN: Error starting game:', error);
+      logger.error('❌ START_GAME_CLEAN: Error starting game:', error);
       throw error;
     }
   }
 
   async submitAnswerClean(roomCode: string, playerId: string, answer: string): Promise<void> {
     try {
-      console.log(`📝 SUBMIT_ANSWER_CLEAN: Submitting answer in room ${roomCode} for player ${playerId}`);
+      logger.log(`📝 SUBMIT_ANSWER_CLEAN: Submitting answer in room ${roomCode} for player ${playerId}`);
       
       const result = await submitAnswerFlow(roomCode, playerId, answer);
       
@@ -843,16 +845,16 @@ class MultiplayerService {
         throw new Error(result.error || 'Failed to submit answer');
       }
       
-      console.log(`✅ SUBMIT_ANSWER_CLEAN: Answer submitted successfully`);
+      logger.log(`✅ SUBMIT_ANSWER_CLEAN: Answer submitted successfully`);
     } catch (error) {
-      console.error('❌ SUBMIT_ANSWER_CLEAN: Error submitting answer:', error);
+      logger.error('❌ SUBMIT_ANSWER_CLEAN: Error submitting answer:', error);
       throw error;
     }
   }
 
   async endGameClean(roomCode: string, hostId: string): Promise<void> {
     try {
-      console.log(`🏁 END_GAME_CLEAN: Ending game in room ${roomCode}`);
+      logger.log(`🏁 END_GAME_CLEAN: Ending game in room ${roomCode}`);
       
       const result = await endGameFlow(roomCode, hostId);
       
@@ -860,16 +862,16 @@ class MultiplayerService {
         throw new Error(result.error || 'Failed to end game');
       }
       
-      console.log(`✅ END_GAME_CLEAN: Game ended successfully`);
+      logger.log(`✅ END_GAME_CLEAN: Game ended successfully`);
     } catch (error) {
-      console.error('❌ END_GAME_CLEAN: Error ending game:', error);
+      logger.error('❌ END_GAME_CLEAN: Error ending game:', error);
       throw error;
     }
   }
 
   async advanceTurnOnTimeoutClean(roomCode: string, playerId: string): Promise<void> {
     try {
-      console.log(`⏰ ADVANCE_TURN_TIMEOUT_CLEAN: Advancing turn on timeout in room ${roomCode}`);
+      logger.log(`⏰ ADVANCE_TURN_TIMEOUT_CLEAN: Advancing turn on timeout in room ${roomCode}`);
       
       const result = await advanceTurnOnTimeout(roomCode, playerId);
       
@@ -877,9 +879,9 @@ class MultiplayerService {
         throw new Error(result.error || 'Failed to advance turn on timeout');
       }
       
-      console.log(`✅ ADVANCE_TURN_TIMEOUT_CLEAN: Turn advanced successfully`);
+      logger.log(`✅ ADVANCE_TURN_TIMEOUT_CLEAN: Turn advanced successfully`);
     } catch (error) {
-      console.error('❌ ADVANCE_TURN_TIMEOUT_CLEAN: Error advancing turn:', error);
+      logger.error('❌ ADVANCE_TURN_TIMEOUT_CLEAN: Error advancing turn:', error);
       throw error;
     }
   }
@@ -889,18 +891,18 @@ class MultiplayerService {
    */
   async startGameV2(roomCode: string, hostId: string, turnTimeLimitSec: number = 60): Promise<void> {
     try {
-      console.log(`🎮 START_GAME_V2: Starting game in room ${roomCode}`);
+      logger.log(`🎮 START_GAME_V2: Starting game in room ${roomCode}`);
       
       const result = await hostStartGameV2(roomCode, hostId, turnTimeLimitSec);
       
       if (!result.success) {
         // If the room is in an invalid state (like 'closed'), try to reset it
         if (result.error?.includes('not in lobby state')) {
-          console.log(`🔄 START_GAME_V2: Room in invalid state, attempting to reset...`);
+          logger.log(`🔄 START_GAME_V2: Room in invalid state, attempting to reset...`);
           const resetResult = await resetRoomStatus(roomCode, hostId);
           
           if (resetResult.success) {
-            console.log(`✅ START_GAME_V2: Room reset successful, retrying game start...`);
+            logger.log(`✅ START_GAME_V2: Room reset successful, retrying game start...`);
             // Retry starting the game
             const retryResult = await hostStartGameV2(roomCode, hostId, turnTimeLimitSec);
             if (!retryResult.success) {
@@ -914,9 +916,9 @@ class MultiplayerService {
         }
       }
       
-      console.log(`✅ START_GAME_V2: Game started successfully`);
+      logger.log(`✅ START_GAME_V2: Game started successfully`);
     } catch (error) {
-      console.error('❌ START_GAME_V2: Error starting game:', error);
+      logger.error('❌ START_GAME_V2: Error starting game:', error);
       throw error;
     }
   }
@@ -924,14 +926,14 @@ class MultiplayerService {
   async submitAnswerV2(roomCode: string, playerId: string, answerText: string): Promise<{ success: boolean; points?: number; error?: string; roundEnded?: boolean }> {
     try {
       // 🔧 SERVICE - INPUT DEBUG LOGGING
-      console.log('🔧 SERVICE - INPUT:', { 
+      logger.log('🔧 SERVICE - INPUT:', { 
         roomCode, 
         playerId, 
         answerText,
         timestamp: new Date().toISOString()
       });
       
-      console.log(`📝 SUBMIT_ANSWER_V2: Submitting answer in room ${roomCode} for player ${playerId}`);
+      logger.log(`📝 SUBMIT_ANSWER_V2: Submitting answer in room ${roomCode} for player ${playerId}`);
       
       // 1. Check rate limiting for answer submissions
       const rateLimitResult = await RateLimitService.checkRateLimit(
@@ -941,7 +943,7 @@ class MultiplayerService {
       );
       
       if (!rateLimitResult.allowed) {
-        console.error(`❌ SUBMIT_ANSWER_V2: Rate limit exceeded:`, rateLimitResult.error);
+        logger.error(`❌ SUBMIT_ANSWER_V2: Rate limit exceeded:`, rateLimitResult.error);
         return { 
           success: false, 
           error: rateLimitResult.error || 'Too many answer submissions. Please wait before trying again.' 
@@ -951,7 +953,7 @@ class MultiplayerService {
       // 2. Client-side validation with AnswerValidationService
       const formatValidation = AnswerValidationService.validateFormat(answerText);
       if (!formatValidation.isValid) {
-        console.error(`❌ SUBMIT_ANSWER_V2: Format validation failed:`, formatValidation.error);
+        logger.error(`❌ SUBMIT_ANSWER_V2: Format validation failed:`, formatValidation.error);
         return { 
           success: false, 
           error: formatValidation.error || 'Answer format is invalid' 
@@ -959,18 +961,18 @@ class MultiplayerService {
       }
       
       // 3. Proceed directly with the turn-based game flow (which has its own validation)
-      console.log('🔧 CLIENT_SUBMIT_DEBUG:', {
+      logger.log('🔧 CLIENT_SUBMIT_DEBUG:', {
         roomCode,
         playerId,
         answerText,
         timestamp: new Date().toISOString()
       });
       
-      console.log('🔧 SERVICE - CALLING TURN-BASED GAME FLOW...');
+      logger.log('🔧 SERVICE - CALLING TURN-BASED GAME FLOW...');
       const result = await submitAnswerOriginal(roomCode, playerId, answerText);
       
       // 🔧 SERVICE - GAME FLOW RESULT DEBUG LOGGING
-      console.log('🔧 SERVICE - GAME FLOW RESULT:', {
+      logger.log('🔧 SERVICE - GAME FLOW RESULT:', {
         success: result.success,
         points: result.points,
         error: result.error,
@@ -978,21 +980,21 @@ class MultiplayerService {
       });
       
       if (!result.success) {
-        console.log('❌ SERVICE - GAME FLOW FAILED:', result.error);
+        logger.log('❌ SERVICE - GAME FLOW FAILED:', result.error);
         return { success: false, error: result.error };
       }
       
-      console.log(`✅ SUBMIT_ANSWER_V2: Answer submitted successfully, points: ${result.points}, roundEnded: ${result.roundEnded || false}`);
+      logger.log(`✅ SUBMIT_ANSWER_V2: Answer submitted successfully, points: ${result.points}, roundEnded: ${result.roundEnded || false}`);
       return { success: true, points: result.points, roundEnded: result.roundEnded };
     } catch (error) {
-      console.error('❌ SUBMIT_ANSWER_V2: Error submitting answer:', error);
+      logger.error('❌ SUBMIT_ANSWER_V2: Error submitting answer:', error);
       return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
   }
 
   async skipTurnV2(roomCode: string, playerId: string): Promise<{ success: boolean; error?: string }> {
     try {
-      console.log(`⏭️ SKIP_TURN_V2: Skipping turn in room ${roomCode} for player ${playerId}`);
+      logger.log(`⏭️ SKIP_TURN_V2: Skipping turn in room ${roomCode} for player ${playerId}`);
       
       // Check rate limiting for skip turn
       const rateLimitResult = await RateLimitService.checkRateLimit(
@@ -1002,7 +1004,7 @@ class MultiplayerService {
       );
       
       if (!rateLimitResult.allowed) {
-        console.error(`❌ SKIP_TURN_V2: Rate limit exceeded:`, rateLimitResult.error);
+        logger.error(`❌ SKIP_TURN_V2: Rate limit exceeded:`, rateLimitResult.error);
         return { 
           success: false, 
           error: rateLimitResult.error || 'Too many skip attempts. Please wait before trying again.' 
@@ -1012,28 +1014,28 @@ class MultiplayerService {
       const result = await skipTurnV2(roomCode, playerId);
       
       if (!result.success) {
-        console.log('❌ SKIP_TURN_V2: Failed to skip turn:', result.error);
+        logger.log('❌ SKIP_TURN_V2: Failed to skip turn:', result.error);
         return { success: false, error: result.error };
       }
       
-      console.log(`✅ SKIP_TURN_V2: Turn skipped successfully`);
+      logger.log(`✅ SKIP_TURN_V2: Turn skipped successfully`);
       return { success: true };
     } catch (error) {
-      console.error('❌ SKIP_TURN_V2: Error skipping turn:', error);
+      logger.error('❌ SKIP_TURN_V2: Error skipping turn:', error);
       return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
   }
 
   async handleHostDisconnectionV2(roomCode: string, disconnectedHostId: string): Promise<{ action: 'migrated' | 'terminated' | 'error'; newHostId?: string; newHostName?: string; error?: string }> {
     try {
-      console.log(`🚪 HOST_DISCONNECTION_V2: Handling host disconnection in room ${roomCode}`);
+      logger.log(`🚪 HOST_DISCONNECTION_V2: Handling host disconnection in room ${roomCode}`);
       
       const result = await handleHostDisconnection(roomCode, disconnectedHostId);
       
-      console.log(`✅ HOST_DISCONNECTION_V2: Result:`, result);
+      logger.log(`✅ HOST_DISCONNECTION_V2: Result:`, result);
       return result;
     } catch (error) {
-      console.error('❌ HOST_DISCONNECTION_V2: Error handling host disconnection:', error);
+      logger.error('❌ HOST_DISCONNECTION_V2: Error handling host disconnection:', error);
       return {
         action: 'error',
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -1043,26 +1045,26 @@ class MultiplayerService {
 
   async terminateGameV2(roomCode: string, disconnectedPlayerId: string): Promise<{ success: boolean; error?: string }> {
     try {
-      console.log(`🏁 TERMINATE_GAME_V2: Terminating game in room ${roomCode} for player ${disconnectedPlayerId}`);
+      logger.log(`🏁 TERMINATE_GAME_V2: Terminating game in room ${roomCode} for player ${disconnectedPlayerId}`);
       
       const result = await terminateGame(roomCode, disconnectedPlayerId);
       
       if (!result.success) {
-        console.log('❌ TERMINATE_GAME_V2: Failed to terminate game:', result.error);
+        logger.log('❌ TERMINATE_GAME_V2: Failed to terminate game:', result.error);
         return { success: false, error: result.error };
       }
       
-      console.log(`✅ TERMINATE_GAME_V2: Game terminated successfully`);
+      logger.log(`✅ TERMINATE_GAME_V2: Game terminated successfully`);
       return { success: true };
     } catch (error) {
-      console.error('❌ TERMINATE_GAME_V2: Error terminating game:', error);
+      logger.error('❌ TERMINATE_GAME_V2: Error terminating game:', error);
       return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
   }
 
   async endGameV2(roomCode: string, hostId: string): Promise<void> {
     try {
-      console.log(`🏁 END_GAME_V2: Ending game in room ${roomCode}`);
+      logger.log(`🏁 END_GAME_V2: Ending game in room ${roomCode}`);
       
       const result = await hostEndGameV2(roomCode, hostId);
       
@@ -1070,16 +1072,16 @@ class MultiplayerService {
         throw new Error(result.error || 'Failed to end game');
       }
       
-      console.log(`✅ END_GAME_V2: Game ended successfully`);
+      logger.log(`✅ END_GAME_V2: Game ended successfully`);
     } catch (error) {
-      console.error('❌ END_GAME_V2: Error ending game:', error);
+      logger.error('❌ END_GAME_V2: Error ending game:', error);
       throw error;
     }
   }
 
   async advanceTurnOnTimeoutV2(roomCode: string, playerId: string): Promise<void> {
     try {
-      console.log(`⏰ ADVANCE_TURN_TIMEOUT_V2: Advancing turn on timeout in room ${roomCode}`);
+      logger.log(`⏰ ADVANCE_TURN_TIMEOUT_V2: Advancing turn on timeout in room ${roomCode}`);
       
       const result = await advanceTurnOnTimeoutV2(roomCode, playerId);
       
@@ -1087,9 +1089,9 @@ class MultiplayerService {
         throw new Error(result.error || 'Failed to advance turn on timeout');
       }
       
-      console.log(`✅ ADVANCE_TURN_TIMEOUT_V2: Turn advanced successfully`);
+      logger.log(`✅ ADVANCE_TURN_TIMEOUT_V2: Turn advanced successfully`);
     } catch (error) {
-      console.error('❌ ADVANCE_TURN_TIMEOUT_V2: Error advancing turn:', error);
+      logger.error('❌ ADVANCE_TURN_TIMEOUT_V2: Error advancing turn:', error);
       throw error;
     }
   }
@@ -1108,7 +1110,7 @@ class MultiplayerService {
 
   async resetRoomStatusV2(roomCode: string, hostId: string): Promise<void> {
     try {
-      console.log(`🔄 RESET_ROOM_STATUS_V2: Resetting room ${roomCode}`);
+      logger.log(`🔄 RESET_ROOM_STATUS_V2: Resetting room ${roomCode}`);
       
       const result = await resetRoomStatus(roomCode, hostId);
       
@@ -1116,9 +1118,9 @@ class MultiplayerService {
         throw new Error(result.error || 'Failed to reset room status');
       }
       
-      console.log(`✅ RESET_ROOM_STATUS_V2: Room reset successfully`);
+      logger.log(`✅ RESET_ROOM_STATUS_V2: Room reset successfully`);
     } catch (error) {
-      console.error('❌ RESET_ROOM_STATUS_V2: Error resetting room:', error);
+      logger.error('❌ RESET_ROOM_STATUS_V2: Error resetting room:', error);
       throw error;
     }
   }
@@ -1128,7 +1130,7 @@ class MultiplayerService {
    */
   async revealAnswer(roomCode: string, hostId: string, answer: string): Promise<void> {
     try {
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await getDoc(roomRef);
       
       if (!roomSnap.exists()) {
@@ -1144,7 +1146,7 @@ class MultiplayerService {
 
       // Ensure revealedAnswers is an array
       if (!Array.isArray(roomData.revealedAnswers)) {
-        console.warn('⚠️ SERVICE: revealedAnswers is not an array, initializing:', roomData.revealedAnswers);
+        logger.warn('⚠️ SERVICE: revealedAnswers is not an array, initializing:', roomData.revealedAnswers);
         roomData.revealedAnswers = Array(10).fill(null);
       }
       
@@ -1180,7 +1182,7 @@ class MultiplayerService {
         
         if (hasAnswer) {
           submission.points += points;
-          console.log(`✅ Player ${playerId} awarded ${points} points for answer "${answer}"`);
+          logger.log(`✅ Player ${playerId} awarded ${points} points for answer "${answer}"`);
         }
       });
 
@@ -1190,9 +1192,9 @@ class MultiplayerService {
         lastActivity: Date.now()
       });
 
-      console.log(`✅ Answer "${answer}" revealed in room ${roomCode}`);
+      logger.log(`✅ Answer "${answer}" revealed in room ${roomCode}`);
     } catch (error) {
-      console.error('Error revealing answer:', error);
+      logger.error('Error revealing answer:', error);
       throw error;
     }
   }
@@ -1202,7 +1204,7 @@ class MultiplayerService {
    */
   async nextQuestion(roomCode: string, hostId: string): Promise<void> {
     try {
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await getDoc(roomRef);
       
       if (!roomSnap.exists()) {
@@ -1240,9 +1242,9 @@ class MultiplayerService {
         });
       }
 
-      console.log(`✅ Advanced to question ${nextIndex + 1} in room ${roomCode}`);
+      logger.log(`✅ Advanced to question ${nextIndex + 1} in room ${roomCode}`);
     } catch (error) {
-      console.error('Error advancing question:', error);
+      logger.error('Error advancing question:', error);
       throw error;
     }
   }
@@ -1259,11 +1261,11 @@ class MultiplayerService {
     const matchResult = findBestMatch(userAnswer, correctAnswers);
     
     if (matchResult.isMatch && matchResult.matchedAnswer) {
-      console.log(`✅ FUZZY MATCH: "${userAnswer}" -> "${matchResult.officialAnswer}" (confidence: ${matchResult.confidence}, similarity: ${matchResult.similarity.toFixed(3)})`);
+      logger.log(`✅ FUZZY MATCH: "${userAnswer}" -> "${matchResult.officialAnswer}" (confidence: ${matchResult.confidence}, similarity: ${matchResult.similarity.toFixed(3)})`);
       return matchResult.matchedAnswer;
     }
     
-    console.log(`❌ NO MATCH: "${userAnswer}" (best similarity: ${matchResult.similarity.toFixed(3)})`);
+    logger.log(`❌ NO MATCH: "${userAnswer}" (best similarity: ${matchResult.similarity.toFixed(3)})`);
     return null;
   }
 
@@ -1320,7 +1322,7 @@ class MultiplayerService {
         // Validate and sanitize room data before passing to callback
         const validatedRoomData = this.validateRoomDataForFirestore(roomData);
         
-        console.log('Room data received from Firestore:', {
+        logger.log('Room data received from Firestore:', {
           roomCode: validatedRoomData.roomCode,
           playersCount: Object.keys(validatedRoomData.players).length,
           players: Object.values(validatedRoomData.players).map(p => {
@@ -1338,7 +1340,7 @@ class MultiplayerService {
         callback(null);
       }
     }, (error) => {
-      console.error('Error listening to room updates:', error);
+      logger.error('Error listening to room updates:', error);
       callback(null);
     });
 
@@ -1406,11 +1408,11 @@ class MultiplayerService {
     const timer = setTimeout(async () => {
       try {
         // Check if player is actually disconnected by verifying room state
-        const roomRef = doc(db, 'multiplayerGames', roomCode);
+        const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
         const roomSnap = await getDoc(roomRef);
         
         if (!roomSnap.exists()) {
-          console.log(`Room ${roomCode} no longer exists, stopping monitoring for ${playerId}`);
+          logger.log(`Room ${roomCode} no longer exists, stopping monitoring for ${playerId}`);
           return;
         }
         
@@ -1419,22 +1421,22 @@ class MultiplayerService {
         
         // Only trigger disconnection if player is not in room or marked as disconnected
         if (!player || !player.isConnected) {
-          console.log(`Player ${playerId} confirmed disconnected, handling disconnection`);
+          logger.log(`Player ${playerId} confirmed disconnected, handling disconnection`);
           if (isHost) {
             await this.edgeCaseHandler.handleHostDisconnection(roomCode, playerId);
           } else {
             await this.edgeCaseHandler.handlePlayerDisconnection(roomCode, playerId);
           }
         } else {
-          console.log(`Player ${playerId} still connected, extending monitoring`);
+          logger.log(`Player ${playerId} still connected, extending monitoring`);
           // Player is still connected, extend monitoring
           this.startConnectionMonitoring(roomCode, playerId, isHost);
         }
       } catch (error) {
-        console.error(`Error in connection monitoring for ${playerId}:`, error);
+        logger.error(`Error in connection monitoring for ${playerId}:`, error);
         // On error, don't trigger disconnection to avoid false positives
       }
-    }, isHost ? 30000 : 60000); // 30s for host, 60s for players
+    }, isHost ? TIMING.TIMEOUT_30_SECONDS : TIMING.TIMEOUT_60_SECONDS);
     
     this.connectionMonitor.set(monitorKey, timer);
   }
@@ -1464,7 +1466,7 @@ class MultiplayerService {
    */
   private async validateRoomData(roomCode: string): Promise<boolean> {
     try {
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await getDoc(roomRef);
       
       if (!roomSnap.exists()) {
@@ -1475,14 +1477,14 @@ class MultiplayerService {
       
       // Check for required fields
       if (!roomData.roomCode || !roomData.hostId || !roomData.players) {
-        console.log('🚨 Room data corruption detected, attempting repair...');
+        logger.log('🚨 Room data corruption detected, attempting repair...');
         await this.edgeCaseHandler.handleRoomDataCorruption(roomCode);
         return false;
       }
       
       return true;
     } catch (error) {
-      console.error('❌ Error validating room data:', error);
+      logger.error('❌ Error validating room data:', error);
       return false;
     }
   }
@@ -1523,30 +1525,30 @@ class MultiplayerService {
     
     for (const field of requiredFields) {
       if (roomData[field] === undefined) {
-        console.error(`❌ Required field '${field}' is undefined`);
+        logger.error(`❌ Required field '${field}' is undefined`);
         return false;
       }
     }
     
     // Validate questions array
     if (!Array.isArray(roomData.questions)) {
-      console.error('❌ Questions is not an array');
+      logger.error('❌ Questions is not an array');
       return false;
     }
     
     if (roomData.questions.length === 0) {
-      console.error('❌ Questions array is empty');
+      logger.error('❌ Questions array is empty');
       return false;
     }
     
     for (let i = 0; i < roomData.questions.length; i++) {
       const question = roomData.questions[i];
       if (!question.id || !question.text || question.text.trim() === '') {
-        console.error(`❌ Invalid question structure at index ${i}:`, question);
+        logger.error(`❌ Invalid question structure at index ${i}:`, question);
         return false;
       }
       if (!Array.isArray(question.answers) || question.answers.length === 0) {
-        console.error(`❌ Invalid answers array for question at index ${i}:`, question);
+        logger.error(`❌ Invalid answers array for question at index ${i}:`, question);
         return false;
       }
     }
@@ -1558,9 +1560,9 @@ class MultiplayerService {
    * Debug log object and detect undefined values
    */
   private debugLogObject(obj: any, name: string): void {
-    console.log(`🔍 DEBUG: ${name}:`, JSON.stringify(obj, (key, value) => {
+    logger.log(`🔍 DEBUG: ${name}:`, JSON.stringify(obj, (key, value) => {
       if (value === undefined) {
-        console.warn(`⚠️ UNDEFINED VALUE found at key: ${key}`);
+        logger.warn(`⚠️ UNDEFINED VALUE found at key: ${key}`);
         return '<<UNDEFINED>>';
       }
       return value;
@@ -1571,7 +1573,7 @@ class MultiplayerService {
    * Prepare questions for room creation with proper structure
    */
   private prepareQuestionsForRoom(questions: Question[]): Question[] {
-    console.log('🔍 DEBUG: Preparing questions for room:', questions);
+    logger.log('🔍 DEBUG: Preparing questions for room:', questions);
     
     if (!questions || questions.length === 0) {
       throw new Error('No questions provided for room creation.');
@@ -1587,7 +1589,7 @@ class MultiplayerService {
           question.answers.length > 0;
         
         if (!isValid) {
-          console.warn('⚠️ Skipping invalid question:', question);
+          logger.warn('⚠️ Skipping invalid question:', question);
         }
         
         return isValid;
@@ -1623,7 +1625,7 @@ class MultiplayerService {
         };
       });
     
-    console.log('🔍 DEBUG: Prepared questions result:', preparedQuestions);
+    logger.log('🔍 DEBUG: Prepared questions result:', preparedQuestions);
     
     if (preparedQuestions.length === 0) {
       throw new Error('No valid questions found after processing. Please check your question data.');
@@ -1684,7 +1686,7 @@ class MultiplayerService {
    */
   async getRoom(roomCode: string): Promise<RoomData | null> {
     try {
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await getDoc(roomRef);
       
       if (roomSnap.exists()) {
@@ -1692,7 +1694,7 @@ class MultiplayerService {
       }
       return null;
     } catch (error) {
-      console.error('Error getting room:', error);
+      logger.error('Error getting room:', error);
       return null;
     }
   }

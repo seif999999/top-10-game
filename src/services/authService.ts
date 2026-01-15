@@ -8,6 +8,7 @@ import {
 import { User } from '../types';
 import { auth } from './firebase';
 import UserProfileService from './userProfileService';
+import { logger } from '../utils/logger';
 
 /**
  * Singleton AuthService class that provides authentication functionality
@@ -40,34 +41,34 @@ export class AuthService {
    */
   public async ensureAuthenticated(): Promise<string> {
     try {
-      console.log('🔍 AuthService.ensureAuthenticated: Starting authentication check...');
+      logger.log('🔍 AuthService.ensureAuthenticated: Starting authentication check...');
       
       // Check if user is already authenticated in AuthService
       if (this.currentUser) {
-        console.log('✅ AuthService.ensureAuthenticated: User already authenticated in AuthService:', this.currentUser.email);
+        logger.log('✅ AuthService.ensureAuthenticated: User already authenticated in AuthService:', this.currentUser.email);
         return this.currentUser.id;
       }
 
       // Check Firebase auth state directly
       const firebaseUser = auth.currentUser;
-      console.log('🔍 AuthService.ensureAuthenticated: Firebase user:', firebaseUser ? `ID: ${firebaseUser.uid}, Email: ${firebaseUser.email}` : 'None');
+      logger.log('🔍 AuthService.ensureAuthenticated: Firebase user:', firebaseUser ? `ID: ${firebaseUser.uid}, Email: ${firebaseUser.email}` : 'None');
       
       if (firebaseUser) {
-        console.log('🔄 AuthService.ensureAuthenticated: Firebase user found, loading profile...');
+        logger.log('🔄 AuthService.ensureAuthenticated: Firebase user found, loading profile...');
         
         // Load user profile with avatar data from Firestore
         try {
           const userProfile = await UserProfileService.getUserProfile(firebaseUser.uid);
           
           if (userProfile) {
-            console.log('✅ AuthService.ensureAuthenticated: User profile loaded from Firestore');
+            logger.log('✅ AuthService.ensureAuthenticated: User profile loaded from Firestore');
             this.currentUser = {
               ...userProfile,
               email: firebaseUser.email || userProfile.email || '',
               displayName: userProfile.displayName || firebaseUser.displayName || undefined
             };
           } else {
-            console.log('⚠️ AuthService.ensureAuthenticated: No user profile found, using Firebase user data');
+            logger.log('⚠️ AuthService.ensureAuthenticated: No user profile found, using Firebase user data');
             this.currentUser = {
               id: firebaseUser.uid,
               email: firebaseUser.email ?? '',
@@ -77,11 +78,11 @@ export class AuthService {
             };
           }
           
-          console.log('✅ AuthService.ensureAuthenticated: User authenticated successfully:', this.currentUser.email);
+          logger.log('✅ AuthService.ensureAuthenticated: User authenticated successfully:', this.currentUser.email);
           return this.currentUser.id;
         } catch (profileError) {
-          console.error('❌ AuthService.ensureAuthenticated: Error loading user profile:', profileError);
-          console.log('🔄 AuthService.ensureAuthenticated: Falling back to basic Firebase user data');
+          logger.error('❌ AuthService.ensureAuthenticated: Error loading user profile:', profileError);
+          logger.log('🔄 AuthService.ensureAuthenticated: Falling back to basic Firebase user data');
           
           this.currentUser = {
             id: firebaseUser.uid,
@@ -91,29 +92,29 @@ export class AuthService {
             stats: undefined
           };
           
-          console.log('✅ AuthService.ensureAuthenticated: User authenticated with fallback data:', this.currentUser.email);
+          logger.log('✅ AuthService.ensureAuthenticated: User authenticated with fallback data:', this.currentUser.email);
           return this.currentUser.id;
         }
       }
 
       // If no user is authenticated, try to get current user from auth service
-      console.log('🔄 AuthService.ensureAuthenticated: No Firebase user, trying getCurrentUser...');
+      logger.log('🔄 AuthService.ensureAuthenticated: No Firebase user, trying getCurrentUser...');
       try {
         const currentUser = await getCurrentUser();
         if (currentUser) {
-          console.log('✅ AuthService.ensureAuthenticated: User retrieved from getCurrentUser:', currentUser.email);
+          logger.log('✅ AuthService.ensureAuthenticated: User retrieved from getCurrentUser:', currentUser.email);
           this.currentUser = currentUser;
           return this.currentUser.id;
         }
       } catch (getCurrentUserError) {
-        console.error('❌ AuthService.ensureAuthenticated: getCurrentUser failed:', getCurrentUserError);
+        logger.error('❌ AuthService.ensureAuthenticated: getCurrentUser failed:', getCurrentUserError);
       }
 
       // If no user is authenticated, we need to handle this
-      console.error('❌ AuthService.ensureAuthenticated: No user found in any authentication method');
+      logger.error('❌ AuthService.ensureAuthenticated: No user found in any authentication method');
       throw new Error('User not authenticated. Please sign in to continue.');
     } catch (error) {
-      console.error('❌ AuthService.ensureAuthenticated: Error ensuring authentication:', error);
+      logger.error('❌ AuthService.ensureAuthenticated: Error ensuring authentication:', error);
       throw error;
     }
   }
@@ -138,7 +139,7 @@ export class AuthService {
    */
   public syncWithUser(user: User | null): void {
     if (user && (!this.currentUser || this.currentUser.id !== user.id)) {
-      console.log('🔄 AuthService: Syncing with external user state:', user.email);
+      logger.log('🔄 AuthService: Syncing with external user state:', user.email);
       this.currentUser = user;
     }
   }
@@ -151,7 +152,7 @@ export class AuthService {
       const userId = await this.ensureAuthenticated();
       return !!userId;
     } catch (error) {
-      console.error('Authentication test failed:', error);
+      logger.error('Authentication test failed:', error);
       return false;
     }
   }
@@ -165,7 +166,7 @@ export class AuthService {
       this.currentUser = user;
       return user;
     } catch (error) {
-      console.error('Sign in error:', error);
+      logger.error('Sign in error:', error);
       throw error;
     }
   }
@@ -179,7 +180,7 @@ export class AuthService {
       this.currentUser = user;
       return user;
     } catch (error) {
-      console.error('Sign up error:', error);
+      logger.error('Sign up error:', error);
       throw error;
     }
   }
@@ -192,7 +193,7 @@ export class AuthService {
       await signOutUser();
       this.currentUser = null;
     } catch (error) {
-      console.error('Sign out error:', error);
+      logger.error('Sign out error:', error);
       throw error;
     }
   }
@@ -222,9 +223,9 @@ export class AuthService {
         this.currentUser.avatarUrl = undefined;
       }
       
-      console.log(`Avatar updated for user ${this.currentUser.id}: ${selectedAvatar || 'none'}`);
+      logger.log(`Avatar updated for user ${this.currentUser.id}: ${selectedAvatar || 'none'}`);
     } catch (error) {
-      console.error('Error updating user avatar:', error);
+      logger.error('Error updating user avatar:', error);
       throw error;
     }
   }
@@ -248,7 +249,7 @@ export class AuthService {
       
       return this.currentUser;
     } catch (error) {
-      console.error('Error getting user profile with avatar:', error);
+      logger.error('Error getting user profile with avatar:', error);
       return this.currentUser; // Return local state if Firestore fails
     }
   }

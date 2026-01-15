@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { TouchableOpacity, Text, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { COLORS, SPACING } from '../utils/constants';
+import { logger } from '../utils/logger';
 
 interface SignOutButtonProps {
   style?: any;
@@ -35,7 +36,7 @@ const SignOutButton: React.FC<SignOutButtonProps> = ({
             try {
               await signOut();
             } catch (error) {
-              console.error('Sign out error:', error);
+              logger.error('Sign out error:', error);
               Alert.alert('Error', 'Failed to sign out. Please try again.');
             } finally {
               setIsLoading(false);

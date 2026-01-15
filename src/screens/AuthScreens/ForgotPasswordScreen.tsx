@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { COLORS, SPACING } from '../../utils/constants';
 import { ForgotPasswordScreenProps } from '../../types/navigation';
 import { InputValidator } from '../../utils/inputValidator';
+import { logger } from '../../utils/logger';
 
 /**
  * ForgotPasswordScreen Component
@@ -86,9 +87,9 @@ const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation 
       return;
     }
     try {
-      console.log('🔐 DEBUG: Attempting password reset for:', email.trim());
+      logger.log('🔐 DEBUG: Attempting password reset for:', email.trim());
       await resetPassword(email.trim());
-      console.log('✅ DEBUG: Password reset successful, setting sent state');
+      logger.log('✅ DEBUG: Password reset successful, setting sent state');
       setSent(true);
       setError(null); // Clear any previous errors
       

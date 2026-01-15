@@ -12,6 +12,7 @@ import { COLORS, SPACING, TYPOGRAPHY } from '../utils/constants';
 import { Team } from '../types/teams';
 import { QuestionAnswer } from '../types';
 import Button from './Button';
+import { logger } from '../utils/logger';
 
 interface HostAssignModalProps {
   visible: boolean;
@@ -42,7 +43,7 @@ const HostAssignModal: React.FC<HostAssignModalProps> = ({
 
   const handleAssign = () => {
     try {
-      console.log('🎯 HostAssignModal: Assigning answer:', {
+      logger.log('🎯 HostAssignModal: Assigning answer:', {
         answerIndex,
         answer: answer.text,
         selectedTeamId,
@@ -58,7 +59,7 @@ const HostAssignModal: React.FC<HostAssignModalProps> = ({
       onAssign(selectedTeamId, answer.points);
       onClose();
     } catch (error) {
-      console.error('❌ HostAssignModal: Error assigning answer:', error);
+      logger.error('❌ HostAssignModal: Error assigning answer:', error);
       Alert.alert('Error', 'Failed to assign answer. Please try again.');
     }
   };

@@ -3,6 +3,7 @@ import { Question, Answer, LegacyQuestion } from '../types/game';
 import { pointsForRank } from './scoring';
 import { validateAnswerFuzzy } from './fuzzyMatching';
 import CustomQuestionService, { CustomQuestion } from './customQuestionService';
+import { logger } from '../utils/logger';
 
 export interface AnswerValidationResult {
   isCorrect: boolean;
@@ -31,11 +32,11 @@ export interface UserQuestionData {
  * Get questions by category - SIMPLE AND DIRECT
  */
 export const getQuestionsByCategory = async (category: string): Promise<GameQuestion[]> => {
-  console.log(`🔍 getQuestionsByCategory("${category}") called`);
+  logger.log(`🔍 getQuestionsByCategory("${category}") called`);
   
   // Handle Custom category - load from custom questions service
   if (category === 'Custom') {
-    console.log(`🔍 Loading custom questions...`);
+    logger.log(`🔍 Loading custom questions...`);
     try {
       const customQuestionService = CustomQuestionService.getInstance();
       const customQuestions = await customQuestionService.getAllCustomQuestions();
@@ -55,10 +56,10 @@ export const getQuestionsByCategory = async (category: string): Promise<GameQues
         }))
       }));
       
-      console.log(`🔍 Found ${gameQuestions.length} custom questions`);
+      logger.log(`🔍 Found ${gameQuestions.length} custom questions`);
       return gameQuestions;
     } catch (error) {
-      console.error(`❌ Error loading custom questions:`, error);
+      logger.error(`❌ Error loading custom questions:`, error);
       return [];
     }
   }
@@ -66,21 +67,21 @@ export const getQuestionsByCategory = async (category: string): Promise<GameQues
   // Handle regular categories
   // Add safety check for sampleQuestions
   if (!sampleQuestions || !Array.isArray(sampleQuestions)) {
-    console.error(`❌ sampleQuestions is not available or not an array`);
+    logger.error(`❌ sampleQuestions is not available or not an array`);
     return [];
   }
   
-  console.log(`🔍 Total questions in data: ${sampleQuestions.length}`);
-  console.log(`🔍 Available categories:`, [...new Set(sampleQuestions.map(q => q.category))]);
+  logger.log(`🔍 Total questions in data: ${sampleQuestions.length}`);
+  logger.log(`🔍 Available categories:`, [...new Set(sampleQuestions.map(q => q.category))]);
   
   const filteredQuestions = sampleQuestions.filter(question => question.category === category);
   
-  console.log(`🔍 Found ${filteredQuestions.length} questions for "${category}":`);
+  logger.log(`🔍 Found ${filteredQuestions.length} questions for "${category}":`);
   filteredQuestions.forEach((q, index) => {
-    console.log(`   ${index + 1}. ${q.title}`);
+    logger.log(`   ${index + 1}. ${q.title}`);
   });
   
-  console.log(`🔍 DEBUG: Category filtering details:`, {
+  logger.log(`🔍 DEBUG: Category filtering details:`, {
     requestedCategory: category,
     totalQuestions: sampleQuestions.length,
     filteredCount: filteredQuestions.length,
@@ -97,13 +98,13 @@ export const getQuestionsByCategory = async (category: string): Promise<GameQues
 export const getRandomQuestion = async (category?: string): Promise<GameQuestion> => {
   // Add safety check for sampleQuestions
   if (!sampleQuestions || !Array.isArray(sampleQuestions)) {
-    console.error(`❌ sampleQuestions is not available or not an array`);
+    logger.error(`❌ sampleQuestions is not available or not an array`);
     return {} as GameQuestion; // Return empty object as fallback
   }
   
   const questions = category ? await getQuestionsByCategory(category) : sampleQuestions;
   if (questions.length === 0) {
-    console.error(`❌ No questions found for category: ${category}`);
+    logger.error(`❌ No questions found for category: ${category}`);
     return sampleQuestions[0] || {} as GameQuestion; // Fallback
   }
   const randomIndex = Math.floor(Math.random() * questions.length);
@@ -116,7 +117,7 @@ export const getRandomQuestion = async (category?: string): Promise<GameQuestion
 export const getCategories = (): string[] => {
   // Add safety check for sampleQuestions
   if (!sampleQuestions || !Array.isArray(sampleQuestions)) {
-    console.error(`❌ sampleQuestions is not available or not an array`);
+    logger.error(`❌ sampleQuestions is not available or not an array`);
     return [];
   }
   
@@ -186,15 +187,15 @@ export const validateAnswer = (userAnswer: string, correctAnswers: QuestionAnswe
     return { isCorrect: false };
   }
   
-  console.log(`🔍 Validating: "${userAnswer}"`);
+  logger.log(`🔍 Validating: "${userAnswer}"`);
   
   // Use enhanced fuzzy matching
   const result = validateAnswerFuzzy(userAnswer, correctAnswers);
   
   if (result.isCorrect) {
-    console.log(`✅ MATCH: "${userAnswer}" -> "${result.officialAnswer}" (confidence: ${result.confidence}, similarity: ${result.similarity.toFixed(3)})`);
+    logger.log(`✅ MATCH: "${userAnswer}" -> "${result.officialAnswer}" (confidence: ${result.confidence}, similarity: ${result.similarity.toFixed(3)})`);
   } else {
-    console.log(`❌ NO MATCH: "${userAnswer}" (best similarity: ${result.similarity.toFixed(3)})`);
+    logger.log(`❌ NO MATCH: "${userAnswer}" (best similarity: ${result.similarity.toFixed(3)})`);
   }
   
   return {
@@ -241,10 +242,10 @@ export const getAnswerSuggestions = (partialInput: string, correctAnswers: Quest
  */
 export const submitUserQuestion = async (questionData: UserQuestionData): Promise<boolean> => {
   try {
-    console.log('User question submitted:', questionData);
+    logger.log('User question submitted:', questionData);
     return true;
   } catch (error) {
-    console.error('Error submitting user question:', error);
+    logger.error('Error submitting user question:', error);
     return false;
   }
 };
@@ -255,7 +256,7 @@ export const submitUserQuestion = async (questionData: UserQuestionData): Promis
 export const getQuestionStats = async (category?: string) => {
   // Add safety check for sampleQuestions
   if (!sampleQuestions || !Array.isArray(sampleQuestions)) {
-    console.error(`❌ sampleQuestions is not available or not an array`);
+    logger.error(`❌ sampleQuestions is not available or not an array`);
     return {
       totalQuestions: 0,
       categories: [],
@@ -283,7 +284,7 @@ export const getQuestionStats = async (category?: string) => {
 export const getQuestionsByDifficulty = async (difficulty: 'easy' | 'medium' | 'hard', category?: string): Promise<GameQuestion[]> => {
   // Add safety check for sampleQuestions
   if (!sampleQuestions || !Array.isArray(sampleQuestions)) {
-    console.error(`❌ sampleQuestions is not available or not an array`);
+    logger.error(`❌ sampleQuestions is not available or not an array`);
     return [];
   }
   
@@ -313,7 +314,7 @@ export const shuffleQuestions = (questions: GameQuestion[]): GameQuestion[] => {
  * This is the key migration function for data structure unification
  */
 export const normalizeQuestion = (legacyQuestion: LegacyQuestion | GameQuestion): Question => {
-  console.log(`🔄 NORMALIZE_QUESTION: Converting question "${'text' in legacyQuestion ? legacyQuestion.text : ('title' in legacyQuestion ? legacyQuestion.title : 'Unknown')}"`);
+  logger.log(`🔄 NORMALIZE_QUESTION: Converting question "${'text' in legacyQuestion ? legacyQuestion.text : ('title' in legacyQuestion ? legacyQuestion.title : 'Unknown')}"`);
   
   // Handle GameQuestion format (already has QuestionAnswer[])
   if ('answers' in legacyQuestion && Array.isArray(legacyQuestion.answers) && legacyQuestion.answers.length > 0) {
@@ -321,7 +322,7 @@ export const normalizeQuestion = (legacyQuestion: LegacyQuestion | GameQuestion)
     
     // Check if it's already in Answer format
     if (typeof firstAnswer === 'object' && 'text' in firstAnswer && 'rank' in firstAnswer) {
-      console.log(`✅ NORMALIZE_QUESTION: Already in Answer format`);
+      logger.log(`✅ NORMALIZE_QUESTION: Already in Answer format`);
       return {
         id: legacyQuestion.id,
         text: 'text' in legacyQuestion ? legacyQuestion.text : ('title' in legacyQuestion ? legacyQuestion.title : 'Unknown'),
@@ -338,7 +339,7 @@ export const normalizeQuestion = (legacyQuestion: LegacyQuestion | GameQuestion)
     
     // Check if it's QuestionAnswer format (needs conversion)
     if (typeof firstAnswer === 'object' && 'text' in firstAnswer && 'points' in firstAnswer) {
-      console.log(`🔄 NORMALIZE_QUESTION: Converting from QuestionAnswer format`);
+      logger.log(`🔄 NORMALIZE_QUESTION: Converting from QuestionAnswer format`);
       const answers: Answer[] = (legacyQuestion.answers as QuestionAnswer[]).map((qa, index) => ({
         id: `${legacyQuestion.id}_answer_${index}`,
         text: qa.text,
@@ -358,7 +359,7 @@ export const normalizeQuestion = (legacyQuestion: LegacyQuestion | GameQuestion)
   
   // Handle string[] format (legacy)
   if (Array.isArray(legacyQuestion.answers) && typeof legacyQuestion.answers[0] === 'string') {
-    console.log(`🔄 NORMALIZE_QUESTION: Converting from string[] format`);
+    logger.log(`🔄 NORMALIZE_QUESTION: Converting from string[] format`);
     const answers: Answer[] = (legacyQuestion.answers as string[]).map((answerText, index) => ({
       id: `${legacyQuestion.id}_answer_${index}`,
       text: answerText,
@@ -376,7 +377,7 @@ export const normalizeQuestion = (legacyQuestion: LegacyQuestion | GameQuestion)
   }
   
   // Fallback: create empty question
-  console.warn(`⚠️ NORMALIZE_QUESTION: Unknown format, creating empty question`);
+  logger.warn(`⚠️ NORMALIZE_QUESTION: Unknown format, creating empty question`);
   return {
     id: legacyQuestion.id || `question_${Date.now()}`,
     text: ('text' in legacyQuestion ? legacyQuestion.text : ('title' in legacyQuestion ? legacyQuestion.title : 'Unknown')) || 'Unknown Question',
@@ -431,7 +432,7 @@ export const safeToLower = (s?: string): string => {
  */
 export const assertQuestionShape = (question: any): Question => {
   if (!question || typeof question !== 'object') {
-    console.warn('⚠️ ASSERT_QUESTION_SHAPE: Invalid question object, creating fallback');
+    logger.warn('⚠️ ASSERT_QUESTION_SHAPE: Invalid question object, creating fallback');
     return {
       id: `fallback_${Date.now()}`,
       text: 'Invalid Question',
@@ -452,7 +453,7 @@ export const assertQuestionShape = (question: any): Question => {
   
   // Validate answers array
   if (!Array.isArray(normalizedQuestion.answers)) {
-    console.warn('⚠️ ASSERT_QUESTION_SHAPE: Invalid answers array, using empty array');
+    logger.warn('⚠️ ASSERT_QUESTION_SHAPE: Invalid answers array, using empty array');
     normalizedQuestion.answers = [];
   }
   
@@ -474,4 +475,4 @@ export const assertQuestionShape = (question: any): Question => {
 };
 
 // Log normalization system initialization
-console.log('🔄 Question normalization system initialized');
+logger.log('🔄 Question normalization system initialized');

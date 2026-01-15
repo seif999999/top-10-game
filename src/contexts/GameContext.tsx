@@ -2,6 +2,7 @@ import React, { createContext, useContext, useReducer, useEffect, useCallback } 
 import { startNewGame, processAnswer, nextQuestion, generateGameResults, isQuestionComplete as checkQuestionComplete } from '../services/gameLogic';
 import { GameState, GameResults, PlayerAnswer, GameQuestion } from '../types';
 import { Team, TeamGameState, TeamSetupConfig, TEAM_COLORS } from '../types/teams';
+import { logger } from '../utils/logger';
 
 export type GamePhase = 'lobby' | 'question' | 'answered' | 'results' | 'finished';
 
@@ -50,7 +51,7 @@ const gameReducer = (state: GameContextState, action: GameAction): GameContextSt
     case 'START_GAME_SUCCESS':
       try {
         const { gameState: newGameState } = action.payload;
-        console.log(`🎮 START_GAME_SUCCESS - New game state created:`, {
+        logger.log(`🎮 START_GAME_SUCCESS - New game state created:`, {
           category: newGameState.category,
           totalRounds: newGameState.totalRounds,
           currentQuestion: newGameState.currentQuestion?.title,
@@ -66,7 +67,7 @@ const gameReducer = (state: GameContextState, action: GameAction): GameContextSt
           error: null
         };
       } catch (error) {
-        console.error(`❌ START_GAME_SUCCESS error:`, error);
+        logger.error(`❌ START_GAME_SUCCESS error:`, error);
         return {
           ...state,
           error: 'Failed to start game'
@@ -83,10 +84,10 @@ const gameReducer = (state: GameContextState, action: GameAction): GameContextSt
       try {
         if (!state.gameState) throw new Error('No active game');
 
-        console.log(`\n📝 SUBMIT_ANSWER ACTION:`);
-        console.log(`   Player: ${action.payload.playerId}`);
-        console.log(`   Answer: "${action.payload.answer}"`);
-        console.log(`   Current scores before:`, state.gameState.scores);
+        logger.log(`\n📝 SUBMIT_ANSWER ACTION:`);
+        logger.log(`   Player: ${action.payload.playerId}`);
+        logger.log(`   Answer: "${action.payload.answer}"`);
+        logger.log(`   Current scores before:`, state.gameState.scores);
 
         const { playerId, answer } = action.payload;
         const { updatedState, answerResult } = processAnswer(
@@ -95,9 +96,9 @@ const gameReducer = (state: GameContextState, action: GameAction): GameContextSt
           answer
         );
 
-        console.log('🔄 SUBMIT_ANSWER - Updated scores:', updatedState.scores);
-        console.log('🔄 SUBMIT_ANSWER - Answer result:', answerResult);
-        console.log('🔄 SUBMIT_ANSWER - Game phase after update:', updatedState.gamePhase);
+        logger.log('🔄 SUBMIT_ANSWER - Updated scores:', updatedState.scores);
+        logger.log('🔄 SUBMIT_ANSWER - Answer result:', answerResult);
+        logger.log('🔄 SUBMIT_ANSWER - Game phase after update:', updatedState.gamePhase);
 
         return {
           ...state,
@@ -106,7 +107,7 @@ const gameReducer = (state: GameContextState, action: GameAction): GameContextSt
           suggestions: []
         };
       } catch (error) {
-        console.error('❌ SUBMIT_ANSWER Error:', error);
+        logger.error('❌ SUBMIT_ANSWER Error:', error);
         return {
           ...state,
           error: 'Failed to submit answer'
@@ -164,9 +165,9 @@ const gameReducer = (state: GameContextState, action: GameAction): GameContextSt
     case 'START_TEAMS_GAME_SUCCESS':
       try {
         const { gameState: newGameState, config } = action.payload;
-        console.log(`🎮 START_TEAMS_GAME_SUCCESS action - Category: ${newGameState.category}, Config:`, config);
+        logger.log(`🎮 START_TEAMS_GAME_SUCCESS action - Category: ${newGameState.category}, Config:`, config);
         
-        console.log(`🎮 START_TEAMS_GAME_SUCCESS - Game state created:`, {
+        logger.log(`🎮 START_TEAMS_GAME_SUCCESS - Game state created:`, {
           category: newGameState.category,
           totalRounds: newGameState.totalRounds,
           currentQuestion: newGameState.currentQuestion?.title,
@@ -176,7 +177,7 @@ const gameReducer = (state: GameContextState, action: GameAction): GameContextSt
         newGameState.gamePhase = 'question';
         
         // Create teams
-        console.log(`🎮 Creating teams from config:`, {
+        logger.log(`🎮 Creating teams from config:`, {
           numberOfTeams: config.numberOfTeams,
           teamNamesLength: config.teamNames.length,
           teamNames: config.teamNames
@@ -189,7 +190,7 @@ const gameReducer = (state: GameContextState, action: GameAction): GameContextSt
           score: 0,
         }));
         
-        console.log(`🎮 Created ${teams.length} teams:`, teams.map(t => ({ id: t.id, name: t.name })));
+        logger.log(`🎮 Created ${teams.length} teams:`, teams.map(t => ({ id: t.id, name: t.name })));
 
         const teamGameState: TeamGameState = {
           teams,
@@ -213,7 +214,7 @@ const gameReducer = (state: GameContextState, action: GameAction): GameContextSt
           error: null,
         };
       } catch (error) {
-        console.error(`❌ START_TEAMS_GAME error:`, error);
+        logger.error(`❌ START_TEAMS_GAME error:`, error);
         return {
           ...state,
           error: 'Failed to start team game'
@@ -236,14 +237,14 @@ const gameReducer = (state: GameContextState, action: GameAction): GameContextSt
         // Record assignment
         updatedTeamGameState.answerAssignments[answerIndex] = { teamId, points };
         
-        console.log(`🎯 Answer ${answerIndex} assigned to team ${teamId} for ${points} points`);
+        logger.log(`🎯 Answer ${answerIndex} assigned to team ${teamId} for ${points} points`);
         
         return {
           ...state,
           teamGameState: updatedTeamGameState,
         };
       } catch (error) {
-        console.error('❌ ASSIGN_ANSWER_TO_TEAM Error:', error);
+        logger.error('❌ ASSIGN_ANSWER_TO_TEAM Error:', error);
         return {
           ...state,
           error: 'Failed to assign answer to team'
@@ -268,14 +269,14 @@ const gameReducer = (state: GameContextState, action: GameAction): GameContextSt
         updatedTeamGameState.timeRemaining = updatedTeamGameState.roundTimerSeconds;
         updatedTeamGameState.isTurnActive = true;
         
-        console.log(`🔄 Turn ended, now team ${updatedTeamGameState.currentTeamIndex + 1}'s turn`);
+        logger.log(`🔄 Turn ended, now team ${updatedTeamGameState.currentTeamIndex + 1}'s turn`);
         
         return {
           ...state,
           teamGameState: updatedTeamGameState,
         };
       } catch (error) {
-        console.error('❌ END_TEAM_TURN Error:', error);
+        logger.error('❌ END_TEAM_TURN Error:', error);
         return {
           ...state,
           error: 'Failed to end team turn'
@@ -306,7 +307,7 @@ const gameReducer = (state: GameContextState, action: GameAction): GameContextSt
           teamGameState: updatedTeamGameState,
         };
       } catch (error) {
-        console.error('❌ SET_TEAM_TIMER Error:', error);
+        logger.error('❌ SET_TEAM_TIMER Error:', error);
         return {
           ...state,
           error: 'Failed to update team timer'
@@ -372,7 +373,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
       const newGameState = await startNewGame(category, players, selectedQuestion ? 1 : 10, selectedQuestion);
       dispatch({ type: 'START_GAME_SUCCESS', payload: { gameState: newGameState } });
     } catch (error) {
-      console.error('❌ Error starting game:', error);
+      logger.error('❌ Error starting game:', error);
       dispatch({ type: 'SET_ERROR', payload: 'Failed to start game' });
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
@@ -407,8 +408,8 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
   const getPlayerScore = useCallback((playerId: string): number => {
     if (!state.gameState || !state.gameState.scores) return 0;
     const score = state.gameState.scores[playerId] || 0;
-    console.log(`📊 getPlayerScore(${playerId}): ${score}`);
-    console.log(`📊 All scores:`, state.gameState.scores);
+    logger.log(`📊 getPlayerScore(${playerId}): ${score}`);
+    logger.log(`📊 All scores:`, state.gameState.scores);
     return score;
   }, [state.gameState]);
 
@@ -456,7 +457,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
       const newGameState = await startNewGame(category, ['Host'], selectedQuestion ? 1 : 10, selectedQuestion);
       dispatch({ type: 'START_TEAMS_GAME_SUCCESS', payload: { gameState: newGameState, config } });
     } catch (error) {
-      console.error('❌ Error starting team game:', error);
+      logger.error('❌ Error starting team game:', error);
       dispatch({ type: 'SET_ERROR', payload: 'Failed to start team game' });
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });

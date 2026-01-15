@@ -18,6 +18,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { COLORS, SPACING, TYPOGRAPHY, ANIMATIONS, COMPONENT_STYLES } from '../design-system';
 import { getQuestionsByCategory } from '../services/questionsService';
 import { useMultiplayer } from '../contexts/MultiplayerContext';
+import { logger } from '../utils/logger';
 
 const MultiplayerQuestionsScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -54,7 +55,7 @@ const MultiplayerQuestionsScreen: React.FC = () => {
   // Animation values
   const backButtonScale = useRef(new Animated.Value(1)).current;
   
-  console.log('🎯 MultiplayerQuestionsScreen loaded with category:', categoryName);
+  logger.log('🎯 MultiplayerQuestionsScreen loaded with category:', categoryName);
 
   useEffect(() => {
     loadQuestions();
@@ -62,7 +63,7 @@ const MultiplayerQuestionsScreen: React.FC = () => {
 
   useEffect(() => {
     if (error) {
-      console.error('Multiplayer error:', error);
+      logger.error('Multiplayer error:', error);
       clearError();
     }
   }, [error, clearError]);
@@ -73,14 +74,14 @@ const MultiplayerQuestionsScreen: React.FC = () => {
       const categoryQuestions = await getQuestionsByCategory(categoryName);
       setQuestionsState(categoryQuestions);
     } catch (error) {
-      console.error('Error loading questions:', error);
+      logger.error('Error loading questions:', error);
     } finally {
       setLoadingQuestions(false);
     }
   };
 
   const handleQuestionSelect = (question: any) => {
-    console.log('🎯 Question selected:', question.title);
+    logger.log('🎯 Question selected:', question.title);
     setSelectedQuestion(question);
     setQuestions([question] as any); // Type assertion for now
   };

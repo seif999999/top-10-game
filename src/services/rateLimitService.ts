@@ -1,6 +1,8 @@
 import { collection, doc, getDoc, setDoc, updateDoc, serverTimestamp, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { db } from './firebase';
 import SecurityMonitoringService from './securityMonitoringService';
+import { logger } from '../utils/logger';
+import { COLLECTIONS } from '../utils/constants';
 
 export interface RateLimitConfig {
   maxAttempts: number;
@@ -44,7 +46,7 @@ export interface ActionRateLimits {
  * Prevents spam, abuse, and potential attacks
  */
 export class RateLimitService {
-  private static readonly RATE_LIMIT_COLLECTION = 'rateLimits';
+  private static readonly RATE_LIMIT_COLLECTION = COLLECTIONS.RATE_LIMITS;
   private static readonly ACTION_LOGS_COLLECTION = 'actionLogs';
   
   // Rate limit configurations for different actions
@@ -149,7 +151,7 @@ export class RateLimitService {
               },
             });
           } catch (logError) {
-            console.error('Failed to log rate limit security event:', logError);
+            logger.error('Failed to log rate limit security event:', logError);
           }
 
           return {
@@ -182,7 +184,7 @@ export class RateLimitService {
         resetTime
       };
     } catch (error) {
-      console.error('Rate limit check error:', error);
+      logger.error('Rate limit check error:', error);
       // On error, allow the action but log it
       return {
         allowed: true,
@@ -210,7 +212,7 @@ export class RateLimitService {
       // Log the action
       await this.logAction(userId, actionType, metadata);
     } catch (error) {
-      console.error('Record action error:', error);
+      logger.error('Record action error:', error);
     }
   }
 
@@ -258,7 +260,7 @@ export class RateLimitService {
         return newEntry;
       }
     } catch (error) {
-      console.error('Get or create rate limit entry error:', error);
+      logger.error('Get or create rate limit entry error:', error);
       // Return default entry on error
       return {
         userId,
@@ -294,7 +296,7 @@ export class RateLimitService {
       
       await updateDoc(docRef, updateData);
     } catch (error) {
-      console.error('Update rate limit entry error:', error);
+      logger.error('Update rate limit entry error:', error);
     }
   }
 
@@ -321,7 +323,7 @@ export class RateLimitService {
       
       await setDoc(docRef, updateData, { merge: true });
     } catch (error) {
-      console.error('Increment rate limit entry error:', error);
+      logger.error('Increment rate limit entry error:', error);
     }
   }
 
@@ -347,7 +349,7 @@ export class RateLimitService {
         }
       });
     } catch (error) {
-      console.error('Log action error:', error);
+      logger.error('Log action error:', error);
     }
   }
 
@@ -383,7 +385,7 @@ export class RateLimitService {
         };
       }
     } catch (error) {
-      console.error('Get rate limit status error:', error);
+      logger.error('Get rate limit status error:', error);
       return {
         allowed: true,
         remainingAttempts: 0,
@@ -417,7 +419,7 @@ export class RateLimitService {
         }
       }
     } catch (error) {
-      console.error('Reset rate limits error:', error);
+      logger.error('Reset rate limits error:', error);
     }
   }
 
@@ -460,7 +462,7 @@ export class RateLimitService {
       // Filter for suspicious patterns (more than 50 actions in the time window)
       return Object.values(suspiciousActivities).filter(activity => activity.count > 50);
     } catch (error) {
-      console.error('Get suspicious activity error:', error);
+      logger.error('Get suspicious activity error:', error);
       return [];
     }
   }
@@ -475,9 +477,9 @@ export class RateLimitService {
       
       // This would require batch operations in a real implementation
       // For now, we'll just log the cleanup action
-      console.log(`Cleaning up rate limit entries older than ${olderThanDays} days`);
+      logger.log(`Cleaning up rate limit entries older than ${olderThanDays} days`);
     } catch (error) {
-      console.error('Cleanup old entries error:', error);
+      logger.error('Cleanup old entries error:', error);
     }
   }
 }

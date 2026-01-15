@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, TYPOGRAPHY, ANIMATIONS, COMPONENT_STYLES } from '../design-system';
+import { logger } from '../utils/logger';
 import { QuestionSelectionScreenProps } from '../types/navigation';
 import { getQuestionsByCategory } from '../services/questionsService';
 import { FEATURES } from '../config/featureFlags';
@@ -30,8 +31,8 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
   // Animation values
   const backButtonScale = useRef(new Animated.Value(1)).current;
   
-  console.log('🎯 QuestionSelectionScreen loaded with params:', route.params);
-  console.log('🎯 Category name:', categoryName);
+  logger.log('🎯 QuestionSelectionScreen loaded with params:', route.params);
+  logger.log('🎯 Category name:', categoryName);
 
   useEffect(() => {
     loadQuestions();
@@ -43,14 +44,14 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
       const categoryQuestions = await getQuestionsByCategory(categoryName);
       setQuestions(categoryQuestions);
     } catch (error) {
-      console.error('Error loading questions:', error);
+      logger.error('Error loading questions:', error);
     } finally {
       setLoading(false);
     }
   };
 
   const handleQuestionSelect = (question: any) => {
-    console.log('🎯 Question selected:', question.title);
+    logger.log('🎯 Question selected:', question.title);
     
     if (gameMode === 'multiplayer') {
       // For multiplayer, generate room ID and navigate to GameScreen
@@ -82,7 +83,7 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
 
   const handleTeamSetupStart = (config: TeamSetupConfig) => {
     try {
-      console.log('🎮 Starting team game with config:', config);
+      logger.log('🎮 Starting team game with config:', config);
       
       if (!selectedQuestion) {
         Alert.alert('Error', 'No question selected');
@@ -102,7 +103,7 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
       // Close the modal
       setShowTeamSetup(false);
     } catch (error) {
-      console.error('Error starting team game:', error);
+      logger.error('Error starting team game:', error);
       Alert.alert('Error', 'Failed to start team game. Please try again.');
     }
   };

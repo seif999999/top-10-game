@@ -13,6 +13,7 @@ import {
 import { COLORS, SPACING, TYPOGRAPHY } from '../design-system';
 import { RESPONSIVE } from '../utils/responsive';
 import { TeamSetupConfig, TEAM_COLORS, ROUND_TIMER_OPTIONS } from '../types/teams';
+import { logger } from '../utils/logger';
 
 interface TeamSetupModalProps {
   visible: boolean;
@@ -30,8 +31,8 @@ const TeamSetupModal: React.FC<TeamSetupModalProps> = ({
   const [roundTimer, setRoundTimer] = useState(60);
 
   const handleNumberOfTeamsChange = (value: number) => {
-    console.log(`🎮 TeamSetupModal: Changing numberOfTeams from ${numberOfTeams} to ${value}`);
-    console.log(`🎮 Current teamNames:`, teamNames);
+    logger.log(`🎮 TeamSetupModal: Changing numberOfTeams from ${numberOfTeams} to ${value}`);
+    logger.log(`🎮 Current teamNames:`, teamNames);
     
     // Ensure value is within bounds (1-4)
     const clampedValue = Math.max(1, Math.min(4, value));
@@ -43,7 +44,7 @@ const TeamSetupModal: React.FC<TeamSetupModalProps> = ({
       for (let i = teamNames.length; i < clampedValue; i++) {
         newTeamNames.push(`Team ${i + 1}`);
       }
-      console.log(`🎮 Updated teamNames:`, newTeamNames);
+      logger.log(`🎮 Updated teamNames:`, newTeamNames);
       setTeamNames(newTeamNames);
     }
   };
@@ -56,7 +57,7 @@ const TeamSetupModal: React.FC<TeamSetupModalProps> = ({
 
   const handleStartGame = () => {
     try {
-      console.log('🎮 TeamSetupModal: Starting team game with config:', {
+      logger.log('🎮 TeamSetupModal: Starting team game with config:', {
         numberOfTeams,
         teamNames: teamNames.slice(0, numberOfTeams),
         roundTimer,
@@ -65,7 +66,7 @@ const TeamSetupModal: React.FC<TeamSetupModalProps> = ({
 
       // Validate team names
       const validTeamNames = teamNames.slice(0, numberOfTeams).filter(name => name.trim() !== '');
-      console.log(`🎮 TeamSetupModal validation:`, {
+      logger.log(`🎮 TeamSetupModal validation:`, {
         numberOfTeams,
         originalTeamNames: teamNames,
         slicedTeamNames: teamNames.slice(0, numberOfTeams),
@@ -88,12 +89,12 @@ const TeamSetupModal: React.FC<TeamSetupModalProps> = ({
 
       onStartGame(config);
     } catch (error) {
-      console.error('❌ TeamSetupModal: Error starting team game:', error);
+      logger.error('❌ TeamSetupModal: Error starting team game:', error);
       Alert.alert('Error', 'Failed to start team game. Please try again.');
     }
   };
 
-  console.log('🎮 TeamSetupModal: Rendering with visible =', visible);
+  logger.log('🎮 TeamSetupModal: Rendering with visible =', visible);
 
   return (
     <Modal

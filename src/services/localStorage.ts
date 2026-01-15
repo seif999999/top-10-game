@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { logger } from '../utils/logger';
 
 export interface GameStats {
   userId: string;
@@ -56,7 +57,7 @@ export const saveGameStats = async (userId: string, gameResults: any): Promise<v
     
     await AsyncStorage.setItem(STORAGE_KEYS.GAME_STATS, JSON.stringify(allStats));
   } catch (error) {
-    console.error('Error saving game stats:', error);
+    logger.error('Error saving game stats:', error);
   }
 };
 
@@ -78,7 +79,7 @@ export const getPlayerStats = async (userId: string): Promise<GameStats> => {
       lastPlayedDate: ''
     };
   } catch (error) {
-    console.error('Error getting player stats:', error);
+    logger.error('Error getting player stats:', error);
     return {
       userId,
       totalGames: 0,
@@ -101,7 +102,7 @@ export const getAllGameStats = async (): Promise<{[userId: string]: GameStats}> 
     const stats = await AsyncStorage.getItem(STORAGE_KEYS.GAME_STATS);
     return stats ? JSON.parse(stats) : {};
   } catch (error) {
-    console.error('Error getting all game stats:', error);
+    logger.error('Error getting all game stats:', error);
     return {};
   }
 };
@@ -119,7 +120,7 @@ export const saveFavoriteCategories = async (userId: string, categories: string[
     
     await AsyncStorage.setItem(STORAGE_KEYS.GAME_STATS, JSON.stringify(allStats));
   } catch (error) {
-    console.error('Error saving favorite categories:', error);
+    logger.error('Error saving favorite categories:', error);
   }
 };
 
@@ -131,7 +132,7 @@ export const getCachedQuestions = async (category: string): Promise<any[]> => {
     const cached = await AsyncStorage.getItem(`questions_${category}`);
     return cached ? JSON.parse(cached) : [];
   } catch (error) {
-    console.error('Error getting cached questions:', error);
+    logger.error('Error getting cached questions:', error);
     return [];
   }
 };
@@ -143,7 +144,7 @@ export const cacheQuestions = async (category: string, questions: any[]): Promis
   try {
     await AsyncStorage.setItem(`questions_${category}`, JSON.stringify(questions));
   } catch (error) {
-    console.error('Error caching questions:', error);
+    logger.error('Error caching questions:', error);
   }
 };
 
@@ -163,7 +164,7 @@ export const saveGameHistory = async (userId: string, gameHistory: GameHistory):
     
     await AsyncStorage.setItem(STORAGE_KEYS.GAME_HISTORY, JSON.stringify(allHistory));
   } catch (error) {
-    console.error('Error saving game history:', error);
+    logger.error('Error saving game history:', error);
   }
 };
 
@@ -175,7 +176,7 @@ export const getGameHistory = async (userId: string): Promise<GameHistory[]> => 
     const allHistory = await getAllGameHistory();
     return allHistory[userId] || [];
   } catch (error) {
-    console.error('Error getting game history:', error);
+    logger.error('Error getting game history:', error);
     return [];
   }
 };
@@ -188,7 +189,7 @@ export const getAllGameHistory = async (): Promise<{[userId: string]: GameHistor
     const history = await AsyncStorage.getItem(STORAGE_KEYS.GAME_HISTORY);
     return history ? JSON.parse(history) : {};
   } catch (error) {
-    console.error('Error getting all game history:', error);
+    logger.error('Error getting all game history:', error);
     return {};
   }
 };
@@ -203,7 +204,7 @@ export const saveUserPreferences = async (userId: string, preferences: any): Pro
     
     await AsyncStorage.setItem(STORAGE_KEYS.USER_PREFERENCES, JSON.stringify(allPreferences));
   } catch (error) {
-    console.error('Error saving user preferences:', error);
+    logger.error('Error saving user preferences:', error);
   }
 };
 
@@ -220,7 +221,7 @@ export const getUserPreferences = async (userId: string): Promise<any> => {
       theme: 'dark'
     };
   } catch (error) {
-    console.error('Error getting user preferences:', error);
+    logger.error('Error getting user preferences:', error);
     return {
       soundEnabled: true,
       hapticEnabled: true,
@@ -238,7 +239,7 @@ export const getAllUserPreferences = async (): Promise<{[userId: string]: any}> 
     const preferences = await AsyncStorage.getItem(STORAGE_KEYS.USER_PREFERENCES);
     return preferences ? JSON.parse(preferences) : {};
   } catch (error) {
-    console.error('Error getting all user preferences:', error);
+    logger.error('Error getting all user preferences:', error);
     return {};
   }
 };
@@ -260,7 +261,7 @@ export const clearUserData = async (userId: string): Promise<void> => {
     delete allPreferences[userId];
     await AsyncStorage.setItem(STORAGE_KEYS.USER_PREFERENCES, JSON.stringify(allPreferences));
   } catch (error) {
-    console.error('Error clearing user data:', error);
+    logger.error('Error clearing user data:', error);
   }
 };
 
@@ -276,6 +277,6 @@ export const clearAllCachedData = async (): Promise<void> => {
       STORAGE_KEYS.USER_PREFERENCES
     ]);
   } catch (error) {
-    console.error('Error clearing all cached data:', error);
+    logger.error('Error clearing all cached data:', error);
   }
 };

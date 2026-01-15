@@ -1,6 +1,7 @@
 import { InputValidator } from '../utils/inputValidator';
 import { ExternalModerationService } from './externalModerationService';
 import { ModerationLoggingService } from './moderationLoggingService';
+import { logger } from '../utils/logger';
 
 export interface ModerationResult {
   approved: boolean;
@@ -157,7 +158,7 @@ export class ContentModerationService {
 
       return this.createModerationResult(true, undefined, 1.0);
     } catch (error) {
-      console.error('Content moderation error:', error);
+      logger.error('Content moderation error:', error);
       
       // Log error
       const errorLogEntry = {
@@ -403,7 +404,7 @@ export class ContentModerationService {
     this.moderationLogs.push(log);
     
     // In production, this would be sent to a logging service
-    console.log('Content moderation log:', {
+    logger.log('Content moderation log:', {
       id: log.id,
       userId: log.userId,
       contentType: log.contentType,

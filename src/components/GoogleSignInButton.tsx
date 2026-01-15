@@ -3,6 +3,7 @@ import { TouchableOpacity, Text, StyleSheet, Alert, ActivityIndicator, View } fr
 import { useAuth } from '../contexts/AuthContext';
 import { signInWithGoogle as googleAuth } from '../services/googleAuth';
 import { COLORS, SPACING } from '../utils/constants';
+import { logger } from '../utils/logger';
 
 interface GoogleSignInButtonProps {
   onSuccess?: () => void;
@@ -25,19 +26,19 @@ const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
 
     setIsLoading(true);
     try {
-      console.log('🔐 GoogleSignInButton: Starting Google OAuth flow...');
+      logger.log('🔐 GoogleSignInButton: Starting Google OAuth flow...');
       
       // Start Google OAuth flow
       const result = await googleAuth();
       
-      console.log('🔐 GoogleSignInButton: OAuth result:', result ? 'Success' : 'Failed');
+      logger.log('🔐 GoogleSignInButton: OAuth result:', result ? 'Success' : 'Failed');
       
       if (result && result.idToken) {
-        console.log('🔐 GoogleSignInButton: Signing in to Firebase with ID token...');
+        logger.log('🔐 GoogleSignInButton: Signing in to Firebase with ID token...');
         // Sign in to Firebase with the Google ID token
         await signInWithGoogle(result.idToken);
         
-        console.log('✅ GoogleSignInButton: Firebase sign-in successful');
+        logger.log('✅ GoogleSignInButton: Firebase sign-in successful');
         
         // Call success callback
         if (onSuccess) {
@@ -47,7 +48,7 @@ const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
         throw new Error('Google authentication failed - no ID token received');
       }
     } catch (error) {
-      console.error('❌ GoogleSignInButton: Error:', error);
+      logger.error('❌ GoogleSignInButton: Error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Google sign-in failed';
       
       // Call error callback
@@ -58,7 +59,7 @@ const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
         Alert.alert('Sign-In Error', errorMessage);
       }
     } finally {
-      console.log('🔐 GoogleSignInButton: Setting loading to false');
+      logger.log('🔐 GoogleSignInButton: Setting loading to false');
       setIsLoading(false);
     }
   };

@@ -1,5 +1,6 @@
 import { GameState, GameRound, GameQuestion, PlayerAnswer, GameResults } from '../types';
 import { getQuestionsByCategory, shuffleQuestions } from './questionsService';
+import { logger } from '../utils/logger';
 
 // Generate unique game ID
 const generateGameId = (): string => {
@@ -16,7 +17,7 @@ export const isQuestionComplete = (round: GameRound): boolean => {
 export const checkQuestionComplete = (gameState: GameState): boolean => { 
   if (!gameState.currentQuestion) return false;
   
-  console.log(`🔍 checkQuestionComplete - Debug:`, {
+  logger.log(`🔍 checkQuestionComplete - Debug:`, {
     currentRound: gameState.currentRound,
     roundsLength: gameState.rounds?.length,
     rounds: gameState.rounds?.map(r => ({ roundNumber: r.roundNumber, answersCount: r.playerAnswers?.length || 0 }))
@@ -24,12 +25,12 @@ export const checkQuestionComplete = (gameState: GameState): boolean => {
   
   const currentRound = gameState.rounds.find(r => r.roundNumber === gameState.currentRound);
   if (!currentRound || !currentRound.playerAnswers || !Array.isArray(currentRound.playerAnswers)) {
-    console.log(`🔍 No current round found or no player answers`);
+    logger.log(`🔍 No current round found or no player answers`);
     return false;
   }
   
   const isComplete = currentRound.playerAnswers.length >= 10;
-  console.log(`🔍 Question complete check: ${currentRound.playerAnswers.length}/10 answers - ${isComplete ? 'YES' : 'NO'}`);
+  logger.log(`🔍 Question complete check: ${currentRound.playerAnswers.length}/10 answers - ${isComplete ? 'YES' : 'NO'}`);
   
   return isComplete;
 };
@@ -44,14 +45,14 @@ export const processAnswer = (
     throw new Error('Game is not in question phase');
   }
   
-  console.log(`\n🎮 PROCESSING ANSWER:`);
-  console.log(`   Player: ${playerId}`);
-  console.log(`   Answer: "${answer}"`);
-  console.log(`   Question: "${gameState.currentQuestion.title}"`);
+  logger.log(`\n🎮 PROCESSING ANSWER:`);
+  logger.log(`   Player: ${playerId}`);
+  logger.log(`   Answer: "${answer}"`);
+  logger.log(`   Question: "${gameState.currentQuestion.title}"`);
   if (gameState.currentQuestion.answers && Array.isArray(gameState.currentQuestion.answers)) {
-    console.log(`   Available answers:`, gameState.currentQuestion.answers.map(a => `${a.text} (rank: ${a.rank}, points: ${a.points})`));
+    logger.log(`   Available answers:`, gameState.currentQuestion.answers.map(a => `${a.text} (rank: ${a.rank}, points: ${a.points})`));
   } else {
-    console.log(`   Available answers: []`);
+    logger.log(`   Available answers: []`);
   }
   
   // Calculate time taken since round started
@@ -129,13 +130,13 @@ export const processAnswer = (
   }
   updatedState.scores[playerId] += correctAnswer.points;
   
-  console.log(`🎯 Score updated for player ${playerId}: ${updatedState.scores[playerId]}`);
-  console.log(`🎯 Points awarded: ${correctAnswer.points} for answer "${correctAnswer.text}" (rank ${correctAnswer.rank})`);
+  logger.log(`🎯 Score updated for player ${playerId}: ${updatedState.scores[playerId]}`);
+  logger.log(`🎯 Points awarded: ${correctAnswer.points} for answer "${correctAnswer.text}" (rank ${correctAnswer.rank})`);
   
   // Check if all 10 answers have been found
   const currentRound = updatedState.rounds[updatedState.currentRound - 1];
   if (currentRound && currentRound.playerAnswers && currentRound.playerAnswers.length >= 10) {
-    console.log(`🎉 All 10 answers found! Ending game...`);
+    logger.log(`🎉 All 10 answers found! Ending game...`);
     updatedState.gamePhase = 'finished';
   }
   
@@ -144,7 +145,7 @@ export const processAnswer = (
 
 // Generate game results
 export const generateGameResults = (gameState: GameState): GameResults => {
-  console.log(`🎮 generateGameResults called with:`, {
+  logger.log(`🎮 generateGameResults called with:`, {
     hasRounds: !!gameState.rounds,
     roundsLength: gameState.rounds?.length,
     hasPlayers: !!gameState.players,
@@ -154,12 +155,12 @@ export const generateGameResults = (gameState: GameState): GameResults => {
   
   // Handle case where rounds might be empty or undefined
   if (!gameState.rounds || !Array.isArray(gameState.rounds)) {
-    console.log(`⚠️ No rounds found, creating empty rounds array`);
+    logger.log(`⚠️ No rounds found, creating empty rounds array`);
     gameState.rounds = [];
   }
   
   if (!gameState.players || !Array.isArray(gameState.players)) {
-    console.log(`⚠️ No players found, creating default player array`);
+    logger.log(`⚠️ No players found, creating default player array`);
     gameState.players = ['You'];
   }
   
@@ -211,7 +212,7 @@ export const generateGameResults = (gameState: GameState): GameResults => {
     bestAnswer
   };
   
-  console.log(`🎮 Generated game results:`, results);
+  logger.log(`🎮 Generated game results:`, results);
   return results;
 };
 
@@ -226,19 +227,19 @@ export const startNewGame = async (
     throw new Error('Invalid players parameter: must be a non-empty array');
   }
   
-  console.log(`🎮 startNewGame called with category: "${category}", players: ${players}, totalRounds: ${totalRounds}, selectedQuestion: ${selectedQuestion ? 'YES' : 'NO'}`);
+  logger.log(`🎮 startNewGame called with category: "${category}", players: ${players}, totalRounds: ${totalRounds}, selectedQuestion: ${selectedQuestion ? 'YES' : 'NO'}`);
   
   // Get questions for this specific category
   const questions = await getQuestionsByCategory(category);
   if (!questions || !Array.isArray(questions)) {
-    console.error(`❌ Invalid questions returned for category: ${category}`);
+    logger.error(`❌ Invalid questions returned for category: ${category}`);
     throw new Error(`Invalid questions returned for category: ${category}`);
   }
   
-  console.log(`🎮 Found ${questions.length} questions for category "${category}"`);
+  logger.log(`🎮 Found ${questions.length} questions for category "${category}"`);
   
   if (questions.length === 0) {
-    console.error(`❌ No questions found for category: ${category}`);
+    logger.error(`❌ No questions found for category: ${category}`);
     throw new Error(`No questions found for category: ${category}`);
   }
   
@@ -247,7 +248,7 @@ export const startNewGame = async (
   
   if (selectedQuestion) {
     // If a specific question is selected, use it directly
-    console.log(`🎮 Using selected question: "${selectedQuestion.title}"`);
+    logger.log(`🎮 Using selected question: "${selectedQuestion.title}"`);
     currentQuestion = selectedQuestion;
     shuffledQuestions = [selectedQuestion]; // Only one question for single question mode
     totalRounds = 1; // Force single question mode
@@ -255,16 +256,16 @@ export const startNewGame = async (
     // Shuffle questions for random selection mode
     shuffledQuestions = shuffleQuestions(questions);
     if (!shuffledQuestions || !Array.isArray(shuffledQuestions)) {
-      console.error(`❌ Failed to shuffle questions for category: ${category}`);
+      logger.error(`❌ Failed to shuffle questions for category: ${category}`);
       throw new Error(`Failed to shuffle questions for category: ${category}`);
     }
     currentQuestion = shuffledQuestions[0] || null;
-    console.log(`🎮 Shuffled questions for "${category}":`, shuffledQuestions.map(q => q.title));
+    logger.log(`🎮 Shuffled questions for "${category}":`, shuffledQuestions.map(q => q.title));
   }
   
   // Adjust totalRounds to match available questions
   const actualTotalRounds = Math.min(totalRounds, shuffledQuestions.length);
-  console.log(`🎮 Adjusted totalRounds from ${totalRounds} to ${actualTotalRounds}`);
+  logger.log(`🎮 Adjusted totalRounds from ${totalRounds} to ${actualTotalRounds}`);
   
   const gameState: GameState = {
     gameId: generateGameId(),
@@ -283,18 +284,18 @@ export const startNewGame = async (
     roundStartTime: Date.now()
   };
   
-  console.log(`🎮 Game state created successfully`);
+  logger.log(`🎮 Game state created successfully`);
   if (gameState.currentQuestion) {
-    console.log(`🎮 First question: "${gameState.currentQuestion.title}"`);
-    console.log(`🎮 Available answers:`, gameState.currentQuestion.answers.map(a => `${a.text} (rank: ${a.rank}, points: ${a.points})`));
+    logger.log(`🎮 First question: "${gameState.currentQuestion.title}"`);
+    logger.log(`🎮 Available answers:`, gameState.currentQuestion.answers.map(a => `${a.text} (rank: ${a.rank}, points: ${a.points})`));
   } else {
-    console.log(`🎮 First question: null`);
+    logger.log(`🎮 First question: null`);
   }
   
   // Store shuffled questions in a way that doesn't break types
   (gameState as any).shuffledQuestions = shuffledQuestions;
   
-  console.log(`🎮 DEBUG: Stored shuffledQuestions in gameState:`, {
+  logger.log(`🎮 DEBUG: Stored shuffledQuestions in gameState:`, {
     category: gameState.category,
     shuffledQuestionsCount: shuffledQuestions.length,
     firstQuestion: shuffledQuestions[0]?.title,
@@ -381,12 +382,12 @@ export const submitAnswer = (
 
 // Move to the next question
 export const nextQuestion = (gameState: GameState): GameState => {
-  console.log(`🔄 nextQuestion called for round ${gameState.currentRound + 1}`);
+  logger.log(`🔄 nextQuestion called for round ${gameState.currentRound + 1}`);
   
   const updatedState = { ...gameState };
   
   if (updatedState.currentRound >= updatedState.totalRounds) {
-    console.log(`🏁 Game finished - reached max rounds (${updatedState.totalRounds})`);
+    logger.log(`🏁 Game finished - reached max rounds (${updatedState.totalRounds})`);
     updatedState.gamePhase = 'finished';
     return updatedState;
   }
@@ -398,7 +399,7 @@ export const nextQuestion = (gameState: GameState): GameState => {
   
   // Get next question from stored shuffled questions
   const shuffledQuestions = (gameState as any).shuffledQuestions;
-  console.log(`🎮 DEBUG: nextQuestion - Retrieved shuffledQuestions:`, {
+  logger.log(`🎮 DEBUG: nextQuestion - Retrieved shuffledQuestions:`, {
     category: updatedState.category,
     currentRound: updatedState.currentRound,
     shuffledQuestionsCount: shuffledQuestions?.length,
@@ -406,7 +407,7 @@ export const nextQuestion = (gameState: GameState): GameState => {
   });
   
   if (!shuffledQuestions || shuffledQuestions.length === 0) {
-    console.error(`❌ No shuffled questions found for category: ${updatedState.category}`);
+    logger.error(`❌ No shuffled questions found for category: ${updatedState.category}`);
     updatedState.gamePhase = 'finished';
     return updatedState;
   }
@@ -415,18 +416,18 @@ export const nextQuestion = (gameState: GameState): GameState => {
   if (questionIndex >= 0 && questionIndex < shuffledQuestions.length) {
     updatedState.currentQuestion = shuffledQuestions[questionIndex];
   } else {
-    console.error(`❌ Invalid question index: ${questionIndex}, available questions: ${shuffledQuestions.length}`);
+    logger.error(`❌ Invalid question index: ${questionIndex}, available questions: ${shuffledQuestions.length}`);
     updatedState.gamePhase = 'finished';
     return updatedState;
   }
   
-  console.log(`🔄 Next Question - Round ${updatedState.currentRound}, Question Index: ${questionIndex}`);
+  logger.log(`🔄 Next Question - Round ${updatedState.currentRound}, Question Index: ${questionIndex}`);
   if (updatedState.currentQuestion) {
-    console.log(`🔄 Question: "${updatedState.currentQuestion.title}"`);
+    logger.log(`🔄 Question: "${updatedState.currentQuestion.title}"`);
   } else {
-    console.log(`🔄 Question: null`);
+    logger.log(`🔄 Question: null`);
   }
-  console.log(`🔄 Available questions: ${shuffledQuestions.length}`);
+  logger.log(`🔄 Available questions: ${shuffledQuestions.length}`);
   
   return updatedState;
 };

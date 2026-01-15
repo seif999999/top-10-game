@@ -13,6 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, TYPOGRAPHY, ANIMATIONS } from '../design-system';
 import { RESPONSIVE } from '../utils/responsive';
+import { logger } from '../utils/logger';
 import { CategoriesScreenProps } from '../types/navigation';
 
 const { width, height } = Dimensions.get('window');
@@ -116,17 +117,17 @@ const CategoriesCarouselScreen: React.FC<CategoriesScreenProps> = ({ navigation,
   const handleCategoryPress = (category: typeof categories[0]) => {
     setSelectedCategory(category.id);
     
-    console.log('🎯 Category pressed:', category.name);
-    console.log('🎯 Game mode:', gameMode);
+    logger.log('🎯 Category pressed:', category.name);
+    logger.log('🎯 Game mode:', gameMode);
     
     if (gameMode === 'multiplayer') {
       // For multiplayer, navigate to MultiplayerRoom with the selected category
-      console.log('🎯 Navigating to MultiplayerRoom with category:', category.name);
+      logger.log('🎯 Navigating to MultiplayerRoom with category:', category.name);
       
       navigation.navigate('CreateRoom' as never);
     } else {
       // For single player, continue to QuestionSelection
-      console.log('🎯 Navigating to QuestionSelection with params:', {
+      logger.log('🎯 Navigating to QuestionSelection with params:', {
         categoryName: category.name
       });
       

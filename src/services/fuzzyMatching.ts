@@ -1,4 +1,5 @@
 import { distance } from 'fastest-levenshtein';
+import { logger } from '../utils/logger';
 
 /**
  * Enhanced fuzzy matching service for answer validation
@@ -202,7 +203,7 @@ export function normalizeAnswerEnhanced(text: string): string {
     .replace(/\s+/g, ' ')
     .trim();
     
-  console.log(`🔍 NORMALIZE: "${text}" -> "${result}"`);
+  logger.log(`🔍 NORMALIZE: "${text}" -> "${result}"`);
   return result;
 }
 
@@ -305,7 +306,7 @@ export function findBestMatch(
   }
 
   const normalizedUserAnswer = normalizeAnswerEnhanced(userAnswer);
-  console.log(`🔍 FUZZY MATCHING DEBUG:`, {
+  logger.log(`🔍 FUZZY MATCHING DEBUG:`, {
     userAnswer,
     normalizedUserAnswer,
     correctAnswersCount: correctAnswers.length
@@ -317,7 +318,7 @@ export function findBestMatch(
 
   // Get all variations of the user's answer
   const userVariations = getAnswerVariations(userAnswer);
-  console.log(`🔍 USER VARIATIONS:`, userVariations);
+  logger.log(`🔍 USER VARIATIONS:`, userVariations);
 
   for (const answer of correctAnswers) {
     const answerText = typeof answer === 'string' ? answer : answer.text;
@@ -337,12 +338,12 @@ export function findBestMatch(
     
     // Check aliases
     if (answer.aliases && Array.isArray(answer.aliases)) {
-      console.log(`🔍 CHECKING ALIASES for "${answerText}":`, answer.aliases);
+      logger.log(`🔍 CHECKING ALIASES for "${answerText}":`, answer.aliases);
       for (const alias of answer.aliases) {
         const normalizedAlias = normalizeAnswerEnhanced(alias);
-        console.log(`🔍 Alias "${alias}" -> normalized: "${normalizedAlias}" vs user: "${normalizedUserAnswer}"`);
+        logger.log(`🔍 Alias "${alias}" -> normalized: "${normalizedAlias}" vs user: "${normalizedUserAnswer}"`);
         if (normalizedUserAnswer === normalizedAlias) {
-          console.log(`✅ EXACT ALIAS MATCH: "${userAnswer}" -> "${answerText}" via alias "${alias}"`);
+          logger.log(`✅ EXACT ALIAS MATCH: "${userAnswer}" -> "${answerText}" via alias "${alias}"`);
           return {
             isMatch: true,
             matchedAnswer: answer,
@@ -382,7 +383,7 @@ export function findBestMatch(
                                  wordMatch ? Math.max(similarity, bestWordSimilarity * 0.9) : 
                                  similarity;
       
-      console.log(`🔍 FUZZY CHECK: "${variation}" vs "${normalizedAnswer}" -> similarity: ${similarity.toFixed(3)}, contains: ${containsMatch}, wordMatch: ${wordMatch}, effective: ${effectiveSimilarity.toFixed(3)}`);
+      logger.log(`🔍 FUZZY CHECK: "${variation}" vs "${normalizedAnswer}" -> similarity: ${similarity.toFixed(3)}, contains: ${containsMatch}, wordMatch: ${wordMatch}, effective: ${effectiveSimilarity.toFixed(3)}`);
       
       if (effectiveSimilarity > bestSimilarity) {
         bestSimilarity = effectiveSimilarity;
@@ -401,7 +402,7 @@ export function findBestMatch(
           bestConfidence = 'none';
         }
         
-        console.log(`✅ NEW BEST MATCH: "${answerText}" with confidence: ${bestConfidence} (${effectiveSimilarity.toFixed(3)})`);
+        logger.log(`✅ NEW BEST MATCH: "${answerText}" with confidence: ${bestConfidence} (${effectiveSimilarity.toFixed(3)})`);
       }
     }
   }
@@ -471,17 +472,17 @@ export function createMatchConfig(overrides: Partial<AnswerMatchConfig>): Answer
  * Debug function to test fuzzy matching
  */
 export function debugFuzzyMatching(userAnswer: string, correctAnswers: any[]): void {
-  console.log('🔍 Fuzzy Matching Debug:');
-  console.log('User Answer:', userAnswer);
-  console.log('Normalized:', normalizeAnswerEnhanced(userAnswer));
-  console.log('Variations:', getAnswerVariations(userAnswer));
+  logger.log('🔍 Fuzzy Matching Debug:');
+  logger.log('User Answer:', userAnswer);
+  logger.log('Normalized:', normalizeAnswerEnhanced(userAnswer));
+  logger.log('Variations:', getAnswerVariations(userAnswer));
   
   const result = findBestMatch(userAnswer, correctAnswers);
-  console.log('Best Match:', result);
+  logger.log('Best Match:', result);
   
   for (const answer of correctAnswers) {
     const answerText = typeof answer === 'string' ? answer : answer.text;
     const similarity = calculateSimilarity(userAnswer, answerText);
-    console.log(`  "${answerText}" -> similarity: ${similarity.toFixed(3)}`);
+    logger.log(`  "${answerText}" -> similarity: ${similarity.toFixed(3)}`);
   }
 }

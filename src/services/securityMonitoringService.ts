@@ -1,5 +1,7 @@
 import { collection, addDoc, serverTimestamp, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
 import { db } from './firebase';
+import { logger } from '../utils/logger';
+import { COLLECTIONS } from '../utils/constants';
 
 export interface SecurityEvent {
   id?: string;
@@ -57,7 +59,7 @@ export interface SecurityStats {
 }
 
 class SecurityMonitoringService {
-  private static readonly EVENTS_COLLECTION = 'securityEvents';
+  private static readonly EVENTS_COLLECTION = COLLECTIONS.SECURITY_EVENTS;
   private static readonly ALERTS_COLLECTION = 'securityAlerts';
   private static readonly MAX_EVENTS_PER_QUERY = 100;
 
@@ -77,14 +79,14 @@ class SecurityMonitoringService {
         timestamp: serverTimestamp(),
       });
 
-      console.log(`Security event logged: ${event.eventType} - ${event.description}`);
+      logger.log(`Security event logged: ${event.eventType} - ${event.description}`);
 
       // Check if this event should trigger an alert
       await this.checkForAlerts(eventData);
 
       return docRef.id;
     } catch (error) {
-      console.error('Error logging security event:', error);
+      logger.error('Error logging security event:', error);
       throw new Error('Failed to log security event');
     }
   }
@@ -127,7 +129,7 @@ class SecurityMonitoringService {
 
       return events;
     } catch (error) {
-      console.error('Error getting recent events:', error);
+      logger.error('Error getting recent events:', error);
       return [];
     }
   }
@@ -179,7 +181,7 @@ class SecurityMonitoringService {
 
       return stats;
     } catch (error) {
-      console.error('Error getting security stats:', error);
+      logger.error('Error getting security stats:', error);
       return {
         totalEvents: 0,
         eventsByType: {} as { [key in SecurityEventType]: number },
@@ -215,10 +217,10 @@ class SecurityMonitoringService {
         createdAt: serverTimestamp(),
       });
 
-      console.log(`Security alert created: ${alertType} - ${message}`);
+      logger.log(`Security alert created: ${alertType} - ${message}`);
       return docRef.id;
     } catch (error) {
-      console.error('Error creating security alert:', error);
+      logger.error('Error creating security alert:', error);
       throw new Error('Failed to create security alert');
     }
   }
@@ -229,9 +231,9 @@ class SecurityMonitoringService {
   static async acknowledgeAlert(alertId: string, acknowledgedBy: string): Promise<void> {
     try {
       // This would update the alert in Firestore
-      console.log(`Security alert acknowledged: ${alertId} by ${acknowledgedBy}`);
+      logger.log(`Security alert acknowledged: ${alertId} by ${acknowledgedBy}`);
     } catch (error) {
-      console.error('Error acknowledging alert:', error);
+      logger.error('Error acknowledging alert:', error);
       throw new Error('Failed to acknowledge alert');
     }
   }
@@ -328,7 +330,7 @@ class SecurityMonitoringService {
 
       return events;
     } catch (error) {
-      console.error('Error getting user events:', error);
+      logger.error('Error getting user events:', error);
       return [];
     }
   }
@@ -339,9 +341,9 @@ class SecurityMonitoringService {
   static async resolveEvent(eventId: string, resolvedBy: string): Promise<void> {
     try {
       // This would update the event in Firestore
-      console.log(`Security event resolved: ${eventId} by ${resolvedBy}`);
+      logger.log(`Security event resolved: ${eventId} by ${resolvedBy}`);
     } catch (error) {
-      console.error('Error resolving event:', error);
+      logger.error('Error resolving event:', error);
       throw new Error('Failed to resolve event');
     }
   }
@@ -367,7 +369,7 @@ class SecurityMonitoringService {
         activeAlerts,
       };
     } catch (error) {
-      console.error('Error getting dashboard data:', error);
+      logger.error('Error getting dashboard data:', error);
       throw new Error('Failed to get dashboard data');
     }
   }
@@ -399,7 +401,7 @@ class SecurityMonitoringService {
 
       return alerts;
     } catch (error) {
-      console.error('Error getting active alerts:', error);
+      logger.error('Error getting active alerts:', error);
       return [];
     }
   }
@@ -413,10 +415,10 @@ class SecurityMonitoringService {
       cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
 
       // This would delete old events in production
-      console.log(`Cleaning up security events older than ${retentionDays} days`);
+      logger.log(`Cleaning up security events older than ${retentionDays} days`);
       return 0;
     } catch (error) {
-      console.error('Error cleaning up old events:', error);
+      logger.error('Error cleaning up old events:', error);
       return 0;
     }
   }

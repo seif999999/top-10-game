@@ -1,4 +1,5 @@
 import { saveGameStats, getPlayerStats, saveGameHistory, getGameHistory, GameStats, GameHistory } from './localStorage';
+import { logger } from '../utils/logger';
 
 export interface GamePerformance {
   totalGames: number;
@@ -64,7 +65,7 @@ export const updateGameStats = async (
 
     await saveGameHistory(userId, gameHistory);
   } catch (error) {
-    console.error('Error updating game stats:', error);
+    logger.error('Error updating game stats:', error);
   }
 };
 
@@ -184,7 +185,7 @@ export const getTotalGamesPlayed = async (userId: string): Promise<number> => {
     const stats = await getPlayerStats(userId);
     return stats.totalGames;
   } catch (error) {
-    console.error('Error getting total games played:', error);
+    logger.error('Error getting total games played:', error);
     return 0;
   }
 };
@@ -230,11 +231,15 @@ export const getGamePerformance = async (userId: string): Promise<GamePerformanc
       bestCategory,
       mostPlayedCategory,
       recentPerformance,
-      currentStreak: 0, // TODO: Implement streak calculation
-      bestStreak: 0 // TODO: Implement best streak calculation
+      // FUTURE ENHANCEMENT: Implement streak calculation logic
+      // Context: Feature placeholder, needs game history tracking to calculate consecutive wins/correct answers
+      // Estimated effort: Medium
+      // See TODOS.md for details
+      currentStreak: 0,
+      bestStreak: 0
     };
   } catch (error) {
-    console.error('Error getting game performance:', error);
+    logger.error('Error getting game performance:', error);
     return {
       totalGames: 0,
       totalScore: 0,
@@ -284,7 +289,7 @@ export const getCategoryStats = async (userId: string): Promise<CategoryStats[]>
 
     return Object.values(categoryStats).sort((a, b) => b.gamesPlayed - a.gamesPlayed);
   } catch (error) {
-    console.error('Error getting category stats:', error);
+    logger.error('Error getting category stats:', error);
     return [];
   }
 };
@@ -369,7 +374,7 @@ export const getAchievements = async (userId: string): Promise<string[]> => {
 
     return achievements;
   } catch (error) {
-    console.error('Error getting achievements:', error);
+    logger.error('Error getting achievements:', error);
     return [];
   }
 };
@@ -389,7 +394,7 @@ export const getLeaderboardData = async (): Promise<Array<{ userId: string; scor
       { userId: 'Player 5', score: 520, games: 7 }
     ];
   } catch (error) {
-    console.error('Error getting leaderboard data:', error);
+    logger.error('Error getting leaderboard data:', error);
     return [];
   }
 };
@@ -413,7 +418,7 @@ export const exportGameStats = async (userId: string): Promise<string> => {
 
     return JSON.stringify(exportData, null, 2);
   } catch (error) {
-    console.error('Error exporting game stats:', error);
+    logger.error('Error exporting game stats:', error);
     return '';
   }
 };

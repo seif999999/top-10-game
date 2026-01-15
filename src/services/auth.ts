@@ -15,6 +15,7 @@ import { Platform } from 'react-native';
 import { auth } from './firebase';
 import { User } from '../types';
 import SecurityMonitoringService from './securityMonitoringService';
+import { logger } from '../utils/logger';
 
 export type AuthListenerUnsubscribe = () => void;
 
@@ -78,7 +79,7 @@ class SessionManager {
     this.clearSession(userId);
     
     const timer = setTimeout(() => {
-      console.warn(`Session expired for user ${userId}`);
+      logger.warn(`Session expired for user ${userId}`);
       onExpire();
     }, SECURITY_CONFIG.sessionTimeout);
     
@@ -116,7 +117,7 @@ const AUTH_STORAGE_KEYS = {
  */
 const clearAuthStorage = async (): Promise<void> => {
   try {
-    console.log('🧹 Clearing auth storage...');
+    logger.log('🧹 Clearing auth storage...');
     
     // Clear all auth-related keys
     const keysToRemove = Object.values(AUTH_STORAGE_KEYS);
@@ -125,17 +126,17 @@ const clearAuthStorage = async (): Promise<void> => {
       // On web, use localStorage
       keysToRemove.forEach(key => {
         localStorage.removeItem(key);
-        console.log(`🗑️ Removed from localStorage: ${key}`);
+        logger.log(`🗑️ Removed from localStorage: ${key}`);
       });
     } else {
       // On mobile, use AsyncStorage
       await AsyncStorage.multiRemove(keysToRemove);
-      console.log(`🗑️ Removed from AsyncStorage: ${keysToRemove.join(', ')}`);
+      logger.log(`🗑️ Removed from AsyncStorage: ${keysToRemove.join(', ')}`);
     }
     
-    console.log('✅ Auth storage cleared successfully');
+    logger.log('✅ Auth storage cleared successfully');
   } catch (error) {
-    console.error('❌ Error clearing auth storage:', error);
+    logger.error('❌ Error clearing auth storage:', error);
     // Don't throw here - we still want to sign out from Firebase
   }
 };
@@ -145,7 +146,7 @@ const clearAuthStorage = async (): Promise<void> => {
  */
 const clearUserData = async (): Promise<void> => {
   try {
-    console.log('🧹 Clearing user data...');
+    logger.log('🧹 Clearing user data...');
     
     if (Platform.OS === 'web') {
       // On web, clear localStorage
@@ -159,7 +160,7 @@ const clearUserData = async (): Promise<void> => {
       
       userDataKeys.forEach(key => {
         localStorage.removeItem(key);
-        console.log(`🗑️ Removed user data from localStorage: ${key}`);
+        logger.log(`🗑️ Removed user data from localStorage: ${key}`);
       });
     } else {
       // On mobile, clear AsyncStorage
@@ -173,13 +174,13 @@ const clearUserData = async (): Promise<void> => {
       
       if (userDataKeys.length > 0) {
         await AsyncStorage.multiRemove(userDataKeys);
-        console.log(`🗑️ Removed user data from AsyncStorage: ${userDataKeys.join(', ')}`);
+        logger.log(`🗑️ Removed user data from AsyncStorage: ${userDataKeys.join(', ')}`);
       }
     }
     
-    console.log('✅ User data cleared successfully');
+    logger.log('✅ User data cleared successfully');
   } catch (error) {
-    console.error('❌ Error clearing user data:', error);
+    logger.error('❌ Error clearing user data:', error);
     // Don't throw here - we still want to sign out from Firebase
   }
 };
@@ -189,71 +190,71 @@ export const signUpWithEmail = async (
   password: string,
   displayName?: string
 ): Promise<User> => {
-  console.log('🔍 DEBUG: signUpWithEmail called with:', { email, displayName, password: password ? '***' : '' });
+  logger.log('🔍 DEBUG: signUpWithEmail called with:', { email, displayName, password: password ? '***' : '' });
   try {
-    console.log('🔍 DEBUG: Calling createUserWithEmailAndPassword...');
+    logger.log('🔍 DEBUG: Calling createUserWithEmailAndPassword...');
     const cred = await createUserWithEmailAndPassword(auth, email, password);
-    console.log('✅ DEBUG: createUserWithEmailAndPassword successful');
+    logger.log('✅ DEBUG: createUserWithEmailAndPassword successful');
     
     if (displayName) {
-      console.log('🔍 DEBUG: Updating profile with displayName...');
+      logger.log('🔍 DEBUG: Updating profile with displayName...');
       await updateProfile(cred.user, { displayName });
-      console.log('✅ DEBUG: Profile updated with displayName');
+      logger.log('✅ DEBUG: Profile updated with displayName');
     }
     
-    console.log('🔍 DEBUG: Mapping Firebase user...');
+    logger.log('🔍 DEBUG: Mapping Firebase user...');
     const user = mapFirebaseUser(cred.user);
-    console.log('✅ DEBUG: User mapped successfully:', user);
+    logger.log('✅ DEBUG: User mapped successfully:', user);
     return user;
   } catch (error) {
-    console.error('❌ DEBUG: signUpWithEmail error:', error);
+    logger.error('❌ DEBUG: signUpWithEmail error:', error);
     const err = error as AuthError | Error;
     const friendlyMessage = getFriendlyAuthMessage(err);
-    console.error('❌ DEBUG: Friendly error message:', friendlyMessage);
+    logger.error('❌ DEBUG: Friendly error message:', friendlyMessage);
     throw new Error(friendlyMessage);
   }
 };
 
 export const signInWithEmail = async (email: string, password: string): Promise<User> => {
-  console.log('🔍 DEBUG: signInWithEmail called with:', { email, password: password ? '***' : '' });
+  logger.log('🔍 DEBUG: signInWithEmail called with:', { email, password: password ? '***' : '' });
   
   // Check rate limiting
   if (authRateLimit.isBlocked(email)) {
     const remainingTime = Math.ceil(authRateLimit.getRemainingTime(email) / 1000 / 60);
-    console.log('❌ DEBUG: Rate limit exceeded for email:', email);
+    logger.log('❌ DEBUG: Rate limit exceeded for email:', email);
     throw new Error(`Too many login attempts. Please try again in ${remainingTime} minutes.`);
   }
 
   try {
-    console.log('🔍 DEBUG: Calling signInWithEmailAndPassword...');
+    logger.log('🔍 DEBUG: Calling signInWithEmailAndPassword...');
     const cred = await signInWithEmailAndPassword(auth, email, password);
-    console.log('✅ DEBUG: signInWithEmailAndPassword successful');
+    logger.log('✅ DEBUG: signInWithEmailAndPassword successful');
     
     // Reset rate limiting on successful login
     authRateLimit.reset(email);
-    console.log('🔍 DEBUG: Rate limit reset for email');
+    logger.log('🔍 DEBUG: Rate limit reset for email');
     
     // Start session management
     sessionManager.startSession(cred.user.uid, () => {
-      console.log('Session expired, signing out user');
+      logger.log('Session expired, signing out user');
       signOutUser();
     });
-    console.log('🔍 DEBUG: Session management started');
+    logger.log('🔍 DEBUG: Session management started');
     
-    console.log('🔍 DEBUG: Mapping Firebase user...');
+    logger.log('🔍 DEBUG: Mapping Firebase user...');
     const user = mapFirebaseUser(cred.user);
-    console.log('✅ DEBUG: User mapped successfully:', user);
+    logger.log('✅ DEBUG: User mapped successfully:', user);
     
     // Store session for persistence
     await storeUserSession(user);
-    console.log('✅ DEBUG: User session stored for persistence');
+    logger.log('✅ DEBUG: User session stored for persistence');
     
     return user;
   } catch (error) {
-    console.error('❌ DEBUG: signInWithEmail error:', error);
+    logger.error('❌ DEBUG: signInWithEmail error:', error);
     // Record failed attempt
     authRateLimit.recordAttempt(email);
-    console.log('🔍 DEBUG: Failed attempt recorded for email');
+    logger.log('🔍 DEBUG: Failed attempt recorded for email');
     
     // Log security event
     try {
@@ -269,12 +270,12 @@ export const signInWithEmail = async (email: string, password: string): Promise<
         },
       });
     } catch (logError) {
-      console.error('Failed to log security event:', logError);
+      logger.error('Failed to log security event:', logError);
     }
     
     const err = error as AuthError | Error;
     const friendlyMessage = getFriendlyAuthMessage(err);
-    console.error('❌ DEBUG: Friendly error message:', friendlyMessage);
+    logger.error('❌ DEBUG: Friendly error message:', friendlyMessage);
     throw new Error(friendlyMessage);
   }
 };
@@ -286,7 +287,7 @@ export const signInWithGoogle = async (idToken: string): Promise<User> => {
     
     // Start session management
     sessionManager.startSession(cred.user.uid, () => {
-      console.log('Session expired, signing out user');
+      logger.log('Session expired, signing out user');
       signOutUser();
     });
     
@@ -299,9 +300,9 @@ export const signInWithGoogle = async (idToken: string): Promise<User> => {
 
 export const resetPassword = async (email: string): Promise<void> => {
   try {
-    console.log('🔐 DEBUG: Starting password reset for email:', email);
-    console.log('🔐 DEBUG: Firebase Auth instance:', auth ? 'Available' : 'Not available');
-    console.log('🔐 DEBUG: Auth domain:', auth?.config?.authDomain);
+    logger.log('🔐 DEBUG: Starting password reset for email:', email);
+    logger.log('🔐 DEBUG: Firebase Auth instance:', auth ? 'Available' : 'Not available');
+    logger.log('🔐 DEBUG: Auth domain:', auth?.config?.authDomain);
     
     // Configure auth settings for better email delivery
     if (auth) {
@@ -309,9 +310,9 @@ export const resetPassword = async (email: string): Promise<void> => {
     }
     
     await sendPasswordResetEmail(auth, email);
-    console.log('✅ DEBUG: Password reset email sent successfully');
+    logger.log('✅ DEBUG: Password reset email sent successfully');
   } catch (error) {
-    console.error('❌ DEBUG: Password reset error:', error);
+    logger.error('❌ DEBUG: Password reset error:', error);
     const err = error as AuthError | Error;
     throw new Error(getFriendlyAuthMessage(err));
   }
@@ -319,8 +320,8 @@ export const resetPassword = async (email: string): Promise<void> => {
 
 export const signOutUser = async (): Promise<void> => {
   try {
-    console.log('🚪 Starting sign-out process...');
-    console.log(`📱 Platform: ${Platform.OS}`);
+    logger.log('🚪 Starting sign-out process...');
+    logger.log(`📱 Platform: ${Platform.OS}`);
     
     // Step 1: Clear session management
     const currentUser = auth.currentUser;
@@ -329,35 +330,35 @@ export const signOutUser = async (): Promise<void> => {
     }
     
     // Step 2: Sign out from Firebase
-    console.log('🔥 Signing out from Firebase...');
+    logger.log('🔥 Signing out from Firebase...');
     await signOut(auth);
-    console.log('✅ Firebase sign-out successful');
+    logger.log('✅ Firebase sign-out successful');
     
     // Step 3: Clear user session
-    console.log('🧹 Clearing user session...');
+    logger.log('🧹 Clearing user session...');
     await clearUserSession();
     
     // Step 4: Clear auth storage
-    console.log('🧹 Clearing authentication storage...');
+    logger.log('🧹 Clearing authentication storage...');
     await clearAuthStorage();
     
     // Step 5: Clear user data
-    console.log('🗑️ Clearing user data...');
+    logger.log('🗑️ Clearing user data...');
     await clearUserData();
     
-    console.log('✅ Sign-out process completed successfully');
+    logger.log('✅ Sign-out process completed successfully');
   } catch (error) {
-    console.error('💥 Sign-out error:', error);
+    logger.error('💥 Sign-out error:', error);
     
     // Even if there's an error, try to clear storage
     try {
-      console.log('🔄 Attempting to clear storage despite error...');
+      logger.log('🔄 Attempting to clear storage despite error...');
       await clearUserSession();
       await clearAuthStorage();
       await clearUserData();
-      console.log('✅ Storage cleared despite sign-out error');
+      logger.log('✅ Storage cleared despite sign-out error');
     } catch (storageError) {
-      console.error('❌ Failed to clear storage:', storageError);
+      logger.error('❌ Failed to clear storage:', storageError);
     }
     
     // Re-throw the original error
@@ -368,15 +369,15 @@ export const signOutUser = async (): Promise<void> => {
 
 export const getCurrentUser = async (): Promise<User | null> => {
   try {
-    console.log('🔍 Checking current authentication state...');
-    console.log('🔍 Auth instance:', auth ? 'Available' : 'Not available');
-    console.log('🔍 Platform:', Platform.OS);
+    logger.log('🔍 Checking current authentication state...');
+    logger.log('🔍 Auth instance:', auth ? 'Available' : 'Not available');
+    logger.log('🔍 Platform:', Platform.OS);
     
     const fbUser = auth.currentUser;
-    console.log('🔍 Current Firebase user:', fbUser ? `ID: ${fbUser.uid}, Email: ${fbUser.email}` : 'None');
+    logger.log('🔍 Current Firebase user:', fbUser ? `ID: ${fbUser.uid}, Email: ${fbUser.email}` : 'None');
     
     if (fbUser) {
-      console.log('✅ User is already authenticated:', fbUser.email);
+      logger.log('✅ User is already authenticated:', fbUser.email);
       
       // Load user profile with avatar data from Firestore
       try {
@@ -385,57 +386,57 @@ export const getCurrentUser = async (): Promise<User | null> => {
         const userProfile = await userProfileService.getUserProfile(fbUser.uid);
         
         if (userProfile) {
-          console.log('✅ User profile loaded from Firestore:', userProfile.displayName || userProfile.email);
-          console.log('🔍 User profile selectedAvatar:', userProfile.selectedAvatar);
+          logger.log('✅ User profile loaded from Firestore:', userProfile.displayName || userProfile.email);
+          logger.log('🔍 User profile selectedAvatar:', userProfile.selectedAvatar);
           const user = {
             ...userProfile,
             email: fbUser.email || userProfile.email || '',
             displayName: userProfile.displayName || fbUser.displayName || undefined
           };
           
-          console.log('🔍 Final user object selectedAvatar:', user.selectedAvatar);
+          logger.log('🔍 Final user object selectedAvatar:', user.selectedAvatar);
           
           // Store session for persistence
           await storeUserSession(user);
           return user;
         } else {
-          console.log('⚠️ No user profile found in Firestore, using Firebase user data');
+          logger.log('⚠️ No user profile found in Firestore, using Firebase user data');
           const user = mapFirebaseUser(fbUser);
           await storeUserSession(user);
           return user;
         }
       } catch (error) {
-        console.error('❌ Error loading user profile:', error);
-        console.log('🔄 Falling back to basic Firebase user data');
+        logger.error('❌ Error loading user profile:', error);
+        logger.log('🔄 Falling back to basic Firebase user data');
         const user = mapFirebaseUser(fbUser);
         await storeUserSession(user);
         return user;
       }
     } else {
-      console.log('🚪 No Firebase user found, checking stored session...');
+      logger.log('🚪 No Firebase user found, checking stored session...');
       
       // Try to retrieve from stored session as fallback
       const storedUser = await retrieveUserSession();
       if (storedUser) {
-        console.log('✅ Retrieved user from stored session:', storedUser.email);
+        logger.log('✅ Retrieved user from stored session:', storedUser.email);
         return storedUser;
       }
       
-      console.log('🚪 No stored session found');
+      logger.log('🚪 No stored session found');
       return null;
     }
   } catch (error) {
-    console.error('❌ Error checking current user:', error);
+    logger.error('❌ Error checking current user:', error);
     
     // Try to retrieve from stored session as fallback
     try {
       const storedUser = await retrieveUserSession();
       if (storedUser) {
-        console.log('✅ Retrieved user from stored session (fallback):', storedUser.email);
+        logger.log('✅ Retrieved user from stored session (fallback):', storedUser.email);
         return storedUser;
       }
     } catch (fallbackError) {
-      console.error('❌ Error retrieving stored session:', fallbackError);
+      logger.error('❌ Error retrieving stored session:', fallbackError);
     }
     
     return null;
@@ -444,30 +445,30 @@ export const getCurrentUser = async (): Promise<User | null> => {
 
 export const updateUserProfile = async (updates: { displayName?: string; avatarId?: string }): Promise<User> => {
   try {
-    console.log('🔍 updateUserProfile: Starting profile update...');
-    console.log('🔍 updateUserProfile: Auth instance available:', !!auth);
-    console.log('🔍 updateUserProfile: Updates:', updates);
+    logger.log('🔍 updateUserProfile: Starting profile update...');
+    logger.log('🔍 updateUserProfile: Auth instance available:', !!auth);
+    logger.log('🔍 updateUserProfile: Updates:', updates);
     
     const currentUser = auth.currentUser;
-    console.log('🔍 updateUserProfile: Current user:', currentUser ? `ID: ${currentUser.uid}, Email: ${currentUser.email}` : 'None');
+    logger.log('🔍 updateUserProfile: Current user:', currentUser ? `ID: ${currentUser.uid}, Email: ${currentUser.email}` : 'None');
     
     // Always try to get user from stored session first, as it's more reliable
     const storedUser = await retrieveUserSession();
-    console.log('🔍 updateUserProfile: Stored user:', storedUser ? `ID: ${storedUser.id}, Email: ${storedUser.email}` : 'None');
+    logger.log('🔍 updateUserProfile: Stored user:', storedUser ? `ID: ${storedUser.id}, Email: ${storedUser.email}` : 'None');
     
     if (!currentUser && !storedUser) {
-      console.error('❌ updateUserProfile: No Firebase user or stored session found');
+      logger.error('❌ updateUserProfile: No Firebase user or stored session found');
       throw new Error('No user is currently signed in');
     }
     
     // Use stored user if Firebase Auth is not synced
     if (!currentUser && storedUser) {
-      console.log('✅ updateUserProfile: Using stored user (Firebase Auth not synced)');
-      console.log('🔍 updateUserProfile: Stored user ID:', storedUser.id);
+      logger.log('✅ updateUserProfile: Using stored user (Firebase Auth not synced)');
+      logger.log('🔍 updateUserProfile: Stored user ID:', storedUser.id);
       
       // Validate that stored user has a valid ID
       if (!storedUser.id) {
-        console.error('❌ updateUserProfile: Stored session missing user ID, forcing re-authentication');
+        logger.error('❌ updateUserProfile: Stored session missing user ID, forcing re-authentication');
         throw new Error('User session is invalid. Please sign in again.');
       }
       
@@ -589,8 +590,8 @@ export const updateUserProfile = async (updates: { displayName?: string; avatarI
 // Store user session data for persistence
 const storeUserSession = async (user: User): Promise<void> => {
   try {
-    console.log('💾 Storing user session for persistence...');
-    console.log('🔍 Storing user data:', { id: user.id, email: user.email, displayName: user.displayName, selectedAvatar: user.selectedAvatar });
+    logger.log('💾 Storing user session for persistence...');
+    logger.log('🔍 Storing user data:', { id: user.id, email: user.email, displayName: user.displayName, selectedAvatar: user.selectedAvatar });
     
     const sessionData = {
       id: user.id,
@@ -602,20 +603,20 @@ const storeUserSession = async (user: User): Promise<void> => {
     
     if (Platform.OS === 'web') {
       localStorage.setItem('user_session', JSON.stringify(sessionData));
-      console.log('✅ User session stored in localStorage');
+      logger.log('✅ User session stored in localStorage');
     } else {
       await AsyncStorage.setItem('user_session', JSON.stringify(sessionData));
-      console.log('✅ User session stored in AsyncStorage');
+      logger.log('✅ User session stored in AsyncStorage');
     }
   } catch (error) {
-    console.error('❌ Error storing user session:', error);
+    logger.error('❌ Error storing user session:', error);
   }
 };
 
 // Retrieve user session data for persistence
 const retrieveUserSession = async (): Promise<User | null> => {
   try {
-    console.log('🔍 Retrieving user session from storage...');
+    logger.log('🔍 Retrieving user session from storage...');
     
     let sessionData: string | null = null;
     
@@ -626,7 +627,7 @@ const retrieveUserSession = async (): Promise<User | null> => {
     }
     
     if (!sessionData) {
-      console.log('🚪 No stored user session found');
+      logger.log('🚪 No stored user session found');
       return null;
     }
     
@@ -637,41 +638,41 @@ const retrieveUserSession = async (): Promise<User | null> => {
     const maxAge = 24 * 60 * 60 * 1000; // 24 hours
     
     if (sessionAge > maxAge) {
-      console.log('⏰ Stored session is too old, clearing...');
+      logger.log('⏰ Stored session is too old, clearing...');
       await clearUserSession();
       return null;
     }
     
-    console.log('✅ User session retrieved from storage:', parsed.email);
-    console.log('🔍 Stored session selectedAvatar:', parsed.selectedAvatar);
-    console.log('🔍 Stored session id:', parsed.id);
-    console.log('🔍 Full stored session data:', parsed);
+    logger.log('✅ User session retrieved from storage:', parsed.email);
+    logger.log('🔍 Stored session selectedAvatar:', parsed.selectedAvatar);
+    logger.log('🔍 Stored session id:', parsed.id);
+    logger.log('🔍 Full stored session data:', parsed);
     
     // Handle migration from old session format (uid -> id)
     if (!parsed.id && parsed.uid) {
-      console.log('🔄 Migrating session from old format (uid -> id)');
+      logger.log('🔄 Migrating session from old format (uid -> id)');
       parsed.id = parsed.uid;
       delete parsed.uid;
       
       // Update the stored session with the new format
       try {
         await storeUserSession(parsed as User);
-        console.log('✅ Session migrated and updated');
+        logger.log('✅ Session migrated and updated');
       } catch (migrationError) {
-        console.warn('⚠️ Failed to migrate session:', migrationError);
+        logger.warn('⚠️ Failed to migrate session:', migrationError);
       }
     }
     
     // Validate that we have a valid user ID
     if (!parsed.id) {
-      console.error('❌ Stored session missing user ID, clearing session...');
+      logger.error('❌ Stored session missing user ID, clearing session...');
       await clearUserSession();
       return null;
     }
     
     return parsed as User;
   } catch (error) {
-    console.error('❌ Error retrieving user session:', error);
+    logger.error('❌ Error retrieving user session:', error);
     return null;
   }
 };
@@ -679,7 +680,7 @@ const retrieveUserSession = async (): Promise<User | null> => {
 // Clear user session data
 const clearUserSession = async (): Promise<void> => {
   try {
-    console.log('🧹 Clearing user session from storage...');
+    logger.log('🧹 Clearing user session from storage...');
     
     if (Platform.OS === 'web') {
       localStorage.removeItem('user_session');
@@ -687,16 +688,16 @@ const clearUserSession = async (): Promise<void> => {
       await AsyncStorage.removeItem('user_session');
     }
     
-    console.log('✅ User session cleared from storage');
+    logger.log('✅ User session cleared from storage');
   } catch (error) {
-    console.error('❌ Error clearing user session:', error);
+    logger.error('❌ Error clearing user session:', error);
   }
 };
 
 // Force clear all authentication data and require re-login
 export const forceReAuthentication = async (): Promise<void> => {
   try {
-    console.log('🔄 Forcing re-authentication...');
+    logger.log('🔄 Forcing re-authentication...');
     
     // Clear Firebase auth
     await signOut(auth);
@@ -706,9 +707,9 @@ export const forceReAuthentication = async (): Promise<void> => {
     await clearAuthStorage();
     await clearUserData();
     
-    console.log('✅ Re-authentication forced successfully');
+    logger.log('✅ Re-authentication forced successfully');
   } catch (error) {
-    console.error('❌ Error forcing re-authentication:', error);
+    logger.error('❌ Error forcing re-authentication:', error);
     throw error;
   }
 };
@@ -716,17 +717,17 @@ export const forceReAuthentication = async (): Promise<void> => {
 // Verify authentication persistence is working
 export const verifyAuthPersistence = async (): Promise<boolean> => {
   try {
-    console.log('🔍 Verifying authentication persistence...');
+    logger.log('🔍 Verifying authentication persistence...');
     
     // Check if auth is properly initialized
     if (!auth) {
-      console.error('❌ Auth instance not available');
+      logger.error('❌ Auth instance not available');
       return false;
     }
     
     // Check if we can access current user
     const currentUser = auth.currentUser;
-    console.log('🔍 Current user check:', currentUser ? 'User found' : 'No user');
+    logger.log('🔍 Current user check:', currentUser ? 'User found' : 'No user');
     
     // For mobile platforms, check if AsyncStorage is working
     if (Platform.OS !== 'web') {
@@ -738,34 +739,34 @@ export const verifyAuthPersistence = async (): Promise<boolean> => {
         const retrievedValue = await AsyncStorage.getItem(testKey);
         
         if (retrievedValue === testValue) {
-          console.log('✅ AsyncStorage is working correctly');
+          logger.log('✅ AsyncStorage is working correctly');
           await AsyncStorage.removeItem(testKey);
         } else {
-          console.error('❌ AsyncStorage test failed');
+          logger.error('❌ AsyncStorage test failed');
           return false;
         }
       } catch (storageError) {
-        console.error('❌ AsyncStorage error:', storageError);
+        logger.error('❌ AsyncStorage error:', storageError);
         return false;
       }
     }
     
-    console.log('✅ Authentication persistence verification passed');
+    logger.log('✅ Authentication persistence verification passed');
     return true;
   } catch (error) {
-    console.error('❌ Authentication persistence verification failed:', error);
+    logger.error('❌ Authentication persistence verification failed:', error);
     return false;
   }
 };
 
 export const subscribeToAuthChanges = (cb: (user: User | null) => void): AuthListenerUnsubscribe => {
-  console.log('🔐 subscribeToAuthChanges: Setting up Firebase auth state listener...');
+  logger.log('🔐 subscribeToAuthChanges: Setting up Firebase auth state listener...');
   
   const unsub = onAuthStateChanged(auth, async (fbUser) => {
-    console.log('🔄 Firebase auth state changed:', fbUser ? `User ID: ${fbUser.uid}, Email: ${fbUser.email}` : 'No user');
+    logger.log('🔄 Firebase auth state changed:', fbUser ? `User ID: ${fbUser.uid}, Email: ${fbUser.email}` : 'No user');
     
     if (fbUser) {
-      console.log('👤 Loading user profile for:', fbUser.uid);
+      logger.log('👤 Loading user profile for:', fbUser.uid);
       
       // Load user profile with avatar data from Firestore
       try {
@@ -774,7 +775,7 @@ export const subscribeToAuthChanges = (cb: (user: User | null) => void): AuthLis
         const userProfile = await userProfileService.getUserProfile(fbUser.uid);
         
         if (userProfile) {
-          console.log('✅ User profile loaded from Firestore:', userProfile.displayName || userProfile.email);
+          logger.log('✅ User profile loaded from Firestore:', userProfile.displayName || userProfile.email);
           // Ensure displayName falls back to Firebase user's displayName if not set in Firestore
           // Always use email from Firebase Auth user, not from Firestore
           const userWithFallbackDisplayName = {
@@ -784,23 +785,23 @@ export const subscribeToAuthChanges = (cb: (user: User | null) => void): AuthLis
           };
           cb(userWithFallbackDisplayName);
         } else {
-          console.log('⚠️ No user profile found in Firestore, using Firebase user data');
+          logger.log('⚠️ No user profile found in Firestore, using Firebase user data');
           // Fallback to basic Firebase user data if profile not found
           cb(mapFirebaseUser(fbUser));
         }
       } catch (error) {
-        console.error('❌ Error loading user profile:', error);
-        console.log('🔄 Falling back to basic Firebase user data');
+        logger.error('❌ Error loading user profile:', error);
+        logger.log('🔄 Falling back to basic Firebase user data');
         // Fallback to basic Firebase user data on error
         cb(mapFirebaseUser(fbUser));
       }
     } else {
-      console.log('🚪 No authenticated user, calling callback with null');
+      logger.log('🚪 No authenticated user, calling callback with null');
       cb(null);
     }
   });
   
-  console.log('✅ Firebase auth state listener set up successfully');
+  logger.log('✅ Firebase auth state listener set up successfully');
   return unsub;
 };
 

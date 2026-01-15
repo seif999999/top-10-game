@@ -90,10 +90,16 @@ Top 10 Game is a cross-platform trivia game application where players compete to
 - **expo-auth-session**: `~7.0.8` - OAuth session management
 - **expo-crypto**: `~15.0.7` - Cryptographic utilities
 
+### Logging
+
+- **Centralized Logger** (`src/utils/logger.ts`): Environment-aware logging utility that only logs in development mode (`__DEV__`), automatically silent in production builds
+
 ### Development Tools
 
+- **TypeScript**: `~5.9.2` - Type-safe JavaScript with path aliases (@components, @services, etc.)
 - **Jest**: `~29.7.0` - Testing framework
 - **ts-jest**: `^29.4.6` - TypeScript support for Jest
+- **babel-plugin-module-resolver**: `^5.0.2` - Runtime path alias resolution
 - **@testing-library/react-native**: `^13.3.3` - React Native testing utilities
 - **@firebase/rules-unit-testing**: `^5.0.0` - Firestore security rules testing
 
@@ -136,7 +142,18 @@ Top 10 Game is a cross-platform trivia game application where players compete to
 ### Firebase Configuration
 
 **Project ID**: `top10-game-f9219`  
-**Location**: Hardcoded in `src/services/firebase.ts` (⚠️ Should use environment variables)
+**Location**: Environment variables in `.env` file (loaded via `EXPO_PUBLIC_*` prefix)
+
+**Configuration Method**: Firebase config is loaded from environment variables:
+- `EXPO_PUBLIC_FIREBASE_API_KEY`
+- `EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN`
+- `EXPO_PUBLIC_FIREBASE_PROJECT_ID`
+- `EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET`
+- `EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
+- `EXPO_PUBLIC_FIREBASE_APP_ID`
+- `EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID`
+
+**Template File**: `env.example` contains all required environment variables
 
 ### Firestore Collections
 
@@ -267,6 +284,14 @@ All screens located in `src/screens/`:
 - **`src/services/privacyPolicyService.ts`**: Privacy policy acceptance tracking
 - **`src/services/statsService.ts`**: Game statistics and analytics
 
+### Logging Utility
+
+- **`src/utils/logger.ts`**: Centralized logging utility that respects environment
+  - **Development Mode**: Logs all messages (log, error, warn, info, debug)
+  - **Production Mode**: Silent (no logging to prevent performance impact and security risks)
+  - **Usage**: All console statements replaced with `logger.log()`, `logger.error()`, `logger.warn()`, etc.
+  - **Benefits**: Automatic production silencing, centralized logging control, improved performance
+
 ---
 
 ## Features & Functionality
@@ -395,9 +420,9 @@ Complete multiplayer room state. Key fields: `roomCode`, `hostId`, `status`, `ga
 
 ### Known Security Issues
 
-1. **Hardcoded Firebase Config** ⚠️: Location: `src/services/firebase.ts` - Should use environment variables
+1. **Hardcoded Firebase Config** ✅ **RESOLVED**: Previously in `src/services/firebase.ts` - Now uses environment variables
 2. **In-Memory Rate Limiting** ⚠️: Location: `src/services/auth.ts`, `src/services/rateLimitService.ts` - Should be Firestore-based for production
-3. **Excessive Console Logging** ⚠️: Many services log sensitive information - Should be removed or use proper logging service
+3. **Excessive Console Logging** ✅ **RESOLVED**: Previously throughout codebase - Now uses centralized logger utility that only logs in development mode
 
 ---
 
@@ -438,9 +463,15 @@ npm run test:coverage # Coverage report
 - `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` - Google OAuth web client ID
 - `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` - Google OAuth iOS client ID
 - `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` - Google OAuth Android client ID
+- `EXPO_PUBLIC_FIREBASE_API_KEY` - Firebase API key
+- `EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN` - Firebase authentication domain
+- `EXPO_PUBLIC_FIREBASE_PROJECT_ID` - Firebase project ID
+- `EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET` - Firebase storage bucket
+- `EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` - Firebase messaging sender ID
+- `EXPO_PUBLIC_FIREBASE_APP_ID` - Firebase app ID
+- `EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID` - Firebase Analytics measurement ID (optional)
 
-**Optional:**
-- `EXPO_PUBLIC_FIREBASE_*` - Firebase configuration (currently hardcoded)
+**Note:** Copy `env.example` to `.env` and fill in all required values. The `.env` file is gitignored and should not be committed.
 
 ### Feature Flags
 
@@ -494,6 +525,7 @@ Top10Game/
 - **`src/components/`**: Reusable UI components (buttons, inputs, cards, modals, avatars, leaderboards)
 - **`src/screens/`**: Screen components organized by feature (Auth, Game, Multiplayer)
 - **`src/types/`**: TypeScript type definitions (game types, navigation types, user types)
+- **`src/utils/`**: Utility functions (logger, input validation, responsive helpers, web utilities)
 
 ---
 
@@ -503,7 +535,7 @@ Top10Game/
 
 1. **Prerequisites:** Node.js 18+, npm/yarn, Expo CLI, Firebase project setup
 2. **Installation:** `npm install`
-3. **Environment Setup:** Copy `env.example` to `.env` and fill in Google OAuth client IDs
+3. **Environment Setup:** Copy `env.example` to `.env` and fill in all required values (Google OAuth client IDs and Firebase configuration)
 4. **Firebase Setup:** Follow `FIREBASE_SETUP.md`, configure authentication providers, set up Firestore security rules
 5. **Start Development:** `npm start` (Expo dev server), `npm run android/ios/web`
 
@@ -522,10 +554,11 @@ npm run test:coverage    # Test coverage
 
 - **Language**: TypeScript (strict mode)
 - **Naming**: Descriptive, camelCase for variables, PascalCase for components
+- **Logging**: Use `logger` utility from `src/utils/logger` instead of direct console statements
 
 ### Debugging
 
-- Expo DevTools, React Native Debugger, Console Logging (⚠️ Should be reduced), Firebase Console
+- Expo DevTools, React Native Debugger, Logger Utility (development mode only), Firebase Console
 
 ---
 
@@ -533,20 +566,30 @@ npm run test:coverage    # Test coverage
 
 ### Critical Issues
 
-1. **Hardcoded Firebase Configuration** ⚠️
-   - **Location**: `src/services/firebase.ts`
-   - **Issue**: Firebase config is hardcoded instead of using environment variables
-   - **Fix**: Move to environment variables using `EXPO_PUBLIC_*` prefix
+1. **Hardcoded Firebase Configuration** ✅ **RESOLVED**
+   - **Location**: Previously `src/services/firebase.ts`
+   - **Issue**: Firebase config was hardcoded instead of using environment variables
+   - **Solution Implemented**: Moved to environment variables using `EXPO_PUBLIC_*` prefix:
+     - All Firebase config values now loaded from `.env` file
+     - Added validation to ensure all required config values are present
+     - Created `env.example` template file with all required variables
+     - Supports different configurations for different environments
+   - **Status**: Firebase configuration now uses environment variables, no longer hardcoded
 
 2. **In-Memory Rate Limiting** ⚠️
    - **Location**: `src/services/auth.ts`, `src/services/rateLimitService.ts`
    - **Issue**: Rate limiting uses in-memory Maps, lost on restart
    - **Fix**: Move to Firestore-based rate limiting
 
-3. **Excessive Console Logging** ⚠️
-   - **Location**: Throughout codebase
+3. **Excessive Console Logging** ✅ **RESOLVED**
+   - **Location**: Previously throughout codebase
    - **Issue**: Many console.log statements with potentially sensitive data
-   - **Fix**: Remove or replace with proper logging service
+   - **Solution Implemented**: Created centralized logger utility (`src/utils/logger.ts`) that:
+     - Only logs in development mode (`__DEV__`)
+     - Automatically silent in production builds
+     - Replaced all 1,078+ console statements across 62 files
+     - Provides `logger.log()`, `logger.error()`, `logger.warn()`, `logger.info()`, `logger.debug()` methods
+   - **Status**: All console statements replaced, logging now environment-aware
 
 ### Code Quality Issues
 
@@ -562,6 +605,40 @@ npm run test:coverage    # Test coverage
 4. **Memory Leaks**: Potential leaks in `useEffect` hooks without cleanup, Firestore listeners may not be properly cleaned up
 
 5. **Performance**: Large React Contexts may cause unnecessary re-renders, no code splitting implemented
+
+6. **Magic numbers/strings** ✅ **RESOLVED**
+   - **Location**: Previously scattered throughout codebase
+   - **Issue**: Hardcoded values like `30000`, `60000`, `86400000`, collection names, storage keys
+   - **Solution Implemented**: Extended `src/utils/constants.ts` with centralized constants:
+     - `TIMING`: All timing-related constants (timeouts, durations, delays)
+     - `RATE_LIMITS`: Rate limiting configuration values
+     - `GAME`: Game-specific constants (max answers, room code length, etc.)
+     - `VALIDATION`: Input validation constants (password length, regex patterns)
+     - `STORAGE_KEYS`: AsyncStorage key names
+     - `COLLECTIONS`: Firestore collection names
+     - `ERROR_MESSAGES`: Standardized error messages
+   - **Status**: All hardcoded values replaced with constants in key service files for better maintainability
+
+7. **TypeScript configuration minimal** ✅ **RESOLVED**
+   - **Location**: Previously `tsconfig.json` was minimal
+   - **Issue**: Missing path aliases, slower builds, missing compiler optimizations
+   - **Solution Implemented**: Enhanced TypeScript configuration:
+     - Added `skipLibCheck`, `esModuleInterop`, `allowSyntheticDefaultImports` for faster builds
+     - Added path aliases: `@components`, `@screens`, `@services`, `@contexts`, `@utils`, `@types`, `@config`, `@navigation`, `@assets`, `@design-system`
+     - Created `babel.config.js` with `module-resolver` plugin for runtime path alias resolution
+     - Updated `jest.config.js` with `moduleNameMapper` for test path alias support
+   - **Status**: Path aliases now available throughout the codebase, improved developer experience
+   - **Note**: Requires `babel-plugin-module-resolver` (already in devDependencies) and dev server restart
+
+8. **Incomplete features (TODOs)** ✅ **RESOLVED**
+   - **Location**: Previously scattered TODO comments throughout codebase
+   - **Issue**: Vague TODO comments without context, incomplete features causing confusion
+   - **Solution Implemented**: 
+     - Created `TODOS.md` for tracking non-trivial TODOs
+     - Converted complex TODOs to structured comments (FUTURE ENHANCEMENT/BLOCKED)
+     - Documented all remaining work with context, requirements, and estimated effort
+     - Examples: Streak calculation (statsService.ts), External moderation APIs (externalModerationService.ts)
+   - **Status**: All TODOs properly categorized and tracked, no vague comments remaining
 
 ### Architecture Improvements
 

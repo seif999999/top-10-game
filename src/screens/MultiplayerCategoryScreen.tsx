@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useMultiplayer } from '../contexts/MultiplayerContext';
 import { COLORS, SPACING, TYPOGRAPHY, ANIMATIONS } from '../design-system';
+import { logger } from '../utils/logger';
 import { RESPONSIVE } from '../utils/responsive';
 import { sampleQuestions } from '../data/sampleQuestions';
 
@@ -110,7 +111,7 @@ const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () =
 
   useEffect(() => {
     if (error) {
-      console.error('Multiplayer error:', error);
+      logger.error('Multiplayer error:', error);
       clearError();
     }
   }, [error, clearError]);
@@ -143,7 +144,7 @@ const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () =
       // Navigate back to multiplayer menu
       navigation.goBack();
     } catch (error) {
-      console.error('Error leaving room:', error);
+      logger.error('Error leaving room:', error);
       // Even if there's an error, still clean up and go back
       resetAll();
       cleanup();
@@ -154,8 +155,8 @@ const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () =
   const handleCategoryPress = (category: typeof categories[0]) => {
     setCategory(category.id);
     
-    console.log('🎯 Category pressed:', category.name);
-    console.log('🎯 Game mode: multiplayer');
+    logger.log('🎯 Category pressed:', category.name);
+    logger.log('🎯 Game mode: multiplayer');
     
     // Navigate to MultiplayerQuestions with the selected category
     (navigation as any).navigate('MultiplayerQuestions', { 

@@ -21,6 +21,7 @@ import HostAssignModal from '../components/HostAssignModal';
 import { InputValidator } from '../utils/inputValidator';
 import { RateLimitService } from '../services/rateLimitService';
 import { findMatchingAnswer } from '../services/multiplayerGameFlowV2';
+import { logger } from '../utils/logger';
 
 
 const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
@@ -147,7 +148,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     if (!isMultiplayerMode || !multiplayerState || !user?.id) return 0;
     // Use the new V2 scores system
     const score = multiplayerState.scores[user.id] || 0;
-    console.log(`🎯 UI_SCORE_DEBUG: Player ${user.id} score:`, {
+    logger.log(`🎯 UI_SCORE_DEBUG: Player ${user.id} score:`, {
       score,
       allScores: multiplayerState.scores,
       isMultiplayerMode,
@@ -161,7 +162,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     // Count only non-null revealed answers - ensure revealedAnswers is an array
     const revealedAnswers = multiplayerState.revealedAnswers;
     if (!Array.isArray(revealedAnswers)) {
-      console.warn('⚠️ revealedAnswers is not an array:', revealedAnswers);
+      logger.warn('⚠️ revealedAnswers is not an array:', revealedAnswers);
       return 0;
     }
     return revealedAnswers.filter(ra => ra !== null).length;
@@ -173,7 +174,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     // Count only non-null revealed answers - ensure revealedAnswers is an array
     const revealedAnswers = multiplayerState.revealedAnswers;
     if (!Array.isArray(revealedAnswers)) {
-      console.warn('⚠️ revealedAnswers is not an array:', revealedAnswers);
+      logger.warn('⚠️ revealedAnswers is not an array:', revealedAnswers);
       return false;
     }
     const revealedCount = revealedAnswers.filter(ra => ra !== null).length;
@@ -185,7 +186,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   const questionIsComplete = isMultiplayerMode ? isMultiplayerQuestionComplete() : isQuestionComplete();
   
   // 🎨 UI RENDER STATE DEBUG LOGGING
-  console.log('🎨 UI RENDER STATE:', {
+  logger.log('🎨 UI RENDER STATE:', {
     myScore: multiplayerState?.players?.[user?.id || '']?.score,
     revealedAnswers: multiplayerState?.revealedAnswers,
     totalPlayers: Object.keys(multiplayerState?.players || {}).length,
@@ -212,7 +213,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
 
   // Memoize the initialization function to prevent unnecessary re-renders
   const initializeGame = useCallback(async () => {
-    console.log('🎮 GameScreen useEffect - Debug Info:', {
+    logger.log('🎮 GameScreen useEffect - Debug Info:', {
       isMultiplayerMode,
       roomId,
       categoryId,
@@ -227,14 +228,14 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
       // For multiplayer, we should already be in a room from the lobby
       // Just ensure we're subscribed to the room updates
       if (multiplayerState?.roomCode && multiplayerState.roomCode === roomId) {
-        console.log('🎮 Already in correct multiplayer room:', multiplayerState.roomCode);
-        console.log('🎮 Game phase:', multiplayerState.gamePhase);
-        console.log('🎮 Current question index:', multiplayerState.currentQuestionIndex);
-        console.log('🎮 Questions count:', multiplayerState.questions?.length);
+        logger.log('🎮 Already in correct multiplayer room:', multiplayerState.roomCode);
+        logger.log('🎮 Game phase:', multiplayerState.gamePhase);
+        logger.log('🎮 Current question index:', multiplayerState.currentQuestionIndex);
+        logger.log('🎮 Questions count:', multiplayerState.questions?.length);
       } else {
-        console.log('🎮 Multiplayer room mismatch or not found');
-        console.log('🎮 Expected room:', roomId);
-        console.log('🎮 Current room:', multiplayerState?.roomCode);
+        logger.log('🎮 Multiplayer room mismatch or not found');
+        logger.log('🎮 Expected room:', roomId);
+        logger.log('🎮 Current room:', multiplayerState?.roomCode);
         
         // If we're not in the right room, try to join
         if (roomId && roomId !== 'single-player') {
@@ -242,9 +243,9 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
           const playerId = user?.id || user?.email || `player_${Date.now()}`;
           try {
             await multiplayerService.joinRoom(roomId, playerId, playerName);
-            console.log('✅ Successfully joined multiplayer room');
+            logger.log('✅ Successfully joined multiplayer room');
           } catch (error) {
-            console.error('❌ Failed to join room:', error);
+            logger.error('❌ Failed to join room:', error);
             // Show error to user
             Alert.alert('Connection Error', 'Failed to join the multiplayer room. Please try again.');
           }
@@ -255,11 +256,11 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
       const shouldStartNewGame = !gameState || gameState.category !== categoryId;
       
       if (shouldStartNewGame) {
-        console.log('🎮 Starting new single-player game...');
-        console.log('🎮 Previous category:', gameState?.category);
-        console.log('🎮 New category:', categoryId);
-        console.log('🎮 Selected question:', selectedQuestion?.text || selectedQuestion?.title || 'None');
-        console.log('🎮 Team config:', teamConfig ? 'YES' : 'NO');
+        logger.log('🎮 Starting new single-player game...');
+        logger.log('🎮 Previous category:', gameState?.category);
+        logger.log('🎮 New category:', categoryId);
+        logger.log('🎮 Selected question:', selectedQuestion?.text || selectedQuestion?.title || 'None');
+        logger.log('🎮 Team config:', teamConfig ? 'YES' : 'NO');
          
          // Reset any existing game first
          if (gameState) {
@@ -269,7 +270,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
 
          // Check if this is a custom question
          if (isCustomQuestion && customQuestion) {
-           console.log('🎮 Starting custom question game:', customQuestion.question);
+           logger.log('🎮 Starting custom question game:', customQuestion.question);
            
            // Convert custom question to the format expected by the game
            const convertedQuestion = {
@@ -287,14 +288,14 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
            
            // Check if this is a team mode custom question
            if (teamConfig) {
-             console.log('🎮 Starting custom question team mode game with config:', teamConfig);
+             logger.log('🎮 Starting custom question team mode game with config:', teamConfig);
              startTeamsGame('Custom', teamConfig, convertedQuestion);
            } else {
              // Regular single player custom question
              startGame('Sports', ['You'], convertedQuestion);
            }
          } else if (teamConfig) {
-           console.log('🎮 Starting team mode game with config:', teamConfig);
+           logger.log('🎮 Starting team mode game with config:', teamConfig);
            startTeamsGame(categoryId || 'Sports', teamConfig, selectedQuestion);
          } else {
            // Regular single player mode
@@ -312,7 +313,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   // Sync multiplayer state changes - simplified dependencies
   useEffect(() => {
     if (isMultiplayerMode && multiplayerState) {
-      console.log('🎮 Multiplayer state changed:', {
+      logger.log('🎮 Multiplayer state changed:', {
         gamePhase: multiplayerState.gamePhase,
         status: multiplayerState.status,
         currentQuestionIndex: multiplayerState.currentQuestionIndex,
@@ -322,15 +323,15 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
       
       // Handle game phase changes
       if (multiplayerState.gamePhase === 'question' && multiplayerState.turnStartTime) {
-        console.log('🎮 Question phase started');
+        logger.log('🎮 Question phase started');
         // Game is active, show the question
       } else if (multiplayerState.gamePhase === 'answers') {
-        console.log('🎮 Answers phase - showing revealed answers');
+        logger.log('🎮 Answers phase - showing revealed answers');
         setShowAnswers(true);
       } else if (multiplayerState.gamePhase === 'results') {
-        console.log('🎮 Results phase');
+        logger.log('🎮 Results phase');
       } else if (multiplayerState.gamePhase === 'finished') {
-        console.log('🎮 Game finished');
+        logger.log('🎮 Game finished');
         // Check if all 10 answers are revealed before showing leaderboard
         const revealedAnswers = multiplayerState.revealedAnswers;
         const revealedAnswersCount = Array.isArray(revealedAnswers) 
@@ -350,7 +351,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   useEffect(() => {
     if (isMultiplayerMode && multiplayerState?.gamePhase === 'lobby') {
       const timeout = setTimeout(() => {
-        console.log('⏰ Multiplayer game loading timeout - showing error');
+        logger.log('⏰ Multiplayer game loading timeout - showing error');
         Alert.alert(
           'Game Loading Timeout',
           'The game is taking too long to start. Please try again.',
@@ -398,11 +399,11 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
         
         if (timeRemaining <= 0) {
           // Turn time's up - automatically advance to next player
-          console.log('⏰ Turn timer expired - advancing to next player');
+          logger.log('⏰ Turn timer expired - advancing to next player');
           if (multiplayerState.currentPlayerId === user?.id && user?.id) {
             // Current player's turn expired, try to advance turn
             multiplayerService.advanceTurnOnTimeoutV2(multiplayerState.roomCode, user.id).catch(error => {
-              console.log('⚠️ Turn advance failed:', error);
+              logger.log('⚠️ Turn advance failed:', error);
               // This is expected - another client may have already advanced the turn
             });
           }
@@ -461,7 +462,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     if (isMultiplayerMode && multiplayerState?.currentQuestionIndex !== undefined) {
       setPointsEarned(null);
       setLastAnswerResult(null);
-      console.log(`🔄 QUESTION_CHANGE: Reset feedback state for question ${multiplayerState.currentQuestionIndex}`);
+      logger.log(`🔄 QUESTION_CHANGE: Reset feedback state for question ${multiplayerState.currentQuestionIndex}`);
     }
   }, [isMultiplayerMode, multiplayerState?.currentQuestionIndex]);
 
@@ -478,7 +479,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   // Check if game is finished and show results - simplified dependencies
   useEffect(() => {
     if (gameState?.gamePhase === 'finished' && !showResults) {
-      console.log('🎉 Game finished! Showing results...');
+      logger.log('🎉 Game finished! Showing results...');
       setShowGameEndRanking(true);
       setShowResults(true);
     }
@@ -487,7 +488,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   // Handle system messages (Sporcle-style notifications)
   useEffect(() => {
     if (isMultiplayerMode && systemMessage.type) {
-      console.log('🔔 SYSTEM_MESSAGE: Received system message:', systemMessage);
+      logger.log('🔔 SYSTEM_MESSAGE: Received system message:', systemMessage);
       if (systemMessage.type === 'host_migrated') {
         // Show seamless host migration notification (Sporcle-style)
         showToast(
@@ -518,7 +519,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
         });
       } else if (systemMessage.type === 'game_terminated') {
         // Game terminated due to insufficient players
-        console.log('🔔 GAME_TERMINATED: Showing termination alert');
+        logger.log('🔔 GAME_TERMINATED: Showing termination alert');
         showCrossPlatformAlert({
           title: 'Game Ended',
           message: systemMessage.message,
@@ -526,7 +527,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
             { 
               text: 'OK', 
               onPress: () => {
-                console.log('🔔 GAME_TERMINATED: User acknowledged, redirecting to MultiplayerMenu');
+                logger.log('🔔 GAME_TERMINATED: User acknowledged, redirecting to MultiplayerMenu');
                 clearSystemMessage();
                 forceDisconnect();
                 navigation.navigate('MultiplayerMenu');
@@ -552,7 +553,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
       if (previousHostIdRef.current && 
           previousHostIdRef.current !== currentHostId && 
           previousHostIdRef.current !== user.id) {
-        console.log('🔄 Host changed detected:', {
+        logger.log('🔄 Host changed detected:', {
           previousHost: previousHostIdRef.current,
           newHost: currentHostId,
           currentUser: user.id
@@ -569,7 +570,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
       
       // Check if any players have left
       if (previousPlayersRef.current.length > currentPlayers.length) {
-        console.log('📊 Player count changed:', {
+        logger.log('📊 Player count changed:', {
           previous: previousPlayersRef.current.length,
           current: currentPlayers.length,
           currentPlayers,
@@ -580,12 +581,12 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
         const leftPlayer = previousPlayersRef.current.find(playerId => !currentPlayers.includes(playerId));
         if (leftPlayer) {
           if (leftPlayer === previousHostIdRef.current) {
-            console.log('🚪 Host disconnected, handling migration...');
+            logger.log('🚪 Host disconnected, handling migration...');
             handleHostDisconnection(leftPlayer);
           } else if (currentPlayers.length === 1) {
             // Only 2 players were left (including host), and a non-host player left
             // This means only the host remains, so terminate the game
-            console.log('🏁 Only 2 players were left, terminating game due to player disconnection...');
+            logger.log('🏁 Only 2 players were left, terminating game due to player disconnection...');
             terminateGame(leftPlayer);
           }
         }
@@ -604,7 +605,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
       
       // If the current player changed, reset submission state
       if (previousCurrentPlayerIdRef.current !== currentPlayerId) {
-        console.log('🔄 Current player changed, resetting submission state:', {
+        logger.log('🔄 Current player changed, resetting submission state:', {
           previous: previousCurrentPlayerIdRef.current,
           current: currentPlayerId,
           isMyTurn: currentPlayerId === user.id
@@ -622,7 +623,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   // Reset submission state when question changes
   useEffect(() => {
     if (isMultiplayerMode && multiplayerState) {
-      console.log('🔄 Question changed, resetting submission state');
+      logger.log('🔄 Question changed, resetting submission state');
       setHasSubmittedThisTurn(false);
     }
   }, [isMultiplayerMode, multiplayerState?.currentQuestionIndex]);
@@ -657,14 +658,14 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   useFocusEffect(
     React.useCallback(() => {
       // This runs when the screen comes into focus
-      console.log('🎮 GameScreen focused');
+      logger.log('🎮 GameScreen focused');
       
       // Return cleanup function that runs when screen loses focus
       return () => {
-        console.log('🎮 GameScreen unfocused - cleaning up single-player game state');
+        logger.log('🎮 GameScreen unfocused - cleaning up single-player game state');
         // Only reset single-player game state, not multiplayer
         if (!isMultiplayerMode) {
-          console.log('🎮 Resetting single-player game state on navigation away');
+          logger.log('🎮 Resetting single-player game state on navigation away');
           resetGame();
         }
       };
@@ -763,14 +764,14 @@ const handleEndGame = () => {
     };
 
   const handleQuitMultiplayerGame = () => {
-    console.log('🚪 Quitting multiplayer game...');
+    logger.log('🚪 Quitting multiplayer game...');
     setShowMultiplayerLeaderboard(false);
     forceDisconnect();
     navigation.navigate('MultiplayerMenu');
   };
 
   const handleMultiplayerLeaderboardComplete = () => {
-    console.log('⏰ Multiplayer leaderboard countdown complete...');
+    logger.log('⏰ Multiplayer leaderboard countdown complete...');
     setShowMultiplayerLeaderboard(false);
     forceDisconnect();
     navigation.navigate('MultiplayerMenu');
@@ -804,7 +805,7 @@ const handleEndGame = () => {
     };
 
   const handleBackButton = () => {
-    console.log('🎮 Back button pressed - resetting single-player game state');
+    logger.log('🎮 Back button pressed - resetting single-player game state');
     // Reset single-player game state when back button is pressed
     if (!isMultiplayerMode) {
       resetGame();
@@ -835,16 +836,16 @@ const handleEndGame = () => {
     
     // Check if it's the current player's turn
     if (multiplayerState.currentPlayerId !== user.id) {
-      console.log('❌ Cannot skip turn: Not your turn');
+      logger.log('❌ Cannot skip turn: Not your turn');
       return;
     }
     
     try {
-      console.log('⏭️ Skipping turn...');
+      logger.log('⏭️ Skipping turn...');
       await skipMultiplayerTurn();
-      console.log('✅ Turn skipped successfully');
+      logger.log('✅ Turn skipped successfully');
     } catch (error) {
-      console.error('❌ Error skipping turn:', error);
+      logger.error('❌ Error skipping turn:', error);
     }
   };
 
@@ -852,7 +853,7 @@ const handleEndGame = () => {
     const answerToSubmit = isMultiplayerMode ? (multiplayerCurrentAnswer || '') : currentAnswer;
     
     // 🎯 SUBMIT ANSWER - START DEBUG LOGGING
-    console.log('🎯 SUBMIT ANSWER - START:', {
+    logger.log('🎯 SUBMIT ANSWER - START:', {
       userInput: answerToSubmit,
       playerId: user?.id,
       gameMode: 'multiplayer',
@@ -868,7 +869,7 @@ const handleEndGame = () => {
       timestamp: new Date().toISOString()
     });
     
-    console.log('🎮 handleSubmitAnswer called:', {
+    logger.log('🎮 handleSubmitAnswer called:', {
       isMultiplayerMode,
       answerToSubmit,
       multiplayerStateCurrentAnswer: multiplayerCurrentAnswer,
@@ -892,7 +893,7 @@ const handleEndGame = () => {
       );
       
       if (!rateLimitResult.allowed) {
-        console.log('❌ Rate limit exceeded:', rateLimitResult.error);
+        logger.log('❌ Rate limit exceeded:', rateLimitResult.error);
         Alert.alert('Rate Limit Exceeded', rateLimitResult.error || 'Too many answer submissions. Please wait before trying again.');
         return;
       }
@@ -900,13 +901,13 @@ const handleEndGame = () => {
     
     // Enhanced validation using InputValidator
     if (!answerToSubmit || typeof answerToSubmit !== 'string') {
-      console.log('❌ No valid answer to submit');
+      logger.log('❌ No valid answer to submit');
       return;
     }
 
     const answerValidation = InputValidator.validateGameAnswer(answerToSubmit);
     if (!answerValidation.valid) {
-      console.log('❌ Invalid answer:', answerValidation.errors);
+      logger.log('❌ Invalid answer:', answerValidation.errors);
       Alert.alert('Invalid Answer', answerValidation.errors.join('\n'));
       return;
     }
@@ -921,7 +922,7 @@ const handleEndGame = () => {
       );
       
       if (!moderationResult.approved) {
-        console.log('❌ Answer not approved by moderation:', moderationResult.errors);
+        logger.log('❌ Answer not approved by moderation:', moderationResult.errors);
         Alert.alert('Content Not Approved', moderationResult.errors.join('\n'));
         return;
       }
@@ -947,7 +948,7 @@ const handleEndGame = () => {
       if (isMultiplayerMode) {
         // Check if player has already submitted this turn
         if (hasSubmittedThisTurn) {
-          console.log('❌ Already submitted this turn');
+          logger.log('❌ Already submitted this turn');
           Alert.alert('Already Submitted', 'You have already submitted an answer this turn. Wait for your next turn.');
           return;
         }
@@ -956,7 +957,7 @@ const handleEndGame = () => {
         if (multiplayerState) {
           const validation = multiplayerService.isAllowedToSubmitV2(user?.id || '', multiplayerState);
           if (!validation.allowed) {
-            console.log('❌ Cannot submit:', validation.reason || 'Wait for your turn to submit answers.');
+            logger.log('❌ Cannot submit:', validation.reason || 'Wait for your turn to submit answers.');
             Alert.alert('Not Your Turn', validation.reason || 'Wait for your turn to submit answers.');
             return;
           }
@@ -972,7 +973,7 @@ const handleEndGame = () => {
               const { index } = match;
               // Check if this answer position is already revealed
               if (multiplayerState.revealedAnswers[index] !== null) {
-                console.log('❌ Answer already revealed:', {
+                logger.log('❌ Answer already revealed:', {
                   userAnswer: sanitizedAnswer,
                   matchedAnswer: currentQuestion.answers[index]?.text,
                   revealedAnswer: multiplayerState.revealedAnswers[index]
@@ -984,10 +985,10 @@ const handleEndGame = () => {
           }
         }
         
-        console.log('📝 Submitting multiplayer answer:', sanitizedAnswer);
+        logger.log('📝 Submitting multiplayer answer:', sanitizedAnswer);
         
         // Use V2 answer submission system
-        console.log('🔧 CALLING SERVICE - submitAnswerV2:', {
+        logger.log('🔧 CALLING SERVICE - submitAnswerV2:', {
           roomCode: multiplayerState?.roomCode || '',
           playerId: user?.id || '',
           answerText: sanitizedAnswer
@@ -1000,7 +1001,7 @@ const handleEndGame = () => {
         );
         
         // 🎯 SUBMIT ANSWER - SERVICE RESULT DEBUG LOGGING
-        console.log('🎯 SUBMIT ANSWER - SERVICE RESULT:', {
+        logger.log('🎯 SUBMIT ANSWER - SERVICE RESULT:', {
           success: result.success,
           points: result.points,
           error: result.error,
@@ -1017,7 +1018,7 @@ const handleEndGame = () => {
           if (result.points && result.points > 0) {
             setLastAnswerResult('correct');
             setPointsEarned(result.points);
-            console.log(`✅ Correct answer! Earned ${result.points} points`);
+            logger.log(`✅ Correct answer! Earned ${result.points} points`);
             // Show success message with points
             Alert.alert(
               'Correct Answer!',
@@ -1027,7 +1028,7 @@ const handleEndGame = () => {
           } else {
             setLastAnswerResult('incorrect');
             setPointsEarned(0);
-            console.log(`❌ Wrong answer - no points earned`);
+            logger.log(`❌ Wrong answer - no points earned`);
             // Show error message
             Alert.alert(
               'Wrong Answer',
@@ -1038,19 +1039,19 @@ const handleEndGame = () => {
           
           // If round ended, show message
           if (result.roundEnded) {
-            console.log(`🏁 Round ended! Moving to answers phase.`);
+            logger.log(`🏁 Round ended! Moving to answers phase.`);
             // The game phase will automatically change to 'answers' via the multiplayer context
           }
         } else {
           // Show error feedback
           setLastAnswerResult('incorrect');
-          console.log(`❌ Answer submission failed: ${result.error || 'Failed to submit answer'}`);
+          logger.log(`❌ Answer submission failed: ${result.error || 'Failed to submit answer'}`);
         }
       } else {
-        console.log('📝 Submitting single-player answer:', sanitizedAnswer);
-        console.log('📝 Before submission - Score:', getPlayerScore('You'));
+        logger.log('📝 Submitting single-player answer:', sanitizedAnswer);
+        logger.log('📝 Before submission - Score:', getPlayerScore('You'));
         submitAnswer('You', sanitizedAnswer);
-        console.log('📝 After submission - Score:', getPlayerScore('You'));
+        logger.log('📝 After submission - Score:', getPlayerScore('You'));
         setAnswer('');
         
         // Determine answer result and show feedback
@@ -1081,7 +1082,7 @@ const handleEndGame = () => {
         }).start();
       }, 2000);
     } catch (error) {
-      console.error('❌ Error submitting answer:', error);
+      logger.error('❌ Error submitting answer:', error);
     }
   };
 
@@ -1109,7 +1110,7 @@ const handleEndGame = () => {
     
     const normalizedAnswer = answer.toLowerCase().trim();
     if (!Array.isArray(currentQuestion.answers)) {
-      console.warn('⚠️ currentQuestion.answers is not an array:', currentQuestion.answers);
+      logger.warn('⚠️ currentQuestion.answers is not an array:', currentQuestion.answers);
       return false;
     }
     
@@ -1125,7 +1126,7 @@ const handleEndGame = () => {
     });
   };
 
-  console.log('🎮 GameScreen render state:', {
+  logger.log('🎮 GameScreen render state:', {
     isMultiplayerMode,
     gameState: gameState ? 'exists' : 'null',
     multiplayerState: multiplayerState ? 'exists' : 'null',
@@ -1224,7 +1225,7 @@ const handleEndGame = () => {
                 <Button 
                   title="Start Game" 
                   onPress={() => {
-                    console.log('🎮 Manual start game pressed');
+                    logger.log('🎮 Manual start game pressed');
                     startMultiplayerGame();
                   }}
                   style={styles.startGameButton}
@@ -1346,7 +1347,7 @@ const handleEndGame = () => {
                  
                  // 🎨 ANSWER DEBUG LOGGING (only for first few answers to avoid spam)
                  if (index < 3) {
-                   console.log(`🎨 ANSWER ${index + 1}:`, {
+                   logger.log(`🎨 ANSWER ${index + 1}:`, {
                      canonicalName: answerText,
                      answerIndex: index,
                      isRevealed: false, // Will be updated below
@@ -1365,7 +1366,7 @@ const handleEndGame = () => {
                    
                    // Debug logging for answer revelation
                    if (index === 0) { // Only log for first answer to avoid spam
-                     console.log('🔍 Answer revelation debug:', {
+                     logger.log('🔍 Answer revelation debug:', {
                        answerText,
                        answerIndex: index,
                        revealedAnswers: multiplayerState?.revealedAnswers,
@@ -1376,7 +1377,7 @@ const handleEndGame = () => {
                    
                    // Additional logging for revealed answers
                    if (isRevealed) {
-                     console.log(`🎉 UI_REVELATION_DEBUG: Answer at index ${index} is revealed:`, {
+                     logger.log(`🎉 UI_REVELATION_DEBUG: Answer at index ${index} is revealed:`, {
                        answerText,
                        answerIndex: index,
                        revealedAnswer: multiplayerState?.revealedAnswers?.[index],
@@ -1394,7 +1395,7 @@ const handleEndGame = () => {
                    
                    // 🎨 ANSWER DEBUG LOGGING - Update with actual values
                    if (index < 3) {
-                     console.log(`🎨 ANSWER ${index + 1} - UPDATED:`, {
+                     logger.log(`🎨 ANSWER ${index + 1} - UPDATED:`, {
                        canonicalName: answerText,
                        answerIndex: index,
                        isRevealed: isRevealed,
@@ -1609,7 +1610,7 @@ const handleEndGame = () => {
             onAssign={(teamId, points) => {
               if (selectedAnswerIndex >= 0 && selectedAnswer) {
                 const team = teamGameState?.teams.find(t => t.id === teamId);
-                console.log(`🎯 Assigning "${selectedAnswer.text}" to ${team?.name} for ${points} points`);
+                logger.log(`🎯 Assigning "${selectedAnswer.text}" to ${team?.name} for ${points} points`);
                 
                 assignAnswerToTeam(selectedAnswerIndex, teamId, points);
                 setShowHostAssignModal(false);
@@ -1617,7 +1618,7 @@ const handleEndGame = () => {
                 setSelectedAnswer(null);
                 
                 // Show success feedback
-                console.log(`✅ Answer Assigned: "${selectedAnswer.text}" to ${team?.name} (+${points} points)`);
+                logger.log(`✅ Answer Assigned: "${selectedAnswer.text}" to ${team?.name} (+${points} points)`);
               }
             }}
             answer={selectedAnswer}
@@ -1644,7 +1645,7 @@ const handleEndGame = () => {
              (!isMultiplayerMode && gameState?.gamePhase !== 'finished')) && 
             !(!isMultiplayerMode && isTeamMode);
           
-          console.log('🎮 Answer input visibility check:', {
+          logger.log('🎮 Answer input visibility check:', {
             questionIsComplete,
             isMultiplayerMode,
             gamePhase: multiplayerState?.gamePhase,

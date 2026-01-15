@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { COLORS, SPACING, TYPOGRAPHY } from '../utils/constants';
 import { EdgeCaseHandler } from '../services/edgeCaseHandler';
+import { logger } from '../utils/logger';
 
 interface EdgeCaseMonitorProps {
   roomCode?: string;
@@ -53,7 +54,7 @@ const EdgeCaseMonitor: React.FC<EdgeCaseMonitorProps> = ({
 
   const startMonitoring = () => {
     // Start monitoring edge cases
-    console.log('🔍 Starting edge case monitoring...');
+    logger.log('🔍 Starting edge case monitoring...');
     
     // Simulate monitoring (in real app, this would connect to actual monitoring)
     const interval = setInterval(() => {
@@ -64,7 +65,7 @@ const EdgeCaseMonitor: React.FC<EdgeCaseMonitorProps> = ({
   };
 
   const stopMonitoring = () => {
-    console.log('🛑 Stopping edge case monitoring...');
+    logger.log('🛑 Stopping edge case monitoring...');
   };
 
   const updateStats = () => {

@@ -5,36 +5,37 @@ import { getFirestore, serverTimestamp } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
+import { logger } from '../utils/logger';
 // Note: Firebase Analytics is web-only with the JS SDK
 // We will import and init it conditionally on web to avoid native runtime errors
 
-// Temporary hardcoded Firebase configuration to bypass environment variable issues
+// Firebase configuration from environment variables
 const firebaseConfig = {
-  apiKey: 'AIzaSyAu096CybNo1NMFCHVLi1PtPfy4cXgpTgQ',
-  authDomain: 'top10-game-f9219.firebaseapp.com',
-  projectId: 'top10-game-f9219',
-  storageBucket: 'top10-game-f9219.firebasestorage.app',
-  messagingSenderId: '807249280703',
-  appId: '1:807249280703:web:3706f3bbf0029ef43d500a',
-  measurementId: 'G-NCGRYEPFKZ'
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || '',
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || '',
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || '',
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || '',
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '',
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || '',
+  measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID || ''
 };
 
 // Note: App name for email templates is configured in Firebase Console
 // Go to Authentication > Templates to set the app name for email templates
 
-// Debug logging to see what's actually loaded
-console.log('🔍 Firebase Config Debug:');
-console.log('Using hardcoded Firebase config:', firebaseConfig);
+// Validate that all required config values are present
+const requiredConfigKeys = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'];
+const missingKeys = requiredConfigKeys.filter(key => !firebaseConfig[key as keyof typeof firebaseConfig]);
 
-// Check if we have the minimum required configuration
-const hasValidConfig = firebaseConfig?.apiKey && firebaseConfig?.projectId;
-
-console.log('hasValidConfig:', hasValidConfig);
-
-if (!hasValidConfig) {
-  console.error('Firebase config is missing or incomplete.');
-  throw new Error('Firebase configuration is invalid');
+if (missingKeys.length > 0) {
+  logger.error('❌ Missing Firebase configuration:', missingKeys.join(', '));
+  throw new Error(`Missing Firebase configuration: ${missingKeys.join(', ')}. Please check your .env file.`);
 }
+
+// Debug logging to see what's actually loaded
+logger.log('🔍 Firebase Config Debug:');
+logger.log('Using environment-based Firebase config');
+logger.log('Project ID:', firebaseConfig.projectId);
 
 export const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
@@ -44,16 +45,16 @@ let auth: any;
 // Check if auth already exists
 try {
   auth = getAuth(app);
-  console.log('✅ Using existing Firebase Auth instance');
+  logger.log('✅ Using existing Firebase Auth instance');
 } catch (error) {
-  console.log('🔐 Initializing new Firebase Auth...');
+  logger.log('🔐 Initializing new Firebase Auth...');
   
   try {
     // Initialize auth with default persistence (works for both web and React Native)
     auth = initializeAuth(app);
-    console.log('✅ Firebase Auth initialized successfully');
+    logger.log('✅ Firebase Auth initialized successfully');
   } catch (error) {
-    console.error('❌ Failed to initialize Firebase Auth:', error);
+    logger.error('❌ Failed to initialize Firebase Auth:', error);
     throw new Error('Failed to initialize Firebase Auth');
   }
 }
@@ -72,9 +73,9 @@ if (Platform.OS === 'web') {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { getAnalytics } = require('firebase/analytics');
     analytics = getAnalytics(app);
-    console.log('✅ Firebase Analytics initialized for web');
+    logger.log('✅ Firebase Analytics initialized for web');
   } catch (error) {
-    console.warn('⚠️ Firebase Analytics not available:', error);
+    logger.warn('⚠️ Firebase Analytics not available:', error);
     analytics = undefined;
   }
 }
@@ -93,11 +94,11 @@ export const isRealtimeDB = false;
 export const getServerTimestamp = () => serverTimestamp();
 
 // Log database configuration
-console.log('🔥 Firebase configuration complete:');
-console.log(`   Database: ${DATABASE_TYPE.toUpperCase()}`);
-console.log(`   Project: ${firebaseConfig.projectId}`);
-console.log(`   Auth: ${auth ? 'Initialized' : 'Failed'}`);
-console.log(`   Firestore: ${db ? 'Initialized' : 'Failed'}`);
+logger.log('🔥 Firebase configuration complete:');
+logger.log(`   Database: ${DATABASE_TYPE.toUpperCase()}`);
+logger.log(`   Project: ${firebaseConfig.projectId}`);
+logger.log(`   Auth: ${auth ? 'Initialized' : 'Failed'}`);
+logger.log(`   Firestore: ${db ? 'Initialized' : 'Failed'}`);
 
 
 

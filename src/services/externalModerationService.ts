@@ -2,6 +2,7 @@
  * External Content Moderation Service
  * Integrates with third-party content moderation APIs like AWS Comprehend, Google Cloud Natural Language, etc.
  */
+import { logger } from '../utils/logger';
 
 export interface ExternalModerationResult {
   approved: boolean;
@@ -60,7 +61,7 @@ export class ExternalModerationService {
             return result;
           }
         } catch (error) {
-          console.warn(`Moderation provider ${provider.name} failed:`, error);
+          logger.warn(`Moderation provider ${provider.name} failed:`, error);
           // Continue to next provider
         }
       }
@@ -73,7 +74,7 @@ export class ExternalModerationService {
         reason: 'All moderation providers failed, defaulting to approved'
       };
     } catch (error) {
-      console.error('External moderation service error:', error);
+      logger.error('External moderation service error:', error);
       return {
         approved: true,
         confidence: 0.3,
@@ -111,10 +112,12 @@ export class ExternalModerationService {
     content: string,
     provider: ModerationProvider
   ): Promise<ExternalModerationResult> {
-    // TODO: Implement actual AWS Comprehend integration
+    // BLOCKED: External moderation API integration - waiting on provider selection
+    // Dependency: Need to choose moderation service provider and obtain API credentials
+    // Fallback: Currently uses mock implementation that always approves content
     // This would require AWS SDK and proper authentication
     
-    console.log('AWS Comprehend moderation (not implemented)');
+    logger.log('AWS Comprehend moderation (not implemented)');
     
     // Mock response for now
     return {
@@ -132,10 +135,12 @@ export class ExternalModerationService {
     content: string,
     provider: ModerationProvider
   ): Promise<ExternalModerationResult> {
-    // TODO: Implement actual Google Cloud Natural Language integration
+    // BLOCKED: External moderation API integration - waiting on provider selection
+    // Dependency: Need to choose moderation service provider and obtain API credentials
+    // Fallback: Currently uses mock implementation that always approves content
     // This would require Google Cloud client library and proper authentication
     
-    console.log('Google Cloud Natural Language moderation (not implemented)');
+    logger.log('Google Cloud Natural Language moderation (not implemented)');
     
     // Mock response for now
     return {
@@ -153,10 +158,12 @@ export class ExternalModerationService {
     content: string,
     provider: ModerationProvider
   ): Promise<ExternalModerationResult> {
-    // TODO: Implement actual OpenAI Moderation API integration
+    // BLOCKED: External moderation API integration - waiting on provider selection
+    // Dependency: Need to choose moderation service provider and obtain API credentials
+    // Fallback: Currently uses mock implementation that always approves content
     // This would require OpenAI API client and proper authentication
     
-    console.log('OpenAI Moderation API (not implemented)');
+    logger.log('OpenAI Moderation API (not implemented)');
     
     // Mock response for now
     return {

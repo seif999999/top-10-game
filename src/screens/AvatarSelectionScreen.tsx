@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { COLORS, SPACING, TYPOGRAPHY } from '../design-system';
 import { useAuth } from '../contexts/AuthContext';
+import { logger } from '../utils/logger';
 
 interface AvatarOption {
   id: string;
@@ -128,10 +129,10 @@ const AvatarSelectionScreen: React.FC = () => {
             style={styles.avatarImage}
             resizeMode="contain"
             onLoad={() => {
-              console.log('Avatar selection loaded:', avatar.name, avatar.url);
+              logger.log('Avatar selection loaded:', avatar.name, avatar.url);
             }}
             onError={(error) => {
-              console.log('Avatar selection image error:', error.nativeEvent.error, 'URL:', avatar.url);
+              logger.log('Avatar selection image error:', error.nativeEvent.error, 'URL:', avatar.url);
             }}
           />
           {isSelected && (

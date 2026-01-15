@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import { logger } from '../utils/logger';
 
 const DISPLAY_NAME_STORAGE_KEY = 'user_display_name';
 
@@ -24,7 +25,7 @@ export class LocalDisplayNameStorage {
    */
   public async saveDisplayName(displayName: string): Promise<void> {
     try {
-      console.log('💾 LocalDisplayNameStorage: Saving display name locally:', displayName);
+      logger.log('💾 LocalDisplayNameStorage: Saving display name locally:', displayName);
       
       const displayNameData = {
         displayName,
@@ -34,9 +35,9 @@ export class LocalDisplayNameStorage {
       const storage = Platform.OS === 'web' ? localStorage : AsyncStorage;
       await storage.setItem(DISPLAY_NAME_STORAGE_KEY, JSON.stringify(displayNameData));
       
-      console.log('✅ LocalDisplayNameStorage: Display name saved successfully');
+      logger.log('✅ LocalDisplayNameStorage: Display name saved successfully');
     } catch (error) {
-      console.error('❌ LocalDisplayNameStorage: Error saving display name:', error);
+      logger.error('❌ LocalDisplayNameStorage: Error saving display name:', error);
       throw new Error('Failed to save display name locally');
     }
   }
@@ -46,21 +47,21 @@ export class LocalDisplayNameStorage {
    */
   public async getDisplayName(): Promise<string | null> {
     try {
-      console.log('🔍 LocalDisplayNameStorage: Retrieving display name...');
+      logger.log('🔍 LocalDisplayNameStorage: Retrieving display name...');
       
       const storage = Platform.OS === 'web' ? localStorage : AsyncStorage;
       const storedData = await storage.getItem(DISPLAY_NAME_STORAGE_KEY);
       
       if (storedData) {
         const displayNameData = JSON.parse(storedData);
-        console.log('✅ LocalDisplayNameStorage: Found stored display name:', displayNameData.displayName);
+        logger.log('✅ LocalDisplayNameStorage: Found stored display name:', displayNameData.displayName);
         return displayNameData.displayName;
       }
       
-      console.log('ℹ️ LocalDisplayNameStorage: No stored display name found');
+      logger.log('ℹ️ LocalDisplayNameStorage: No stored display name found');
       return null;
     } catch (error) {
-      console.error('❌ LocalDisplayNameStorage: Error retrieving display name:', error);
+      logger.error('❌ LocalDisplayNameStorage: Error retrieving display name:', error);
       return null;
     }
   }
@@ -70,14 +71,14 @@ export class LocalDisplayNameStorage {
    */
   public async clearDisplayName(): Promise<void> {
     try {
-      console.log('🗑️ LocalDisplayNameStorage: Clearing display name...');
+      logger.log('🗑️ LocalDisplayNameStorage: Clearing display name...');
       
       const storage = Platform.OS === 'web' ? localStorage : AsyncStorage;
       await storage.removeItem(DISPLAY_NAME_STORAGE_KEY);
       
-      console.log('✅ LocalDisplayNameStorage: Display name cleared successfully');
+      logger.log('✅ LocalDisplayNameStorage: Display name cleared successfully');
     } catch (error) {
-      console.error('❌ LocalDisplayNameStorage: Error clearing display name:', error);
+      logger.error('❌ LocalDisplayNameStorage: Error clearing display name:', error);
     }
   }
 }

@@ -7,6 +7,7 @@ import LocalDisplayNameStorage from '../services/localDisplayNameStorage';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { RateLimitService } from '../services/rateLimitService';
 import { View } from 'react-native';
+import { logger } from '../utils/logger';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -21,35 +22,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const authService = AuthService.getInstance();
       authService.syncWithUser(user);
     } catch (error) {
-      console.warn('⚠️ AuthContext: Failed to sync with AuthService:', error);
+      logger.warn('⚠️ AuthContext: Failed to sync with AuthService:', error);
     }
   };
 
   useEffect(() => {
-    console.log('🔐 AuthContext: Setting up authentication...');
+    logger.log('🔐 AuthContext: Setting up authentication...');
     
     let isInitialized = false;
     
     const initializeAuth = async () => {
       try {
         // Add a small delay to allow Firebase to fully initialize
-        console.log('🔍 AuthContext: Waiting for Firebase to initialize...');
+        logger.log('🔍 AuthContext: Waiting for Firebase to initialize...');
         await new Promise(resolve => setTimeout(resolve, 1500));
         
         // First, verify authentication persistence is working
-        console.log('🔍 AuthContext: Verifying authentication persistence...');
+        logger.log('🔍 AuthContext: Verifying authentication persistence...');
         const persistenceWorking = await verifyAuthPersistence();
         
         if (!persistenceWorking) {
-          console.warn('⚠️ AuthContext: Authentication persistence verification failed');
+          logger.warn('⚠️ AuthContext: Authentication persistence verification failed');
         }
         
         // Then, check if user is already authenticated
-        console.log('🔍 AuthContext: Checking for existing authentication...');
+        logger.log('🔍 AuthContext: Checking for existing authentication...');
         const currentUser = await getCurrentUser();
         
         if (currentUser) {
-          console.log('✅ AuthContext: User already authenticated:', currentUser.email);
+          logger.log('✅ AuthContext: User already authenticated:', currentUser.email);
           
           // Load locally stored avatar and display name if available
           try {
@@ -64,22 +65,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             
             // Apply local avatar if available
             if (localAvatar && (!currentUser.selectedAvatar || currentUser.selectedAvatar !== localAvatar)) {
-              console.log('🖼️ AuthContext: Loading locally stored avatar:', localAvatar);
+              logger.log('🖼️ AuthContext: Loading locally stored avatar:', localAvatar);
               updatedUser = { ...updatedUser, selectedAvatar: localAvatar };
               hasLocalUpdates = true;
               
               // Try to sync with server in background
               try {
                 await localAvatarStorage.updateUserId(currentUser.id);
-                console.log('✅ AuthContext: Local avatar synced with user ID');
+                logger.log('✅ AuthContext: Local avatar synced with user ID');
               } catch (syncError) {
-                console.warn('⚠️ AuthContext: Failed to sync local avatar with user ID:', syncError);
+                logger.warn('⚠️ AuthContext: Failed to sync local avatar with user ID:', syncError);
               }
             }
             
             // Apply local display name if available
             if (localDisplayName && (!currentUser.displayName || currentUser.displayName !== localDisplayName)) {
-              console.log('📝 AuthContext: Loading locally stored display name:', localDisplayName);
+              logger.log('📝 AuthContext: Loading locally stored display name:', localDisplayName);
               updatedUser = { ...updatedUser, displayName: localDisplayName };
               hasLocalUpdates = true;
             }
@@ -88,10 +89,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             syncAuthService(updatedUser);
             
             if (hasLocalUpdates) {
-              console.log('✅ AuthContext: Applied local updates to user profile');
+              logger.log('✅ AuthContext: Applied local updates to user profile');
             }
           } catch (localError) {
-            console.warn('⚠️ AuthContext: Failed to load local data:', localError);
+            logger.warn('⚠️ AuthContext: Failed to load local data:', localError);
             setUser(currentUser);
             syncAuthService(currentUser);
           }
@@ -99,31 +100,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setLoading(false);
           isInitialized = true;
         } else {
-          console.log('🚪 AuthContext: No existing authentication found');
+          logger.log('🚪 AuthContext: No existing authentication found');
           setLoading(false);
           isInitialized = true;
         }
       } catch (error) {
-        console.error('❌ AuthContext: Error during authentication initialization:', error);
+        logger.error('❌ AuthContext: Error during authentication initialization:', error);
         setLoading(false);
         isInitialized = true;
       }
       
       // Set up the auth state listener for future changes
-      console.log('🔐 AuthContext: Setting up authentication listener...');
+      logger.log('🔐 AuthContext: Setting up authentication listener...');
       const unsub = subscribeToAuthChanges((u) => {
-        console.log('🔄 AuthContext: Auth state changed:', u ? `User: ${u.email}` : 'No user');
+        logger.log('🔄 AuthContext: Auth state changed:', u ? `User: ${u.email}` : 'No user');
         
         // Only update if we haven't already initialized with getCurrentUser
         if (!isInitialized) {
-          console.log('🔄 AuthContext: Setting loading to false (from listener)');
+          logger.log('🔄 AuthContext: Setting loading to false (from listener)');
           setUser(u);
           syncAuthService(u);
           setLoading(false);
           isInitialized = true;
         } else if (u) {
           // If we already initialized but user changed, update
-          console.log('🔄 AuthContext: User changed after initialization');
+          logger.log('🔄 AuthContext: User changed after initialization');
           setUser(u);
           syncAuthService(u);
         }
@@ -141,7 +142,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Add a timeout to ensure loading state doesn't get stuck
     const loadingTimeout = setTimeout(() => {
       if (!isInitialized) {
-        console.log('⏰ AuthContext: Loading timeout reached, setting loading to false');
+        logger.log('⏰ AuthContext: Loading timeout reached, setting loading to false');
         setLoading(false);
         isInitialized = true;
       }
@@ -156,18 +157,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    console.log('🔍 DEBUG: AuthContext signIn called with:', { email, password: password ? '***' : '' });
+    logger.log('🔍 DEBUG: AuthContext signIn called with:', { email, password: password ? '***' : '' });
     setPendingAction(true);
-    console.log('🔍 DEBUG: AuthContext setPendingAction(true)');
+    logger.log('🔍 DEBUG: AuthContext setPendingAction(true)');
     try {
-      console.log('🔍 DEBUG: AuthContext calling signInWithEmail...');
+      logger.log('🔍 DEBUG: AuthContext calling signInWithEmail...');
       await signInWithEmail(email, password);
-      console.log('✅ DEBUG: AuthContext signInWithEmail successful');
+      logger.log('✅ DEBUG: AuthContext signInWithEmail successful');
     } catch (error) {
-      console.error('❌ DEBUG: AuthContext signInWithEmail error:', error);
+      logger.error('❌ DEBUG: AuthContext signInWithEmail error:', error);
       throw error;
     } finally {
-      console.log('🔍 DEBUG: AuthContext setPendingAction(false)');
+      logger.log('🔍 DEBUG: AuthContext setPendingAction(false)');
       setPendingAction(false);
     }
   };
@@ -182,18 +183,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signUp = async (email: string, password: string, displayName?: string) => {
-    console.log('🔍 DEBUG: AuthContext signUp called with:', { email, displayName, password: password ? '***' : '' });
+    logger.log('🔍 DEBUG: AuthContext signUp called with:', { email, displayName, password: password ? '***' : '' });
     setPendingAction(true);
-    console.log('🔍 DEBUG: AuthContext setPendingAction(true)');
+    logger.log('🔍 DEBUG: AuthContext setPendingAction(true)');
     try {
-      console.log('🔍 DEBUG: AuthContext calling signUpWithEmail...');
+      logger.log('🔍 DEBUG: AuthContext calling signUpWithEmail...');
       await signUpWithEmail(email, password, displayName);
-      console.log('✅ DEBUG: AuthContext signUpWithEmail successful');
+      logger.log('✅ DEBUG: AuthContext signUpWithEmail successful');
     } catch (error) {
-      console.error('❌ DEBUG: AuthContext signUpWithEmail error:', error);
+      logger.error('❌ DEBUG: AuthContext signUpWithEmail error:', error);
       throw error;
     } finally {
-      console.log('🔍 DEBUG: AuthContext setPendingAction(false)');
+      logger.log('🔍 DEBUG: AuthContext setPendingAction(false)');
       setPendingAction(false);
     }
   };
@@ -219,28 +220,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const resetPassword = async (email: string) => {
     setPendingAction(true);
     try {
-      console.log('🔐 AuthContext: Starting password reset process for:', email);
+      logger.log('🔐 AuthContext: Starting password reset process for:', email);
       
       // Check rate limiting for password reset requests
-      console.log('🔐 AuthContext: Checking rate limits...');
+      logger.log('🔐 AuthContext: Checking rate limits...');
       const rateLimitResult = await RateLimitService.checkRateLimit(
         email, // Use email as identifier for password reset
         'passwordReset',
         { ipAddress: 'unknown', userAgent: 'mobile' }
       );
       
-      console.log('🔐 AuthContext: Rate limit result:', rateLimitResult);
+      logger.log('🔐 AuthContext: Rate limit result:', rateLimitResult);
       
       if (!rateLimitResult.allowed) {
-        console.log('❌ AuthContext: Rate limit exceeded');
+        logger.log('❌ AuthContext: Rate limit exceeded');
         throw new Error(rateLimitResult.error || 'Too many password reset attempts. Please try again later.');
       }
       
-      console.log('✅ AuthContext: Rate limit check passed, calling resetPasswordService...');
+      logger.log('✅ AuthContext: Rate limit check passed, calling resetPasswordService...');
       await resetPasswordService(email);
-      console.log('✅ AuthContext: Password reset service completed successfully');
+      logger.log('✅ AuthContext: Password reset service completed successfully');
     } catch (error) {
-      console.error('❌ AuthContext: Password reset error:', error);
+      logger.error('❌ AuthContext: Password reset error:', error);
       throw error;
     } finally {
       setPendingAction(false);
@@ -250,23 +251,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOut = async () => {
     setPendingAction(true);
     try {
-      console.log('🚪 AuthContext: Starting sign-out process...');
+      logger.log('🚪 AuthContext: Starting sign-out process...');
       
       // Call the auth service to sign out
       await signOutUser();
       
       // Clear local user state
-      console.log('🧹 AuthContext: Clearing local user state...');
+      logger.log('🧹 AuthContext: Clearing local user state...');
       setUser(null);
       syncAuthService(null);
       
-      console.log('✅ AuthContext: Sign-out completed successfully');
+      logger.log('✅ AuthContext: Sign-out completed successfully');
     } catch (error) {
-      console.error('💥 AuthContext: Sign-out error:', error);
+      logger.error('💥 AuthContext: Sign-out error:', error);
       
       // Even if there's an error, clear the local user state
       // This ensures the user is redirected to login screen
-      console.log('🔄 AuthContext: Clearing user state despite error...');
+      logger.log('🔄 AuthContext: Clearing user state despite error...');
       setUser(null);
       syncAuthService(null);
       
@@ -280,32 +281,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateUserProfile = async (updates: { displayName?: string; avatarId?: string }) => {
     setPendingAction(true);
     try {
-      console.log('🔄 AuthContext: Updating user profile...', updates);
-      console.log('🔍 AuthContext: Current user before update:', user ? `ID: ${user.id}, Email: ${user.email}` : 'None');
+      logger.log('🔄 AuthContext: Updating user profile...', updates);
+      logger.log('🔍 AuthContext: Current user before update:', user ? `ID: ${user.id}, Email: ${user.email}` : 'None');
       
       // If we don't have a user, try to get the current user first
       if (!user) {
-        console.log('🔄 AuthContext: No user in context, attempting to get current user...');
+        logger.log('🔄 AuthContext: No user in context, attempting to get current user...');
         const currentUser = await getCurrentUser();
         if (currentUser) {
-          console.log('✅ AuthContext: Retrieved current user:', currentUser.email);
+          logger.log('✅ AuthContext: Retrieved current user:', currentUser.email);
           setUser(currentUser);
           syncAuthService(currentUser);
         } else {
-          console.error('❌ AuthContext: No user available for profile update');
+          logger.error('❌ AuthContext: No user available for profile update');
           throw new Error('No user is currently signed in. Please sign in again.');
         }
       }
       
       // Ensure we have a valid user with ID
       if (!user || !user.id) {
-        console.error('❌ AuthContext: User missing or invalid ID:', user);
+        logger.error('❌ AuthContext: User missing or invalid ID:', user);
         throw new Error('User session is invalid. Please sign in again.');
       }
       
       // Handle displayName updates with local storage first
       if (updates.displayName !== undefined) {
-        console.log('📝 AuthContext: Updating display name locally first...');
+        logger.log('📝 AuthContext: Updating display name locally first...');
         
         // Save display name locally immediately for instant persistence
         const localDisplayNameStorage = LocalDisplayNameStorage.getInstance();
@@ -316,13 +317,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (updatedUser) {
           setUser(updatedUser);
           syncAuthService(updatedUser);
-          console.log('✅ AuthContext: Display name updated locally:', updates.displayName);
+          logger.log('✅ AuthContext: Display name updated locally:', updates.displayName);
         }
       }
       
       // Handle avatar updates with local storage first
       if (updates.avatarId !== undefined) {
-        console.log('🖼️ AuthContext: Updating avatar locally first...');
+        logger.log('🖼️ AuthContext: Updating avatar locally first...');
         
         // Save avatar locally immediately for instant persistence
         const localAvatarStorage = LocalAvatarStorage.getInstance();
@@ -333,34 +334,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (updatedUser) {
           setUser(updatedUser);
           syncAuthService(updatedUser);
-          console.log('✅ AuthContext: Avatar updated locally:', updates.avatarId);
+          logger.log('✅ AuthContext: Avatar updated locally:', updates.avatarId);
         }
       }
       
       // Try to update server in background (don't block user experience)
       try {
-        console.log('🔄 AuthContext: Attempting server sync...');
-        console.log('🔍 AuthContext: Using user ID for server sync:', user.id);
+        logger.log('🔄 AuthContext: Attempting server sync...');
+        logger.log('🔍 AuthContext: Using user ID for server sync:', user.id);
         const updatedUser = await updateUserProfileService(updates);
         
         // Update local user state with server data if successful
-        console.log('✅ AuthContext: Server sync successful');
-        console.log('🔍 AuthContext: Updated user:', updatedUser ? `ID: ${updatedUser.id}, Email: ${updatedUser.email}, DisplayName: ${updatedUser.displayName}, Avatar: ${updatedUser.selectedAvatar}` : 'None');
+        logger.log('✅ AuthContext: Server sync successful');
+        logger.log('🔍 AuthContext: Updated user:', updatedUser ? `ID: ${updatedUser.id}, Email: ${updatedUser.email}, DisplayName: ${updatedUser.displayName}, Avatar: ${updatedUser.selectedAvatar}` : 'None');
         setUser(updatedUser);
         syncAuthService(updatedUser);
       } catch (serverError) {
-        console.warn('⚠️ AuthContext: Server sync failed, but local update succeeded:', serverError);
+        logger.warn('⚠️ AuthContext: Server sync failed, but local update succeeded:', serverError);
         
         // If the error is about invalid session, force re-authentication
         if (serverError instanceof Error && (serverError.message.includes('User session is invalid') || serverError.message.includes('Please sign in again'))) {
-          console.log('🔄 AuthContext: Invalid session detected, forcing re-authentication...');
+          logger.log('🔄 AuthContext: Invalid session detected, forcing re-authentication...');
           try {
             await forceReAuthentication();
             setUser(null);
             syncAuthService(null);
-            console.log('✅ AuthContext: Re-authentication completed, user state cleared');
+            logger.log('✅ AuthContext: Re-authentication completed, user state cleared');
           } catch (reauthError) {
-            console.error('❌ AuthContext: Failed to force re-authentication:', reauthError);
+            logger.error('❌ AuthContext: Failed to force re-authentication:', reauthError);
             setUser(null);
             syncAuthService(null);
           }
@@ -371,7 +372,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
     } catch (error) {
-      console.error('💥 AuthContext: Profile update error:', error);
+      logger.error('💥 AuthContext: Profile update error:', error);
       throw error;
     } finally {
       setPendingAction(false);
@@ -381,13 +382,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateUserAvatar = async (selectedAvatar: string | undefined) => {
     setPendingAction(true);
     try {
-      console.log('🔄 AuthContext: Updating user avatar...');
+      logger.log('🔄 AuthContext: Updating user avatar...');
       
       // Save avatar locally immediately
       if (selectedAvatar) {
         const localAvatarStorage = LocalAvatarStorage.getInstance();
         await localAvatarStorage.saveSelectedAvatar(selectedAvatar);
-        console.log('✅ AuthContext: Avatar saved locally:', selectedAvatar);
+        logger.log('✅ AuthContext: Avatar saved locally:', selectedAvatar);
       }
       
       // Update local user state immediately
@@ -400,15 +401,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Try to sync with server in background
       try {
         await AuthService.updateUserAvatar(selectedAvatar);
-        console.log('✅ AuthContext: Avatar synced with server');
+        logger.log('✅ AuthContext: Avatar synced with server');
       } catch (serverError) {
-        console.warn('⚠️ AuthContext: Server sync failed, but local update succeeded:', serverError);
+        logger.warn('⚠️ AuthContext: Server sync failed, but local update succeeded:', serverError);
         // Don't throw error - local update already succeeded
       }
       
-      console.log('✅ AuthContext: Avatar updated successfully');
+      logger.log('✅ AuthContext: Avatar updated successfully');
     } catch (error) {
-      console.error('💥 AuthContext: Avatar update error:', error);
+      logger.error('💥 AuthContext: Avatar update error:', error);
       throw error;
     } finally {
       setPendingAction(false);
@@ -417,7 +418,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const getUserProfileWithAvatar = async (): Promise<User | null> => {
     try {
-      console.log('🔄 AuthContext: Getting user profile with avatar...');
+      logger.log('🔄 AuthContext: Getting user profile with avatar...');
       
       // Call the auth service to get profile with avatar data
       const profile = await AuthService.getUserProfileWithAvatar();
@@ -428,10 +429,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         syncAuthService(profile);
       }
       
-      console.log('✅ AuthContext: Profile with avatar retrieved successfully');
+      logger.log('✅ AuthContext: Profile with avatar retrieved successfully');
       return profile;
     } catch (error) {
-      console.error('💥 AuthContext: Get profile with avatar error:', error);
+      logger.error('💥 AuthContext: Get profile with avatar error:', error);
       return user; // Return current user state if error
     }
   };

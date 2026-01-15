@@ -10,6 +10,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { COLORS, SPACING, TYPOGRAPHY } from '../utils/constants';
+import { logger } from '../utils/logger';
 
 interface PrivacyPolicyModalProps {
   visible: boolean;
@@ -53,7 +54,7 @@ const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({
       await new Promise(resolve => setTimeout(resolve, 500));
       onAccept();
     } catch (error) {
-      console.error('Error accepting privacy policy:', error);
+      logger.error('Error accepting privacy policy:', error);
       Alert.alert('Error', 'Failed to accept privacy policy. Please try again.');
     } finally {
       setIsAccepting(false);

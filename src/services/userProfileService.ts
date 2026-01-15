@@ -1,6 +1,8 @@
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from './firebase';
 import { User } from '../types';
+import { logger } from '../utils/logger';
+import { COLLECTIONS } from '../utils/constants';
 
 /**
  * Service for managing user profile data in Firestore
@@ -26,22 +28,22 @@ export class UserProfileService {
    */
   public async getUserProfile(userId: string): Promise<User | null> {
     try {
-      console.log('🔍 UserProfileService: Getting user profile for userId:', userId);
-      console.log('🔍 UserProfileService: userId type:', typeof userId);
-      console.log('🔍 UserProfileService: userId length:', userId ? userId.length : 'undefined');
+      logger.log('🔍 UserProfileService: Getting user profile for userId:', userId);
+      logger.log('🔍 UserProfileService: userId type:', typeof userId);
+      logger.log('🔍 UserProfileService: userId length:', userId ? userId.length : 'undefined');
       
       if (!userId || typeof userId !== 'string') {
-        console.error('❌ UserProfileService: Invalid userId provided:', userId);
-        console.error('❌ UserProfileService: userId type:', typeof userId);
-        console.error('❌ UserProfileService: userId length:', userId ? userId.length : 'undefined');
+        logger.error('❌ UserProfileService: Invalid userId provided:', userId);
+        logger.error('❌ UserProfileService: userId type:', typeof userId);
+        logger.error('❌ UserProfileService: userId length:', userId ? userId.length : 'undefined');
         throw new Error('UserId missing from session. Ensure session stores Firebase UID.');
       }
       
-      const userRef = doc(db, 'userProfiles', userId);
+      const userRef = doc(db, COLLECTIONS.USER_PROFILES, userId);
       const userSnap = await getDoc(userRef);
       
       if (!userSnap.exists()) {
-        console.log(`User profile not found for userId: ${userId}`);
+        logger.log(`User profile not found for userId: ${userId}`);
         return null;
       }
 
@@ -56,7 +58,7 @@ export class UserProfileService {
         avatarUrl: userData.avatarUrl,
       } as User;
     } catch (error) {
-      console.error('Error getting user profile:', error);
+      logger.error('Error getting user profile:', error);
       throw error;
     }
   }
@@ -66,7 +68,7 @@ export class UserProfileService {
    */
   public async updateUserProfile(user: User): Promise<void> {
     try {
-      const userRef = doc(db, 'userProfiles', user.id);
+      const userRef = doc(db, COLLECTIONS.USER_PROFILES, user.id);
       
       const profileData = {
         email: user.email,
@@ -84,9 +86,9 @@ export class UserProfileService {
       );
 
       await setDoc(userRef, sanitizedData, { merge: true });
-      console.log(`User profile updated for userId: ${user.id}`);
+      logger.log(`User profile updated for userId: ${user.id}`);
     } catch (error) {
-      console.error('Error updating user profile:', error);
+      logger.error('Error updating user profile:', error);
       throw error;
     }
   }
@@ -96,7 +98,7 @@ export class UserProfileService {
    */
   public async updateUserAvatar(userId: string, selectedAvatar: string | undefined): Promise<void> {
     try {
-      const userRef = doc(db, 'userProfiles', userId);
+      const userRef = doc(db, COLLECTIONS.USER_PROFILES, userId);
       
       const updateData: any = {
         selectedAvatar: selectedAvatar,
@@ -110,9 +112,9 @@ export class UserProfileService {
 
       // Use setDoc with merge: true to create document if it doesn't exist
       await setDoc(userRef, updateData, { merge: true });
-      console.log(`User avatar updated for userId: ${userId}, avatar: ${selectedAvatar}`);
+      logger.log(`User avatar updated for userId: ${userId}, avatar: ${selectedAvatar}`);
     } catch (error) {
-      console.error('Error updating user avatar:', error);
+      logger.error('Error updating user avatar:', error);
       throw error;
     }
   }
@@ -122,16 +124,16 @@ export class UserProfileService {
    */
   public async updateAvatarUrl(userId: string, avatarUrl: string | null): Promise<void> {
     try {
-      const userRef = doc(db, 'userProfiles', userId);
+      const userRef = doc(db, COLLECTIONS.USER_PROFILES, userId);
       
       await updateDoc(userRef, {
         avatarUrl: avatarUrl,
         lastUpdated: serverTimestamp(),
       });
       
-      console.log(`Avatar URL updated for userId: ${userId}`);
+      logger.log(`Avatar URL updated for userId: ${userId}`);
     } catch (error) {
-      console.error('Error updating avatar URL:', error);
+      logger.error('Error updating avatar URL:', error);
       throw error;
     }
   }
@@ -141,11 +143,11 @@ export class UserProfileService {
    */
   public async userProfileExists(userId: string): Promise<boolean> {
     try {
-      const userRef = doc(db, 'userProfiles', userId);
+      const userRef = doc(db, COLLECTIONS.USER_PROFILES, userId);
       const userSnap = await getDoc(userRef);
       return userSnap.exists();
     } catch (error) {
-      console.error('Error checking user profile existence:', error);
+      logger.error('Error checking user profile existence:', error);
       return false;
     }
   }

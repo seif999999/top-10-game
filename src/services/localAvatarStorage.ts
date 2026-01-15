@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import { logger } from '../utils/logger';
 
 const AVATAR_STORAGE_KEY = 'user_selected_avatar';
 
@@ -24,7 +25,7 @@ export class LocalAvatarStorage {
    */
   public async saveSelectedAvatar(avatarId: string): Promise<void> {
     try {
-      console.log('💾 LocalAvatarStorage: Saving avatar locally:', avatarId);
+      logger.log('💾 LocalAvatarStorage: Saving avatar locally:', avatarId);
       
       const avatarData = {
         avatarId,
@@ -34,13 +35,13 @@ export class LocalAvatarStorage {
 
       if (Platform.OS === 'web') {
         localStorage.setItem(AVATAR_STORAGE_KEY, JSON.stringify(avatarData));
-        console.log('✅ LocalAvatarStorage: Avatar saved to localStorage');
+        logger.log('✅ LocalAvatarStorage: Avatar saved to localStorage');
       } else {
         await AsyncStorage.setItem(AVATAR_STORAGE_KEY, JSON.stringify(avatarData));
-        console.log('✅ LocalAvatarStorage: Avatar saved to AsyncStorage');
+        logger.log('✅ LocalAvatarStorage: Avatar saved to AsyncStorage');
       }
     } catch (error) {
-      console.error('❌ LocalAvatarStorage: Error saving avatar:', error);
+      logger.error('❌ LocalAvatarStorage: Error saving avatar:', error);
       throw error;
     }
   }
@@ -50,7 +51,7 @@ export class LocalAvatarStorage {
    */
   public async getSelectedAvatar(): Promise<string | null> {
     try {
-      console.log('🔍 LocalAvatarStorage: Retrieving avatar from local storage...');
+      logger.log('🔍 LocalAvatarStorage: Retrieving avatar from local storage...');
       
       let avatarData: string | null = null;
       
@@ -61,7 +62,7 @@ export class LocalAvatarStorage {
       }
 
       if (!avatarData) {
-        console.log('🚪 LocalAvatarStorage: No avatar found in local storage');
+        logger.log('🚪 LocalAvatarStorage: No avatar found in local storage');
         return null;
       }
 
@@ -72,15 +73,15 @@ export class LocalAvatarStorage {
       const maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days
       
       if (avatarAge > maxAge) {
-        console.log('⏰ LocalAvatarStorage: Stored avatar is too old, clearing...');
+        logger.log('⏰ LocalAvatarStorage: Stored avatar is too old, clearing...');
         await this.clearSelectedAvatar();
         return null;
       }
 
-      console.log('✅ LocalAvatarStorage: Avatar retrieved from local storage:', parsed.avatarId);
+      logger.log('✅ LocalAvatarStorage: Avatar retrieved from local storage:', parsed.avatarId);
       return parsed.avatarId;
     } catch (error) {
-      console.error('❌ LocalAvatarStorage: Error retrieving avatar:', error);
+      logger.error('❌ LocalAvatarStorage: Error retrieving avatar:', error);
       return null;
     }
   }
@@ -90,7 +91,7 @@ export class LocalAvatarStorage {
    */
   public async clearSelectedAvatar(): Promise<void> {
     try {
-      console.log('🧹 LocalAvatarStorage: Clearing avatar from local storage...');
+      logger.log('🧹 LocalAvatarStorage: Clearing avatar from local storage...');
       
       if (Platform.OS === 'web') {
         localStorage.removeItem(AVATAR_STORAGE_KEY);
@@ -98,9 +99,9 @@ export class LocalAvatarStorage {
         await AsyncStorage.removeItem(AVATAR_STORAGE_KEY);
       }
       
-      console.log('✅ LocalAvatarStorage: Avatar cleared from local storage');
+      logger.log('✅ LocalAvatarStorage: Avatar cleared from local storage');
     } catch (error) {
-      console.error('❌ LocalAvatarStorage: Error clearing avatar:', error);
+      logger.error('❌ LocalAvatarStorage: Error clearing avatar:', error);
     }
   }
 
@@ -123,10 +124,10 @@ export class LocalAvatarStorage {
           await AsyncStorage.setItem(AVATAR_STORAGE_KEY, JSON.stringify(data));
         }
         
-        console.log('✅ LocalAvatarStorage: User ID updated in stored avatar data');
+        logger.log('✅ LocalAvatarStorage: User ID updated in stored avatar data');
       }
     } catch (error) {
-      console.error('❌ LocalAvatarStorage: Error updating user ID:', error);
+      logger.error('❌ LocalAvatarStorage: Error updating user ID:', error);
     }
   }
 }

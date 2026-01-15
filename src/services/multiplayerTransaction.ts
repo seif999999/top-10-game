@@ -11,6 +11,7 @@ import {
 import { db } from './firebase';
 import { pointsForRank } from './scoring';
 import { RoomData, Answer } from '../types/game';
+import { logger } from '../utils/logger';
 
 /**
  * Award an answer to a player atomically
@@ -22,7 +23,7 @@ export async function awardAnswer(
   playerId: string,
   answerRank: number
 ): Promise<{ success: boolean; points: number; error?: string }> {
-  console.log(`🏆 AWARD_ANSWER: Room ${roomCode}, Answer "${answerText}", Player ${playerId}, Rank ${answerRank}`);
+  logger.log(`🏆 AWARD_ANSWER: Room ${roomCode}, Answer "${answerText}", Player ${playerId}, Rank ${answerRank}`);
   
   try {
     const result = await runTransaction(db, async (transaction) => {
@@ -37,7 +38,7 @@ export async function awardAnswer(
       
       // Check if answer is already revealed
       if (roomData.revealedAnswers?.some(ra => ra && ra.answerId === answerText)) {
-        console.log(`⚠️ Answer "${answerText}" already revealed, skipping award`);
+        logger.log(`⚠️ Answer "${answerText}" already revealed, skipping award`);
         throw new Error('Answer already revealed');
       }
       
@@ -87,14 +88,14 @@ export async function awardAnswer(
         lastActivity: serverTimestamp()
       });
       
-      console.log(`✅ AWARD_ANSWER: Awarded ${points} points to player ${playerId} for answer "${answerText}"`);
+      logger.log(`✅ AWARD_ANSWER: Awarded ${points} points to player ${playerId} for answer "${answerText}"`);
       
       return { success: true, points };
     });
     
     return result;
   } catch (error) {
-    console.error(`❌ AWARD_ANSWER: Failed to award answer:`, error);
+    logger.error(`❌ AWARD_ANSWER: Failed to award answer:`, error);
     return {
       success: false,
       points: 0,
@@ -112,7 +113,7 @@ export async function hostStartGame(
   hostId: string,
   timeLimit: number = 60
 ): Promise<{ success: boolean; error?: string }> {
-  console.log(`🎮 HOST_START_GAME: Room ${roomCode}, Host ${hostId}, TimeLimit ${timeLimit}s`);
+  logger.log(`🎮 HOST_START_GAME: Room ${roomCode}, Host ${hostId}, TimeLimit ${timeLimit}s`);
   
   try {
     const result = await runTransaction(db, async (transaction) => {
@@ -124,7 +125,7 @@ export async function hostStartGame(
       }
       
       const roomData = roomSnap.data() as RoomData;
-      console.log(`🔍 HOST_START_GAME: Current room status: ${roomData.status}, hostId: ${roomData.hostId}`);
+      logger.log(`🔍 HOST_START_GAME: Current room status: ${roomData.status}, hostId: ${roomData.hostId}`);
       
       // Verify host
       if (roomData.hostId !== hostId) {
@@ -182,14 +183,14 @@ export async function hostStartGame(
       
       transaction.update(roomRef, updates);
       
-      console.log(`✅ HOST_START_GAME: Game started in room ${roomCode}, status: lobby -> playing`);
+      logger.log(`✅ HOST_START_GAME: Game started in room ${roomCode}, status: lobby -> playing`);
       
       return { success: true };
     });
     
     return result;
   } catch (error) {
-    console.error(`❌ HOST_START_GAME: Failed to start game:`, error);
+    logger.error(`❌ HOST_START_GAME: Failed to start game:`, error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -207,7 +208,7 @@ export async function startRound(
   questionIndex: number,
   timeLimit: number = 60
 ): Promise<{ success: boolean; error?: string }> {
-  console.log(`🎮 START_ROUND: Room ${roomCode}, Host ${hostId}, Question ${questionIndex}, TimeLimit ${timeLimit}s`);
+  logger.log(`🎮 START_ROUND: Room ${roomCode}, Host ${hostId}, Question ${questionIndex}, TimeLimit ${timeLimit}s`);
   
   try {
     const result = await runTransaction(db, async (transaction) => {
@@ -253,14 +254,14 @@ export async function startRound(
       
       transaction.update(roomRef, updates);
       
-      console.log(`✅ START_ROUND: Started question ${questionIndex} in room ${roomCode}`);
+      logger.log(`✅ START_ROUND: Started question ${questionIndex} in room ${roomCode}`);
       
       return { success: true };
     });
     
     return result;
   } catch (error) {
-    console.error(`❌ START_ROUND: Failed to start round:`, error);
+    logger.error(`❌ START_ROUND: Failed to start round:`, error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -276,7 +277,7 @@ export async function advanceTurn(
   roomCode: string,
   playerId: string
 ): Promise<{ success: boolean; error?: string }> {
-  console.log(`🔄 ADVANCE_TURN: Room ${roomCode}, Player ${playerId}`);
+  logger.log(`🔄 ADVANCE_TURN: Room ${roomCode}, Player ${playerId}`);
   
   try {
     const result = await runTransaction(db, async (transaction) => {
@@ -323,7 +324,7 @@ export async function advanceTurn(
           };
           
           transaction.update(roomRef, updates);
-          console.log(`🏁 ADVANCE_TURN: Game finished - all questions completed`);
+          logger.log(`🏁 ADVANCE_TURN: Game finished - all questions completed`);
         } else {
           // Move to next question and reset turn system
           const nextQuestion = roomData.questions?.[nextQuestionIndex];
@@ -345,7 +346,7 @@ export async function advanceTurn(
             };
             
             transaction.update(roomRef, updates);
-            console.log(`✅ ADVANCE_TURN: Moved to question ${nextQuestionIndex}, reset turn system`);
+            logger.log(`✅ ADVANCE_TURN: Moved to question ${nextQuestionIndex}, reset turn system`);
           }
         }
       } else {
@@ -358,7 +359,7 @@ export async function advanceTurn(
         };
         
         transaction.update(roomRef, updates);
-        console.log(`✅ ADVANCE_TURN: Turn advanced to player ${nextPlayerId} (index ${nextTurnIndex})`);
+        logger.log(`✅ ADVANCE_TURN: Turn advanced to player ${nextPlayerId} (index ${nextTurnIndex})`);
       }
       
       return { success: true };
@@ -366,7 +367,7 @@ export async function advanceTurn(
     
     return result;
   } catch (error) {
-    console.error(`❌ ADVANCE_TURN: Failed to advance turn:`, error);
+    logger.error(`❌ ADVANCE_TURN: Failed to advance turn:`, error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -382,7 +383,7 @@ export async function forceAdvanceExpiredTurn(
   roomCode: string,
   callingPlayerId: string
 ): Promise<{ success: boolean; error?: string }> {
-  console.log(`🔄 FORCE_ADVANCE_EXPIRED_TURN: Room ${roomCode}, Calling Player ${callingPlayerId}`);
+  logger.log(`🔄 FORCE_ADVANCE_EXPIRED_TURN: Room ${roomCode}, Calling Player ${callingPlayerId}`);
   
   try {
     const result = await runTransaction(db, async (transaction) => {
@@ -429,7 +430,7 @@ export async function forceAdvanceExpiredTurn(
           };
           
           transaction.update(roomRef, updates);
-          console.log(`🏁 FORCE_ADVANCE_EXPIRED_TURN: Game finished - all questions completed`);
+          logger.log(`🏁 FORCE_ADVANCE_EXPIRED_TURN: Game finished - all questions completed`);
         } else {
           // Move to next question and reset turn system
           const nextQuestion = roomData.questions?.[nextQuestionIndex];
@@ -451,7 +452,7 @@ export async function forceAdvanceExpiredTurn(
             };
             
             transaction.update(roomRef, updates);
-            console.log(`✅ FORCE_ADVANCE_EXPIRED_TURN: Moved to question ${nextQuestionIndex}, reset turn system`);
+            logger.log(`✅ FORCE_ADVANCE_EXPIRED_TURN: Moved to question ${nextQuestionIndex}, reset turn system`);
           }
         }
       } else {
@@ -464,7 +465,7 @@ export async function forceAdvanceExpiredTurn(
         };
         
         transaction.update(roomRef, updates);
-        console.log(`✅ FORCE_ADVANCE_EXPIRED_TURN: Turn advanced to player ${nextPlayerId} (index ${nextTurnIndex})`);
+        logger.log(`✅ FORCE_ADVANCE_EXPIRED_TURN: Turn advanced to player ${nextPlayerId} (index ${nextTurnIndex})`);
       }
       
       return { success: true };
@@ -472,7 +473,7 @@ export async function forceAdvanceExpiredTurn(
     
     return result;
   } catch (error) {
-    console.error(`❌ FORCE_ADVANCE_EXPIRED_TURN: Failed to advance expired turn:`, error);
+    logger.error(`❌ FORCE_ADVANCE_EXPIRED_TURN: Failed to advance expired turn:`, error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -489,7 +490,7 @@ export async function submitTurnAnswer(
   playerId: string,
   answers: string[]
 ): Promise<{ success: boolean; error?: string }> {
-  console.log(`📝 SUBMIT_TURN_ANSWER: Room ${roomCode}, Player ${playerId}, Answers: ${answers.length}`);
+  logger.log(`📝 SUBMIT_TURN_ANSWER: Room ${roomCode}, Player ${playerId}, Answers: ${answers.length}`);
   
   try {
     const result = await runTransaction(db, async (transaction) => {
@@ -553,14 +554,14 @@ export async function submitTurnAnswer(
       
       transaction.update(roomRef, updates);
       
-      console.log(`✅ SUBMIT_TURN_ANSWER: Player ${playerId} submitted ${answers.length} answers for ${totalPoints} points`);
+      logger.log(`✅ SUBMIT_TURN_ANSWER: Player ${playerId} submitted ${answers.length} answers for ${totalPoints} points`);
       
       return { success: true };
     });
     
     return result;
   } catch (error) {
-    console.error(`❌ SUBMIT_TURN_ANSWER: Failed to submit answer:`, error);
+    logger.error(`❌ SUBMIT_TURN_ANSWER: Failed to submit answer:`, error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -576,7 +577,7 @@ export async function endRound(
   roomCode: string,
   hostId: string
 ): Promise<{ success: boolean; error?: string }> {
-  console.log(`🏁 END_ROUND: Room ${roomCode}, Host ${hostId}`);
+  logger.log(`🏁 END_ROUND: Room ${roomCode}, Host ${hostId}`);
   
   try {
     const result = await runTransaction(db, async (transaction) => {
@@ -610,7 +611,7 @@ export async function endRound(
           gamePhase: 'finished',
           lastActivity: serverTimestamp()
         });
-        console.log(`🏁 END_ROUND: Game finished in room ${roomCode}`);
+        logger.log(`🏁 END_ROUND: Game finished in room ${roomCode}`);
       } else {
         // Move to next question
         const nextQuestion = roomData.questions?.[nextQuestionIndex];
@@ -626,7 +627,7 @@ export async function endRound(
             playerSubmissions: {},
             lastActivity: serverTimestamp()
           });
-          console.log(`✅ END_ROUND: Moved to question ${nextQuestionIndex} in room ${roomCode}`);
+          logger.log(`✅ END_ROUND: Moved to question ${nextQuestionIndex} in room ${roomCode}`);
         }
       }
       
@@ -635,7 +636,7 @@ export async function endRound(
     
     return result;
   } catch (error) {
-    console.error(`❌ END_ROUND: Failed to end round:`, error);
+    logger.error(`❌ END_ROUND: Failed to end round:`, error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -659,7 +660,7 @@ export async function updatePlayerPresence(
       
       if (!roomSnap.exists()) {
         // Room has been deleted, this is expected when host leaves
-        console.log(`⚠️ UPDATE_PRESENCE: Room ${roomCode} not found, skipping presence update`);
+        logger.log(`⚠️ UPDATE_PRESENCE: Room ${roomCode} not found, skipping presence update`);
         return { success: true, skipped: true };
       }
       
@@ -667,7 +668,7 @@ export async function updatePlayerPresence(
       
       // Check if player exists
       if (!roomData.players?.[playerId]) {
-        console.log(`⚠️ UPDATE_PRESENCE: Player ${playerId} not in room ${roomCode}, skipping presence update`);
+        logger.log(`⚠️ UPDATE_PRESENCE: Player ${playerId} not in room ${roomCode}, skipping presence update`);
         return { success: true, skipped: true };
       }
       
@@ -690,11 +691,11 @@ export async function updatePlayerPresence(
   } catch (error) {
     // Don't log as error if room was deleted (expected behavior)
     if (error instanceof Error && error.message.includes('Room not found')) {
-      console.log(`ℹ️ UPDATE_PRESENCE: Room ${roomCode} was deleted, skipping presence update`);
+      logger.log(`ℹ️ UPDATE_PRESENCE: Room ${roomCode} was deleted, skipping presence update`);
       return { success: true };
     }
     
-    console.error(`❌ UPDATE_PRESENCE: Failed to update presence:`, error);
+    logger.error(`❌ UPDATE_PRESENCE: Failed to update presence:`, error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -703,4 +704,4 @@ export async function updatePlayerPresence(
 }
 
 // Log transaction system initialization
-console.log('🔄 Multiplayer transaction system initialized with Firestore transactions');
+logger.log('🔄 Multiplayer transaction system initialized with Firestore transactions');

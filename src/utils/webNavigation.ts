@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { logger } from './logger';
 
 // Web-specific navigation utilities
 export const isWebPlatform = Platform.OS === 'web';
@@ -35,7 +36,7 @@ export const handleWebDeepLink = (url: string): void => {
           break;
       }
     } catch (error) {
-      console.warn('Error handling web deep link:', error);
+      logger.warn('Error handling web deep link:', error);
     }
   }
 };
@@ -46,7 +47,7 @@ export const updateWebHistory = (path: string): void => {
     try {
       window.history.pushState({}, '', path);
     } catch (error) {
-      console.warn('Error updating web history:', error);
+      logger.warn('Error updating web history:', error);
     }
   }
 };

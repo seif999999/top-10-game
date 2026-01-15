@@ -5,9 +5,10 @@ import {
   setDoc, 
   updateDoc, 
   runTransaction, 
-  serverTimestamp,
+  serverTimestamp, 
   Timestamp 
 } from 'firebase/firestore';
+import { logger } from '../utils/logger';
 import { db } from './firebase';
 import { InputValidator } from '../utils/inputValidator';
 
@@ -126,7 +127,7 @@ export class ServerGameService {
 
       return result;
     } catch (error) {
-      console.error('Server game validation error:', error);
+      logger.error('Server game validation error:', error);
       return {
         valid: false,
         error: 'Server validation failed. Please try again.'
@@ -154,7 +155,7 @@ export class ServerGameService {
 
       const roomData = roomDoc.data() as any; // Use any to handle both GameState and RoomData
       
-      console.log('🔍 SERVER_VALIDATION_DEBUG:', {
+      logger.log('🔍 SERVER_VALIDATION_DEBUG:', {
         roomCode,
         userId,
         gamePhase: roomData.gamePhase,
@@ -165,7 +166,7 @@ export class ServerGameService {
       });
       
       if (roomData.gamePhase !== 'question') {
-        console.log('❌ SERVER_VALIDATION_FAILED: Game phase check failed', {
+        logger.log('❌ SERVER_VALIDATION_FAILED: Game phase check failed', {
           expected: 'question',
           actual: roomData.gamePhase,
           roomCode,
@@ -186,7 +187,7 @@ export class ServerGameService {
 
       return { valid: true };
     } catch (error) {
-      console.error('Room validation error:', error);
+      logger.error('Room validation error:', error);
       return {
         valid: false,
         error: 'Failed to validate room'
@@ -215,7 +216,7 @@ export class ServerGameService {
       // Check if it's the user's turn (handle both data structures)
       const currentPlayer = roomData.currentPlayer || roomData.currentPlayerId;
       
-      console.log('🔍 TURN_VALIDATION_DEBUG:', {
+      logger.log('🔍 TURN_VALIDATION_DEBUG:', {
         roomCode,
         userId,
         currentPlayer,
@@ -229,7 +230,7 @@ export class ServerGameService {
       });
       
       if (currentPlayer !== userId) {
-        console.log('❌ TURN_VALIDATION_FAILED: Not user\'s turn', {
+        logger.log('❌ TURN_VALIDATION_FAILED: Not user\'s turn', {
           expected: userId,
           actual: currentPlayer,
           roomCode,
@@ -269,7 +270,7 @@ export class ServerGameService {
         timeRemaining: Math.max(0, timeRemaining)
       };
     } catch (error) {
-      console.error('Turn validation error:', error);
+      logger.error('Turn validation error:', error);
       return {
         valid: false,
         error: 'Failed to validate turn'
@@ -295,7 +296,7 @@ export class ServerGameService {
 
       const roomData = roomDoc.data() as any; // Use any to handle both GameState and RoomData
       
-      console.log('🔍 DUPLICATE_CHECK_DEBUG:', {
+      logger.log('🔍 DUPLICATE_CHECK_DEBUG:', {
         roomCode,
         userId,
         answer,
@@ -309,7 +310,7 @@ export class ServerGameService {
       // Check if user already answered this question (handle both data structures)
       const playerSubmissions = roomData.playerSubmissions || {};
       if (playerSubmissions[userId]) {
-        console.log('❌ DUPLICATE_CHECK: User already answered this question');
+        logger.log('❌ DUPLICATE_CHECK: User already answered this question');
         return {
           valid: false,
           error: 'You have already answered this question'
@@ -324,7 +325,7 @@ export class ServerGameService {
         if (revealedAnswer && revealedAnswer.answerId) {
           const existingAnswer = revealedAnswer.answerId.toLowerCase().trim();
           if (existingAnswer === normalizedAnswer) {
-            console.log('❌ DUPLICATE_CHECK: Answer already revealed by another player');
+            logger.log('❌ DUPLICATE_CHECK: Answer already revealed by another player');
             return {
               valid: false,
               error: 'This answer has already been submitted by another player'
@@ -335,7 +336,7 @@ export class ServerGameService {
 
       return { valid: true };
     } catch (error) {
-      console.error('Duplicate check error:', error);
+      logger.error('Duplicate check error:', error);
       return {
         valid: false,
         error: 'Failed to check for duplicates'
@@ -368,7 +369,7 @@ export class ServerGameService {
 
       return { valid: true };
     } catch (error) {
-      console.error('Timing validation error:', error);
+      logger.error('Timing validation error:', error);
       return {
         valid: false,
         error: 'Failed to validate timing'
@@ -400,7 +401,7 @@ export class ServerGameService {
         // Double-check it's still the user's turn (handle both data structures)
         const currentPlayer = roomData.currentPlayer || roomData.currentPlayerId;
         if (currentPlayer !== userId) {
-          console.log('❌ ATOMIC_TURN_CHECK_FAILED:', {
+          logger.log('❌ ATOMIC_TURN_CHECK_FAILED:', {
             roomCode,
             userId,
             currentPlayer,
@@ -455,7 +456,7 @@ export class ServerGameService {
         };
       });
     } catch (error) {
-      console.error('Atomic update error:', error);
+      logger.error('Atomic update error:', error);
       return {
         valid: false,
         error: 'Failed to process answer'
@@ -519,7 +520,7 @@ export class ServerGameService {
       // For now, return null to allow submissions
       return null;
     } catch (error) {
-      console.error('Get last submission time error:', error);
+      logger.error('Get last submission time error:', error);
       return null;
     }
   }
@@ -530,9 +531,9 @@ export class ServerGameService {
   private static async logSubmission(roomCode: string, userId: string, timestamp: number): Promise<void> {
     try {
       // In a real implementation, this would store in a submissions collection
-      console.log(`Submission logged: Room ${roomCode}, User ${userId}, Time ${timestamp}`);
+      logger.log(`Submission logged: Room ${roomCode}, User ${userId}, Time ${timestamp}`);
     } catch (error) {
-      console.error('Log submission error:', error);
+      logger.error('Log submission error:', error);
     }
   }
 
@@ -573,7 +574,7 @@ export class ServerGameService {
 
       return { valid: true };
     } catch (error) {
-      console.error('Room creation validation error:', error);
+      logger.error('Room creation validation error:', error);
       return {
         valid: false,
         error: 'Failed to validate room creation'
@@ -590,7 +591,7 @@ export class ServerGameService {
       // For now, return empty array
       return [];
     } catch (error) {
-      console.error('Get recent rooms error:', error);
+      logger.error('Get recent rooms error:', error);
       return [];
     }
   }
@@ -644,7 +645,7 @@ export class ServerGameService {
 
       return { valid: true };
     } catch (error) {
-      console.error('Player join validation error:', error);
+      logger.error('Player join validation error:', error);
       return {
         valid: false,
         error: 'Failed to validate player join'

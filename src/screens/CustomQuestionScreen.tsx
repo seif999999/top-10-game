@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, COMPONENT_STYLES } from '../design-system';
+import { logger } from '../utils/logger';
 import { CustomQuestionScreenProps } from '../types/navigation';
 import CustomQuestionService, { CustomQuestion } from '../services/customQuestionService';
 import Button from '../components/Button';
@@ -68,13 +69,13 @@ const CustomQuestionScreen: React.FC<CustomQuestionScreenProps> = ({ navigation 
 
     setIsLoading(true);
     try {
-      console.log('🔄 Creating custom question...');
+      logger.log('🔄 Creating custom question...');
       
       // Save the custom question
       const customQuestionService = CustomQuestionService.getInstance();
       const savedQuestion = await customQuestionService.saveCustomQuestion(question.trim(), validAnswers);
       
-      console.log('✅ Custom question created:', savedQuestion.id);
+      logger.log('✅ Custom question created:', savedQuestion.id);
       setSavedQuestion(savedQuestion);
       
       // Check if teams are enabled
@@ -91,7 +92,7 @@ const CustomQuestionScreen: React.FC<CustomQuestionScreenProps> = ({ navigation 
       }
       
     } catch (error) {
-      console.error('❌ Error creating custom question:', error);
+      logger.error('❌ Error creating custom question:', error);
       Alert.alert('Error', 'Failed to create custom question. Please try again.');
     } finally {
       setIsLoading(false);
@@ -104,7 +105,7 @@ const CustomQuestionScreen: React.FC<CustomQuestionScreenProps> = ({ navigation 
 
   const handleTeamSetupStart = (config: TeamSetupConfig) => {
     try {
-      console.log('🎮 Starting custom question team game with config:', config);
+      logger.log('🎮 Starting custom question team game with config:', config);
       
       if (!savedQuestion) {
         Alert.alert('Error', 'No question saved');
@@ -123,7 +124,7 @@ const CustomQuestionScreen: React.FC<CustomQuestionScreenProps> = ({ navigation 
       // Close the modal
       setShowTeamSetup(false);
     } catch (error) {
-      console.error('Error starting custom question team game:', error);
+      logger.error('Error starting custom question team game:', error);
       Alert.alert('Error', 'Failed to start team game. Please try again.');
     }
   };

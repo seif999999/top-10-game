@@ -7,6 +7,8 @@ import { Platform } from 'react-native';
 WebBrowser.maybeCompleteAuthSession();
 
 import { GOOGLE_CONFIG, getGoogleClientId, getGoogleRedirectUri } from '../config/google';
+import { logger } from '../utils/logger';
+import { TIMING } from '../utils/constants';
 
 // Scopes for Google Sign-In
 const GOOGLE_SCOPES = GOOGLE_CONFIG.SCOPES;
@@ -16,7 +18,7 @@ const createAuthRequest = () => {
   // Use the proper redirect URI from our config
   const redirectUri = getGoogleRedirectUri();
 
-  console.log('🔧 Creating AuthRequest with:', {
+  logger.log('🔧 Creating AuthRequest with:', {
     clientId: getGoogleClientId(),
     redirectUri,
     scopes: GOOGLE_SCOPES
@@ -33,14 +35,14 @@ const createAuthRequest = () => {
     }
   });
 
-  console.log('✅ AuthRequest created successfully');
+  logger.log('✅ AuthRequest created successfully');
   return request;
 };
 
 // Sign in with Google
 export const signInWithGoogle = async (): Promise<{ idToken: string; accessToken: string } | null> => {
   try {
-    console.log('🔐 Starting Google Sign-In flow...');
+    logger.log('🔐 Starting Google Sign-In flow...');
     
     // Log configuration status
     const { getGoogleConfigStatus } = await import('../config/google');
@@ -48,9 +50,9 @@ export const signInWithGoogle = async (): Promise<{ idToken: string; accessToken
     
     const request = createAuthRequest();
     
-    console.log('📱 Platform:', Platform.OS);
-    console.log('🔑 Client ID:', getGoogleClientId());
-    console.log('🔗 Redirect URI:', request.redirectUri);
+    logger.log('📱 Platform:', Platform.OS);
+    logger.log('🔑 Client ID:', getGoogleClientId());
+    logger.log('🔗 Redirect URI:', request.redirectUri);
     
     // Check if client ID is properly configured
     const clientId = getGoogleClientId();
@@ -58,7 +60,7 @@ export const signInWithGoogle = async (): Promise<{ idToken: string; accessToken
       throw new Error('Google OAuth client ID not properly configured. Please check your .env file.');
     }
     
-    console.log('🚀 Starting OAuth prompt...');
+    logger.log('🚀 Starting OAuth prompt...');
     
     // Get the discovery document for Google OAuth
     const discovery = await AuthSession.fetchDiscoveryAsync('https://accounts.google.com');
@@ -67,26 +69,26 @@ export const signInWithGoogle = async (): Promise<{ idToken: string; accessToken
     const result = await Promise.race([
       request.promptAsync(discovery),
       new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('OAuth prompt timed out after 30 seconds')), 30000)
+        setTimeout(() => reject(new Error('OAuth prompt timed out after 30 seconds')), TIMING.TIMEOUT_30_SECONDS)
       )
     ]);
 
-    console.log('📋 Auth result type:', result.type);
+    logger.log('📋 Auth result type:', result.type);
     
     if (result.type === 'success' && result.params.access_token) {
-      console.log('✅ Access token received directly from OAuth flow');
+      logger.log('✅ Access token received directly from OAuth flow');
       
       const accessToken = result.params.access_token;
       const idToken = result.params.id_token;
       
-      console.log('🎯 OAuth result:', {
+      logger.log('🎯 OAuth result:', {
         hasAccessToken: !!accessToken,
         hasIdToken: !!idToken,
         tokenType: result.params.token_type
       });
 
       if (accessToken && idToken) {
-        console.log('✅ Google Sign-In successful!');
+        logger.log('✅ Google Sign-In successful!');
         return {
           idToken: idToken,
           accessToken: accessToken
@@ -95,18 +97,18 @@ export const signInWithGoogle = async (): Promise<{ idToken: string; accessToken
         throw new Error('OAuth flow failed - missing required tokens');
       }
     } else if (result.type === 'cancel' || result.type === 'dismiss') {
-      console.log('❌ User cancelled or dismissed Google Sign-In');
+      logger.log('❌ User cancelled or dismissed Google Sign-In');
       return null;
     } else if (result.type === 'error') {
-      console.error('❌ Google Sign-In error:', result.error);
+      logger.error('❌ Google Sign-In error:', result.error);
       throw new Error(`Google Sign-In failed: ${result.error}`);
     } else {
-      console.error('❌ Unexpected auth result:', result);
+      logger.error('❌ Unexpected auth result:', result);
       throw new Error('Unexpected authentication result');
     }
 
   } catch (error) {
-    console.error('💥 Google Sign-In error:', error);
+    logger.error('💥 Google Sign-In error:', error);
     
     // Provide more specific error messages
     if (error instanceof Error) {
@@ -128,7 +130,7 @@ export const signInWithGoogle = async (): Promise<{ idToken: string; accessToken
 // Get Google user info
 export const getGoogleUserInfo = async (accessToken: string) => {
   try {
-    console.log('👤 Fetching Google user info...');
+    logger.log('👤 Fetching Google user info...');
     
     const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
       headers: {
@@ -138,7 +140,7 @@ export const getGoogleUserInfo = async (accessToken: string) => {
 
     if (response.ok) {
       const userInfo = await response.json();
-      console.log('✅ User info received:', {
+      logger.log('✅ User info received:', {
         id: userInfo.id,
         email: userInfo.email,
         name: userInfo.name,
@@ -146,11 +148,11 @@ export const getGoogleUserInfo = async (accessToken: string) => {
       });
       return userInfo;
     } else {
-      console.error('❌ Failed to get user info:', response.status, response.statusText);
+      logger.error('❌ Failed to get user info:', response.status, response.statusText);
       throw new Error(`Failed to get user info: ${response.status}`);
     }
   } catch (error) {
-    console.error('💥 Error getting Google user info:', error);
+    logger.error('💥 Error getting Google user info:', error);
     throw new Error('Failed to get user information from Google.');
   }
 };
@@ -180,7 +182,7 @@ export const validateGoogleIdToken = (idToken: string): boolean => {
     
     return true;
   } catch (error) {
-    console.error('❌ ID token validation failed:', error);
+    logger.error('❌ ID token validation failed:', error);
     return false;
   }
 };

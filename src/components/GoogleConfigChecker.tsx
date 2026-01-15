@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { getGoogleConfigStatus, isGoogleSignInConfigured } from '../config/google';
 import { COLORS, SPACING } from '../utils/constants';
+import { logger } from '../utils/logger';
 
 interface GoogleConfigCheckerProps {
   onConfigure?: () => void;
@@ -20,7 +21,7 @@ const GoogleConfigChecker: React.FC<GoogleConfigCheckerProps> = ({ onConfigure }
         'To set up Google Sign-In:\n\n1. Go to Google Cloud Console\n2. Create OAuth 2.0 credentials\n3. Update your .env file\n4. Restart the app\n\nSee GOOGLE_SIGNIN_SETUP.md for detailed instructions.',
         [
           { text: 'OK' },
-          { text: 'Open Setup Guide', onPress: () => console.log('Open setup guide') }
+          { text: 'Open Setup Guide', onPress: () => logger.log('Open setup guide') }
         ]
       );
     }

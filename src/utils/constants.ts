@@ -103,4 +103,101 @@ export const ANIMATIONS = {
   }
 };
 
+// ============================================
+// TIMING CONSTANTS
+// ============================================
+export const TIMING = {
+  // Milliseconds
+  TIMEOUT_30_SECONDS: 30000,
+  TIMEOUT_60_SECONDS: 60000,
+  TURN_TIME_LIMIT: 60000,
+  SESSION_DURATION_24_HOURS: 86400000,
+  SESSION_DURATION_1_HOUR: 3600000,
+  DEBOUNCE_DELAY: 300,
+  TOAST_DURATION: 3000,
+  ANIMATION_DURATION: 200,
+  LOADING_DELAY: 500,
+  RECONNECT_DELAY: 5000,
+  
+  // Seconds
+  TURN_TIME_LIMIT_SECONDS: 60,
+  SESSION_TIMEOUT_SECONDS: 86400,
+  RATE_LIMIT_WINDOW_SECONDS: 3600,
+};
+
+// ============================================
+// RATE LIMITING CONSTANTS
+// ============================================
+export const RATE_LIMITS = {
+  MAX_LOGIN_ATTEMPTS: 5,
+  LOGIN_LOCKOUT_DURATION: 900000, // 15 minutes
+  MAX_ROOM_JOINS_PER_HOUR: 10,
+  MAX_ANSWERS_PER_MINUTE: 20,
+  MAX_CUSTOM_QUESTIONS_PER_USER: 50,
+};
+
+// ============================================
+// GAME CONSTANTS
+// ============================================
+export const GAME = {
+  MAX_ANSWERS: 10,
+  MIN_ANSWERS: 1,
+  ROOM_CODE_LENGTH: 6,
+  MAX_PLAYERS_PER_ROOM: 10,
+  MIN_PLAYERS_TO_START: 2,
+  MAX_QUESTION_LENGTH: 200,
+  MAX_ANSWER_LENGTH: 100,
+  DEFAULT_DIFFICULTY: 'medium' as const,
+};
+
+// ============================================
+// VALIDATION CONSTANTS
+// ============================================
+export const VALIDATION = {
+  MIN_PASSWORD_LENGTH: 8,
+  MAX_PASSWORD_LENGTH: 128,
+  MIN_USERNAME_LENGTH: 3,
+  MAX_USERNAME_LENGTH: 20,
+  MIN_DISPLAY_NAME_LENGTH: 1,
+  MAX_DISPLAY_NAME_LENGTH: 30,
+  EMAIL_REGEX: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+};
+
+// ============================================
+// STORAGE KEYS
+// ============================================
+export const STORAGE_KEYS = {
+  USER_TOKEN: 'userToken',
+  USER_PROFILE: 'userProfile',
+  CUSTOM_QUESTIONS: 'customQuestions',
+  SELECTED_AVATAR: 'selectedAvatar',
+  DISPLAY_NAME: 'displayName',
+  PRIVACY_ACCEPTED: 'privacyAccepted',
+  LAST_SEEN: 'lastSeen',
+};
+
+// ============================================
+// FIRESTORE COLLECTION NAMES
+// ============================================
+export const COLLECTIONS = {
+  USER_PROFILES: 'userProfiles',
+  MULTIPLAYER_GAMES: 'multiplayerGames',
+  SECURITY_EVENTS: 'securityEvents',
+  RATE_LIMITS: 'rateLimits',
+  TIME_SYNC_DOCS: 'timeSyncDocs',
+  CUSTOM_QUESTIONS: 'customQuestions',
+};
+
+// ============================================
+// ERROR MESSAGES
+// ============================================
+export const ERROR_MESSAGES = {
+  NETWORK_ERROR: 'Network error. Please check your connection.',
+  AUTH_FAILED: 'Authentication failed. Please try again.',
+  INVALID_ROOM_CODE: 'Invalid room code. Please check and try again.',
+  ROOM_FULL: 'This room is full. Cannot join.',
+  GAME_ALREADY_STARTED: 'This game has already started.',
+  SESSION_EXPIRED: 'Your session has expired. Please log in again.',
+  RATE_LIMIT_EXCEEDED: 'Too many attempts. Please try again later.',
+};
 

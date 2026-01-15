@@ -1,5 +1,6 @@
 import { findMatchingAnswer, calculatePoints } from './multiplayerGameFlowV2';
 import { Answer } from '../types/game';
+import { logger } from '../utils/logger';
 
 export interface ValidationResult {
   isValid: boolean;
@@ -77,7 +78,7 @@ export class AnswerValidationService {
         };
       }
     } catch (error) {
-      console.error('AnswerValidationService.validateAnswer error:', error);
+      logger.error('AnswerValidationService.validateAnswer error:', error);
       return {
         isValid: false,
         isCorrect: false,

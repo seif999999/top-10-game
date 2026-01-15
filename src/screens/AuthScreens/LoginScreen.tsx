@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { COLORS, SPACING } from '../../utils/constants';
 import { LoginScreenProps } from '../../types/navigation';
 import { InputValidator } from '../../utils/inputValidator';
+import { logger } from '../../utils/logger';
 
 type Props = LoginScreenProps;
 
@@ -43,54 +44,54 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const handleSignIn = async () => {
-    console.log('🔍 DEBUG: handleSignIn called');
-    console.log('🔍 DEBUG: Form data:', { email, password: password ? '***' : '' });
+    logger.log('🔍 DEBUG: handleSignIn called');
+    logger.log('🔍 DEBUG: Form data:', { email, password: password ? '***' : '' });
     
     // Clear previous Firebase errors
     setFirebaseError(null);
     
     const isValid = validate();
-    console.log('🔍 DEBUG: Validation result:', isValid);
-    console.log('🔍 DEBUG: Errors:', errors);
+    logger.log('🔍 DEBUG: Validation result:', isValid);
+    logger.log('🔍 DEBUG: Errors:', errors);
     
     if (!isValid) {
-      console.log('❌ DEBUG: Validation failed, not proceeding');
+      logger.log('❌ DEBUG: Validation failed, not proceeding');
       return;
     }
     
-    console.log('✅ DEBUG: Validation passed, proceeding with signin');
+    logger.log('✅ DEBUG: Validation passed, proceeding with signin');
     
     // Sanitize inputs
-    console.log('🔍 DEBUG: Starting input sanitization...');
+    logger.log('🔍 DEBUG: Starting input sanitization...');
     let sanitizedEmail, sanitizedPassword;
     
     try {
       sanitizedEmail = InputValidator.sanitizeText(email.trim(), 254);
-      console.log('🔍 DEBUG: Email sanitized');
+      logger.log('🔍 DEBUG: Email sanitized');
       sanitizedPassword = InputValidator.sanitizeText(password, 128);
-      console.log('🔍 DEBUG: Password sanitized');
+      logger.log('🔍 DEBUG: Password sanitized');
     } catch (error) {
-      console.error('❌ DEBUG: Sanitization error:', error);
+      logger.error('❌ DEBUG: Sanitization error:', error);
       // Fallback to basic sanitization
       sanitizedEmail = email.trim();
       sanitizedPassword = password;
-      console.log('🔍 DEBUG: Using fallback sanitization');
+      logger.log('🔍 DEBUG: Using fallback sanitization');
     }
     
-    console.log('🔍 DEBUG: Sanitized inputs:', { 
+    logger.log('🔍 DEBUG: Sanitized inputs:', { 
       sanitizedEmail, 
       sanitizedPassword: sanitizedPassword ? '***' : ''
     });
     
     setLocalLoading(true);
     try {
-      console.log('🔍 DEBUG: Calling signIn...');
+      logger.log('🔍 DEBUG: Calling signIn...');
       await signIn(sanitizedEmail, sanitizedPassword);
-      console.log('✅ DEBUG: SignIn successful');
+      logger.log('✅ DEBUG: SignIn successful');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An error occurred';
       setFirebaseError(errorMessage);
-      console.error('❌ DEBUG: Login error:', errorMessage);
+      logger.error('❌ DEBUG: Login error:', errorMessage);
     } finally {
       setLocalLoading(false);
     }

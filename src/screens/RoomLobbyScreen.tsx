@@ -13,6 +13,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { logger } from '../utils/logger';
 import AvatarIcon from '../components/AvatarIcon';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -83,7 +84,7 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
   // Set up navigation callback for auto-navigation when game starts
   useEffect(() => {
     setNavigationCallback((params: any) => {
-      console.log('🎮 RoomLobbyScreen: Auto-navigating to GameScreen with params:', params);
+      logger.log('🎮 RoomLobbyScreen: Auto-navigating to GameScreen with params:', params);
       navigation.navigate('GameScreen', params);
     });
   }, [navigation]);
@@ -104,7 +105,7 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
                 await leaveRoom();
                 navigation.goBack();
               } catch (error) {
-                console.error('Error leaving room:', error);
+                logger.error('Error leaving room:', error);
                 navigation.goBack();
               }
             }
@@ -140,7 +141,7 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
               // Navigate back to multiplayer menu
               navigation.navigate('MultiplayerMenu' as never);
             } catch (error) {
-              console.error('Error leaving room:', error);
+              logger.error('Error leaving room:', error);
               // Even if there's an error, still clean up and navigate
               resetAll();
               cleanup();
@@ -170,12 +171,12 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
           text: 'Start Game', 
           onPress: async () => {
             try {
-              console.log(`🎮 Host starting game with ${selectedRoundTime}s rounds...`);
+              logger.log(`🎮 Host starting game with ${selectedRoundTime}s rounds...`);
               await startGame(selectedRoundTime);
-              console.log('🎮 Game start command sent, waiting for auto-navigation...');
+              logger.log('🎮 Game start command sent, waiting for auto-navigation...');
               // Navigation will be handled automatically by the context
             } catch (error) {
-              console.error('Error starting game:', error);
+              logger.error('Error starting game:', error);
               Alert.alert('Error', 'Failed to start the game. Please try again.');
             }
           }
@@ -251,7 +252,7 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
   }
 
   // Debug logging
-  console.log('RoomLobbyScreen - currentRoom:', {
+  logger.log('RoomLobbyScreen - currentRoom:', {
     roomCode: currentRoom.roomCode,
     playersCount: Object.keys(currentRoom.players).length,
     players: Object.values(currentRoom.players).map(p => ({
@@ -263,11 +264,11 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
 
   const players = Object.values(currentRoom.players).filter(player => {
     if (!player || !player.id) {
-      console.warn('Invalid player found:', player);
+      logger.warn('Invalid player found:', player);
       return false;
     }
     if (!player.name) {
-      console.warn('Player with undefined name found:', player);
+      logger.warn('Player with undefined name found:', player);
       player.name = 'Unknown Player'; // Fix it in place
     }
     return true;
@@ -464,7 +465,7 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
         onClose={() => setShowRoundTimeSelector(false)}
         onSelect={(timeInSeconds) => {
           setSelectedRoundTime(timeInSeconds);
-          console.log(`🎮 Round time selected: ${timeInSeconds} seconds`);
+          logger.log(`🎮 Round time selected: ${timeInSeconds} seconds`);
         }}
         currentTime={selectedRoundTime}
       />

@@ -9,6 +9,7 @@ import { ProfileScreenProps } from '../types/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import { InputValidator } from '../utils/inputValidator';
 import { RateLimitService } from '../services/rateLimitService';
+import { logger } from '../utils/logger';
 
 
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
@@ -78,18 +79,18 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       Alert.alert('Success', 'Profile updated successfully!');
       setIsEditing(false);
     } catch (error) {
-      console.error('Profile update error:', error);
+      logger.error('Profile update error:', error);
       Alert.alert('Error', error instanceof Error ? error.message : 'Failed to update profile. Please try again.');
     }
   };
 
   const handleSignOut = async () => {
     try {
-      console.log('🚪 ProfileScreen: Starting sign-out...');
+      logger.log('🚪 ProfileScreen: Starting sign-out...');
       await signOut();
-      console.log('✅ ProfileScreen: Sign-out completed successfully');
+      logger.log('✅ ProfileScreen: Sign-out completed successfully');
     } catch (error) {
-      console.error('💥 ProfileScreen: Sign-out error:', error);
+      logger.error('💥 ProfileScreen: Sign-out error:', error);
       Alert.alert(
         'Sign-Out Error', 
         error instanceof Error ? error.message : 'Failed to sign out. Please try again.'

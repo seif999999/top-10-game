@@ -15,6 +15,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { COLLECTIONS } from '../utils/constants';
 
 export interface DataRetentionPolicy {
   userProfiles: number; // days
@@ -131,10 +132,10 @@ class DataRetentionService {
       deletionRequest.status = 'completed';
       deletionRequest.completedAt = new Date();
 
-      console.log(`User data deleted successfully for user: ${userId}`);
+      logger.log(`User data deleted successfully for user: ${userId}`);
       return deletionRequest;
     } catch (error) {
-      console.error('Error deleting user data:', error);
+      logger.error('Error deleting user data:', error);
       
       // Mark deletion as failed
       try {
@@ -144,7 +145,7 @@ class DataRetentionService {
           error: error instanceof Error ? error.message : 'Unknown error',
         });
       } catch (updateError) {
-        console.error('Error updating deletion request status:', updateError);
+        logger.error('Error updating deletion request status:', updateError);
       }
 
       const deletionRequest: DataDeletionRequest = {
@@ -183,10 +184,10 @@ class DataRetentionService {
         anonymizedAt: serverTimestamp(),
       });
 
-      console.log(`Data anonymized for user: ${userId}, type: ${dataType}`);
+      logger.log(`Data anonymized for user: ${userId}, type: ${dataType}`);
       return anonymizedData;
     } catch (error) {
-      console.error('Error anonymizing user data:', error);
+      logger.error('Error anonymizing user data:', error);
       throw new Error('Failed to anonymize user data');
     }
   }
@@ -214,10 +215,10 @@ class DataRetentionService {
         exportDate: serverTimestamp(),
       });
 
-      console.log(`User data exported for user: ${userId}`);
+      logger.log(`User data exported for user: ${userId}`);
       return exportData;
     } catch (error) {
-      console.error('Error exporting user data:', error);
+      logger.error('Error exporting user data:', error);
       throw new Error('Failed to export user data');
     }
   }
@@ -275,7 +276,7 @@ class DataRetentionService {
       errors.push(`Rate limit logs cleanup: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 
-    console.log('Data cleanup completed:', { deletedCounts, errors });
+    logger.log('Data cleanup completed:', { deletedCounts, errors });
     return { deletedCounts, errors };
   }
 
@@ -300,7 +301,7 @@ class DataRetentionService {
         dataSizeEstimate: 0,
       };
     } catch (error) {
-      console.error('Error getting retention stats:', error);
+      logger.error('Error getting retention stats:', error);
       return {
         totalUsers: 0,
         totalGameRecords: 0,
@@ -314,14 +315,14 @@ class DataRetentionService {
   // Private helper methods
 
   private static async deleteUserProfile(userId: string): Promise<void> {
-    const profileRef = doc(db, 'userProfiles', userId);
+    const profileRef = doc(db, COLLECTIONS.USER_PROFILES, userId);
     await deleteDoc(profileRef);
   }
 
   private static async deleteGameData(userId: string): Promise<void> {
     // Delete user's game history from multiplayer games
     const gamesQuery = query(
-      collection(db, 'multiplayerGames'),
+      collection(db, COLLECTIONS.MULTIPLAYER_GAMES),
       where('players', 'array-contains', userId)
     );
     const gamesSnapshot = await getDocs(gamesQuery);
@@ -340,7 +341,7 @@ class DataRetentionService {
 
   private static async deleteSupportTickets(userId: string): Promise<void> {
     // This would delete support tickets if they exist
-    console.log(`Support tickets deleted for user: ${userId}`);
+    logger.log(`Support tickets deleted for user: ${userId}`);
   }
 
   private static async deleteLocalStorageData(userId: string): Promise<void> {

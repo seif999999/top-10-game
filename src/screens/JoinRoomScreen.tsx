@@ -18,6 +18,7 @@ import { RootStackParamList } from '../types/navigation';
 import { useMultiplayer } from '../contexts/MultiplayerContext';
 import { COLORS, SPACING, TYPOGRAPHY, ACCESSIBILITY } from '../utils/constants';
 import { AuthService } from '../services/authService';
+import { logger } from '../utils/logger';
 
 interface JoinRoomScreenProps {}
 
@@ -92,7 +93,7 @@ const JoinRoomScreen: React.FC<JoinRoomScreenProps> = () => {
       // Navigate back to main menu
       navigation.goBack();
     } catch (error) {
-      console.error('Error leaving room:', error);
+      logger.error('Error leaving room:', error);
       // Even if there's an error, still clean up and go back
       resetAll();
       cleanup();

@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { COLORS, SPACING } from '../design-system';
+import { logger } from '../utils/logger';
 
 interface AvatarDisplayProps {
   avatarId?: string | null;
@@ -52,7 +53,7 @@ const AvatarDisplay: React.FC<AvatarDisplayProps> = ({
 
   const renderAvatar = () => {
     if (avatarUrl) {
-      console.log('Rendering DiceBear avatar:', avatarUrl);
+      logger.log('Rendering DiceBear avatar:', avatarUrl);
       return (
         <Image
           source={{ uri: avatarUrl }}
@@ -66,10 +67,10 @@ const AvatarDisplay: React.FC<AvatarDisplayProps> = ({
           ]}
           resizeMode="contain"
           onLoad={() => {
-            console.log('DiceBear avatar loaded successfully:', avatarUrl);
+            logger.log('DiceBear avatar loaded successfully:', avatarUrl);
           }}
           onError={(error) => {
-            console.log('DiceBear avatar error:', error.nativeEvent.error, 'URL:', avatarUrl);
+            logger.log('DiceBear avatar error:', error.nativeEvent.error, 'URL:', avatarUrl);
           }}
         />
       );

@@ -3,10 +3,12 @@
 
 import { doc, setDoc, getDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { db } from './firebase';
+import { logger } from '../utils/logger';
+import { TIMING, COLLECTIONS } from '../utils/constants';
 
 let serverTimeOffset: number | null = null;
 let lastSyncTime: number = 0;
-const SYNC_INTERVAL = 30000; // 30 seconds
+const SYNC_INTERVAL = TIMING.TIMEOUT_30_SECONDS;
 const SYNC_SAMPLES = 3;
 
 /**
@@ -21,17 +23,17 @@ export async function getServerTimeOffset(): Promise<number> {
     return serverTimeOffset;
   }
   
-  console.log('🕐 TIMERSYNC: Computing server time offset...');
+  logger.log('🕐 TIMERSYNC: Computing server time offset...');
   
   try {
     const offset = await computeServerTimeOffset();
     serverTimeOffset = offset;
     lastSyncTime = now;
     
-    console.log(`✅ TIMERSYNC: Server offset computed: ${offset}ms`);
+    logger.log(`✅ TIMERSYNC: Server offset computed: ${offset}ms`);
     return offset;
   } catch (error) {
-    console.warn('⚠️ TIMERSYNC: Failed to compute server offset, using cached or fallback:', error);
+    logger.warn('⚠️ TIMERSYNC: Failed to compute server offset, using cached or fallback:', error);
     
     // Return cached offset or fallback to 0
     return serverTimeOffset || 0;
@@ -55,7 +57,7 @@ async function computeServerTimeOffset(): Promise<number> {
         await new Promise(resolve => setTimeout(resolve, 100));
       }
     } catch (error) {
-      console.warn(`⚠️ TIMERSYNC: Sample ${i + 1} failed:`, error);
+      logger.warn(`⚠️ TIMERSYNC: Sample ${i + 1} failed:`, error);
     }
   }
   
@@ -66,7 +68,7 @@ async function computeServerTimeOffset(): Promise<number> {
   // Average the samples
   const averageOffset = samples.reduce((sum, offset) => sum + offset, 0) / samples.length;
   
-  console.log(`🕐 TIMERSYNC: Computed offset from ${samples.length} samples: ${averageOffset}ms`);
+  logger.log(`🕐 TIMERSYNC: Computed offset from ${samples.length} samples: ${averageOffset}ms`);
   return averageOffset;
 }
 
@@ -77,7 +79,7 @@ async function sampleServerTime(): Promise<number> {
   const clientTimeBefore = Date.now();
   
   // Create a temporary document with server timestamp
-  const tempRef = doc(db, 'timeSyncDocs', `temp_${Date.now()}_${Math.random()}`);
+  const tempRef = doc(db, COLLECTIONS.TIME_SYNC_DOCS, `temp_${Date.now()}_${Math.random()}`);
   await setDoc(tempRef, { 
     timestamp: serverTimestamp(),
     clientTime: clientTimeBefore 
@@ -131,7 +133,7 @@ export async function calculateTimeRemaining(
     } else if (typeof roundStartTs === 'number') {
       startTimeMs = roundStartTs;
     } else {
-      console.warn('⚠️ TIMERSYNC: Invalid roundStartTs, using client time');
+      logger.warn('⚠️ TIMERSYNC: Invalid roundStartTs, using client time');
       startTimeMs = Date.now();
     }
     
@@ -140,7 +142,7 @@ export async function calculateTimeRemaining(
     const elapsed = now - startTimeMs;
     const remaining = Math.max(0, (roundDurationSeconds * 1000) - elapsed);
     
-    console.log(`🕐 TIMERSYNC: Time remaining calculation:`, {
+    logger.log(`🕐 TIMERSYNC: Time remaining calculation:`, {
       startTimeMs,
       now,
       elapsed: Math.round(elapsed / 1000),
@@ -150,7 +152,7 @@ export async function calculateTimeRemaining(
     
     return remaining;
   } catch (error) {
-    console.error('❌ TIMERSYNC: Failed to calculate time remaining:', error);
+    logger.error('❌ TIMERSYNC: Failed to calculate time remaining:', error);
     
     // Fallback to client-side calculation
     const now = Date.now();
@@ -158,7 +160,7 @@ export async function calculateTimeRemaining(
     const elapsed = now - startTimeMs;
     const remaining = Math.max(0, (roundDurationSeconds * 1000) - elapsed);
     
-    console.warn('⚠️ TIMERSYNC: Using fallback client-side calculation');
+    logger.warn('⚠️ TIMERSYNC: Using fallback client-side calculation');
     return remaining;
   }
 }
@@ -199,4 +201,4 @@ export async function isRoundExpired(
 }
 
 // Log time sync system initialization
-console.log('🕐 Time synchronization system initialized');
+logger.log('🕐 Time synchronization system initialized');

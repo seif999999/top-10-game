@@ -4,6 +4,7 @@
  */
 
 import { ModerationLog, ModerationResult } from './contentModerationService';
+import { logger } from '../utils/logger';
 
 export interface ModerationReport {
   id: string;
@@ -71,7 +72,7 @@ export class ModerationLoggingService {
     this.checkForAlerts(log);
     
     // In production, this would be sent to a logging service
-    console.log('Moderation logged:', {
+    logger.log('Moderation logged:', {
       id: log.id,
       userId: log.userId,
       contentType: log.contentType,
@@ -281,7 +282,7 @@ export class ModerationLoggingService {
     this.alerts.push(alert);
     
     // In production, this would send notifications
-    console.warn('Moderation alert created:', alert);
+    logger.warn('Moderation alert created:', alert);
 
     return alert;
   }

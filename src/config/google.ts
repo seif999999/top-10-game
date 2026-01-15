@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { logger } from '../utils/logger';
 
 // Google OAuth Configuration
 // You need to get these credentials from Google Cloud Console
@@ -76,6 +77,6 @@ export const getGoogleConfigStatus = () => {
     }
   };
   
-  console.log('🔧 Google OAuth Configuration Status:', status);
+  logger.log('🔧 Google OAuth Configuration Status:', status);
   return status;
 };

@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useMultiplayer } from '../contexts/MultiplayerContext';
 import { COLORS, SPACING, TYPOGRAPHY, ACCESSIBILITY } from '../design-system';
+import { logger } from '../utils/logger';
 import { RESPONSIVE } from '../utils/responsive';
 import { Question } from '../services/multiplayerService';
 import { AuthService } from '../services/authService';
@@ -108,7 +109,7 @@ const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
 
   useEffect(() => {
     if (error) {
-      console.error('Multiplayer error:', error);
+      logger.error('Multiplayer error:', error);
       clearError();
     }
   }, [error, clearError]);
@@ -134,12 +135,12 @@ const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
 
   const handleCreateRoom = async () => {
     if (!selectedCategory) {
-      console.error('No category selected');
+      logger.error('No category selected');
       return;
     }
 
     if (selectedQuestions.length === 0) {
-      console.error('No questions selected');
+      logger.error('No questions selected');
       return;
     }
 
@@ -157,7 +158,7 @@ const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
     });
 
     if (validQuestions.length === 0) {
-      console.error('❌ No valid questions found after filtering');
+      logger.error('❌ No valid questions found after filtering');
       return;
     }
 
@@ -201,7 +202,7 @@ const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
       // Navigate back to main menu
       navigation.goBack();
     } catch (error) {
-      console.error('Error leaving room:', error);
+      logger.error('Error leaving room:', error);
       // Even if there's an error, still clean up and go back
       resetAll();
       cleanup();

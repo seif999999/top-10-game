@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { logger } from './logger';
 
 // Web-specific storage utilities
 export const isWebPlatform = Platform.OS === 'web';
@@ -10,7 +11,7 @@ export const webStorage = {
       try {
         return localStorage.getItem(key);
       } catch (error) {
-        console.warn('Error accessing localStorage:', error);
+        logger.warn('Error accessing localStorage:', error);
         return null;
       }
     }
@@ -22,7 +23,7 @@ export const webStorage = {
       try {
         localStorage.setItem(key, value);
       } catch (error) {
-        console.warn('Error setting localStorage:', error);
+        logger.warn('Error setting localStorage:', error);
       }
     }
   },
@@ -32,7 +33,7 @@ export const webStorage = {
       try {
         localStorage.removeItem(key);
       } catch (error) {
-        console.warn('Error removing from localStorage:', error);
+        logger.warn('Error removing from localStorage:', error);
       }
     }
   },
@@ -42,7 +43,7 @@ export const webStorage = {
       try {
         localStorage.clear();
       } catch (error) {
-        console.warn('Error clearing localStorage:', error);
+        logger.warn('Error clearing localStorage:', error);
       }
     }
   }
@@ -55,7 +56,7 @@ export const webSessionStorage = {
       try {
         return sessionStorage.getItem(key);
       } catch (error) {
-        console.warn('Error accessing sessionStorage:', error);
+        logger.warn('Error accessing sessionStorage:', error);
         return null;
       }
     }
@@ -67,7 +68,7 @@ export const webSessionStorage = {
       try {
         sessionStorage.setItem(key, value);
       } catch (error) {
-        console.warn('Error setting sessionStorage:', error);
+        logger.warn('Error setting sessionStorage:', error);
       }
     }
   },
@@ -77,7 +78,7 @@ export const webSessionStorage = {
       try {
         sessionStorage.removeItem(key);
       } catch (error) {
-        console.warn('Error removing from sessionStorage:', error);
+        logger.warn('Error removing from sessionStorage:', error);
       }
     }
   },
@@ -87,7 +88,7 @@ export const webSessionStorage = {
       try {
         sessionStorage.clear();
       } catch (error) {
-        console.warn('Error clearing sessionStorage:', error);
+        logger.warn('Error clearing sessionStorage:', error);
       }
     }
   }

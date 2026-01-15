@@ -1,6 +1,7 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, GestureResponderEvent, ViewStyle, TextStyle } from 'react-native';
 import { COLORS, SPACING } from '../utils/constants';
+import { logger } from '../utils/logger';
 
 type ButtonProps = {
   title: string;
@@ -12,16 +13,16 @@ type ButtonProps = {
 
 const Button: React.FC<ButtonProps> = ({ title, onPress, disabled, style, textStyle }) => {
   const handlePress = (event: GestureResponderEvent) => {
-    console.log('🔍 DEBUG: Button pressed:', title);
-    console.log('🔍 DEBUG: Button disabled:', disabled);
-    console.log('🔍 DEBUG: Button onPress function:', onPress ? 'exists' : 'undefined');
+    logger.log('🔍 DEBUG: Button pressed:', title);
+    logger.log('🔍 DEBUG: Button disabled:', disabled);
+    logger.log('🔍 DEBUG: Button onPress function:', onPress ? 'exists' : 'undefined');
     
     if (onPress && !disabled) {
       onPress(event);
     } else if (disabled) {
-      console.log('❌ DEBUG: Button is disabled, not calling onPress');
+      logger.log('❌ DEBUG: Button is disabled, not calling onPress');
     } else {
-      console.log('❌ DEBUG: No onPress function provided');
+      logger.log('❌ DEBUG: No onPress function provided');
     }
   };
 

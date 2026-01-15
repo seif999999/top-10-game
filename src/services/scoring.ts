@@ -1,5 +1,6 @@
 // Centralized scoring system for single-player and multiplayer consistency
 // This ensures the same point calculation is used everywhere
+import { logger } from '../utils/logger';
 
 /**
  * Calculate points for a given rank (1-10)
@@ -8,7 +9,7 @@
  */
 export function pointsForRank(rank: number): number {
   if (rank < 1 || rank > 10) {
-    console.warn(`Invalid rank ${rank}, using fallback calculation`);
+    logger.warn(`Invalid rank ${rank}, using fallback calculation`);
     return Math.max(1, Math.min(10, rank));
   }
   return rank;
@@ -75,8 +76,8 @@ export function getScoringInfo(rank: number): {
 }
 
 // Log scoring system initialization
-console.log('🎯 Scoring system initialized with pointsForRank function');
-console.log('🎯 Sample calculations:', {
+logger.log('🎯 Scoring system initialized with pointsForRank function');
+logger.log('🎯 Sample calculations:', {
   rank1: pointsForRank(1),    // 1
   rank5: pointsForRank(5),    // 5
   rank10: pointsForRank(10)   // 10

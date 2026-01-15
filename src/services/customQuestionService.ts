@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import { logger } from '../utils/logger';
 
 export interface CustomQuestion {
   id: string;
@@ -32,7 +33,7 @@ export class CustomQuestionService {
    */
   public async saveCustomQuestion(question: string, answers: string[]): Promise<CustomQuestion> {
     try {
-      console.log('💾 CustomQuestionService: Saving custom question...');
+      logger.log('💾 CustomQuestionService: Saving custom question...');
       
       const customQuestion: CustomQuestion = {
         id: `custom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -55,10 +56,10 @@ export class CustomQuestionService {
         await AsyncStorage.setItem(CUSTOM_QUESTIONS_KEY, JSON.stringify(updatedQuestions));
       }
       
-      console.log('✅ CustomQuestionService: Custom question saved:', customQuestion.id);
+      logger.log('✅ CustomQuestionService: Custom question saved:', customQuestion.id);
       return customQuestion;
     } catch (error) {
-      console.error('❌ CustomQuestionService: Error saving custom question:', error);
+      logger.error('❌ CustomQuestionService: Error saving custom question:', error);
       throw error;
     }
   }
@@ -68,7 +69,7 @@ export class CustomQuestionService {
    */
   public async getAllCustomQuestions(): Promise<CustomQuestion[]> {
     try {
-      console.log('🔍 CustomQuestionService: Retrieving all custom questions...');
+      logger.log('🔍 CustomQuestionService: Retrieving all custom questions...');
       
       let questionsData: string | null = null;
       
@@ -79,7 +80,7 @@ export class CustomQuestionService {
       }
 
       if (!questionsData) {
-        console.log('🚪 CustomQuestionService: No custom questions found');
+        logger.log('🚪 CustomQuestionService: No custom questions found');
         return [];
       }
 
@@ -92,10 +93,10 @@ export class CustomQuestionService {
         lastPlayed: q.lastPlayed ? new Date(q.lastPlayed) : undefined
       }));
 
-      console.log('✅ CustomQuestionService: Retrieved custom questions:', parsedQuestions.length);
+      logger.log('✅ CustomQuestionService: Retrieved custom questions:', parsedQuestions.length);
       return parsedQuestions;
     } catch (error) {
-      console.error('❌ CustomQuestionService: Error retrieving custom questions:', error);
+      logger.error('❌ CustomQuestionService: Error retrieving custom questions:', error);
       return [];
     }
   }
@@ -108,7 +109,7 @@ export class CustomQuestionService {
       const questions = await this.getAllCustomQuestions();
       return questions.find(q => q.id === id) || null;
     } catch (error) {
-      console.error('❌ CustomQuestionService: Error retrieving custom question:', error);
+      logger.error('❌ CustomQuestionService: Error retrieving custom question:', error);
       return null;
     }
   }
@@ -118,7 +119,7 @@ export class CustomQuestionService {
    */
   public async updatePlayStats(id: string): Promise<void> {
     try {
-      console.log('📊 CustomQuestionService: Updating play stats for question:', id);
+      logger.log('📊 CustomQuestionService: Updating play stats for question:', id);
       
       const questions = await this.getAllCustomQuestions();
       const questionIndex = questions.findIndex(q => q.id === id);
@@ -134,10 +135,10 @@ export class CustomQuestionService {
           await AsyncStorage.setItem(CUSTOM_QUESTIONS_KEY, JSON.stringify(questions));
         }
         
-        console.log('✅ CustomQuestionService: Play stats updated');
+        logger.log('✅ CustomQuestionService: Play stats updated');
       }
     } catch (error) {
-      console.error('❌ CustomQuestionService: Error updating play stats:', error);
+      logger.error('❌ CustomQuestionService: Error updating play stats:', error);
     }
   }
 
@@ -146,7 +147,7 @@ export class CustomQuestionService {
    */
   public async deleteCustomQuestion(id: string): Promise<void> {
     try {
-      console.log('🗑️ CustomQuestionService: Deleting custom question:', id);
+      logger.log('🗑️ CustomQuestionService: Deleting custom question:', id);
       
       const questions = await this.getAllCustomQuestions();
       const filteredQuestions = questions.filter(q => q.id !== id);
@@ -158,9 +159,9 @@ export class CustomQuestionService {
         await AsyncStorage.setItem(CUSTOM_QUESTIONS_KEY, JSON.stringify(filteredQuestions));
       }
       
-      console.log('✅ CustomQuestionService: Custom question deleted');
+      logger.log('✅ CustomQuestionService: Custom question deleted');
     } catch (error) {
-      console.error('❌ CustomQuestionService: Error deleting custom question:', error);
+      logger.error('❌ CustomQuestionService: Error deleting custom question:', error);
     }
   }
 
@@ -169,7 +170,7 @@ export class CustomQuestionService {
    */
   public async clearAllCustomQuestions(): Promise<void> {
     try {
-      console.log('🧹 CustomQuestionService: Clearing all custom questions...');
+      logger.log('🧹 CustomQuestionService: Clearing all custom questions...');
       
       if (Platform.OS === 'web') {
         localStorage.removeItem(CUSTOM_QUESTIONS_KEY);
@@ -177,9 +178,9 @@ export class CustomQuestionService {
         await AsyncStorage.removeItem(CUSTOM_QUESTIONS_KEY);
       }
       
-      console.log('✅ CustomQuestionService: All custom questions cleared');
+      logger.log('✅ CustomQuestionService: All custom questions cleared');
     } catch (error) {
-      console.error('❌ CustomQuestionService: Error clearing custom questions:', error);
+      logger.error('❌ CustomQuestionService: Error clearing custom questions:', error);
     }
   }
 }
