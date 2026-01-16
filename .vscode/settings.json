@@ -1,3 +1,12 @@
 {
-    "codium.codeCompletion.enable": false
+    "codium.codeCompletion.enable": false,
+    "javascript.validate.enable": true,
+    "javascript.implicitProjectConfig.checkJs": false,
+    "files.associations": {
+        "metro.config.js": "javascript",
+        "babel.config.js": "javascript",
+        "jest.config.js": "javascript",
+        "webpack.config.js": "javascript"
+    },
+    "javascript.preferences.implicitProjectConfig.experimentalDecorators": true
 }
