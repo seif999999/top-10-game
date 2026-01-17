@@ -9,8 +9,8 @@ import {
   hostEndGame,
   isAllowedToSubmit,
   calculateTimeRemaining
-} from '../services/multiplayerGameFlowV2';
-import { RoomData } from '../types/game';
+} from '../backend/services/multiplayerGameFlowV2';
+import { RoomData } from '../shared/types/game';
 
 // Mock Firebase
 jest.mock('firebase/firestore', () => ({

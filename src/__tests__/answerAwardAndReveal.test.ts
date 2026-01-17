@@ -2,8 +2,8 @@ import {
   findBestMatch, 
   validateAnswerFuzzy, 
   normalizeAnswerEnhanced 
-} from '../services/fuzzyMatching';
-import { pointsForRank } from '../services/scoring';
+} from '../backend/services/fuzzyMatching';
+import { pointsForRank } from '../backend/services/scoring';
 
 describe('Answer Award and Reveal System', () => {
   const sampleAnswers = [

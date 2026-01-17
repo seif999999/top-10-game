@@ -3,8 +3,8 @@
  * This tests the critical flow: answer submission -> scoring -> revelation
  */
 
-import { findMatchingAnswer } from '../services/multiplayerGameFlowV2';
-import { pointsForRank } from '../services/scoring';
+import { findMatchingAnswer } from '../backend/services/multiplayerGameFlowV2';
+import { pointsForRank } from '../backend/services/scoring';
 
 // Mock the fuzzy matching function
 jest.mock('../services/fuzzyMatching', () => ({

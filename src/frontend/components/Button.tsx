@@ -1,0 +1,62 @@
+import React from 'react';
+import { TouchableOpacity, Text, StyleSheet, GestureResponderEvent, ViewStyle, TextStyle } from 'react-native';
+import { COLORS, SPACING } from '../../backend/utils/constants';
+import { logger } from '../../backend/utils/logger';
+
+type ButtonProps = {
+  title: string;
+  onPress?: (event: GestureResponderEvent) => void;
+  disabled?: boolean;
+  style?: ViewStyle;
+  textStyle?: TextStyle;
+};
+
+const Button: React.FC<ButtonProps> = ({ title, onPress, disabled, style, textStyle }) => {
+  const handlePress = (event: GestureResponderEvent) => {
+    logger.log('🔍 DEBUG: Button pressed:', title);
+    logger.log('🔍 DEBUG: Button disabled:', disabled);
+    logger.log('🔍 DEBUG: Button onPress function:', onPress ? 'exists' : 'undefined');
+    
+    if (onPress && !disabled) {
+      onPress(event);
+    } else if (disabled) {
+      logger.log('❌ DEBUG: Button is disabled, not calling onPress');
+    } else {
+      logger.log('❌ DEBUG: No onPress function provided');
+    }
+  };
+
+  return (
+    <TouchableOpacity
+      accessibilityRole="button"
+      onPress={handlePress}
+      disabled={disabled}
+      style={[styles.button, disabled && styles.disabled, style]}
+    >
+      <Text style={[styles.text, textStyle]}>{title}</Text>
+    </TouchableOpacity>
+  );
+};
+
+const styles = StyleSheet.create({
+  button: {
+    backgroundColor: COLORS.primary,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.xl,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  disabled: {
+    opacity: 0.6
+  },
+  text: {
+    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: '600'
+  }
+});
+
+export default Button;
+
+

@@ -2,10 +2,10 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { AuthProvider } from './src/contexts/AuthContext';
-import { GameProvider } from './src/contexts/GameContext';
-import { MultiplayerProvider } from './src/contexts/MultiplayerContext';
-import AppNavigator from './src/navigation/AppNavigator';
+import { AuthProvider } from './src/frontend/contexts/AuthContext';
+import { GameProvider } from './src/frontend/contexts/GameContext';
+import { MultiplayerProvider } from './src/frontend/contexts/MultiplayerContext';
+import AppNavigator from './src/frontend/navigation/AppNavigator';
 import { View, Text } from 'react-native';
 
 

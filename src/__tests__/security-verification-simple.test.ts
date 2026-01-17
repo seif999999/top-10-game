@@ -3,7 +3,7 @@
  * Basic verification of security implementations without complex mocking
  */
 
-import { InputValidator } from '../utils/inputValidator';
+import { InputValidator } from '../backend/utils/inputValidator';
 
 // Mock Firebase for basic testing
 jest.mock('firebase/firestore', () => ({

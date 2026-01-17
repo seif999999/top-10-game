@@ -6,7 +6,7 @@ import {
   rankFromPoints, 
   validateScoring,
   getScoringInfo 
-} from '../services/scoring';
+} from '../backend/services/scoring';
 
 describe('Scoring System', () => {
   describe('pointsForRank', () => {

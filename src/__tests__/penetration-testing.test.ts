@@ -3,10 +3,10 @@
  * Comprehensive security testing for all endpoints and attack vectors
  */
 
-import { InputValidator } from '../utils/inputValidator';
-import { RateLimitService } from '../services/rateLimitService';
-import { ContentModerationService } from '../services/contentModerationService';
-import { ServerGameService } from '../services/serverGameService';
+import { InputValidator } from '../backend/utils/inputValidator';
+import { RateLimitService } from '../backend/services/rateLimitService';
+import { ContentModerationService } from '../backend/services/contentModerationService';
+import { ServerGameService } from '../backend/services/serverGameService';
 
 // Mock Firebase for testing
 jest.mock('firebase/firestore', () => ({

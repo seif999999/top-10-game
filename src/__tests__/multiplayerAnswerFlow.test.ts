@@ -1,5 +1,5 @@
-import { submitAnswer } from '../services/multiplayerGameFlowV2';
-import { findBestMatch } from '../services/fuzzyMatching';
+import { submitAnswer } from '../backend/services/multiplayerGameFlowV2';
+import { findBestMatch } from '../backend/services/fuzzyMatching';
 
 // Mock Firebase
 jest.mock('firebase/firestore', () => ({

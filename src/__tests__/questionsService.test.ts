@@ -5,8 +5,8 @@ import {
   assertQuestionShape,
   questionToGameQuestion,
   questionToLegacyQuestion 
-} from '../services/questionsService';
-import { Question, Answer, LegacyQuestion } from '../types/game';
+} from '../backend/services/questionsService';
+import { Question, Answer, LegacyQuestion } from '../shared/types/game';
 
 describe('Questions Service', () => {
   describe('safeToLower', () => {

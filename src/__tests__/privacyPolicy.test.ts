@@ -1,4 +1,4 @@
-import PrivacyPolicyService from '../services/privacyPolicyService';
+import PrivacyPolicyService from '../backend/services/privacyPolicyService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Mock AsyncStorage

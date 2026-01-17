@@ -3,9 +3,9 @@
  * Tests all edge cases including disconnections, data corruption, and security issues
  */
 
-import { EdgeCaseHandler, DEFAULT_EDGE_CASE_CONFIG } from '../services/edgeCaseHandler';
-import multiplayerService from '../services/multiplayerService';
-import { AuthService } from '../services/authService';
+import { EdgeCaseHandler, DEFAULT_EDGE_CASE_CONFIG } from '../backend/services/edgeCaseHandler';
+import multiplayerService from '../backend/services/multiplayerService';
+import { AuthService } from '../backend/services/authService';
 
 describe('Edge Case Handling Tests', () => {
   let edgeCaseHandler: EdgeCaseHandler;

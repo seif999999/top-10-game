@@ -5,7 +5,7 @@ import {
   findBestMatch, 
   validateAnswerFuzzy,
   createMatchConfig 
-} from '../services/fuzzyMatching';
+} from '../backend/services/fuzzyMatching';
 
 describe('Fuzzy Matching System', () => {
   const sampleAnswers = [

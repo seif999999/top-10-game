@@ -3,13 +3,13 @@
  * Comprehensive verification of all security measures implemented
  */
 
-import { InputValidator } from '../utils/inputValidator';
-import { RateLimitService } from '../services/rateLimitService';
-import { ContentModerationService } from '../services/contentModerationService';
-import { ServerGameService } from '../services/serverGameService';
-import DataRetentionService from '../services/dataRetentionService';
-import PrivacyPolicyService from '../services/privacyPolicyService';
-import SecurityMonitoringService from '../services/securityMonitoringService';
+import { InputValidator } from '../backend/utils/inputValidator';
+import { RateLimitService } from '../backend/services/rateLimitService';
+import { ContentModerationService } from '../backend/services/contentModerationService';
+import { ServerGameService } from '../backend/services/serverGameService';
+import DataRetentionService from '../backend/services/dataRetentionService';
+import PrivacyPolicyService from '../backend/services/privacyPolicyService';
+import SecurityMonitoringService from '../backend/services/securityMonitoringService';
 
 // Mock Firebase for testing
 jest.mock('firebase/firestore', () => ({

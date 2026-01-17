@@ -1,4 +1,4 @@
-import { ServerGameService } from '../services/serverGameService';
+import { ServerGameService } from '../backend/services/serverGameService';
 
 // Mock Firebase
 jest.mock('firebase/firestore', () => ({
