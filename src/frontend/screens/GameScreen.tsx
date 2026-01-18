@@ -15,7 +15,7 @@ import { useGame } from '../contexts/GameContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useMultiplayer } from '../contexts/MultiplayerContext';
 import multiplayerService from '../../backend/services/multiplayerService';
-import { QuestionAnswer } from '../../shared/types';
+import { QuestionAnswer, GameQuestion } from '../../shared/types';
 import type { Answer } from '../../shared/types/game';
 import { FEATURES } from '../../backend/config/featureFlags';
 import HostAssignModal from '../components/HostAssignModal';
@@ -262,7 +262,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
         logger.log('🎮 Starting new single-player game...');
         logger.log('🎮 Previous category:', gameState?.category);
         logger.log('🎮 New category:', categoryId);
-        logger.log('🎮 Selected question:', selectedQuestion?.text || selectedQuestion?.title || 'None');
+        logger.log('🎮 Selected question:', selectedQuestion?.title || 'None');
         logger.log('🎮 Team config:', teamConfig ? 'YES' : 'NO');
          
          // Reset any existing game first
@@ -276,17 +276,16 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
            logger.log('🎮 Starting custom question game:', customQuestion.question);
            
            // Convert custom question to the format expected by the game
-           const convertedQuestion = {
+           const convertedQuestion: GameQuestion = {
              id: customQuestion.id,
-             title: customQuestion.question, // Use 'title' instead of 'text'
-             text: customQuestion.question, // Keep both for compatibility
+             title: customQuestion.question,
              answers: customQuestion.answers.map((answer: string, index: number) => ({
                text: answer,
                rank: index + 1,
                points: index + 1 // Points increase from 1 to number of answers
              })),
              category: 'Custom',
-             difficulty: 'medium'
+             difficulty: 'medium' as const
            };
            
            // Check if this is a team mode custom question
@@ -306,7 +305,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
          }
       }
     }
-  }, [isMultiplayerMode, roomId, categoryId, gameState?.category, multiplayerState?.roomCode, multiplayerState?.gamePhase, multiplayerState?.currentQuestionIndex, multiplayerState?.questions?.length, user?.displayName, user?.email, user?.id, selectedQuestion?.text, selectedQuestion?.title, teamConfig, customQuestion, isCustomQuestion]);
+  }, [isMultiplayerMode, roomId, categoryId, gameState?.category, multiplayerState?.roomCode, multiplayerState?.gamePhase, multiplayerState?.currentQuestionIndex, multiplayerState?.questions?.length, user?.displayName, user?.email, user?.id, selectedQuestion?.title, teamConfig, customQuestion, isCustomQuestion]);
 
   // Initialize game based on mode
   useEffect(() => {
@@ -618,7 +617,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
         setHasSubmittedThisTurn(false);
         
         // Update the ref
-        previousCurrentPlayerIdRef.current = currentPlayerId;
+        previousCurrentPlayerIdRef.current = currentPlayerId ?? null;
       }
     }
   }, [isMultiplayerMode, multiplayerState?.currentPlayerId, user?.id]);
@@ -1127,9 +1126,9 @@ const handleEndGame = () => {
       if (!answerText) return false;
 
       return answerText.toLowerCase().trim() === normalizedAnswer ||
-        (correctAnswer.normalized && correctAnswer.normalized.toLowerCase().trim() === normalizedAnswer) ||
-        (correctAnswer.aliases && Array.isArray(correctAnswer.aliases) && 
-         correctAnswer.aliases.some((alias: string) => 
+        ('normalized' in correctAnswer && (correctAnswer as { normalized?: string }).normalized?.toLowerCase().trim() === normalizedAnswer) ||
+        ('aliases' in correctAnswer && Array.isArray((correctAnswer as { aliases?: string[] }).aliases) && 
+         ((correctAnswer as { aliases?: string[] }).aliases || []).some((alias: string) => 
            alias && typeof alias === 'string' && alias.toLowerCase().trim() === normalizedAnswer
          ));
     });
@@ -1431,15 +1430,15 @@ const handleEndGame = () => {
                      
                      if (!answerText) return false;
                      
-                     return (
-                       answerText.toLowerCase().trim() === normalizedSubmitted ||
-                       (typeof answer === 'object' && answer?.normalized && 
-                        answer.normalized.toLowerCase().trim() === normalizedSubmitted) ||
-                      (typeof answer === 'object' && answer?.aliases && Array.isArray(answer.aliases) && 
-                       answer.aliases.some((alias: string) => 
-                          alias && typeof alias === 'string' && alias.toLowerCase().trim() === normalizedSubmitted
-                        ))
-                     );
+                    return (
+                      answerText.toLowerCase().trim() === normalizedSubmitted ||
+                      (typeof answer === 'object' && 'normalized' in answer && 
+                       (answer as { normalized?: string }).normalized?.toLowerCase().trim() === normalizedSubmitted) ||
+                     (typeof answer === 'object' && 'aliases' in answer && Array.isArray((answer as { aliases?: string[] }).aliases) && 
+                      ((answer as { aliases?: string[] }).aliases || []).some((alias: string) => 
+                         alias && typeof alias === 'string' && alias.toLowerCase().trim() === normalizedSubmitted
+                       ))
+                    );
                    });
                  }
                  
@@ -1452,14 +1451,17 @@ const handleEndGame = () => {
                        assignedTeam && styles.assignedAnswerCard,
                        !isMultiplayerMode && isTeamMode && !assignedTeam && styles.unassignedAnswerCard
                      ]}
-                     onPress={() => {
-                       // In team mode, allow host to assign unassigned answers
-                       if (!isMultiplayerMode && isTeamMode && !assignedTeam) {
-                         setSelectedAnswerIndex(index);
-                         setSelectedAnswer(typeof answer === 'string' ? { text: answer, rank: index + 1, points: index + 1 } : answer);
-                         setShowHostAssignModal(true);
-                       }
-                     }}
+                    onPress={() => {
+                      // In team mode, allow host to assign unassigned answers
+                      if (!isMultiplayerMode && isTeamMode && !assignedTeam) {
+                        setSelectedAnswerIndex(index);
+                        const answerAsQuestion: QuestionAnswer = typeof answer === 'string' 
+                          ? { text: answer, rank: index + 1, points: index + 1 } 
+                          : { text: answer.text, rank: answer.rank, points: 'points' in answer ? answer.points : answer.rank };
+                        setSelectedAnswer(answerAsQuestion);
+                        setShowHostAssignModal(true);
+                      }
+                    }}
                      disabled={isMultiplayerMode || (isTeamMode && !!assignedTeam)}
                    >
                      <View style={styles.answerRankBadge}>
@@ -1550,13 +1552,13 @@ const handleEndGame = () => {
            activeOpacity={1}
            onPress={() => setShowGameEndRanking(false)}
          >
-           <RankingOverlay
-             visible={showGameEndRanking}
-             question={currentQuestion}
-             submittedAnswers={getCurrentRoundAnswers()}
-             onHide={() => setShowGameEndRanking(false)}
-             isGameEnd={true}
-           />
+          <RankingOverlay
+            visible={showGameEndRanking}
+            question={currentQuestion as Parameters<typeof RankingOverlay>[0]['question']}
+            submittedAnswers={getCurrentRoundAnswers()}
+            onHide={() => setShowGameEndRanking(false)}
+            isGameEnd={true}
+          />
          </TouchableOpacity>
        )}
 
@@ -1673,9 +1675,9 @@ const handleEndGame = () => {
           <View style={styles.modernAnswerSection}>
             <Animated.View style={[
                styles.answerInputContainer,
-               {
-                 shadowColor: lastAnswerResult === 'correct' ? COLORS.success : 
-                              lastAnswerResult === 'incorrect' ? COLORS.error : COLORS.muted,
+              {
+                shadowColor: lastAnswerResult === 'correct' ? COLORS.success : 
+                             lastAnswerResult === 'incorrect' ? COLORS.error : COLORS.textMuted,
                  shadowOpacity: answerInputGlow.interpolate({
                    inputRange: [-1, 0, 1],
                    outputRange: [0.6, 0.1, 0.6]
@@ -1684,13 +1686,13 @@ const handleEndGame = () => {
                    inputRange: [-1, 0, 1],
                    outputRange: [20, 8, 20]
                  }),
-                 borderColor: lastAnswerResult === 'correct' ? COLORS.success : 
-                              lastAnswerResult === 'incorrect' ? COLORS.error : COLORS.muted
+                borderColor: lastAnswerResult === 'correct' ? COLORS.success : 
+                             lastAnswerResult === 'incorrect' ? COLORS.error : COLORS.textMuted
                }
              ]}>
-               <TextInput 
-                 placeholder="Enter your answer..." 
-                 placeholderTextColor={COLORS.muted}
+              <TextInput 
+                placeholder="Enter your answer..." 
+                placeholderTextColor={COLORS.textMuted}
                  value={isMultiplayerMode ? (multiplayerCurrentAnswer || '') : currentAnswer} 
                  onChangeText={isMultiplayerMode ? setMultiplayerAnswer : setAnswer}
                  style={styles.answerInput}
@@ -2790,12 +2792,6 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     textAlign: 'center',
   },
-  turnTimerText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#A78BFA',
-    textAlign: 'center',
-  },
   // High contrast accessibility styles
   answerTimerContainerHighContrast: {
     backgroundColor: '#000000',
@@ -3006,7 +3002,7 @@ const styles = StyleSheet.create({
   },
   noAnswersText: {
     fontSize: 16,
-    color: COLORS.muted,
+    color: COLORS.textMuted,
     textAlign: 'center',
     padding: SPACING.lg,
     fontStyle: 'italic',
