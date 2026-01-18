@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useMultiplayer } from '../contexts/MultiplayerContext';
 import { COLORS, SPACING, TYPOGRAPHY, ANIMATIONS } from '../design-system';
 import { logger } from '../../backend/utils/logger';
@@ -199,12 +200,20 @@ const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () =
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
+      {/* Dark Purple Background */}
+      <LinearGradient
+        colors={['#1a1a2e', '#16213e', '#0f0f1e']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + SPACING.lg }]}>
         <Animated.View style={{ transform: [{ scale: backButtonScale }] }}>
           <TouchableOpacity onPress={handleBackToMenu} style={styles.backButton}>
-            <View style={styles.backButtonIcon}>
-              <Text style={styles.backButtonArrow}>‹</Text>
+            <View style={styles.backButtonContent}>
+              <Text style={styles.backButtonArrow}>←</Text>
+              <View style={styles.backButtonDash} />
             </View>
           </TouchableOpacity>
         </Animated.View>
@@ -246,7 +255,7 @@ const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () =
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#1a1a2e',
   },
   header: {
     flexDirection: 'row',
@@ -257,37 +266,19 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.xl,
   },
   backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: 22,
-    backgroundColor: 'rgba(139, 92, 246, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.2)',
-    shadowColor: '#8B5CF6',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  backButtonIcon: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    width: 40,
+    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
   },
   backButtonArrow: {
-    color: '#8B5CF6',
-    fontSize: 18,
-    fontWeight: 'bold' as const,
-    lineHeight: 20,
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '600' as const,
+    textShadowColor: 'rgba(173, 216, 230, 0.6)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 8,
+    includeFontPadding: false,
   },
   headerContent: {
     flex: 1,

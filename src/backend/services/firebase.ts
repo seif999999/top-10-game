@@ -39,7 +39,7 @@ logger.log('Project ID:', firebaseConfig.projectId);
 
 export const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
-// Initialize Auth with default persistence
+// Initialize Auth with persistence for React Native
 let auth: any;
 
 // Check if auth already exists
@@ -50,12 +50,36 @@ try {
   logger.log('🔐 Initializing new Firebase Auth...');
   
   try {
-    // Initialize auth with default persistence (works for both web and React Native)
-    auth = initializeAuth(app);
-    logger.log('✅ Firebase Auth initialized successfully');
+    if (Platform.OS === 'web') {
+      // For web, use getAuth which has localStorage persistence by default
+      auth = getAuth(app);
+      logger.log('✅ Firebase Auth initialized for web with localStorage persistence');
+    } else {
+      // For React Native, use initializeAuth with AsyncStorage persistence
+      try {
+        // Try to import getReactNativePersistence (available in Firebase v9+)
+        const { getReactNativePersistence } = require('firebase/auth');
+        auth = initializeAuth(app, {
+          persistence: getReactNativePersistence(AsyncStorage)
+        });
+        logger.log('✅ Firebase Auth initialized for React Native with AsyncStorage persistence');
+      } catch (persistenceError) {
+        // Fallback: initializeAuth should automatically use AsyncStorage if available
+        logger.log('⚠️ Could not import getReactNativePersistence, using default persistence');
+        auth = initializeAuth(app);
+        logger.log('✅ Firebase Auth initialized for React Native (default persistence)');
+      }
+    }
   } catch (error) {
     logger.error('❌ Failed to initialize Firebase Auth:', error);
-    throw new Error('Failed to initialize Firebase Auth');
+    // Fallback to basic initialization
+    try {
+      auth = initializeAuth(app);
+      logger.log('✅ Firebase Auth initialized with fallback method');
+    } catch (fallbackError) {
+      logger.error('❌ Fallback initialization also failed:', fallbackError);
+      throw new Error('Failed to initialize Firebase Auth');
+    }
   }
 }
 

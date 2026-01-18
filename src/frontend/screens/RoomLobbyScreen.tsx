@@ -13,6 +13,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { logger } from '../../backend/utils/logger';
 import AvatarIcon from '../components/AvatarIcon';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -188,7 +189,7 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
   const handleEndGame = async () => {
     Alert.alert(
       'End Game',
-      'Are you sure you want to end the game? All players will be returned to the lobby.',
+      'Are you sure you want to end the game? All players will be exited from the room.',
       [
         { text: 'Cancel', style: 'cancel' },
         { 
@@ -196,9 +197,26 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
           style: 'destructive',
           onPress: async () => {
             try {
+              // End the game first
               await endGame();
+              
+              // Exit the room (as host, this will cause all players to exit)
+              await leaveRoom();
+              
+              // Reset all multiplayer state
+              resetAll();
+              
+              // Clean up listeners and connections
+              cleanup();
+              
+              // Navigate back to multiplayer menu
+              navigation.navigate('MultiplayerMenu' as never);
             } catch (error) {
-              // Error handled by context
+              logger.error('Error ending game:', error);
+              // Even if there's an error, still clean up and navigate
+              resetAll();
+              cleanup();
+              navigation.navigate('MultiplayerMenu' as never);
             }
           }
         }
@@ -206,17 +224,6 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
     );
   };
 
-  const handleResetRoom = async () => {
-    try {
-      if (currentRoom && user?.id) {
-        const { multiplayerService } = require('../../backend/services/multiplayerService');
-        await multiplayerService.resetRoomStatusV2(currentRoom.roomCode, user.id);
-        Alert.alert('Success', 'Room status has been reset to lobby');
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to reset room status');
-    }
-  };
 
   const handleKickPlayer = (player: Player) => {
     Alert.alert(
@@ -243,6 +250,13 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
   if (!currentRoom) {
     return (
       <SafeAreaView style={styles.container}>
+        {/* Dark Purple Background */}
+        <LinearGradient
+          colors={['#1a1a2e', '#16213e', '#0f0f1e']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>Loading room...</Text>
@@ -277,6 +291,13 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Dark Purple Background */}
+      <LinearGradient
+        colors={['#1a1a2e', '#16213e', '#0f0f1e']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + SPACING.md }]}>
         <TouchableOpacity 
@@ -434,14 +455,9 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
                 >
                   <Text style={styles.endGameButtonText}>End Game</Text>
                 </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={[styles.endGameButton, { backgroundColor: COLORS.warning }]}
-                  onPress={handleResetRoom}
-                  accessibilityLabel="Reset room status"
-                >
-                  <Text style={styles.endGameButtonText}>Reset Room</Text>
-                </TouchableOpacity>
+                <Text style={styles.buttonDescription}>
+                  End Game: Exits all players from the room and returns to the multiplayer menu.
+                </Text>
               </View>
             </View>
           )}
@@ -476,16 +492,15 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#1a1a2e',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    paddingBottom: SPACING.xl,
+    zIndex: 10,
   },
   backButton: {
     padding: SPACING.sm,
@@ -519,6 +534,7 @@ const styles = StyleSheet.create({
   animatedContainer: {
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.lg,
+    paddingBottom: SPACING.xxl,
   },
   loadingContainer: {
     flex: 1,
@@ -527,11 +543,11 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: COLORS.muted,
+    color: '#9CA3AF',
     marginTop: SPACING.md,
   },
   roomCodeSection: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#1e1e2e',
     borderRadius: 16,
     padding: SPACING.xl,
     alignItems: 'center',
@@ -539,7 +555,7 @@ const styles = StyleSheet.create({
   },
   roomCodeLabel: {
     fontSize: 16,
-    color: COLORS.muted,
+    color: '#9CA3AF',
     marginBottom: SPACING.sm,
   },
   roomCodeContainer: {
@@ -556,14 +572,16 @@ const styles = StyleSheet.create({
   },
   roomCodeHint: {
     fontSize: 14,
-    color: COLORS.muted,
+    color: '#9CA3AF',
     textAlign: 'center',
   },
   gameInfoSection: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 12,
+    backgroundColor: '#1e1e2e',
+    borderRadius: 16,
     padding: SPACING.lg,
     marginBottom: SPACING.lg,
+    borderWidth: 1,
+    borderColor: '#666666',
   },
   gameInfoTitle: {
     fontSize: 18,
@@ -582,7 +600,7 @@ const styles = StyleSheet.create({
   },
   gameInfoLabel: {
     fontSize: 14,
-    color: COLORS.muted,
+    color: '#9CA3AF',
     marginBottom: SPACING.xs,
   },
   gameInfoValue: {
@@ -625,8 +643,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: SPACING.md,
-    backgroundColor: COLORS.background,
-    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#666666',
   },
   playerInfo: {
     flexDirection: 'row',
@@ -672,10 +692,12 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
   },
   hostControlsSection: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 12,
+    backgroundColor: '#1e1e2e',
+    borderRadius: 16,
     padding: SPACING.lg,
     marginBottom: SPACING.lg,
+    borderWidth: 1,
+    borderColor: '#666666',
   },
   hostControlsTitle: {
     fontSize: 18,
@@ -712,6 +734,15 @@ const styles = StyleSheet.create({
     fontWeight: 'bold' as const,
     color: COLORS.white,
   },
+  buttonDescription: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    textAlign: 'left',
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.md,
+    paddingHorizontal: SPACING.sm,
+    lineHeight: 16,
+  },
   roundTimeSection: {
     marginBottom: SPACING.lg,
   },
@@ -725,11 +756,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: COLORS.card,
+    backgroundColor: 'rgba(255,255,255,0.06)',
     borderRadius: 12,
     padding: SPACING.md,
-    borderWidth: 2,
-    borderColor: COLORS.primary,
+    borderWidth: 1,
+    borderColor: '#666666',
   },
   roundTimeButtonText: {
     fontSize: 16,
@@ -740,11 +771,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   waitingSection: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 12,
+    backgroundColor: '#1e1e2e',
+    borderRadius: 16,
     padding: SPACING.xl,
     alignItems: 'center',
     marginBottom: SPACING.lg,
+    borderWidth: 1,
+    borderColor: '#666666',
   },
   waitingTitle: {
     fontSize: 20,

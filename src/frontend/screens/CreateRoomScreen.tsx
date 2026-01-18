@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useMultiplayer } from '../contexts/MultiplayerContext';
 import { COLORS, SPACING, TYPOGRAPHY, ACCESSIBILITY } from '../design-system';
 import { logger } from '../../backend/utils/logger';
@@ -214,6 +215,13 @@ const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Dark Purple Background */}
+      <LinearGradient
+        colors={['#1a1a2e', '#16213e', '#0f0f1e']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + SPACING.md }]}>
         <TouchableOpacity 
@@ -346,7 +354,7 @@ const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#1a1a2e',
   },
   header: {
     flexDirection: 'row',

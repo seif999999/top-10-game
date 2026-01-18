@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -7,15 +7,12 @@ import {
   TouchableOpacity, 
   ScrollView, 
   ActivityIndicator,
-  FlatList,
   Alert,
-  Animated,
-  KeyboardAvoidingView,
-  Platform
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { COLORS, SPACING, TYPOGRAPHY, ANIMATIONS, COMPONENT_STYLES } from '../design-system';
+import { LinearGradient } from 'expo-linear-gradient';
+import { COLORS, SPACING } from '../design-system';
 import { getQuestionsByCategory } from '../../backend/services/questionsService';
 import { useMultiplayer } from '../contexts/MultiplayerContext';
 import { logger } from '../../backend/utils/logger';
@@ -52,9 +49,6 @@ const MultiplayerQuestionsScreen: React.FC = () => {
     { value: 120, label: '2 minutes', description: 'Leisurely' }
   ];
   
-  // Animation values
-  const backButtonScale = useRef(new Animated.Value(1)).current;
-  
   logger.log('🎯 MultiplayerQuestionsScreen loaded with category:', categoryName);
 
   useEffect(() => {
@@ -80,53 +74,31 @@ const MultiplayerQuestionsScreen: React.FC = () => {
     }
   };
 
-  const handleQuestionSelect = (question: any) => {
-    logger.log('🎯 Question selected:', question.title);
+  const handleQuestionSelect = async (question: any) => {
+    logger.log('🎯 Question selected, creating room:', question.title);
     setSelectedQuestion(question);
-    setQuestions([question] as any); // Type assertion for now
-  };
-
-  const handleCreateRoom = async () => {
-    if (!selectedQuestion) {
-      Alert.alert('No Question Selected', 'Please select a question to create a room.');
-      return;
-    }
+    setQuestions([question] as any);
 
     try {
-      // Convert GameQuestion to Question format for multiplayer service
       const convertedQuestions: any[] = [{
-        id: selectedQuestion.id,
-        text: selectedQuestion.title, // Use title as text
-        answers: selectedQuestion.answers.map((answer: any) => answer.text), // Convert QuestionAnswer[] to string[]
-        category: selectedQuestion.category,
-        difficulty: selectedQuestion.difficulty
+        id: question.id,
+        text: question.title,
+        answers: question.answers.map((answer: any) => answer.text),
+        category: question.category,
+        difficulty: question.difficulty
       }];
-      
+
       const roomCode = await createRoom(categoryName, convertedQuestions);
-      (navigation as any).navigate('RoomLobby', { 
-        roomCode, 
-        turnDuration: selectedTurnDuration 
+      (navigation as any).navigate('RoomLobby', {
+        roomCode,
+        turnDuration: selectedTurnDuration
       });
     } catch (error) {
-      // Error is handled by the context
+      // Error is handled by the context; user can tap another question to retry
     }
   };
 
   const handleBackToCategories = () => {
-    // Button press animation
-    Animated.sequence([
-      Animated.timing(backButtonScale, {
-        toValue: 0.9,
-        duration: ANIMATIONS.duration.fast,
-        useNativeDriver: true,
-      }),
-      Animated.timing(backButtonScale, {
-        toValue: 1,
-        duration: ANIMATIONS.duration.fast,
-        useNativeDriver: true,
-      })
-    ]).start();
-    
     navigation.goBack();
   };
 
@@ -134,6 +106,12 @@ const MultiplayerQuestionsScreen: React.FC = () => {
   if (loadingQuestions) {
     return (
       <SafeAreaView style={styles.container}>
+        <LinearGradient
+          colors={['#1a1a2e', '#16213e', '#0f0f1e']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>Loading questions...</Text>
@@ -145,26 +123,21 @@ const MultiplayerQuestionsScreen: React.FC = () => {
   if (questions.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <Animated.View style={{ transform: [{ scale: backButtonScale }] }}>
-            <TouchableOpacity 
-              onPress={handleBackToCategories} 
-              style={styles.backButton}
-              accessibilityLabel="Go back to category selection"
-              accessibilityRole="button"
-              accessibilityHint="Returns to the category selection screen"
-            >
-              <View style={styles.backButtonIcon}>
-                <Text style={styles.backButtonArrow}>‹</Text>
-              </View>
-            </TouchableOpacity>
-          </Animated.View>
+        <LinearGradient
+          colors={['#1a1a2e', '#16213e', '#0f0f1e']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+        <View style={[styles.header, { paddingTop: insets.top + SPACING.md }]}>
+          <TouchableOpacity onPress={handleBackToCategories} style={styles.backButton}>
+            <Text style={styles.backButtonArrow}>←</Text>
+          </TouchableOpacity>
           <View style={styles.headerContent}>
-            <Text style={styles.title}>Choose a Question</Text>
+            <Text style={styles.title}>{categoryName}</Text>
           </View>
           <View style={styles.placeholder} />
         </View>
-        
         <View style={styles.content}>
           <View style={styles.noQuestionsContainer}>
             <Text style={styles.noQuestionsTitle}>No Questions Available</Text>
@@ -174,9 +147,6 @@ const MultiplayerQuestionsScreen: React.FC = () => {
             <TouchableOpacity 
               style={styles.backToCategoriesButton} 
               onPress={handleBackToCategories}
-              accessibilityLabel="Go back to category selection"
-              accessibilityRole="button"
-              accessibilityHint="Returns to the category selection screen"
             >
               <Text style={styles.backToCategoriesButtonText}>Back to Categories</Text>
             </TouchableOpacity>
@@ -186,55 +156,21 @@ const MultiplayerQuestionsScreen: React.FC = () => {
     );
   }
 
-  const renderQuestionItem = ({ item, index }: { item: any; index: number }) => (
-    <TouchableOpacity 
-      style={[
-        styles.questionCard,
-        selectedQuestion?.id === item.id && styles.questionCardSelected
-      ]} 
-      onPress={() => handleQuestionSelect(item)}
-      accessibilityLabel={`Question ${index + 1}: ${item.title}`}
-      accessibilityRole="button"
-      accessibilityHint={`Select this question. ${item.answers?.length || 0} answers available.`}
-      accessibilityState={{ selected: selectedQuestion?.id === item.id }}
-    >
-      <View style={styles.questionContent}>
-        <Text style={[
-          styles.questionTitle,
-          selectedQuestion?.id === item.id && styles.questionTitleSelected
-        ]}>
-          {item.title}
-        </Text>
-        <Text style={styles.questionSubtitle}>
-          {item.answers?.length || 0} answers • Tap to select
-        </Text>
-      </View>
-      <View style={[
-        styles.questionArrow,
-        selectedQuestion?.id === item.id && styles.questionArrowSelected
-      ]}>
-        <Text style={[
-          styles.arrowText,
-          selectedQuestion?.id === item.id && styles.arrowTextSelected
-        ]}>
-          {selectedQuestion?.id === item.id ? '✓' : '→'}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
-
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
-      <View style={[styles.header, { paddingTop: insets.top + SPACING.lg }]}>
-        <Animated.View style={{ transform: [{ scale: backButtonScale }] }}>
-          <TouchableOpacity onPress={handleBackToCategories} style={styles.backButton}>
-            <View style={styles.backButtonIcon}>
-              <Text style={styles.backButtonArrow}>‹</Text>
-            </View>
-          </TouchableOpacity>
-        </Animated.View>
+      {/* Dark Purple Background */}
+      <LinearGradient
+        colors={['#1a1a2e', '#16213e', '#0f0f1e']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={[styles.header, { paddingTop: insets.top + SPACING.md }]}>
+        <TouchableOpacity onPress={handleBackToCategories} style={styles.backButton}>
+          <Text style={styles.backButtonArrow}>←</Text>
+        </TouchableOpacity>
         <View style={styles.headerContent}>
-          <Text style={styles.title}>Choose a Question</Text>
+          <Text style={styles.title}>{categoryName}</Text>
         </View>
         <View style={styles.placeholder} />
       </View>
@@ -244,7 +180,7 @@ const MultiplayerQuestionsScreen: React.FC = () => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Timer Duration Selection - Embedded at top */}
+        {/* Turn Duration - at top */}
         <View style={styles.timerSection}>
           <Text style={styles.timerTitle}>⏱️ Turn Duration</Text>
           <View style={styles.durationRow}>
@@ -270,37 +206,33 @@ const MultiplayerQuestionsScreen: React.FC = () => {
           </View>
         </View>
 
-        <View style={styles.categoryInfo}>
-          <Text style={styles.categoryTitle}>{categoryName}</Text>
-        </View>
-
-        <View style={styles.questionsContainer}>
+        {/* Questions List - tap to select and create room */}
+        <View style={styles.questionsList}>
           {questions.map((item, index) => (
-            <View key={item.id || item.title}>
-              {renderQuestionItem({ item, index })}
-              {index < questions.length - 1 && <View style={styles.separator} />}
-            </View>
+            <TouchableOpacity 
+              key={item.id || item.title}
+              style={[
+                styles.questionCard,
+                selectedQuestion?.id === item.id && styles.questionCardSelected
+              ]} 
+              onPress={() => handleQuestionSelect(item)}
+              disabled={loading}
+              activeOpacity={0.8}
+            >
+              <View style={styles.questionCardContent}>
+                <Text style={styles.questionNumber}>Question {index + 1}</Text>
+                <Text style={styles.questionText}>{item.title}</Text>
+              </View>
+              <Text style={styles.questionArrow}>→</Text>
+            </TouchableOpacity>
           ))}
         </View>
 
-        {/* Create Room Button */}
-        {selectedQuestion && (
-          <View style={styles.createRoomContainer}>
-            <TouchableOpacity
-              style={[
-                styles.createRoomButton,
-                loading && styles.createRoomButtonDisabled
-              ]}
-              onPress={handleCreateRoom}
-              disabled={loading}
-              accessibilityLabel="Create room with selected question"
-            >
-              {loading ? (
-                <ActivityIndicator color={COLORS.white} />
-              ) : (
-                <Text style={styles.createRoomButtonText}>Create Room</Text>
-              )}
-            </TouchableOpacity>
+        {/* Creating room indicator */}
+        {loading && (
+          <View style={styles.creatingRoomContainer}>
+            <ActivityIndicator size="small" color={COLORS.primary} />
+            <Text style={styles.creatingRoomText}>Creating room...</Text>
           </View>
         )}
       </ScrollView>
@@ -311,48 +243,30 @@ const MultiplayerQuestionsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background
+    backgroundColor: '#1a1a2e',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
     paddingBottom: SPACING.xl,
+    zIndex: 10,
   },
   backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: 22,
-    backgroundColor: 'rgba(139, 92, 246, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.2)',
-    shadowColor: '#8B5CF6',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  backButtonIcon: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    width: 40,
+    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
   },
   backButtonArrow: {
-    color: '#8B5CF6',
-    fontSize: 18,
-    fontWeight: '700' as const,
-    lineHeight: 20,
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '600' as const,
+    textShadowColor: 'rgba(173, 216, 230, 0.6)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 8,
+    includeFontPadding: false,
   },
   headerContent: {
     flex: 1,
@@ -360,32 +274,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    color: COLORS.text,
-    fontSize: 20,
-    fontWeight: '700',
-    textAlign: 'center'
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '700' as const,
+    textAlign: 'center',
   },
   placeholder: {
-    width: 60,
+    width: 40,
   },
   content: {
     flex: 1,
-    padding: SPACING.lg
   },
   scrollContent: {
-    flexGrow: 1,
-    paddingBottom: SPACING.xl,
-  },
-  keyboardAvoidingView: {
-    flex: 1,
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING['2xl'],
   },
   timerSection: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    padding: SPACING.lg,
+    backgroundColor: '#1e1e2e',
+    borderRadius: 16,
+    padding: SPACING.xl,
     marginBottom: SPACING.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: '#666666',
   },
   timerTitle: {
     fontSize: 16,
@@ -400,12 +310,12 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   durationButton: {
-    backgroundColor: COLORS.background,
+    backgroundColor: 'rgba(255,255,255,0.06)',
     borderRadius: 8,
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.md,
-    borderWidth: 2,
-    borderColor: COLORS.border,
+    borderWidth: 1,
+    borderColor: '#666666',
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1,
@@ -423,92 +333,61 @@ const styles = StyleSheet.create({
   durationButtonTextSelected: {
     color: COLORS.white,
   },
-  categoryInfo: {
-    backgroundColor: COLORS.card,
-    borderRadius: 12,
-    padding: SPACING.lg,
-    marginBottom: SPACING.lg,
-    alignItems: 'center'
-  },
-  categoryTitle: {
-    color: COLORS.text,
-    fontSize: 24,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
-  questionsContainer: {
-    paddingBottom: SPACING.xl
+  questionsList: {
+    gap: SPACING.md,
   },
   questionCard: {
-    backgroundColor: COLORS.card,
-    borderRadius: 12,
-    padding: SPACING.lg,
+    backgroundColor: '#1e1e2e',
+    borderRadius: 16,
+    padding: SPACING.xl,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     borderWidth: 1,
-    borderColor: COLORS.border,
-    marginBottom: SPACING.md,
+    borderColor: '#666666',
+    shadowColor: '#8B5CF6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 8,
   },
   questionCardSelected: {
     borderColor: COLORS.primary,
-    backgroundColor: COLORS.primary + '08',
+    borderWidth: 2,
   },
-  questionContent: {
-    flex: 1
+  questionCardContent: {
+    flex: 1,
   },
-  questionTitle: {
-    color: COLORS.text,
-    fontSize: 18,
-    fontWeight: '700',
+  questionNumber: {
+    color: '#A78BFA',
+    fontSize: 14,
+    fontWeight: '600' as const,
     marginBottom: SPACING.sm,
-    lineHeight: 24
   },
-  questionTitleSelected: {
-    color: COLORS.primary,
-  },
-  questionSubtitle: {
-    color: COLORS.muted,
-    fontSize: 14
+  questionText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700' as const,
+    lineHeight: 24,
   },
   questionArrow: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.primary,
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '300' as const,
+    marginLeft: SPACING.md,
+  },
+  creatingRoomContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: SPACING.md
+    gap: SPACING.sm,
+    paddingTop: SPACING.xl,
+    paddingBottom: SPACING.lg,
   },
-  questionArrowSelected: {
-    backgroundColor: COLORS.primary,
-  },
-  arrowText: {
-    color: COLORS.white,
-    fontSize: 18,
-    fontWeight: '700'
-  },
-  arrowTextSelected: {
-    color: COLORS.white,
-  },
-  separator: {
-    height: SPACING.md
-  },
-  createRoomContainer: {
-    paddingVertical: SPACING.lg,
-  },
-  createRoomButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 12,
-    padding: SPACING.lg,
-    alignItems: 'center',
-  },
-  createRoomButtonDisabled: {
-    backgroundColor: COLORS.muted,
-  },
-  createRoomButtonText: {
-    fontSize: 18,
-    fontWeight: 'bold' as const,
-    color: COLORS.white,
+  creatingRoomText: {
+    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: '600',
   },
   loadingContainer: {
     flex: 1,
@@ -534,7 +413,7 @@ const styles = StyleSheet.create({
     textAlign: 'center'
   },
   noQuestionsText: {
-    color: COLORS.muted,
+    color: COLORS.textMuted,
     fontSize: 16,
     textAlign: 'center',
     marginBottom: SPACING.xl,

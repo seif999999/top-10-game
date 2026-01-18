@@ -654,6 +654,32 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     }
   }, [isMultiplayerMode, leaveRoom, navigation]);
 
+  // Handle back button in single-player mode
+  useEffect(() => {
+    if (!isMultiplayerMode) {
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+        Alert.alert(
+          'Exit Game',
+          'Are you sure you want to exit? Your progress will be lost.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { 
+              text: 'Exit', 
+              style: 'destructive', 
+              onPress: () => {
+                resetGame();
+                navigation.goBack();
+              }
+            }
+          ]
+        );
+        return true; // Prevent default back behavior
+      });
+
+      return () => backHandler.remove();
+    }
+  }, [isMultiplayerMode, resetGame, navigation]);
+
   // Cleanup game state when screen loses focus (user navigates away)
   useFocusEffect(
     React.useCallback(() => {
@@ -805,12 +831,28 @@ const handleEndGame = () => {
     };
 
   const handleBackButton = () => {
-    logger.log('🎮 Back button pressed - resetting single-player game state');
-    // Reset single-player game state when back button is pressed
     if (!isMultiplayerMode) {
-      resetGame();
+      // Single player mode - show warning
+      Alert.alert(
+        'Exit Game',
+        'Are you sure you want to exit? Your progress will be lost.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Exit', 
+            style: 'destructive', 
+            onPress: () => {
+              resetGame();
+              navigation.goBack();
+            }
+          }
+        ]
+      );
+    } else {
+      // Multiplayer mode - handle differently if needed
+      logger.log('🎮 Back button pressed in multiplayer mode');
+      navigation.goBack();
     }
-    navigation.goBack();
   };
 
   const handleHelp = () => {
@@ -1172,13 +1214,10 @@ const handleEndGame = () => {
     <SafeAreaView style={styles.container}>
       
              {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + SPACING.md }]}>
+      <View style={[styles.header, { paddingTop: insets.top + SPACING.xs }]}>
         {isMultiplayerMode ? (
           <TouchableOpacity onPress={handleBackButton} style={styles.backButton}>
-            <View style={styles.backButtonIcon}>
-              <Text style={styles.backButtonArrow}>‹</Text>
-            </View>
-            <Text style={styles.backButtonText}>Back</Text>
+            <Text style={styles.backButtonArrow}>←</Text>
           </TouchableOpacity>
         ) : (
           <View style={styles.headerLeft} />
@@ -1192,9 +1231,11 @@ const handleEndGame = () => {
           )}
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity onPress={handleExitGame} style={styles.exitButton}>
-            <Text style={styles.exitButtonText}>Exit</Text>
-          </TouchableOpacity>
+          {isMultiplayerMode && (
+            <TouchableOpacity onPress={handleExitGame} style={styles.exitButton}>
+              <Text style={styles.exitButtonText}>Exit</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -1486,6 +1527,16 @@ const handleEndGame = () => {
                )}
             </View>
 
+            {/* End Game Button - Single Player Only */}
+            {!isMultiplayerMode && (
+              <TouchableOpacity 
+                style={styles.endGameButton} 
+                onPress={handleEndGame}
+              >
+                <Text style={styles.endGameButtonText}>End Game</Text>
+              </TouchableOpacity>
+            )}
+
           </View>
         )}
 
@@ -1586,19 +1637,15 @@ const handleEndGame = () => {
 
             {/* Current Team Indicator */}
             <View style={styles.teamIndicator}>
-              <Text style={styles.currentTeamLabel}>Current Turn:</Text>
-              <View style={[styles.teamColorIndicator, { backgroundColor: getCurrentTeam()?.color }]} />
-              <Text style={styles.teamName}>{getCurrentTeam()?.name}</Text>
+              <View style={styles.teamIndicatorLeft}>
+                <Text style={styles.currentTeamLabel}>Current Turn:</Text>
+                <View style={[styles.teamColorIndicator, { backgroundColor: getCurrentTeam()?.color }]} />
+                <Text style={styles.teamName}>{getCurrentTeam()?.name}</Text>
+              </View>
+              <TouchableOpacity style={styles.endTurnButton} onPress={endTeamTurn}>
+                <Text style={styles.endTurnButtonText}>End Turn</Text>
+              </TouchableOpacity>
             </View>
-
-
-
-           {/* Turn Controls */}
-           <View style={styles.turnControls}>
-             <TouchableOpacity style={styles.endTurnButton} onPress={endTeamTurn}>
-               <Text style={styles.endTurnButtonText}>End Turn</Text>
-             </TouchableOpacity>
-           </View>
          </>
        )}
 
@@ -1806,47 +1853,23 @@ const styles = StyleSheet.create({
      alignItems: 'center',
      justifyContent: 'space-between',
      paddingHorizontal: SPACING.lg,
-     paddingVertical: SPACING.md,
+     paddingVertical: SPACING.sm,
      backgroundColor: COLORS.backgroundSecondary,
-     borderBottomWidth: 1,
-     borderBottomColor: COLORS.border
    },
    backButton: {
-     flexDirection: 'row',
-     alignItems: 'center',
-     paddingHorizontal: SPACING.md,
-     paddingVertical: SPACING.sm,
-     borderRadius: 25,
-     backgroundColor: 'rgba(139, 92, 246, 0.08)',
-     borderWidth: 1.5,
-     borderColor: 'rgba(139, 92, 246, 0.3)',
-     shadowColor: '#8B5CF6',
-     shadowOffset: { width: 0, height: 2 },
-     shadowOpacity: 0.1,
-     shadowRadius: 4,
-     elevation: 3,
-   },
-   backButtonIcon: {
-     width: 24,
-     height: 24,
-     borderRadius: 12,
-     backgroundColor: 'rgba(139, 92, 246, 0.2)',
+     width: 40,
+     height: 40,
      justifyContent: 'center',
      alignItems: 'center',
-     marginRight: SPACING.xs,
    },
    backButtonArrow: {
-     color: '#8B5CF6',
-     fontSize: 18,
-           fontWeight: '700',
-     lineHeight: 20,
-   },
-   backButtonText: {
-     color: '#8B5CF6',
-     fontSize: 14,
-           fontWeight: '600',
-     fontFamily: TYPOGRAPHY.fontFamily.primary,
-     letterSpacing: 0.3,
+     color: '#FFFFFF',
+     fontSize: 24,
+     fontWeight: '600',
+     textShadowColor: 'rgba(173, 216, 230, 0.6)',
+     textShadowOffset: { width: 0, height: 0 },
+     textShadowRadius: 8,
+     includeFontPadding: false,
    },
   exitButton: {
     paddingVertical: SPACING.sm,
@@ -2382,7 +2405,7 @@ const styles = StyleSheet.create({
    teamIndicator: {
      flexDirection: 'row',
      alignItems: 'center',
-     justifyContent: 'center',
+     justifyContent: 'space-between',
      paddingHorizontal: SPACING.lg,
      paddingVertical: SPACING.md,
      backgroundColor: '#1E293B',
@@ -2390,6 +2413,10 @@ const styles = StyleSheet.create({
      marginBottom: SPACING.md,
      borderWidth: 1,
      borderColor: '#475569'
+   },
+   teamIndicatorLeft: {
+     flexDirection: 'row',
+     alignItems: 'center',
    },
    currentTeamLabel: {
      color: '#94A3B8',
@@ -2813,6 +2840,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+  },
+  endGameButton: {
+    backgroundColor: '#EF4444',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#DC2626',
+    marginTop: SPACING.lg,
+    marginHorizontal: SPACING.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  endGameButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '700',
   },
   answerCard: {
     width: '48%',

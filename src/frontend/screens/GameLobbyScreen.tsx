@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, TextInput } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import Button from '../components/Button';
 import { COLORS, SPACING } from '../../backend/utils/constants';
 import { GameLobbyScreenProps } from '../../shared/types/navigation';
@@ -46,10 +47,18 @@ const GameLobbyScreen: React.FC<GameLobbyScreenProps> = ({ navigation, route }) 
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Dark Purple Background */}
+      <LinearGradient
+        colors={['#1a1a2e', '#16213e', '#0f0f1e']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <View style={styles.backButtonIcon}>
-            <Text style={styles.backButtonArrow}>‹</Text>
+          <View style={styles.backButtonContent}>
+            <Text style={styles.backButtonArrow}>←</Text>
+            <View style={styles.backButtonDash} />
           </View>
         </TouchableOpacity>
         <View style={styles.headerContent}>
@@ -110,7 +119,7 @@ const GameLobbyScreen: React.FC<GameLobbyScreenProps> = ({ navigation, route }) 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background
+    backgroundColor: '#1a1a2e',
   },
   header: {
     flexDirection: 'row',
@@ -121,37 +130,19 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.xl,
   },
   backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: 22,
-    backgroundColor: 'rgba(139, 92, 246, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.2)',
-    shadowColor: '#8B5CF6',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  backButtonIcon: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    width: 40,
+    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
   },
   backButtonArrow: {
-    color: '#8B5CF6',
-    fontSize: 18,
-    fontWeight: 'bold' as const,
-    lineHeight: 20,
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '600' as const,
+    textShadowColor: 'rgba(173, 216, 230, 0.6)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 8,
+    includeFontPadding: false,
   },
   headerContent: {
     flex: 1,

@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Alert, ScrollView, TextInput, Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Button from '../components/Button';
-import UserAvatar from '../components/UserAvatar';
+import { LinearGradient } from 'expo-linear-gradient';
 import AvatarDisplay from '../components/AvatarDisplay';
-import { COLORS, SPACING, COMPONENT_STYLES } from '../design-system';
+import { COLORS, SPACING } from '../../backend/utils/constants';
 import { ProfileScreenProps } from '../../shared/types/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import { InputValidator } from '../../backend/utils/inputValidator';
@@ -101,12 +100,31 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
 
 
+  // Format member since date
+  const getMemberSinceText = () => {
+    if (!user?.createdAt) return '';
+    const date = new Date(user.createdAt);
+    const month = date.getMonth() + 1; // getMonth() returns 0-11, so add 1
+    const year = date.getFullYear();
+    return `Member since ${month}/${year}`;
+  };
+
   return (
     <SafeAreaView style={styles.container}>
+      {/* Dark Purple Background */}
+      <LinearGradient
+        colors={['#1a1a2e', '#16213e', '#0f0f1e']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+
+      {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + SPACING.md }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <View style={styles.backButtonIcon}>
-            <Text style={styles.backButtonArrow}>‹</Text>
+          <View style={styles.backButtonContent}>
+            <Text style={styles.backButtonText}>←</Text>
+            <View style={styles.backButtonDash} />
           </View>
         </TouchableOpacity>
         <View style={styles.headerContent}>
@@ -115,49 +133,65 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         <View style={styles.placeholder} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* User Information Section */}
         <View style={styles.profileSection}>
-          <TouchableOpacity onPress={() => navigation.navigate('AvatarSelection' as never)} style={styles.avatarContainer}>
-            <AvatarDisplay 
-              avatarId={user?.selectedAvatar}
-              size={120}
-              showBorder={true}
-              fallbackText={user?.displayName?.charAt(0)?.toUpperCase() || 'U'}
-            />
-            {/* Edit overlay */}
-            <View style={styles.editOverlay}>
-              <Text style={styles.editOverlayIcon}>✏️</Text>
+          <TouchableOpacity 
+            onPress={() => navigation.navigate('AvatarSelection' as never)} 
+            style={styles.avatarContainer}
+          >
+            <View style={styles.avatarWrapper}>
+              <AvatarDisplay 
+                avatarId={user?.selectedAvatar}
+                size={120}
+                showBorder={false}
+                fallbackText={user?.displayName?.charAt(0)?.toUpperCase() || 'U'}
+              />
+            </View>
+            {/* Edit Icon Overlay */}
+            <View style={styles.editIconOverlay}>
+              <View style={styles.editIconCircle}>
+                <Text style={styles.editIconText}>✏️</Text>
+              </View>
             </View>
           </TouchableOpacity>
           
-          <TouchableOpacity onPress={() => setIsEditing(true)} style={styles.userNameContainer}>
-            <View style={styles.userNameRow}>
-              <Text style={styles.userName}>{updatedDisplayName || user?.displayName || 'User'}</Text>
-              <Text style={styles.editIcon}>✏️</Text>
-            </View>
+          <TouchableOpacity 
+            onPress={() => setIsEditing(true)} 
+            style={styles.userNameContainer}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.userName}>
+              {updatedDisplayName || user?.displayName || 'User'}
+            </Text>
+            <Text style={styles.nameEditIcon}>✏️</Text>
           </TouchableOpacity>
-          <Text style={styles.userEmail}>{user?.email}</Text>
+          
+          <Text style={styles.userEmail}>{user?.email || ''}</Text>
           
           {user?.createdAt && (
             <Text style={styles.memberSince}>
-              Member since {new Date(user.createdAt).toLocaleDateString()}
+              {getMemberSinceText()}
             </Text>
           )}
         </View>
 
-
-
+        {/* Settings Section */}
         <View style={styles.settingsSection}>
-          <Text style={styles.sectionTitle}>Settings</Text>
+          <Text style={styles.sectionTitle}>SETTINGS</Text>
           
-          
-          <Button
-            title="Sign Out"
+          <TouchableOpacity
             onPress={handleSignOut}
             style={styles.signOutButton}
-            textStyle={styles.buttonText}
-          />
-          
+            activeOpacity={0.8}
+          >
+            <Text style={styles.signOutIcon}>[→</Text>
+            <Text style={styles.signOutText}>Sign Out</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
 
@@ -175,7 +209,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             
             <TextInput
               placeholder="Display Name"
-              placeholderTextColor={COLORS.muted}
+              placeholderTextColor="#9CA3AF"
               value={displayName}
               onChangeText={setDisplayName}
               style={styles.modalInput}
@@ -183,21 +217,23 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             />
             
             <View style={styles.modalButtons}>
-              <Button 
-                title="Cancel" 
+              <TouchableOpacity 
                 onPress={() => {
                   setDisplayName(user?.displayName || '');
                   setIsEditing(false);
                 }}
                 style={styles.modalCancelButton}
-                textStyle={styles.modalButtonText}
-              />
-              <Button 
-                title="Save" 
+                activeOpacity={0.8}
+              >
+                <Text style={styles.modalButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
                 onPress={handleSaveProfile}
                 style={styles.modalSaveButton}
-                textStyle={styles.modalButtonText}
-              />
+                activeOpacity={0.8}
+              >
+                <Text style={styles.modalButtonText}>Save</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -209,48 +245,37 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background
+    backgroundColor: '#1a1a2e',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.xxl,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
     paddingBottom: SPACING.xl,
+    zIndex: 10,
   },
   backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: 22,
-    backgroundColor: 'rgba(139, 92, 246, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.2)',
-    shadowColor: '#8B5CF6',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  backButtonIcon: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    width: 40,
+    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  backButtonArrow: {
-    color: '#8B5CF6',
-    fontSize: 18,
-    fontWeight: 'bold' as const,
-    lineHeight: 20,
+  backButtonText: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '600',
+    textShadowColor: 'rgba(173, 216, 230, 0.6)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 8,
+    includeFontPadding: false,
   },
   headerContent: {
     flex: 1,
@@ -258,137 +283,105 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerTitle: {
-    color: COLORS.text,
-    fontSize: 22,
-    fontWeight: '700'
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   placeholder: {
-    width: 50
-  },
-  content: {
-    flexGrow: 1,
-    padding: SPACING.lg
+    width: 40,
   },
   profileSection: {
     alignItems: 'center',
-    marginBottom: SPACING.xl,
-    padding: SPACING.lg,
-    backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    marginBottom: SPACING.xxl,
+    marginTop: SPACING.xl,
   },
   avatarContainer: {
     alignItems: 'center',
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.xl,
     position: 'relative',
-    width: 150,
-    height: 150,
   },
-  editOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: COLORS.primary,
+  avatarWrapper: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  editIconOverlay: {
+    position: 'absolute',
+    bottom: -4,
+    right: -4,
+  },
+  editIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#3B82F6',
     borderWidth: 2,
-    borderColor: COLORS.background,
-    shadowColor: COLORS.primary,
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
+    borderColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  editIconText: {
+    fontSize: 16,
   },
   userNameContainer: {
-    alignItems: 'center',
-    marginBottom: SPACING.sm,
-  },
-  userNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: SPACING.sm,
     gap: SPACING.sm,
   },
   userName: {
-    color: COLORS.text,
+    color: '#FFFFFF',
     fontSize: 28,
     fontWeight: '700',
   },
-  editIcon: {
+  nameEditIcon: {
     fontSize: 16,
-    opacity: 0.7,
-  },
-  editOverlayIcon: {
-    fontSize: 14,
-    color: COLORS.white,
   },
   userEmail: {
-    color: COLORS.text,
-    fontSize: 18,
-    marginBottom: SPACING.sm,
-    fontWeight: '500'
+    color: '#9CA3AF',
+    fontSize: 16,
+    marginBottom: SPACING.xs,
   },
   memberSince: {
-    color: '#8B5CF6', // Purple color
-    fontSize: 16
-  },
-  sectionTitle: {
-    color: COLORS.text,
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: SPACING.md
+    color: '#9CA3AF',
+    fontSize: 14,
   },
   settingsSection: {
-    gap: SPACING.md,
-    padding: SPACING.lg,
-    backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    marginTop: SPACING.xl,
   },
-  input: {
-    backgroundColor: COLORS.card,
-    color: COLORS.text,
-    fontSize: 16,
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.lg,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#334155',
-    minHeight: 50
-  },
-  editForm: {
-    gap: SPACING.md
-  },
-  editButtons: {
-    flexDirection: 'row',
-    gap: SPACING.md
-  },
-  saveButton: {
-    flex: 1
-  },
-  cancelButton: {
-    flex: 1,
-    backgroundColor: COLORS.card
+  sectionTitle: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: SPACING.lg,
+    letterSpacing: 1,
   },
   signOutButton: {
-    backgroundColor: '#6B7280', // Gray for sign out
-    borderWidth: 2,
-    borderColor: '#6B7280',
-    borderRadius: 12,
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.lg,
-    marginTop: SPACING.md,
+    backgroundColor: '#EF4444',
+    borderWidth: 1,
+    borderColor: '#EF4444',
+    borderRadius: 16,
+    paddingVertical: SPACING.lg,
+    paddingHorizontal: SPACING.xl,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.sm,
   },
-  buttonText: {
-    color: COLORS.white,
-    fontSize: 16,
+  signOutIcon: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  signOutText: {
+    color: '#FFFFFF',
+    fontSize: 18,
     fontWeight: '600',
   },
   // Modal styles
@@ -399,30 +392,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContainer: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#1E1E2E',
     borderRadius: 16,
     padding: SPACING.xl,
     width: '90%',
     maxWidth: 400,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: '#666666',
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: COLORS.text,
+    color: '#FFFFFF',
     textAlign: 'center',
     marginBottom: SPACING.lg,
   },
   modalInput: {
-    backgroundColor: COLORS.card,
-    color: COLORS.text,
+    backgroundColor: '#1e1e2e',
+    color: '#FFFFFF',
     fontSize: 16,
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.lg,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: '#666666',
     marginBottom: SPACING.lg,
   },
   modalButtons: {
@@ -431,12 +424,14 @@ const styles = StyleSheet.create({
   },
   modalCancelButton: {
     flex: 1,
-    backgroundColor: COLORS.gray[600],
+    backgroundColor: '#6B7280',
     borderWidth: 2,
-    borderColor: COLORS.gray[600],
+    borderColor: '#6B7280',
     borderRadius: 8,
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   modalSaveButton: {
     flex: 1,
@@ -446,9 +441,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   modalButtonText: {
-    color: COLORS.white,
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   }

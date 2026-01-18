@@ -1,103 +1,137 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   View, 
   Text, 
   StyleSheet, 
   SafeAreaView, 
   TouchableOpacity, 
-  ScrollView, 
   Dimensions,
-  FlatList,
   Animated
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING, TYPOGRAPHY, ANIMATIONS } from '../design-system';
-import { RESPONSIVE } from '../utils/responsive';
 import { logger } from '../../backend/utils/logger';
 import { CategoriesScreenProps } from '../../shared/types/navigation';
+import { getQuestionsByCategory } from '../../backend/services/questionsService';
 
 const { width, height } = Dimensions.get('window');
-const CARD_WIDTH = Math.min(width * 0.98, RESPONSIVE.width.maxMd);
-const CARD_SPACING = 16;
 
 const categories = [
   {
     id: 'Sports',
     name: 'Sports',
     icon: '⚽',
-    description: 'Athletics, games, and competitions',
-    color: '#FF6B6B',
-    questions: 10
+    description: 'Popular games, athletes, and sporting events',
+    gradient: ['#FF6B6B', '#FF8787'],
+    questionCount: 12,
   },
   {
     id: 'Movies',
-    name: 'Movies & TV',
+    name: 'Movies',
     icon: '🎬',
-    description: 'Films, television, and entertainment',
-    color: '#4ECDC4',
-    questions: 10
+    description: 'Films, actors, directors, and cinema history',
+    gradient: ['#4ECDC4', '#44A8A0'],
+    questionCount: 15,
   },
   {
     id: 'Music',
     name: 'Music',
     icon: '🎵',
-    description: 'Songs, artists, and musical genres',
-    color: '#45B7D1',
-    questions: 10
-  },
-  {
-    id: 'Geography',
-    name: 'Geography',
-    icon: '🌍',
-    description: 'Countries, cities, and landmarks',
-    color: '#96CEB4',
-    questions: 10
-  },
-  {
-    id: 'History',
-    name: 'History',
-    icon: '📚',
-    description: 'Historical events and figures',
-    color: '#FFEAA7',
-    questions: 10
+    description: 'Artists, songs, albums, and music trivia',
+    gradient: ['#45B7D1', '#3498DB'],
+    questionCount: 14,
   },
   {
     id: 'Science',
     name: 'Science',
     icon: '🔬',
-    description: 'Scientific discoveries and facts',
-    color: '#DDA0DD',
-    questions: 10
+    description: 'Scientific discoveries, concepts, and innovations',
+    gradient: ['#DDA0DD', '#BA68C8'],
+    questionCount: 10,
+  },
+  {
+    id: 'History',
+    name: 'History',
+    icon: '📚',
+    description: 'Historical events, figures, and civilizations',
+    gradient: ['#FFEAA7', '#FDCB6E'],
+    questionCount: 13,
+  },
+  {
+    id: 'Geography',
+    name: 'Geography',
+    icon: '🌍',
+    description: 'Countries, cities, landmarks, and capitals',
+    gradient: ['#96CEB4', '#74B396'],
+    questionCount: 16,
   },
   {
     id: 'Food',
     name: 'Food & Drink',
     icon: '🍕',
-    description: 'Cuisines, dishes, and beverages',
-    color: '#FFB347',
-    questions: 10
+    description: 'Cuisine, restaurants, recipes, and beverages',
+    gradient: ['#FFB347', '#FF9F00'],
+    questionCount: 11,
   },
   {
     id: 'Technology',
     name: 'Technology',
     icon: '💻',
-    description: 'Computers, gadgets, and innovation',
-    color: '#87CEEB',
-    questions: 10
-  }
+    description: 'Tech companies, innovations, and digital trends',
+    gradient: ['#87CEEB', '#5DADE2'],
+    questionCount: 14,
+  },
 ];
 
 const CategoriesCarouselScreen: React.FC<CategoriesScreenProps> = ({ navigation, route }) => {
   const { gameMode } = route.params;
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [questionCounts, setQuestionCounts] = useState<{ [key: string]: number }>({});
   const insets = useSafeAreaInsets();
-  const flatListRef = useRef<FlatList>(null);
   
   // Animation values
   const backButtonScale = useRef(new Animated.Value(1)).current;
+  const cardOpacity = useRef(new Animated.Value(1)).current;
+  const leftButtonScale = useRef(new Animated.Value(1)).current;
+  const rightButtonScale = useRef(new Animated.Value(1)).current;
+
+  // Only apply new design for single player mode
+  const isSinglePlayer = gameMode === 'single';
+
+  // Load question counts for all categories
+  useEffect(() => {
+    const loadQuestionCounts = async () => {
+      const counts: { [key: string]: number } = {};
+      for (const category of categories) {
+        try {
+          const questions = await getQuestionsByCategory(category.name);
+          counts[category.name] = questions.length;
+        } catch (error) {
+          logger.error(`Error loading questions for ${category.name}:`, error);
+          counts[category.name] = category.questionCount; // Fallback to default
+        }
+      }
+      setQuestionCounts(counts);
+    };
+    
+    if (isSinglePlayer) {
+      loadQuestionCounts();
+    }
+  }, [isSinglePlayer]);
+
+  // Update animation when currentIndex changes
+  useEffect(() => {
+    // Smooth transition animation - fade in the new card
+    cardOpacity.setValue(0);
+    Animated.timing(cardOpacity, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  }, [currentIndex]);
 
   const handleBackToHome = () => {
-    // Button press animation
     Animated.sequence([
       Animated.timing(backButtonScale, {
         toValue: 0.9,
@@ -114,74 +148,182 @@ const CategoriesCarouselScreen: React.FC<CategoriesScreenProps> = ({ navigation,
     navigation.goBack();
   };
 
-  const handleCategoryPress = (category: typeof categories[0]) => {
-    setSelectedCategory(category.id);
+  const handleContinue = () => {
+    const currentCategory = categories[currentIndex];
+    logger.log('🎯 Continue pressed with category:', currentCategory.name);
     
-    logger.log('🎯 Category pressed:', category.name);
-    logger.log('🎯 Game mode:', gameMode);
-    
-    if (gameMode === 'multiplayer') {
-      // For multiplayer, navigate to MultiplayerRoom with the selected category
-      logger.log('🎯 Navigating to MultiplayerRoom with category:', category.name);
+    navigation.navigate('QuestionSelection', {
+      categoryName: currentCategory.name,
+      gameMode: gameMode
+    });
+  };
+
+  const handlePreviousCategory = () => {
+    if (currentIndex > 0) {
+      // Button press animation
+      Animated.sequence([
+        Animated.timing(leftButtonScale, {
+          toValue: 0.9,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.timing(leftButtonScale, {
+          toValue: 1,
+          duration: 100,
+          useNativeDriver: true,
+        })
+      ]).start();
       
-      navigation.navigate('CreateRoom' as never);
-    } else {
-      // For single player, continue to QuestionSelection
-      logger.log('🎯 Navigating to QuestionSelection with params:', {
-        categoryName: category.name
-      });
-      
-      navigation.navigate('QuestionSelection', {
-        categoryName: category.name,
-        gameMode: gameMode
-      });
+      setCurrentIndex(currentIndex - 1);
     }
   };
 
-  const renderCategoryCard = ({ item, index }: { item: typeof categories[0]; index: number }) => {
-    const isSelected = selectedCategory === item.id;
-    
-    return (
-      <TouchableOpacity
-        style={[
-          styles.categoryCard,
-          { 
-            backgroundColor: item.color,
-            borderWidth: isSelected ? 3 : 0,
-            borderColor: isSelected ? 'rgba(255, 255, 255, 0.8)' : 'transparent'
-          }
-        ]}
-        onPress={() => handleCategoryPress(item)}
-        activeOpacity={0.8}
-      >
-        <View style={styles.cardContent}>
-          <Text style={styles.categoryIcon}>{item.icon}</Text>
-          <Text style={styles.categoryName}>{item.name}</Text>
-          <Text style={styles.categoryDescription}>{item.description}</Text>
-          <View style={styles.questionCount}>
-            <Text style={styles.questionCountText}>{item.questions} Questions</Text>
-          </View>
-        </View>
-        
-        {/* Play Button */}
-        <View style={styles.playButton}>
-          <Text style={styles.playButtonText}>
-            {gameMode === 'single' ? '🎯 Select' : '🎯 Select'}
-          </Text>
-        </View>
-      </TouchableOpacity>
-    );
+  const handleNextCategory = () => {
+    if (currentIndex < categories.length - 1) {
+      // Button press animation
+      Animated.sequence([
+        Animated.timing(rightButtonScale, {
+          toValue: 0.9,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.timing(rightButtonScale, {
+          toValue: 1,
+          duration: 100,
+          useNativeDriver: true,
+        })
+      ]).start();
+      
+      setCurrentIndex(currentIndex + 1);
+    }
   };
 
+  // For single player mode, use new carousel design
+  if (isSinglePlayer) {
+    const currentCategory = categories[currentIndex];
+    const cardHeight = 400;
+
+    return (
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
+        {/* Dark Purple Gradient Background */}
+        <LinearGradient
+          colors={['#1a1a2e', '#16213e', '#0f0f1e']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+        
+        {/* Header */}
+        <View style={[styles.header, { paddingTop: insets.top }]}>
+          <Animated.View style={{ transform: [{ scale: backButtonScale }] }}>
+            <TouchableOpacity onPress={handleBackToHome} style={styles.backButton}>
+              <Text style={styles.backButtonArrow}>←</Text>
+            </TouchableOpacity>
+          </Animated.View>
+          <View style={styles.headerContent}>
+            <Text style={styles.headerTitle}>Select Category</Text>
+          </View>
+          <View style={styles.headerPlaceholder} />
+        </View>
+
+        {/* Carousel Container */}
+        <View style={styles.carouselWrapper}>
+          {/* Left Navigation Button */}
+          <View style={styles.navButtonContainer}>
+            {currentIndex > 0 && (
+              <Animated.View style={{ transform: [{ scale: leftButtonScale }] }}>
+                <TouchableOpacity
+                  onPress={handlePreviousCategory}
+                  style={styles.navButton}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.navButtonChevron}>{'<'}</Text>
+                </TouchableOpacity>
+              </Animated.View>
+            )}
+          </View>
+
+          {/* Current Card - Always Centered */}
+          <Animated.View
+            style={[
+              styles.currentCard,
+              {
+                opacity: cardOpacity,
+              },
+            ]}
+          >
+            <LinearGradient
+              colors={currentCategory.gradient as [string, string]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.categoryCardGradient}
+            >
+              <View style={styles.cardContent}>
+                <View style={styles.cardContentInner}>
+                  <Text style={styles.categoryIcon}>{currentCategory.icon}</Text>
+                  <Text style={styles.categoryName}>{currentCategory.name}</Text>
+                  <Text style={styles.categoryDescription}>{currentCategory.description}</Text>
+                </View>
+                <View style={styles.questionCountBadge}>
+                  <Text style={styles.questionCountText}>
+                    {questionCounts[currentCategory.name] || currentCategory.questionCount} Questions
+                  </Text>
+                </View>
+              </View>
+            </LinearGradient>
+          </Animated.View>
+
+          {/* Right Navigation Button */}
+          <View style={styles.navButtonContainer}>
+            {currentIndex < categories.length - 1 && (
+              <Animated.View style={{ transform: [{ scale: rightButtonScale }] }}>
+                <TouchableOpacity
+                  onPress={handleNextCategory}
+                  style={styles.navButton}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.navButtonChevron}>{'>'}</Text>
+                </TouchableOpacity>
+              </Animated.View>
+            )}
+          </View>
+        </View>
+
+        {/* Continue Button */}
+        <View style={[styles.continueButtonContainer, { paddingBottom: insets.bottom + SPACING.md }]}>
+          <TouchableOpacity
+            onPress={handleContinue}
+            style={styles.continueButton}
+            activeOpacity={0.9}
+          >
+            <LinearGradient
+              colors={['#4F46E5', '#4338CA']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.continueButtonGradient}
+            >
+              <Text style={styles.continueButtonText}>Continue</Text>
+              <Text style={styles.continueButtonArrow}>→</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // For multiplayer mode, keep existing design (fallback)
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
-      {/* Header */}
+      <LinearGradient
+        colors={['#1a1a2e', '#16213e', '#0f0f1e']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
       <View style={[styles.header, { paddingTop: insets.top + SPACING.lg }]}>
         <Animated.View style={{ transform: [{ scale: backButtonScale }] }}>
           <TouchableOpacity onPress={handleBackToHome} style={styles.backButton}>
-            <View style={styles.backButtonIcon}>
-              <Text style={styles.backButtonArrow}>‹</Text>
-            </View>
+            <Text style={styles.backButtonArrow}>←</Text>
           </TouchableOpacity>
         </Animated.View>
         <View style={styles.headerContent}>
@@ -189,31 +331,8 @@ const CategoriesCarouselScreen: React.FC<CategoriesScreenProps> = ({ navigation,
         </View>
         <View style={styles.headerPlaceholder} />
       </View>
-
-      {/* Categories Carousel */}
-      <View style={styles.carouselContainer}>
-        <FlatList
-          ref={flatListRef}
-          data={categories}
-          renderItem={renderCategoryCard}
-          keyExtractor={(item) => item.id}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          snapToInterval={CARD_WIDTH + CARD_SPACING}
-          decelerationRate="fast"
-          contentContainerStyle={styles.carouselContent}
-          ItemSeparatorComponent={() => <View style={{ width: CARD_SPACING }} />}
-          bounces={false}
-          scrollEventThrottle={16}
-          removeClippedSubviews={false}
-        />
-      </View>
-
-      {/* Instructions */}
-      <View style={styles.instructions}>
-        <Text style={styles.instructionsText}>
-          Swipe to browse categories • Tap to start playing
-        </Text>
+      <View style={styles.placeholderContent}>
+        <Text style={styles.placeholderText}>Multiplayer category selection</Text>
       </View>
     </SafeAreaView>
   );
@@ -222,48 +341,26 @@ const CategoriesCarouselScreen: React.FC<CategoriesScreenProps> = ({ navigation,
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#1a1a2e',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.lg,
-    paddingBottom: SPACING.xl,
+    paddingHorizontal: SPACING.md,
+    minHeight: 56,
   },
   backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    width: 44,
+    height: 44,
     justifyContent: 'center',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
+    alignItems: 'center',
     borderRadius: 22,
-    backgroundColor: 'rgba(139, 92, 246, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.2)',
-    shadowColor: '#8B5CF6',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  backButtonIcon: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: 'rgba(139, 92, 246, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   backButtonArrow: {
-    color: '#8B5CF6',
-    fontSize: 18,
-    fontWeight: 'bold' as const,
-    lineHeight: 20,
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '600' as const,
   },
   headerContent: {
     flex: 1,
@@ -271,102 +368,159 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerPlaceholder: {
-    width: 60,
+    width: 44,
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: COLORS.text,
-    marginBottom: 2,
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
-  headerSubtitle: {
-    fontSize: 14,
-    color: COLORS.muted,
-    fontWeight: '500',
-  },
-  carouselContainer: {
+  carouselWrapper: {
     flex: 1,
-    justifyContent: 'flex-start',
-    paddingTop: 0,
-  },
-  carouselContent: {
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 0,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xl,
   },
-  categoryCard: {
-    width: CARD_WIDTH,
-    height: Math.min(height * 0.6, RESPONSIVE.height.card + 20),
-    borderRadius: 28,
-    padding: SPACING.xl + SPACING.md,
-    justifyContent: 'space-between',
+  navButtonContainer: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  navButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 12,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  navButtonChevron: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '600' as const,
+    textAlign: 'center',
+  },
+  currentCard: {
+    width: '75%',
+    maxWidth: 400,
+    height: 400,
+    marginHorizontal: SPACING.md,
+    borderRadius: 24,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 8,
     },
     shadowOpacity: 0.4,
-    shadowRadius: 20,
+    shadowRadius: 24,
     elevation: 16,
   },
+  categoryCardGradient: {
+    width: '100%',
+    height: '100%',
+    padding: SPACING.xl * 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   cardContent: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cardContentInner: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: SPACING.lg,
+  },
+  categoryIcon: {
+    fontSize: 64,
+    marginBottom: SPACING.md,
+    textAlign: 'center',
+  },
+  categoryName: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: SPACING.md,
+    textAlign: 'center',
+  },
+  categoryDescription: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.9)',
+    lineHeight: 24,
+    textAlign: 'center',
+  },
+  questionCountBadge: {
+    alignSelf: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 20,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+  },
+  questionCountText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  continueButtonContainer: {
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.md,
+    borderTopWidth: 1,
+    borderTopColor: '#374151',
+    backgroundColor: '#0A0A0A',
+  },
+  continueButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#4F46E5',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  continueButtonGradient: {
+    height: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.xl,
+  },
+  continueButtonText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  continueButtonArrow: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginLeft: SPACING.sm,
+  },
+  placeholderContent: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  categoryIcon: {
-    fontSize: 72,
-    marginBottom: SPACING.lg + SPACING.sm,
-  },
-  categoryName: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: 'white',
-    marginBottom: SPACING.md + SPACING.sm,
-    textAlign: 'center',
-  },
-  categoryDescription: {
-    fontSize: 18,
-    color: 'rgba(255, 255, 255, 0.9)',
-    textAlign: 'center',
-    lineHeight: 26,
-    marginBottom: SPACING.lg + SPACING.sm,
-  },
-  questionCount: {
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-    borderRadius: 24,
-  },
-  questionCountText: {
+  placeholderText: {
+    color: COLORS.text,
     fontSize: 16,
-    fontWeight: '600',
-    color: 'white',
-  },
-  playButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
-    paddingVertical: SPACING.lg,
-    paddingHorizontal: SPACING.xl + SPACING.sm,
-    borderRadius: 20,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
-  },
-  playButtonText: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: 'white',
-  },
-  instructions: {
-    paddingHorizontal: SPACING.lg,
-    paddingBottom: SPACING.md,
-    alignItems: 'center',
-  },
-  instructionsText: {
-    fontSize: 14,
-    color: COLORS.muted,
-    textAlign: 'center',
   },
 });
 

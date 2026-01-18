@@ -52,47 +52,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (currentUser) {
           logger.log('✅ AuthContext: User already authenticated:', currentUser.email);
           
-          // Load locally stored avatar and display name if available
+          // Load locally stored avatar and display name if available, but only if it matches current user
+          // First, fetch fresh data from Firestore to ensure we have the latest
           try {
-            const localAvatarStorage = LocalAvatarStorage.getInstance();
-            const localDisplayNameStorage = LocalDisplayNameStorage.getInstance();
-            
-            const localAvatar = await localAvatarStorage.getSelectedAvatar();
-            const localDisplayName = await localDisplayNameStorage.getDisplayName();
-            
-            let updatedUser = { ...currentUser };
-            let hasLocalUpdates = false;
-            
-            // Apply local avatar if available
-            if (localAvatar && (!currentUser.selectedAvatar || currentUser.selectedAvatar !== localAvatar)) {
-              logger.log('🖼️ AuthContext: Loading locally stored avatar:', localAvatar);
-              updatedUser = { ...updatedUser, selectedAvatar: localAvatar };
-              hasLocalUpdates = true;
-              
-              // Try to sync with server in background
-              try {
-                await localAvatarStorage.updateUserId(currentUser.id);
-                logger.log('✅ AuthContext: Local avatar synced with user ID');
-              } catch (syncError) {
-                logger.warn('⚠️ AuthContext: Failed to sync local avatar with user ID:', syncError);
-              }
+            logger.log('🔄 AuthContext: Fetching fresh user profile from Firestore...');
+            const freshUser = await getUserProfileWithAvatar();
+            if (freshUser && freshUser.id === currentUser.id) {
+              logger.log('✅ AuthContext: Fresh user data loaded, using Firestore data as source of truth');
+              setUser(freshUser);
+              syncAuthService(freshUser);
+            } else {
+              // Fallback to current user if fresh fetch fails
+              logger.log('⚠️ AuthContext: Fresh fetch failed or user mismatch, using current user');
+              setUser(currentUser);
+              syncAuthService(currentUser);
             }
-            
-            // Apply local display name if available
-            if (localDisplayName && (!currentUser.displayName || currentUser.displayName !== localDisplayName)) {
-              logger.log('📝 AuthContext: Loading locally stored display name:', localDisplayName);
-              updatedUser = { ...updatedUser, displayName: localDisplayName };
-              hasLocalUpdates = true;
-            }
-            
-            setUser(updatedUser);
-            syncAuthService(updatedUser);
-            
-            if (hasLocalUpdates) {
-              logger.log('✅ AuthContext: Applied local updates to user profile');
-            }
-          } catch (localError) {
-            logger.warn('⚠️ AuthContext: Failed to load local data:', localError);
+          } catch (freshError) {
+            logger.warn('⚠️ AuthContext: Failed to fetch fresh profile, using current user:', freshError);
             setUser(currentUser);
             syncAuthService(currentUser);
           }
@@ -112,7 +88,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // Set up the auth state listener for future changes
       logger.log('🔐 AuthContext: Setting up authentication listener...');
-      const unsub = subscribeToAuthChanges((u) => {
+      const unsub = subscribeToAuthChanges(async (u) => {
         logger.log('🔄 AuthContext: Auth state changed:', u ? `User: ${u.email}` : 'No user');
         
         // Only update if we haven't already initialized with getCurrentUser
@@ -123,10 +99,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setLoading(false);
           isInitialized = true;
         } else if (u) {
-          // If we already initialized but user changed, update
+          // If we already initialized but user changed, update and clear old local storage
           logger.log('🔄 AuthContext: User changed after initialization');
+          
+          // If user ID changed, clear local storage to prevent cross-user data contamination
+          if (user && user.id !== u.id) {
+            logger.log('🔄 AuthContext: User ID changed, clearing local storage...');
+            try {
+              const localAvatarStorage = LocalAvatarStorage.getInstance();
+              const localDisplayNameStorage = LocalDisplayNameStorage.getInstance();
+              await localAvatarStorage.clearSelectedAvatar();
+              await localDisplayNameStorage.clearDisplayName();
+              logger.log('✅ AuthContext: Local storage cleared for new user');
+            } catch (clearError) {
+              logger.warn('⚠️ AuthContext: Failed to clear local storage:', clearError);
+            }
+          }
+          
           setUser(u);
           syncAuthService(u);
+        } else {
+          // User signed out
+          logger.log('🔄 AuthContext: User signed out');
+          setUser(null);
+          syncAuthService(null);
         }
       });
       
@@ -164,6 +160,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       logger.log('🔍 DEBUG: AuthContext calling signInWithEmail...');
       await signInWithEmail(email, password);
       logger.log('✅ DEBUG: AuthContext signInWithEmail successful');
+      
+      // After successful sign in, explicitly fetch fresh user data from Firestore
+      // This ensures we get the latest avatar and display name, not stale local storage data
+      logger.log('🔄 AuthContext: Fetching fresh user profile after sign in...');
+      try {
+        const freshUser = await getUserProfileWithAvatar();
+        if (freshUser) {
+          logger.log('✅ AuthContext: Fresh user data loaded:', freshUser.email);
+          setUser(freshUser);
+          syncAuthService(freshUser);
+        }
+      } catch (profileError) {
+        logger.warn('⚠️ AuthContext: Failed to fetch fresh profile, will rely on auth state listener:', profileError);
+        // The auth state listener will update the user data, so this is not critical
+      }
     } catch (error) {
       logger.error('❌ DEBUG: AuthContext signInWithEmail error:', error);
       throw error;
@@ -256,6 +267,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Call the auth service to sign out
       await signOutUser();
       
+      // Clear local storage to prevent old data from being used for next user
+      logger.log('🧹 AuthContext: Clearing local storage...');
+      try {
+        const localAvatarStorage = LocalAvatarStorage.getInstance();
+        const localDisplayNameStorage = LocalDisplayNameStorage.getInstance();
+        await localAvatarStorage.clearSelectedAvatar();
+        await localDisplayNameStorage.clearDisplayName();
+        logger.log('✅ AuthContext: Local storage cleared');
+      } catch (clearError) {
+        logger.warn('⚠️ AuthContext: Failed to clear local storage:', clearError);
+      }
+      
       // Clear local user state
       logger.log('🧹 AuthContext: Clearing local user state...');
       setUser(null);
@@ -265,9 +288,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       logger.error('💥 AuthContext: Sign-out error:', error);
       
-      // Even if there's an error, clear the local user state
+      // Even if there's an error, clear the local user state and storage
       // This ensures the user is redirected to login screen
       logger.log('🔄 AuthContext: Clearing user state despite error...');
+      try {
+        const localAvatarStorage = LocalAvatarStorage.getInstance();
+        const localDisplayNameStorage = LocalDisplayNameStorage.getInstance();
+        await localAvatarStorage.clearSelectedAvatar();
+        await localDisplayNameStorage.clearDisplayName();
+      } catch (clearError) {
+        logger.warn('⚠️ AuthContext: Failed to clear local storage on error:', clearError);
+      }
       setUser(null);
       syncAuthService(null);
       
@@ -400,7 +431,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // Try to sync with server in background
       try {
-        await AuthService.updateUserAvatar(selectedAvatar);
+        const authService = AuthService.getInstance();
+        await authService.updateUserAvatar(selectedAvatar);
         logger.log('✅ AuthContext: Avatar synced with server');
       } catch (serverError) {
         logger.warn('⚠️ AuthContext: Server sync failed, but local update succeeded:', serverError);
@@ -421,7 +453,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       logger.log('🔄 AuthContext: Getting user profile with avatar...');
       
       // Call the auth service to get profile with avatar data
-      const profile = await AuthService.getUserProfileWithAvatar();
+      const authService = AuthService.getInstance();
+      const profile = await authService.getUserProfileWithAvatar();
       
       // Update local user state
       if (profile) {

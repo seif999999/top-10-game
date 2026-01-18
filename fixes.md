@@ -1,7 +1,7 @@
 # Top 10 Game - Comprehensive Improvement List & Status
 
 **Last Updated:** 2026-01-15  
-**Progress:** 6/23 fully complete, 3/23 partially complete (39.1% complete)
+**Progress:** 6/23 fully complete, 4/23 partially complete (43.5% complete)
 
 ---
 
@@ -47,11 +47,11 @@
    - Fix: Consolidate to single tested version, remove deprecated code
    - Status: Multiple variants still exist, not consolidated
 
-6. **Missing development tooling** ⚠️ HIGH — ❌ **NOT DONE**
+6. **Missing development tooling** ⚠️ HIGH — 🔄 **PARTIALLY DONE**
    - Verified: No ESLint config
    - Impact: Inconsistent code style, missed errors
    - Fix: Add ESLint , configure for TypeScript/React Native
-   - Status: No ESLint configs added yet
+   - Status: Minimal ESLint config added (`.eslintrc.js`) for Node.js files like `metro.config.js`, but not yet fully configured for TypeScript/React Native
 
 7. **TypeScript configuration minimal** ⚠️ MEDIUM — ✅ **DONE**
    - Verified: Only `strict: true`, missing recommended options
@@ -179,15 +179,15 @@
 4. ❌ Split large files → modularize
 
 ### **Do soon:**
-5. ❌ Add ESLint
+5. 🔄 Add ESLint (minimal config exists, needs full TypeScript/React Native setup)
 6. ❌ Consolidate versioned code
 7. ❌ Standardize error handling
-8. ❌ Extract magic numbers to constants
+8. ✅ Extract magic numbers to constants (DONE - see #13)
 
 ### **Do when time permits:**
 9. ❌ Optimize context re-renders
 10. 🔄 Add error reporting (Sentry) - partially done (uses logger)
-11. ❌ Improve TypeScript config
+11. ✅ Improve TypeScript config (DONE - see #7)
 12. ❌ Add E2E testing
 
 ---
@@ -204,15 +204,16 @@
 - ✅ #17: Incomplete features (TODOs) → Cleaned up and tracked in TODOS.md
 - ✅ #21: Error boundary logging → Now uses logger
 
-**Partially Completed:** 3
+**Partially Completed:** 4
+- 🔄 #6: Missing development tooling → Minimal ESLint config added, but not fully configured for TypeScript/React Native
 - 🔄 #14: Error boundary → Uses logger, but no external reporting
 - 🔄 #16: Dependency verification → React version fixed, full verification pending
 - 🔄 #19: Documentation → `KEEP_UPDATED.md` created, JSDoc/comments still needed
 
-**Not Done:** 17
+**Not Done:** 16
 - All other items remain pending
 
-**Overall Progress:** 39.1% complete (6 fully done, 3 partially done out of 23 total)
+**Overall Progress:** 43.5% complete (6 fully done, 4 partially done out of 23 total)
 
 ---
 
