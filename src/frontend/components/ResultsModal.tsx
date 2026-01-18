@@ -3,18 +3,7 @@ import { View, Text, StyleSheet, Modal, ScrollView, Animated, Dimensions } from 
 import Button from './Button';
 import { COLORS, SPACING } from '../../backend/utils/constants';
 import { formatScore, formatTimeReadable, calculatePercentage, getPlayerRanking } from '../../backend/utils/gameHelpers';
-
-interface GameResults {
-  gameId: string;
-  category: string;
-  players: string[];
-  finalScores: { [playerId: string]: number };
-  roundResults: any[];
-  winner: string;
-  totalTime: number;
-  averageScore: number;
-  bestAnswer?: any;
-}
+import type { GameResults, PlayerAnswer } from '../../shared/types';
 
 interface ResultsModalProps {
   visible: boolean;
@@ -86,7 +75,7 @@ const ResultsModal: React.FC<ResultsModalProps> = ({
     return total + (round.playerAnswers?.length || 0);
   }, 0);
   const correctAnswers = gameResults.roundResults.reduce((total, round) => {
-    return total + (round.playerAnswers?.filter((answer: any) => answer.isCorrect)?.length || 0);
+    return total + (round.playerAnswers?.filter((answer: PlayerAnswer) => answer.isCorrect)?.length || 0);
   }, 0);
   const accuracy = calculatePercentage(correctAnswers, totalAnswers);
 

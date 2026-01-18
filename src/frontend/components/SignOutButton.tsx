@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { TouchableOpacity, Text, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import type { StyleProp, TextStyle, ViewStyle } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { COLORS, SPACING } from '../../backend/utils/constants';
 import { logger } from '../../backend/utils/logger';
 
 interface SignOutButtonProps {
-  style?: any;
-  iconStyle?: any;
+  style?: StyleProp<ViewStyle>;
+  iconStyle?: StyleProp<TextStyle>;
   size?: 'small' | 'medium' | 'large';
   variant?: 'icon' | 'text' | 'button';
 }

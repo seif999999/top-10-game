@@ -15,13 +15,17 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { COLORS, SPACING, TYPOGRAPHY, ANIMATIONS, COMPONENT_STYLES } from '../design-system';
 import { getQuestionsByCategory } from '../../backend/services/questionsService';
 import { useMultiplayer } from '../contexts/MultiplayerContext';
 import { logger } from '../../backend/utils/logger';
+import type { GameQuestion } from '../../shared/types';
+import type { LegacyQuestion } from '../../shared/types/game';
+import type { RootStackParamList } from '../../shared/types/navigation';
 
 const MultiplayerQuestionsScreen: React.FC = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute();
   const insets = useSafeAreaInsets();
   const { 
@@ -38,9 +42,9 @@ const MultiplayerQuestionsScreen: React.FC = () => {
   } = useMultiplayer();
 
   const { categoryName } = route.params as { categoryName: string };
-  const [questions, setQuestionsState] = useState<any[]>([]);
+  const [questions, setQuestionsState] = useState<GameQuestion[]>([]);
   const [loadingQuestions, setLoadingQuestions] = useState(true);
-  const [selectedQuestion, setSelectedQuestion] = useState<any>(null);
+  const [selectedQuestion, setSelectedQuestion] = useState<GameQuestion | null>(null);
   const [selectedTurnDuration, setSelectedTurnDuration] = useState<number>(60); // Default 60 seconds
 
   // Timer duration options (in seconds)
@@ -80,10 +84,18 @@ const MultiplayerQuestionsScreen: React.FC = () => {
     }
   };
 
-  const handleQuestionSelect = (question: any) => {
+  const toLegacyQuestion = (question: GameQuestion): LegacyQuestion => ({
+    id: question.id,
+    text: question.title,
+    answers: question.answers.map(answer => answer.text),
+    category: question.category,
+    difficulty: question.difficulty
+  });
+
+  const handleQuestionSelect = (question: GameQuestion) => {
     logger.log('🎯 Question selected:', question.title);
     setSelectedQuestion(question);
-    setQuestions([question] as any); // Type assertion for now
+    setQuestions([toLegacyQuestion(question)]);
   };
 
   const handleCreateRoom = async () => {
@@ -93,17 +105,9 @@ const MultiplayerQuestionsScreen: React.FC = () => {
     }
 
     try {
-      // Convert GameQuestion to Question format for multiplayer service
-      const convertedQuestions: any[] = [{
-        id: selectedQuestion.id,
-        text: selectedQuestion.title, // Use title as text
-        answers: selectedQuestion.answers.map((answer: any) => answer.text), // Convert QuestionAnswer[] to string[]
-        category: selectedQuestion.category,
-        difficulty: selectedQuestion.difficulty
-      }];
-      
+      const convertedQuestions: LegacyQuestion[] = [toLegacyQuestion(selectedQuestion)];
       const roomCode = await createRoom(categoryName, convertedQuestions);
-      (navigation as any).navigate('RoomLobby', { 
+      navigation.navigate('RoomLobby', { 
         roomCode, 
         turnDuration: selectedTurnDuration 
       });
@@ -186,7 +190,7 @@ const MultiplayerQuestionsScreen: React.FC = () => {
     );
   }
 
-  const renderQuestionItem = ({ item, index }: { item: any; index: number }) => (
+  const renderQuestionItem = ({ item, index }: { item: GameQuestion; index: number }) => (
     <TouchableOpacity 
       style={[
         styles.questionCard,

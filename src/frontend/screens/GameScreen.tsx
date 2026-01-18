@@ -16,6 +16,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useMultiplayer } from '../contexts/MultiplayerContext';
 import multiplayerService from '../../backend/services/multiplayerService';
 import { QuestionAnswer } from '../../shared/types';
+import type { Answer } from '../../shared/types/game';
 import { FEATURES } from '../../backend/config/featureFlags';
 import HostAssignModal from '../components/HostAssignModal';
 import { InputValidator } from '../../backend/utils/inputValidator';
@@ -23,6 +24,8 @@ import { RateLimitService } from '../../backend/services/rateLimitService';
 import { findMatchingAnswer } from '../../backend/services/multiplayerGameFlowV2';
 import { logger } from '../../backend/utils/logger';
 
+
+type AnswerLike = string | QuestionAnswer | Answer;
 
 const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   const { roomId, categoryId, isMultiplayer, selectedQuestion, teamConfig, customQuestion, isCustomQuestion } = route.params;
@@ -1114,10 +1117,16 @@ const handleEndGame = () => {
       return false;
     }
     
-    return currentQuestion.answers.some((correctAnswer: any) => {
-      if (!correctAnswer || !correctAnswer.text) return false;
-      
-      return correctAnswer.text.toLowerCase().trim() === normalizedAnswer ||
+    return currentQuestion.answers.some((correctAnswer: AnswerLike) => {
+      if (!correctAnswer) return false;
+      if (typeof correctAnswer === 'string') {
+        return correctAnswer.toLowerCase().trim() === normalizedAnswer;
+      }
+
+      const answerText = correctAnswer.text;
+      if (!answerText) return false;
+
+      return answerText.toLowerCase().trim() === normalizedAnswer ||
         (correctAnswer.normalized && correctAnswer.normalized.toLowerCase().trim() === normalizedAnswer) ||
         (correctAnswer.aliases && Array.isArray(correctAnswer.aliases) && 
          correctAnswer.aliases.some((alias: string) => 
@@ -1336,7 +1345,7 @@ const handleEndGame = () => {
             </Animated.View>
             <Text style={styles.answerGridTitle}>Answers</Text>
             <View style={styles.answerGrid}>
-                             {Array.isArray(currentQuestion.answers) ? currentQuestion.answers.map((answer: any, index: number) => {
+                             {Array.isArray(currentQuestion.answers) ? currentQuestion.answers.map((answer: AnswerLike, index: number) => {
                  // Get answer text
                  const answerText = typeof answer === 'string' ? answer : answer.text;
                  
@@ -1426,8 +1435,8 @@ const handleEndGame = () => {
                        answerText.toLowerCase().trim() === normalizedSubmitted ||
                        (typeof answer === 'object' && answer?.normalized && 
                         answer.normalized.toLowerCase().trim() === normalizedSubmitted) ||
-                       (typeof answer === 'object' && answer?.aliases && Array.isArray(answer.aliases) && 
-                        answer.aliases.some((alias: any) => 
+                      (typeof answer === 'object' && answer?.aliases && Array.isArray(answer.aliases) && 
+                       answer.aliases.some((alias: string) => 
                           alias && typeof alias === 'string' && alias.toLowerCase().trim() === normalizedSubmitted
                         ))
                      );

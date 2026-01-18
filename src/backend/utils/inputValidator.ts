@@ -6,6 +6,7 @@
 const DOMPurify = require('isomorphic-dompurify');
 import { ContentModerationService } from '../services/contentModerationService';
 import { logger } from './logger';
+import { AppError } from '../../shared/errors';
 
 // Basic profanity list - in production, this should be loaded from a secure source
 const PROFANITY_LIST = [
@@ -27,7 +28,11 @@ export class InputValidator {
    */
   static sanitizeText(input: string, maxLength: number = 100): string {
     if (typeof input !== 'string') {
-      throw new Error('Input must be a string');
+      throw new AppError({
+        code: 'VALIDATION_INVALID_INPUT',
+        message: 'Input must be a string',
+        userMessage: 'Invalid input.'
+      });
     }
 
     let sanitized: string;
@@ -43,7 +48,11 @@ export class InputValidator {
           ALLOW_UNKNOWN_PROTOCOLS: false, // Remove unknown protocols
         });
       } else {
-        throw new Error('DOMPurify not available');
+        throw new AppError({
+          code: 'SANITIZE_UNAVAILABLE',
+          message: 'DOMPurify not available',
+          userMessage: 'Unable to sanitize input.'
+        });
       }
     } catch (error) {
       logger.warn('DOMPurify not available, using basic sanitization:', error);
@@ -286,8 +295,8 @@ export class InputValidator {
   /**
    * Sanitize and validate all user inputs in a form
    */
-  static validateFormInputs(inputs: Record<string, any>): { valid: boolean; sanitized: Record<string, any>; errors: Record<string, string[]> } {
-    const sanitized: Record<string, any> = {};
+  static validateFormInputs(inputs: Record<string, unknown>): { valid: boolean; sanitized: Record<string, unknown>; errors: Record<string, string[]> } {
+    const sanitized: Record<string, unknown> = {};
     const errors: Record<string, string[]> = {};
     let allValid = true;
 

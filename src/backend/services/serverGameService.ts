@@ -11,6 +11,8 @@ import {
 import { logger } from '../utils/logger';
 import { db } from './firebase';
 import { InputValidator } from '../utils/inputValidator';
+import { AppError } from '../../shared/errors';
+import type { RoomData as MultiplayerRoomData } from '../../shared/types/game';
 
 export interface GameValidationResult {
   valid: boolean;
@@ -33,6 +35,8 @@ export interface GameState {
   turnStartTime: Timestamp;
   questionStartTime: Timestamp;
 }
+
+type ServerRoomData = GameState | MultiplayerRoomData;
 
 export interface PlayerState {
   userId: string;
@@ -153,7 +157,7 @@ export class ServerGameService {
         };
       }
 
-      const roomData = roomDoc.data() as any; // Use any to handle both GameState and RoomData
+      const roomData = roomDoc.data() as ServerRoomData; // Support legacy GameState and RoomData
       
       logger.log('🔍 SERVER_VALIDATION_DEBUG:', {
         roomCode,
@@ -211,7 +215,7 @@ export class ServerGameService {
         return { valid: false, error: 'Room not found' };
       }
 
-      const roomData = roomDoc.data() as any; // Use any to handle both GameState and RoomData
+      const roomData = roomDoc.data() as ServerRoomData; // Support legacy GameState and RoomData
       
       // Check if it's the user's turn (handle both data structures)
       const currentPlayer = roomData.currentPlayer || roomData.currentPlayerId;
@@ -294,7 +298,7 @@ export class ServerGameService {
         return { valid: false, error: 'Room not found' };
       }
 
-      const roomData = roomDoc.data() as any; // Use any to handle both GameState and RoomData
+      const roomData = roomDoc.data() as ServerRoomData; // Support legacy GameState and RoomData
       
       logger.log('🔍 DUPLICATE_CHECK_DEBUG:', {
         roomCode,
@@ -393,10 +397,14 @@ export class ServerGameService {
         const roomDoc = await transaction.get(roomRef);
         
         if (!roomDoc.exists()) {
-          throw new Error('Room not found');
+          throw new AppError({
+            code: 'MP_ROOM_NOT_FOUND',
+            message: 'Room not found',
+            userMessage: 'Room not found.'
+          });
         }
 
-        const roomData = roomDoc.data() as any; // Use any to handle both GameState and RoomData
+        const roomData = roomDoc.data() as ServerRoomData; // Support legacy GameState and RoomData
         
         // Double-check it's still the user's turn (handle both data structures)
         const currentPlayer = roomData.currentPlayer || roomData.currentPlayerId;
@@ -413,7 +421,11 @@ export class ServerGameService {
             players: Object.keys(roomData.players || {}),
             timestamp: new Date().toISOString()
           });
-          throw new Error('It is not your turn');
+          throw new AppError({
+            code: 'MP_NOT_YOUR_TURN',
+            message: 'It is not your turn',
+            userMessage: 'It is not your turn.'
+          });
         }
 
         // Calculate score (simplified - in real implementation, this would be more complex)
@@ -431,7 +443,7 @@ export class ServerGameService {
         const nextPlayer = this.getNextPlayer(roomData, userId);
         const gamePhase = this.determineGamePhase(roomData, roomData.playerSubmissions || {});
 
-        const updateData: any = {
+        const updateData: Record<string, unknown> = {
           scores: updatedScores,
           currentPlayerId: nextPlayer || '',
           lastActivity: serverTimestamp(),
@@ -478,7 +490,7 @@ export class ServerGameService {
   /**
    * Get next player in turn order
    */
-  private static getNextPlayer(roomData: any, currentUserId: string): string | null {
+  private static getNextPlayer(roomData: ServerRoomData, currentUserId: string): string | null {
     // Handle both GameState and RoomData structures
     if (roomData.turnOrder && Array.isArray(roomData.turnOrder)) {
       // RoomData structure - use turnOrder array
@@ -499,7 +511,7 @@ export class ServerGameService {
   /**
    * Determine game phase based on current state
    */
-  private static determineGamePhase(roomData: any, submissions: any): 'question' | 'finished' {
+  private static determineGamePhase(roomData: ServerRoomData, submissions: Record<string, unknown>): 'question' | 'finished' {
     // Handle both GameState and RoomData structures
     const totalPlayers = roomData.turnOrder ? roomData.turnOrder.length : Object.keys(roomData.players || {}).length;
     const answeredPlayers = roomData.answersSubmittedCount || Object.keys(submissions || {}).length;
@@ -585,7 +597,7 @@ export class ServerGameService {
   /**
    * Get recent room creations for rate limiting
    */
-  private static async getRecentRoomCreations(userId: string): Promise<any[]> {
+  private static async getRecentRoomCreations(userId: string): Promise<Array<Record<string, unknown>>> {
     try {
       // In a real implementation, this would query a rooms collection
       // For now, return empty array

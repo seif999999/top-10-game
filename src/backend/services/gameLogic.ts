@@ -1,6 +1,7 @@
 import { GameState, GameRound, GameQuestion, PlayerAnswer, GameResults } from '../../shared/types';
 import { getQuestionsByCategory, shuffleQuestions } from './questionsService';
 import { logger } from '../utils/logger';
+import { AppError } from '../../shared/errors';
 
 // Generate unique game ID
 const generateGameId = (): string => {
@@ -42,7 +43,7 @@ export const processAnswer = (
   answer: string
 ): { updatedState: GameState; answerResult: PlayerAnswer } => {
   if (!gameState.currentQuestion || gameState.gamePhase !== 'question') {
-    throw new Error('Game is not in question phase');
+    throw new AppError({ code: 'GAME_INVALID_PHASE', message: 'Game is not in question phase', userMessage: 'Cannot submit answer right now.' });
   }
   
   logger.log(`\n🎮 PROCESSING ANSWER:`);
@@ -60,7 +61,7 @@ export const processAnswer = (
   
   // Find the correct answer
   if (!gameState.currentQuestion.answers || !Array.isArray(gameState.currentQuestion.answers)) {
-    throw new Error('No answers available for current question');
+    throw new AppError({ code: 'GAME_NO_ANSWERS', message: 'No answers available for current question', userMessage: 'Question data is incomplete.' });
   }
   
   const correctAnswer = gameState.currentQuestion.answers.find(
@@ -83,7 +84,7 @@ export const processAnswer = (
   );
   
   if (!correctAnswer) {
-    throw new Error('Invalid answer submitted');
+    throw new AppError({ code: 'GAME_INVALID_ANSWER', message: 'Invalid answer submitted', userMessage: 'That answer is not correct.' });
   }
   
   const playerAnswer: PlayerAnswer = {
@@ -221,10 +222,10 @@ export const startNewGame = async (
   category: string,
   players: string[],
   totalRounds: number = 10,
-  selectedQuestion?: any
+  selectedQuestion?: GameQuestion
 ): Promise<GameState> => {
   if (!players || !Array.isArray(players) || players.length === 0) {
-    throw new Error('Invalid players parameter: must be a non-empty array');
+    throw new AppError({ code: 'GAME_INVALID_PLAYERS', message: 'Invalid players parameter: must be a non-empty array', userMessage: 'At least one player is required.' });
   }
   
   logger.log(`🎮 startNewGame called with category: "${category}", players: ${players}, totalRounds: ${totalRounds}, selectedQuestion: ${selectedQuestion ? 'YES' : 'NO'}`);
@@ -233,14 +234,14 @@ export const startNewGame = async (
   const questions = await getQuestionsByCategory(category);
   if (!questions || !Array.isArray(questions)) {
     logger.error(`❌ Invalid questions returned for category: ${category}`);
-    throw new Error(`Invalid questions returned for category: ${category}`);
+    throw new AppError({ code: 'GAME_INVALID_QUESTIONS', message: `Invalid questions returned for category: ${category}`, userMessage: 'Unable to load questions for this category.' });
   }
   
   logger.log(`🎮 Found ${questions.length} questions for category "${category}"`);
   
   if (questions.length === 0) {
     logger.error(`❌ No questions found for category: ${category}`);
-    throw new Error(`No questions found for category: ${category}`);
+    throw new AppError({ code: 'GAME_NO_QUESTIONS', message: `No questions found for category: ${category}`, userMessage: 'No questions available for this category.' });
   }
   
   let shuffledQuestions;
@@ -257,7 +258,7 @@ export const startNewGame = async (
     shuffledQuestions = shuffleQuestions(questions);
     if (!shuffledQuestions || !Array.isArray(shuffledQuestions)) {
       logger.error(`❌ Failed to shuffle questions for category: ${category}`);
-      throw new Error(`Failed to shuffle questions for category: ${category}`);
+      throw new AppError({ code: 'GAME_SHUFFLE_FAILED', message: `Failed to shuffle questions for category: ${category}`, userMessage: 'Unable to prepare game questions.' });
     }
     currentQuestion = shuffledQuestions[0] || null;
     logger.log(`🎮 Shuffled questions for "${category}":`, shuffledQuestions.map(q => q.title));
@@ -293,7 +294,7 @@ export const startNewGame = async (
   }
   
   // Store shuffled questions in a way that doesn't break types
-  (gameState as any).shuffledQuestions = shuffledQuestions;
+  gameState.shuffledQuestions = shuffledQuestions;
   
   logger.log(`🎮 DEBUG: Stored shuffledQuestions in gameState:`, {
     category: gameState.category,
@@ -315,16 +316,16 @@ export const submitAnswer = (
   const updatedState = { ...gameState };
   
   if (updatedState.gamePhase !== 'question') {
-    throw new Error('Cannot submit answer: game is not in question phase');
+    throw new AppError({ code: 'GAME_INVALID_PHASE', message: 'Cannot submit answer: game is not in question phase', userMessage: 'Cannot submit answer right now.' });
   }
   
   if (!updatedState.currentQuestion) {
-    throw new Error('No current question available');
+    throw new AppError({ code: 'GAME_NO_QUESTION', message: 'No current question available', userMessage: 'No question available.' });
   }
   
   // Find the correct answer
   if (!updatedState.currentQuestion.answers || !Array.isArray(updatedState.currentQuestion.answers)) {
-    throw new Error('No answers available for current question');
+    throw new AppError({ code: 'GAME_NO_ANSWERS', message: 'No answers available for current question', userMessage: 'Question data is incomplete.' });
   }
   
   const correctAnswer = updatedState.currentQuestion.answers.find(
@@ -332,7 +333,7 @@ export const submitAnswer = (
   );
   
   if (!correctAnswer) {
-    throw new Error('Invalid answer submitted');
+    throw new AppError({ code: 'GAME_INVALID_ANSWER', message: 'Invalid answer submitted', userMessage: 'That answer is not correct.' });
   }
   
   // Create or update the current round
@@ -398,7 +399,7 @@ export const nextQuestion = (gameState: GameState): GameState => {
   updatedState.roundStartTime = Date.now();
   
   // Get next question from stored shuffled questions
-  const shuffledQuestions = (gameState as any).shuffledQuestions;
+  const shuffledQuestions = gameState.shuffledQuestions;
   logger.log(`🎮 DEBUG: nextQuestion - Retrieved shuffledQuestions:`, {
     category: updatedState.category,
     currentRound: updatedState.currentRound,

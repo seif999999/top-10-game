@@ -1,4 +1,6 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { GameQuestion, CustomQuestion } from './index';
+import type { TeamSetupConfig } from './teams';
 
 // Auth Stack Navigation Types
 export type AuthStackParamList = {
@@ -15,8 +17,8 @@ export type MainStackParamList = {
   Profile: undefined;
   Categories: { gameMode: 'single' | 'multiplayer' };
   QuestionSelection: { categoryName: string; gameMode?: 'single' | 'multiplayer' };
-  GameLobby: { categoryId: string; categoryName: string; selectedQuestion?: any };
-  GameScreen: { roomId: string; categoryId: string; categoryName?: string; selectedQuestion?: any; isMultiplayer?: boolean; teamConfig?: any; gameMode?: 'single' | 'multiplayer'; roomCode?: string; customQuestion?: any; isCustomQuestion?: boolean };
+  GameLobby: { categoryId: string; categoryName: string; selectedQuestion?: GameQuestion };
+  GameScreen: { roomId: string; categoryId: string; categoryName?: string; selectedQuestion?: GameQuestion; isMultiplayer?: boolean; teamConfig?: TeamSetupConfig; gameMode?: 'single' | 'multiplayer'; roomCode?: string; customQuestion?: CustomQuestion; isCustomQuestion?: boolean };
   MultiplayerMenu: undefined;
   CreateRoom: undefined;
   MultiplayerCategory: undefined;

@@ -193,7 +193,13 @@ export const RESPONSIVE = {
 // 🎨 RESPONSIVE STYLE HELPERS
 // ============================================================================
 
-export const createResponsiveStyle = (styles: any) => {
+type ResponsiveStyles = Record<string, unknown> & {
+  smallScreen?: Record<string, unknown>;
+  mediumScreen?: Record<string, unknown>;
+  largeScreen?: Record<string, unknown>;
+};
+
+export const createResponsiveStyle = (styles: ResponsiveStyles) => {
   return {
     ...styles,
     // Add responsive adjustments

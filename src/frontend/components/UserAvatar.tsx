@@ -1,4 +1,5 @@
 import React from 'react';
+import type { StyleProp, ViewStyle } from 'react-native';
 import { User } from '../../shared/types';
 import AvatarDisplay from './AvatarDisplay';
 import { COLORS } from '../design-system';
@@ -9,7 +10,7 @@ interface UserAvatarProps {
   showBorder?: boolean;
   borderColor?: string;
   onPress?: () => void;
-  style?: any;
+  style?: StyleProp<ViewStyle>;
   showLoading?: boolean;
 }
 

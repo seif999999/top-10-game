@@ -54,7 +54,7 @@ export interface ModerationAlert {
   resolved: boolean;
   resolvedAt?: Date;
   resolvedBy?: string;
-  data?: any;
+  data?: unknown;
 }
 
 export class ModerationLoggingService {
@@ -266,7 +266,7 @@ export class ModerationLoggingService {
     title: string,
     description: string,
     severity: ModerationAlert['severity'],
-    data?: any
+    data?: unknown
   ): ModerationAlert {
     const alert: ModerationAlert = {
       id: this.generateId('alert'),

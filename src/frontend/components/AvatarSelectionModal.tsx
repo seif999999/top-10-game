@@ -10,6 +10,7 @@ import {
   Image,
   Alert,
 } from 'react-native';
+import type { ImageStyle, TextStyle } from 'react-native';
 import { COLORS, SPACING, TYPOGRAPHY } from '../design-system';
 import { Avatar } from '../../shared/types';
 import { 
@@ -204,11 +205,11 @@ const styles = StyleSheet.create({
   closeButtonText: {
     fontSize: TYPOGRAPHY.fontSize.base,
     color: COLORS.text,
-    fontWeight: TYPOGRAPHY.fontWeight.medium as any,
+    fontWeight: TYPOGRAPHY.fontWeight.medium as TextStyle['fontWeight'],
   },
   title: {
     fontSize: TYPOGRAPHY.fontSize.lg,
-    fontWeight: TYPOGRAPHY.fontWeight.bold as any,
+    fontWeight: TYPOGRAPHY.fontWeight.bold as TextStyle['fontWeight'],
     color: COLORS.text,
   },
   confirmButton: {
@@ -220,7 +221,7 @@ const styles = StyleSheet.create({
   confirmButtonText: {
     fontSize: TYPOGRAPHY.fontSize.base,
     color: COLORS.white,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold as any,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold as TextStyle['fontWeight'],
   },
   disabledButton: {
     backgroundColor: COLORS.muted,
@@ -268,7 +269,7 @@ const styles = StyleSheet.create({
     width: avatarSize - 4,
     height: avatarSize - 4,
     borderRadius: (avatarSize - 4) / 2,
-  } as any,
+  } as ImageStyle,
   characterAvatar: {
     width: avatarSize - 4,
     height: avatarSize - 4,
@@ -310,7 +311,7 @@ const styles = StyleSheet.create({
   },
   avatarPlaceholderText: {
     fontSize: TYPOGRAPHY.fontSize.xl,
-    fontWeight: TYPOGRAPHY.fontWeight.bold as any,
+    fontWeight: TYPOGRAPHY.fontWeight.bold as TextStyle['fontWeight'],
     color: COLORS.text,
   },
   noAvatarIcon: {
@@ -323,18 +324,18 @@ const styles = StyleSheet.create({
   },
   noAvatarText: {
     fontSize: TYPOGRAPHY.fontSize.xl,
-    fontWeight: TYPOGRAPHY.fontWeight.bold as any,
+    fontWeight: TYPOGRAPHY.fontWeight.bold as TextStyle['fontWeight'],
     color: COLORS.muted,
   },
   avatarName: {
     fontSize: TYPOGRAPHY.fontSize.sm,
     color: COLORS.text,
     textAlign: 'center',
-    fontWeight: TYPOGRAPHY.fontWeight.medium as any,
+    fontWeight: TYPOGRAPHY.fontWeight.medium as TextStyle['fontWeight'],
   },
   selectedAvatarName: {
     color: COLORS.primary,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold as any,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold as TextStyle['fontWeight'],
   },
   avatarDescription: {
     fontSize: TYPOGRAPHY.fontSize.xs,
@@ -361,7 +362,7 @@ const styles = StyleSheet.create({
   selectedIndicatorText: {
     color: COLORS.white,
     fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.bold as any,
+    fontWeight: TYPOGRAPHY.fontWeight.bold as TextStyle['fontWeight'],
   },
 });
 

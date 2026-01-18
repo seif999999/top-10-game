@@ -1,5 +1,9 @@
 import React, { createContext, useContext, useReducer, ReactNode, useEffect, useCallback } from 'react';
-import { RoomData, Player, Question } from '../../shared/types/game';
+import { RoomData, Player, Question, LegacyQuestion } from '../../shared/types/game';
+import type { Timestamp } from 'firebase/firestore';
+import { AppError, toAppError } from '../../shared/errors';
+import type { AppErrorOptions } from '../../shared/errors';
+import type { RootStackParamList } from '../../shared/types/navigation';
 import multiplayerService from '../../backend/services/multiplayerService';
 import { useAuth } from './AuthContext';
 import { updatePlayerPresence } from '../../backend/services/multiplayerTransaction';
@@ -23,7 +27,7 @@ interface MultiplayerState {
   systemMessage: {
     type: 'host_migrated' | 'room_terminated' | 'game_terminated' | null;
     message: string;
-    timestamp?: any;
+    timestamp?: number | Timestamp;
     newHostId?: string;
     newHostName?: string;
   };
@@ -37,7 +41,7 @@ interface MultiplayerState {
   
   // Room Creation
   selectedCategory: string | null;
-  selectedQuestions: Question[];
+  selectedQuestions: Array<Question | LegacyQuestion>;
   
   // Room Joining
   joinRoomCode: string;
@@ -47,7 +51,7 @@ interface MultiplayerState {
   submittedAnswers: string[];
   
   // Navigation callback for auto-navigation
-  navigationCallback: ((params: any) => void) | null;
+  navigationCallback: ((params: RootStackParamList['GameScreen']) => void) | null;
   
   // Subscription Management
   unsubscribe: (() => void) | null;
@@ -68,10 +72,10 @@ type MultiplayerAction =
   | { type: 'SET_SUBMITTED_ANSWERS'; payload: string[] }
   | { type: 'ADD_SUBMITTED_ANSWER'; payload: string }
   | { type: 'SET_UNSUBSCRIBE'; payload: (() => void) | null }
-  | { type: 'SET_NAVIGATION_CALLBACK'; payload: ((params: any) => void) | null }
+  | { type: 'SET_NAVIGATION_CALLBACK'; payload: ((params: RootStackParamList['GameScreen']) => void) | null }
   | { type: 'SET_HOST_MIGRATION_NOTIFICATION'; payload: { type: 'host_migrated' | 'room_terminated' | null; newHostName?: string; message?: string } }
   | { type: 'CLEAR_HOST_MIGRATION_NOTIFICATION' }
-  | { type: 'SET_SYSTEM_MESSAGE'; payload: { type: 'host_migrated' | 'room_terminated' | 'game_terminated' | null; message: string; timestamp?: any; newHostId?: string; newHostName?: string } }
+  | { type: 'SET_SYSTEM_MESSAGE'; payload: { type: 'host_migrated' | 'room_terminated' | 'game_terminated' | null; message: string; timestamp?: number | Timestamp; newHostId?: string; newHostName?: string } }
   | { type: 'CLEAR_SYSTEM_MESSAGE' }
   | { type: 'RESET_ALL' }
   | { type: 'RESET_SELECTIONS' };
@@ -104,6 +108,12 @@ const initialState: MultiplayerState = {
   submittedAnswers: [],
   navigationCallback: null,
   unsubscribe: null,
+};
+
+const buildMultiplayerError = (error: unknown, fallback: AppErrorOptions): AppError => {
+  const appError = toAppError(error, fallback);
+  logger.error(`❌ MultiplayerContext:${appError.code}`, appError);
+  return appError;
 };
 
 // Reducer function
@@ -266,7 +276,7 @@ interface MultiplayerContextType {
   systemMessage: {
     type: 'host_migrated' | 'room_terminated' | 'game_terminated' | null;
     message: string;
-    timestamp?: any;
+    timestamp?: number | Timestamp;
     newHostId?: string;
     newHostName?: string;
   };
@@ -290,7 +300,7 @@ interface MultiplayerContextType {
   submittedAnswers: string[];
   
   // Actions
-  createRoom: (category: string, questions: Question[]) => Promise<string>;
+  createRoom: (category: string, questions: Array<Question | LegacyQuestion>) => Promise<string>;
   joinRoom: (roomCode: string) => Promise<boolean>;
   leaveRoom: () => Promise<void>;
   
@@ -316,7 +326,7 @@ interface MultiplayerContextType {
   
   // UI Actions
   setCategory: (category: string) => void;
-  setQuestions: (questions: Question[]) => void;
+  setQuestions: (questions: Array<Question | LegacyQuestion>) => void;
   setJoinRoomCode: (code: string) => void;
   setCurrentAnswer: (answer: string) => void;
   addSubmittedAnswer: (answer: string) => void;
@@ -326,7 +336,7 @@ interface MultiplayerContextType {
   resetAll: () => void;
   
   // Navigation callback for auto-navigation
-  setNavigationCallback: (callback: (params: any) => void) => void;
+  setNavigationCallback: (callback: (params: RootStackParamList['GameScreen']) => void) => void;
   
   // Cleanup
   cleanup: () => void;
@@ -405,7 +415,11 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
       dispatch({ type: 'SET_ERROR', payload: null });
       
       if (!user) {
-        throw new Error('User not authenticated');
+        throw new AppError({
+          code: 'MP_AUTH_REQUIRED',
+          message: 'User not authenticated',
+          userMessage: 'Please sign in to create a room.'
+        });
       }
 
       // Sync AuthService with current user state to prevent race conditions
@@ -422,9 +436,14 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
       dispatch({ type: 'SET_LOADING', payload: false });
       return roomCode;
     } catch (error) {
-      dispatch({ type: 'SET_ERROR', payload: error instanceof Error ? error.message : 'Failed to create room' });
+      const appError = buildMultiplayerError(error, {
+        code: 'MP_CREATE_ROOM_FAILED',
+        message: 'Failed to create room',
+        userMessage: 'Failed to create room. Please try again.'
+      });
+      dispatch({ type: 'SET_ERROR', payload: appError.userMessage ?? appError.message });
       dispatch({ type: 'SET_LOADING', payload: false });
-      throw error;
+      throw appError;
     }
   };
 
@@ -434,7 +453,11 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
       dispatch({ type: 'SET_ERROR', payload: null });
       
       if (!user) {
-        throw new Error('User not authenticated');
+        throw new AppError({
+          code: 'MP_AUTH_REQUIRED',
+          message: 'User not authenticated',
+          userMessage: 'Please sign in to join a room.'
+        });
       }
 
       // Sync AuthService with current user state to prevent race conditions
@@ -456,9 +479,14 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
       dispatch({ type: 'SET_LOADING', payload: false });
       return success;
     } catch (error) {
-      dispatch({ type: 'SET_ERROR', payload: error instanceof Error ? error.message : 'Failed to join room' });
+      const appError = buildMultiplayerError(error, {
+        code: 'MP_JOIN_ROOM_FAILED',
+        message: 'Failed to join room',
+        userMessage: 'Failed to join room. Please try again.'
+      });
+      dispatch({ type: 'SET_ERROR', payload: appError.userMessage ?? appError.message });
       dispatch({ type: 'SET_LOADING', payload: false });
-      throw error;
+      throw appError;
     }
   };
 
@@ -479,24 +507,40 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
       dispatch({ type: 'RESET_ALL' });
       logger.log('✅ Room left successfully, state reset for new room creation');
     } catch (error) {
-      logger.error('❌ Error leaving room:', error);
-      dispatch({ type: 'SET_ERROR', payload: error instanceof Error ? error.message : 'Failed to leave room' });
-      throw error;
+      const appError = buildMultiplayerError(error, {
+        code: 'MP_LEAVE_ROOM_FAILED',
+        message: 'Failed to leave room',
+        userMessage: 'Failed to leave room. Please try again.'
+      });
+      dispatch({ type: 'SET_ERROR', payload: appError.userMessage ?? appError.message });
+      throw appError;
     }
   };
 
   const startGame = async (roundTimeSeconds: number = 60): Promise<void> => {
     try {
       if (!state.currentRoom) {
-        throw new Error('No room found');
+        throw new AppError({
+          code: 'MP_ROOM_NOT_FOUND',
+          message: 'No room found',
+          userMessage: 'Room not found.'
+        });
       }
       
       if (!state.isHost) {
-        throw new Error('Only the host can start the game');
+        throw new AppError({
+          code: 'MP_HOST_ONLY',
+          message: 'Only the host can start the game',
+          userMessage: 'Only the host can start the game.'
+        });
       }
       
       if (!user?.id) {
-        throw new Error('User not authenticated');
+        throw new AppError({
+          code: 'MP_AUTH_REQUIRED',
+          message: 'User not authenticated',
+          userMessage: 'Please sign in to start the game.'
+        });
       }
       
       // Prevent double starts
@@ -511,9 +555,13 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
       await multiplayerService.startGameV2(state.currentRoom.roomCode, user.id, roundTimeSeconds);
       logger.log('✅ ROOM_START: Game started successfully');
     } catch (error) {
-      logger.error('❌ ROOM_START: Error starting game:', error);
-      dispatch({ type: 'SET_ERROR', payload: error instanceof Error ? error.message : 'Failed to start game' });
-      throw error;
+      const appError = buildMultiplayerError(error, {
+        code: 'MP_START_GAME_FAILED',
+        message: 'Failed to start game',
+        userMessage: 'Failed to start game. Please try again.'
+      });
+      dispatch({ type: 'SET_ERROR', payload: appError.userMessage ?? appError.message });
+      throw appError;
     } finally {
       dispatch({ type: 'SET_STARTING', payload: false });
     }
@@ -522,24 +570,40 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
   const endGame = async (): Promise<void> => {
     try {
       if (!state.currentRoom) {
-        throw new Error('No room found');
+        throw new AppError({
+          code: 'MP_ROOM_NOT_FOUND',
+          message: 'No room found',
+          userMessage: 'Room not found.'
+        });
       }
       
       if (!state.isHost) {
-        throw new Error('Only the host can end the game');
+        throw new AppError({
+          code: 'MP_HOST_ONLY',
+          message: 'Only the host can end the game',
+          userMessage: 'Only the host can end the game.'
+        });
       }
       
       if (!user?.id) {
-        throw new Error('User not authenticated');
+        throw new AppError({
+          code: 'MP_AUTH_REQUIRED',
+          message: 'User not authenticated',
+          userMessage: 'Please sign in to end the game.'
+        });
       }
       
       logger.log('🏁 END_GAME: Host ending game...');
       await multiplayerService.endGameV2(state.currentRoom.roomCode, user.id);
       logger.log('✅ END_GAME: Game ended successfully');
     } catch (error) {
-      logger.error('❌ END_GAME: Error ending game:', error);
-      dispatch({ type: 'SET_ERROR', payload: error instanceof Error ? error.message : 'Failed to end game' });
-      throw error;
+      const appError = buildMultiplayerError(error, {
+        code: 'MP_END_GAME_FAILED',
+        message: 'Failed to end game',
+        userMessage: 'Failed to end game. Please try again.'
+      });
+      dispatch({ type: 'SET_ERROR', payload: appError.userMessage ?? appError.message });
+      throw appError;
     }
   };
 
@@ -549,7 +613,12 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
       
       await multiplayerService.kickPlayer(state.currentRoom.roomCode, user.id, playerId);
     } catch (error) {
-      dispatch({ type: 'SET_ERROR', payload: error instanceof Error ? error.message : 'Failed to kick player' });
+      const appError = buildMultiplayerError(error, {
+        code: 'MP_KICK_FAILED',
+        message: 'Failed to kick player',
+        userMessage: 'Failed to kick player. Please try again.'
+      });
+      dispatch({ type: 'SET_ERROR', payload: appError.userMessage ?? appError.message });
     }
   };
 
@@ -559,7 +628,12 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
       
       await multiplayerService.nextQuestion(state.currentRoom.roomCode, user.id);
     } catch (error) {
-      dispatch({ type: 'SET_ERROR', payload: error instanceof Error ? error.message : 'Failed to advance question' });
+      const appError = buildMultiplayerError(error, {
+        code: 'MP_NEXT_QUESTION_FAILED',
+        message: 'Failed to advance question',
+        userMessage: 'Failed to advance question. Please try again.'
+      });
+      dispatch({ type: 'SET_ERROR', payload: appError.userMessage ?? appError.message });
     }
   };
 
@@ -569,7 +643,12 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
       
       await multiplayerService.revealAnswer(state.currentRoom.roomCode, user.id, answer);
     } catch (error) {
-      dispatch({ type: 'SET_ERROR', payload: error instanceof Error ? error.message : 'Failed to reveal answer' });
+      const appError = buildMultiplayerError(error, {
+        code: 'MP_REVEAL_FAILED',
+        message: 'Failed to reveal answer',
+        userMessage: 'Failed to reveal answer. Please try again.'
+      });
+      dispatch({ type: 'SET_ERROR', payload: appError.userMessage ?? appError.message });
     }
   };
 
@@ -584,11 +663,20 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
           // Append to existing submitted answers instead of replacing
           dispatch({ type: 'ADD_SUBMITTED_ANSWER', payload: answers[0] });
         } else {
-          throw new Error(result.error || 'Failed to submit answer');
+          throw new AppError({
+            code: 'MP_SUBMIT_FAILED',
+            message: result.error || 'Failed to submit answer',
+            userMessage: result.error || 'Failed to submit answer. Please try again.'
+          });
         }
       }
     } catch (error) {
-      dispatch({ type: 'SET_ERROR', payload: error instanceof Error ? error.message : 'Failed to submit answers' });
+      const appError = buildMultiplayerError(error, {
+        code: 'MP_SUBMIT_FAILED',
+        message: 'Failed to submit answers',
+        userMessage: 'Failed to submit answers. Please try again.'
+      });
+      dispatch({ type: 'SET_ERROR', payload: appError.userMessage ?? appError.message });
     }
   };
 
@@ -598,7 +686,12 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
       
       await multiplayerService.advanceTurn(state.currentRoom.roomCode, user.id);
     } catch (error) {
-      dispatch({ type: 'SET_ERROR', payload: error instanceof Error ? error.message : 'Failed to advance turn' });
+      const appError = buildMultiplayerError(error, {
+        code: 'MP_ADVANCE_TURN_FAILED',
+        message: 'Failed to advance turn',
+        userMessage: 'Failed to advance turn. Please try again.'
+      });
+      dispatch({ type: 'SET_ERROR', payload: appError.userMessage ?? appError.message });
     }
   };
 
@@ -609,10 +702,19 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
       const result = await multiplayerService.skipTurnV2(state.currentRoom.roomCode, user.id);
       
       if (!result.success) {
-        throw new Error(result.error || 'Failed to skip turn');
+        throw new AppError({
+          code: 'MP_SKIP_FAILED',
+          message: result.error || 'Failed to skip turn',
+          userMessage: result.error || 'Failed to skip turn. Please try again.'
+        });
       }
     } catch (error) {
-      dispatch({ type: 'SET_ERROR', payload: error instanceof Error ? error.message : 'Failed to skip turn' });
+      const appError = buildMultiplayerError(error, {
+        code: 'MP_SKIP_FAILED',
+        message: 'Failed to skip turn',
+        userMessage: 'Failed to skip turn. Please try again.'
+      });
+      dispatch({ type: 'SET_ERROR', payload: appError.userMessage ?? appError.message });
     }
   };
 
@@ -651,17 +753,25 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
         
         logger.log(`🏁 Room terminated due to host disconnection`);
       } else if (result.action === 'error') {
-        logger.error(`❌ Host disconnection handling failed:`, result.error);
+        const appError = buildMultiplayerError(result.error, {
+          code: 'MP_HOST_DISCONNECT_FAILED',
+          message: 'Failed to handle host disconnection',
+          userMessage: 'Failed to handle host disconnection.'
+        });
         dispatch({ 
           type: 'SET_ERROR', 
-          payload: result.error || 'Failed to handle host disconnection' 
+          payload: appError.userMessage ?? appError.message
         });
       }
     } catch (error) {
-      logger.error('❌ Error handling host disconnection:', error);
+      const appError = buildMultiplayerError(error, {
+        code: 'MP_HOST_DISCONNECT_FAILED',
+        message: 'Failed to handle host disconnection',
+        userMessage: 'Failed to handle host disconnection.'
+      });
       dispatch({ 
         type: 'SET_ERROR', 
-        payload: error instanceof Error ? error.message : 'Failed to handle host disconnection' 
+        payload: appError.userMessage ?? appError.message
       });
     }
   };
@@ -696,17 +806,25 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
         
         logger.log(`✅ Game terminated successfully due to player disconnection`);
       } else {
-        logger.error(`❌ Failed to terminate game:`, result.error);
+        const appError = buildMultiplayerError(result.error, {
+          code: 'MP_TERMINATE_FAILED',
+          message: 'Failed to terminate game',
+          userMessage: 'Failed to terminate game.'
+        });
         dispatch({ 
           type: 'SET_ERROR', 
-          payload: result.error || 'Failed to terminate game' 
+          payload: appError.userMessage ?? appError.message
         });
       }
     } catch (error) {
-      logger.error('❌ Error terminating game:', error);
+      const appError = buildMultiplayerError(error, {
+        code: 'MP_TERMINATE_FAILED',
+        message: 'Failed to terminate game',
+        userMessage: 'Failed to terminate game.'
+      });
       dispatch({ 
         type: 'SET_ERROR', 
-        payload: error instanceof Error ? error.message : 'Failed to terminate game' 
+        payload: appError.userMessage ?? appError.message 
       });
     }
   };
@@ -718,7 +836,7 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
     dispatch({ type: 'SET_CATEGORY', payload: category });
   };
 
-  const setQuestions = (questions: Question[]) => {
+  const setQuestions = (questions: Array<Question | LegacyQuestion>) => {
     dispatch({ type: 'SET_QUESTIONS', payload: questions });
   };
 
@@ -752,7 +870,7 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
     dispatch({ type: 'RESET_ALL' });
   }, []);
 
-  const setNavigationCallback = useCallback((callback: (params: any) => void) => {
+  const setNavigationCallback = useCallback((callback: (params: RootStackParamList['GameScreen']) => void) => {
     dispatch({ type: 'SET_NAVIGATION_CALLBACK', payload: callback });
   }, []);
 
@@ -843,7 +961,11 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
 export const useMultiplayer = (): MultiplayerContextType => {
   const context = useContext(MultiplayerContext);
   if (context === undefined) {
-    throw new Error('useMultiplayer must be used within a MultiplayerProvider');
+    throw new AppError({
+      code: 'MP_CONTEXT_MISSING',
+      message: 'useMultiplayer must be used within a MultiplayerProvider',
+      userMessage: 'Multiplayer context is not available.'
+    });
   }
   return context;
 };

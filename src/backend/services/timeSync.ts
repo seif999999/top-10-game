@@ -1,9 +1,10 @@
 // Server time synchronization for accurate timer display
 // Handles client-server time drift and provides accurate time remaining calculations
 
-import { doc, setDoc, getDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp, deleteDoc, Timestamp } from 'firebase/firestore';
 import { db } from './firebase';
 import { logger } from '../utils/logger';
+import { AppError } from '../../shared/errors';
 import { TIMING, COLLECTIONS } from '../utils/constants';
 
 let serverTimeOffset: number | null = null;
@@ -62,7 +63,11 @@ async function computeServerTimeOffset(): Promise<number> {
   }
   
   if (samples.length === 0) {
-    throw new Error('No successful time samples');
+    throw new AppError({
+      code: 'TIMESYNC_NO_SAMPLES',
+      message: 'No successful time samples',
+      userMessage: 'Unable to sync time right now.'
+    });
   }
   
   // Average the samples
@@ -93,7 +98,11 @@ async function sampleServerTime(): Promise<number> {
   const serverTime = snap.data()?.timestamp;
   
   if (!serverTime) {
-    throw new Error('Failed to read server timestamp');
+    throw new AppError({
+      code: 'TIMESYNC_NO_TIMESTAMP',
+      message: 'Failed to read server timestamp',
+      userMessage: 'Unable to read server time.'
+    });
   }
   
   // Convert server timestamp to milliseconds
@@ -119,7 +128,7 @@ async function sampleServerTime(): Promise<number> {
  * @returns Time remaining in milliseconds
  */
 export async function calculateTimeRemaining(
-  roundStartTs: number | any,
+  roundStartTs: number | Timestamp | { toMillis?: () => number } | null | undefined,
   roundDurationSeconds: number
 ): Promise<number> {
   try {
@@ -193,7 +202,7 @@ export function formatTimeRemaining(timeRemainingMs: number): string {
  * @returns True if the round has expired
  */
 export async function isRoundExpired(
-  roundStartTs: number | any,
+  roundStartTs: number | Timestamp | { toMillis?: () => number } | null | undefined,
   roundDurationSeconds: number
 ): Promise<boolean> {
   const timeRemaining = await calculateTimeRemaining(roundStartTs, roundDurationSeconds);

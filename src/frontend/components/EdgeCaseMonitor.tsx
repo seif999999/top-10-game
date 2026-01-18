@@ -11,6 +11,7 @@ import {
 import { COLORS, SPACING, TYPOGRAPHY } from '../../backend/utils/constants';
 import { EdgeCaseHandler } from '../../backend/services/edgeCaseHandler';
 import { logger } from '../../backend/utils/logger';
+import { toAppError } from '../../shared/errors';
 
 interface EdgeCaseMonitorProps {
   roomCode?: string;
@@ -117,7 +118,12 @@ const EdgeCaseMonitor: React.FC<EdgeCaseMonitorProps> = ({
           addLog(`Unknown edge case: ${edgeCase}`);
       }
     } catch (error) {
-      addLog(`Error testing ${edgeCase}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const appError = toAppError(error, {
+        code: 'EDGE_CASE_TEST_FAILED',
+        message: 'Edge case test failed',
+        userMessage: 'Edge case test failed.'
+      });
+      addLog(`Error testing ${edgeCase}: ${appError.userMessage ?? appError.message}`);
     }
   };
 

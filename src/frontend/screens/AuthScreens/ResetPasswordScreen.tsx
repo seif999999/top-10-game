@@ -5,8 +5,10 @@ import Button from '../../components/Button';
 import { COLORS, SPACING } from '../../../backend/utils/constants';
 import { InputValidator } from '../../../backend/utils/inputValidator';
 import { confirmPasswordReset, verifyPasswordResetCode } from 'firebase/auth';
+import type { FirebaseError } from 'firebase/app';
 import { auth } from '../../../backend/services/firebase';
 import { logger } from '../../../backend/utils/logger';
+import type { ResetPasswordScreenProps } from '../../../shared/types/navigation';
 
 /**
  * ResetPasswordScreen Component
@@ -17,7 +19,7 @@ import { logger } from '../../../backend/utils/logger';
  * @param navigation - React Navigation object for screen transitions
  * @param route - Route parameters containing the reset code
  */
-const ResetPasswordScreen: React.FC<any> = ({ navigation, route }) => {
+const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ navigation, route }) => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -114,16 +116,18 @@ const ResetPasswordScreen: React.FC<any> = ({ navigation, route }) => {
           }
         ]
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Password reset error:', error);
-      
+
+      const firebaseError = error as FirebaseError | null;
       let errorMessage = 'Failed to reset password. Please try again.';
-      
-      if (error.code === 'auth/invalid-action-code') {
+      const errorCode = firebaseError?.code;
+
+      if (errorCode === 'auth/invalid-action-code') {
         errorMessage = 'This reset link has expired or is invalid. Please request a new password reset.';
-      } else if (error.code === 'auth/expired-action-code') {
+      } else if (errorCode === 'auth/expired-action-code') {
         errorMessage = 'This reset link has expired. Please request a new password reset.';
-      } else if (error.code === 'auth/weak-password') {
+      } else if (errorCode === 'auth/weak-password') {
         errorMessage = 'Password is too weak. Please choose a stronger password.';
       }
       

@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, TYPOGRAPHY, ANIMATIONS, COMPONENT_STYLES } from '../design-system';
 import { logger } from '../../backend/utils/logger';
 import { QuestionSelectionScreenProps } from '../../shared/types/navigation';
+import type { GameQuestion } from '../../shared/types';
 import { getQuestionsByCategory } from '../../backend/services/questionsService';
 import { FEATURES } from '../../backend/config/featureFlags';
 import TeamSetupModal from '../components/TeamSetupModal';
@@ -23,10 +24,10 @@ import { TeamSetupConfig } from '../../shared/types/teams';
 const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navigation, route }) => {
   const { categoryName, gameMode } = route.params;
   const insets = useSafeAreaInsets();
-  const [questions, setQuestions] = useState<any[]>([]);
+  const [questions, setQuestions] = useState<GameQuestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [showTeamSetup, setShowTeamSetup] = useState(false);
-  const [selectedQuestion, setSelectedQuestion] = useState<any>(null);
+  const [selectedQuestion, setSelectedQuestion] = useState<GameQuestion | null>(null);
   
   // Animation values
   const backButtonScale = useRef(new Animated.Value(1)).current;
@@ -50,7 +51,7 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
     }
   };
 
-  const handleQuestionSelect = (question: any) => {
+  const handleQuestionSelect = (question: GameQuestion) => {
     logger.log('🎯 Question selected:', question.title);
     
     if (gameMode === 'multiplayer') {
@@ -172,7 +173,7 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
     );
   }
 
-  const renderQuestionItem = ({ item, index }: { item: any; index: number }) => (
+  const renderQuestionItem = ({ item, index }: { item: GameQuestion; index: number }) => (
     <TouchableOpacity 
       style={styles.questionCard} 
       onPress={() => handleQuestionSelect(item)}

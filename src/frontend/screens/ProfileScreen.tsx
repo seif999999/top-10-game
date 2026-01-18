@@ -10,6 +10,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { InputValidator } from '../../backend/utils/inputValidator';
 import { RateLimitService } from '../../backend/services/rateLimitService';
 import { logger } from '../../backend/utils/logger';
+import { toAppError } from '../../shared/errors';
 
 
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
@@ -79,8 +80,13 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       Alert.alert('Success', 'Profile updated successfully!');
       setIsEditing(false);
     } catch (error) {
-      logger.error('Profile update error:', error);
-      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to update profile. Please try again.');
+      const appError = toAppError(error, {
+        code: 'PROFILE_UPDATE_FAILED',
+        message: 'Failed to update profile',
+        userMessage: 'Failed to update profile. Please try again.'
+      });
+      logger.error('Profile update error:', appError);
+      Alert.alert('Error', appError.userMessage ?? appError.message);
     }
   };
 
@@ -90,10 +96,15 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       await signOut();
       logger.log('✅ ProfileScreen: Sign-out completed successfully');
     } catch (error) {
-      logger.error('💥 ProfileScreen: Sign-out error:', error);
+      const appError = toAppError(error, {
+        code: 'PROFILE_SIGNOUT_FAILED',
+        message: 'Failed to sign out',
+        userMessage: 'Failed to sign out. Please try again.'
+      });
+      logger.error('💥 ProfileScreen: Sign-out error:', appError);
       Alert.alert(
         'Sign-Out Error', 
-        error instanceof Error ? error.message : 'Failed to sign out. Please try again.'
+        appError.userMessage ?? appError.message
       );
     }
   };

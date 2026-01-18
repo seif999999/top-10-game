@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { logger } from '../utils/logger';
+import type { GameResults, GameRound, PlayerAnswer } from '../../shared/types';
+import type { Question } from '../../shared/types/game';
 
 export interface GameStats {
   userId: string;
@@ -23,6 +25,13 @@ export interface GameHistory {
   timeTaken: number;
 }
 
+export interface UserPreferences {
+  soundEnabled: boolean;
+  hapticEnabled: boolean;
+  defaultTimer: number;
+  theme: 'dark' | 'light';
+}
+
 const STORAGE_KEYS = {
   GAME_STATS: 'game_stats',
   GAME_HISTORY: 'game_history',
@@ -33,7 +42,7 @@ const STORAGE_KEYS = {
 /**
  * Save game statistics for a user
  */
-export const saveGameStats = async (userId: string, gameResults: any): Promise<void> => {
+export const saveGameStats = async (userId: string, gameResults: GameResults): Promise<void> => {
   try {
     const existingStats = await getPlayerStats(userId);
     const newStats: GameStats = {
@@ -42,10 +51,10 @@ export const saveGameStats = async (userId: string, gameResults: any): Promise<v
       totalScore: existingStats.totalScore + gameResults.finalScores[userId],
       averageScore: Math.round((existingStats.totalScore + gameResults.finalScores[userId]) / (existingStats.totalGames + 1)),
       bestScore: Math.max(existingStats.bestScore, gameResults.finalScores[userId]),
-      correctAnswers: existingStats.correctAnswers + gameResults.roundResults.reduce((total: number, round: any) => {
-        return total + (round.playerAnswers?.filter((answer: any) => answer.isCorrect)?.length || 0);
+      correctAnswers: existingStats.correctAnswers + gameResults.roundResults.reduce((total: number, round: GameRound) => {
+        return total + (round.playerAnswers?.filter((answer: PlayerAnswer) => answer.isCorrect)?.length || 0);
       }, 0),
-      totalAnswers: existingStats.totalAnswers + gameResults.roundResults.reduce((total: number, round: any) => {
+      totalAnswers: existingStats.totalAnswers + gameResults.roundResults.reduce((total: number, round: GameRound) => {
         return total + (round.playerAnswers?.length || 0);
       }, 0),
       favoriteCategories: existingStats.favoriteCategories,
@@ -127,7 +136,7 @@ export const saveFavoriteCategories = async (userId: string, categories: string[
 /**
  * Get cached questions for a category
  */
-export const getCachedQuestions = async (category: string): Promise<any[]> => {
+export const getCachedQuestions = async (category: string): Promise<Question[]> => {
   try {
     const cached = await AsyncStorage.getItem(`questions_${category}`);
     return cached ? JSON.parse(cached) : [];
@@ -140,7 +149,7 @@ export const getCachedQuestions = async (category: string): Promise<any[]> => {
 /**
  * Cache questions for a category
  */
-export const cacheQuestions = async (category: string, questions: any[]): Promise<void> => {
+export const cacheQuestions = async (category: string, questions: Question[]): Promise<void> => {
   try {
     await AsyncStorage.setItem(`questions_${category}`, JSON.stringify(questions));
   } catch (error) {
@@ -197,7 +206,7 @@ export const getAllGameHistory = async (): Promise<{[userId: string]: GameHistor
 /**
  * Save user preferences
  */
-export const saveUserPreferences = async (userId: string, preferences: any): Promise<void> => {
+export const saveUserPreferences = async (userId: string, preferences: UserPreferences): Promise<void> => {
   try {
     const allPreferences = await getAllUserPreferences();
     allPreferences[userId] = preferences;
@@ -211,7 +220,7 @@ export const saveUserPreferences = async (userId: string, preferences: any): Pro
 /**
  * Get user preferences
  */
-export const getUserPreferences = async (userId: string): Promise<any> => {
+export const getUserPreferences = async (userId: string): Promise<UserPreferences> => {
   try {
     const allPreferences = await getAllUserPreferences();
     return allPreferences[userId] || {
@@ -234,7 +243,7 @@ export const getUserPreferences = async (userId: string): Promise<any> => {
 /**
  * Get all user preferences
  */
-export const getAllUserPreferences = async (): Promise<{[userId: string]: any}> => {
+export const getAllUserPreferences = async (): Promise<{[userId: string]: UserPreferences}> => {
   try {
     const preferences = await AsyncStorage.getItem(STORAGE_KEYS.USER_PREFERENCES);
     return preferences ? JSON.parse(preferences) : {};

@@ -1,7 +1,16 @@
 import { Platform } from 'react-native';
 
+type WebStyle = Record<string, unknown> & {
+  shadowColor?: string;
+  shadowOffset?: { width?: number; height?: number };
+  shadowRadius?: number;
+  shadowOpacity?: number;
+  elevation?: number;
+  boxShadow?: string;
+};
+
 // Web-specific style utilities
-export const getWebSafeStyle = (style: any) => {
+export const getWebSafeStyle = (style: WebStyle) => {
   if (Platform.OS === 'web') {
     // Convert React Native styles to web-compatible styles
     const webStyle = { ...style };
@@ -28,7 +37,7 @@ export const getWebSafeStyle = (style: any) => {
 };
 
 // Web-specific responsive utilities
-export const getResponsiveValue = (mobile: any, web: any) => {
+export const getResponsiveValue = <T>(mobile: T, web: T): T => {
   return Platform.OS === 'web' ? web : mobile;
 };
 

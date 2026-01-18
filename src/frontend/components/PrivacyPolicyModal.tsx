@@ -9,6 +9,7 @@ import {
   Alert,
   Dimensions,
 } from 'react-native';
+import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { COLORS, SPACING, TYPOGRAPHY } from '../../backend/utils/constants';
 import { logger } from '../../backend/utils/logger';
 
@@ -29,7 +30,7 @@ const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({
   const [isAccepting, setIsAccepting] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
 
-  const handleScroll = (event: any) => {
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
     const isAtBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - 20;
     

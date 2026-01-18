@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+web-build/
+.expo/
+
+# Coverage
+coverage/
+
+# Generated files
+*.generated.*
+
+# Config files that don't need linting
+babel.config.js
+metro.config.js
+webpack.config.js
+jest.config.js
+app.config.js
+
+# Lock files
+package-lock.json
+yarn.lock
+
+# Documentation
+*.md
+
+# Assets
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.ico

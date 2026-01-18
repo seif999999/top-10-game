@@ -11,11 +11,13 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useMultiplayer } from '../contexts/MultiplayerContext';
 import { COLORS, SPACING, TYPOGRAPHY, ANIMATIONS } from '../design-system';
 import { logger } from '../../backend/utils/logger';
 import { RESPONSIVE } from '../utils/responsive';
 import { sampleQuestions } from '../../backend/data/sampleQuestions';
+import type { RootStackParamList } from '../../shared/types/navigation';
 
 const { width, height } = Dimensions.get('window');
 const CARD_WIDTH = Math.min(width * 0.98, RESPONSIVE.width.maxMd);
@@ -91,7 +93,7 @@ const categories = [
 interface MultiplayerCategoryScreenProps {}
 
 const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
   const { 
     selectedCategory, 
@@ -159,7 +161,7 @@ const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () =
     logger.log('🎯 Game mode: multiplayer');
     
     // Navigate to MultiplayerQuestions with the selected category
-    (navigation as any).navigate('MultiplayerQuestions', { 
+    navigation.navigate('MultiplayerQuestions', { 
       categoryName: category.name 
     });
   };

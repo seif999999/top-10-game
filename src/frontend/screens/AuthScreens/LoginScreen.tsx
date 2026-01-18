@@ -7,6 +7,7 @@ import { COLORS, SPACING } from '../../../backend/utils/constants';
 import { LoginScreenProps } from '../../../shared/types/navigation';
 import { InputValidator } from '../../../backend/utils/inputValidator';
 import { logger } from '../../../backend/utils/logger';
+import { toAppError } from '../../../shared/errors';
 
 type Props = LoginScreenProps;
 
@@ -89,9 +90,13 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
       await signIn(sanitizedEmail, sanitizedPassword);
       logger.log('✅ DEBUG: SignIn successful');
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An error occurred';
-      setFirebaseError(errorMessage);
-      logger.error('❌ DEBUG: Login error:', errorMessage);
+      const appError = toAppError(error, {
+        code: 'AUTH_LOGIN_FAILED',
+        message: 'Login failed',
+        userMessage: 'Login failed. Please try again.'
+      });
+      setFirebaseError(appError.userMessage ?? appError.message);
+      logger.error('❌ DEBUG: Login error:', appError);
     } finally {
       setLocalLoading(false);
     }
