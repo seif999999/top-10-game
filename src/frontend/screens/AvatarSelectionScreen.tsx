@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING, TYPOGRAPHY } from '../design-system';
 import { useAuth } from '../contexts/AuthContext';
 import { logger } from '../../backend/utils/logger';
@@ -153,10 +154,17 @@ const AvatarSelectionScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Dark Purple Background */}
+      <LinearGradient
+        colors={['#1a1a2e', '#16213e', '#0f0f1e']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + SPACING.md }]}>
         <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-          <Text style={styles.backButtonText}>‹ Back</Text>
+          <Text style={styles.backButtonText}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Choose Avatar</Text>
         <View style={styles.placeholder} />
@@ -202,7 +210,7 @@ const AvatarSelectionScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#1a1a2e',
   },
   header: {
     flexDirection: 'row',
@@ -214,13 +222,19 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.border,
   },
   backButton: {
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   backButtonText: {
-    fontSize: 16,
-    color: COLORS.primary,
+    color: '#FFFFFF',
+    fontSize: 24,
     fontWeight: '600',
+    textShadowColor: 'rgba(173, 216, 230, 0.6)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 8,
+    includeFontPadding: false,
   },
   headerTitle: {
     fontSize: 20,
@@ -324,7 +338,7 @@ const styles = StyleSheet.create({
   },
   saveSection: {
     paddingVertical: SPACING.xl,
-    paddingBottom: SPACING.xxl,
+    paddingBottom: SPACING['2xl'],
   },
   saveButton: {
     backgroundColor: COLORS.primary,
@@ -342,7 +356,7 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   disabledButton: {
-    backgroundColor: COLORS.muted,
+    backgroundColor: COLORS.gray[600],
     shadowOpacity: 0,
     elevation: 0,
   },

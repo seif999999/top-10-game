@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import Button from '../../components/Button';
 import { useAuth } from '../../contexts/AuthContext';
 import { COLORS, SPACING } from '../../../backend/utils/constants';
@@ -19,6 +21,9 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const [firebaseError, setFirebaseError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const passwordInputRef = useRef<TextInput>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const passwordContainerRef = useRef<View>(null);
 
   const validate = () => {
     const next: { email?: string; password?: string } = {};
@@ -106,60 +111,105 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Welcome back</Text>
-      <Text style={styles.subtitle}>Sign in to continue playing</Text>
-      
-      <TextInput 
-        placeholder="Email" 
-        placeholderTextColor={COLORS.muted}
-        autoCapitalize="none" 
-        keyboardType="email-address"
-        value={email} 
-        onChangeText={setEmail}
-        editable={!isLoading}
-        style={styles.input}
+      {/* Dark Purple Gradient Background */}
+      <LinearGradient
+        colors={['#1a1a2e', '#16213e', '#0f0f1e']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
       />
-      {errors.email ? <Text style={styles.error}>{errors.email}</Text> : null}
-      <View style={styles.passwordContainer}>
-        <TextInput 
-          placeholder="Password" 
-          placeholderTextColor={COLORS.muted}
-          secureTextEntry={!showPassword}
-          value={password} 
-          onChangeText={setPassword}
-          editable={!isLoading}
-          style={styles.passwordInput}
-        />
-        <TouchableOpacity 
-          style={styles.eyeButton}
-          onPress={() => setShowPassword(!showPassword)}
-          disabled={isLoading}
+      
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <ScrollView
+          ref={scrollViewRef}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.eyeIcon}>
-            {showPassword ? '👁️' : '👁️‍🗨️'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-      {errors.password ? <Text style={styles.error}>{errors.password}</Text> : null}
-      
-      {firebaseError ? <Text style={styles.firebaseError}>{firebaseError}</Text> : null}
-      
-      <Button 
-        title={isLoading ? 'Signing in…' : 'Sign In'} 
-        onPress={handleSignIn}
-        disabled={isLoading}
-      />
+          {/* Logo */}
+          <View style={styles.logoContainer}>
+            <View style={styles.logoSubtleGlow} />
+            <View style={styles.logoTextWrapper}>
+              <Text style={styles.logoTop}>TOP</Text>
+              <Text style={styles.logoNumber}>10</Text>
+            </View>
+          </View>
+          
+          <Text style={styles.subtitle}>Sign in to start playing</Text>
+          
+          <TextInput 
+            placeholder="Email" 
+            placeholderTextColor={COLORS.muted}
+            autoCapitalize="none" 
+            keyboardType="email-address"
+            value={email} 
+            onChangeText={setEmail}
+            editable={!isLoading}
+            style={styles.input}
+            returnKeyType="next"
+            onSubmitEditing={() => passwordInputRef.current?.focus()}
+          />
+          {errors.email ? <Text style={styles.error}>{errors.email}</Text> : null}
+          <View ref={passwordContainerRef} style={styles.passwordContainer}>
+            <TextInput 
+              ref={passwordInputRef}
+              placeholder="Password" 
+              placeholderTextColor={COLORS.muted}
+              secureTextEntry={!showPassword}
+              value={password} 
+              onChangeText={setPassword}
+              editable={!isLoading}
+              style={styles.passwordInput}
+              returnKeyType="done"
+              onSubmitEditing={handleSignIn}
+              onFocus={() => {
+                // Scroll just enough to show the password field with some padding above it
+                // This prevents showing "Forgot password" and other content below
+                setTimeout(() => {
+                  // Scroll to position that shows password field but not content below
+                  scrollViewRef.current?.scrollTo({ y: 180, animated: true });
+                }, 200);
+              }}
+            />
+            <TouchableOpacity 
+              style={styles.eyeButton}
+              onPress={() => setShowPassword(!showPassword)}
+              disabled={isLoading}
+            >
+              <Ionicons 
+                name={showPassword ? 'eye' : 'eye-off'} 
+                size={20} 
+                color={COLORS.muted}
+                style={styles.eyeIcon}
+              />
+            </TouchableOpacity>
+          </View>
+          {errors.password ? <Text style={styles.error}>{errors.password}</Text> : null}
+          
+          {firebaseError ? <Text style={styles.firebaseError}>{firebaseError}</Text> : null}
+          
+          <Button 
+            title={isLoading ? 'Signing in…' : 'Sign In'} 
+            onPress={handleSignIn}
+            disabled={isLoading}
+          />
 
-      <TouchableOpacity style={styles.linkCenter} onPress={() => navigation.navigate('ForgotPassword')} disabled={isLoading}>
-        <Text style={styles.linkText}>Forgot password?</Text>
-      </TouchableOpacity>
-      
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>Don't have an account? </Text>
-        <TouchableOpacity onPress={() => navigation.navigate('Register')} disabled={isLoading}>
-          <Text style={[styles.linkText, isLoading && styles.disabledText]}>Sign up</Text>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity style={styles.linkCenter} onPress={() => navigation.navigate('ForgotPassword')} disabled={isLoading}>
+            <Text style={styles.linkText}>Forgot password?</Text>
+          </TouchableOpacity>
+          
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Don't have an account? </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Register')} disabled={isLoading}>
+              <Text style={[styles.linkText, isLoading && styles.disabledText]}>Sign up</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -167,10 +217,16 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+  },
+  keyboardAvoidingView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
     padding: SPACING.xl,
     gap: SPACING.lg,
-    justifyContent: 'center'
+    justifyContent: 'center',
+    paddingBottom: SPACING.lg, // Reduced padding to prevent excessive scrolling
   },
   title: {
     color: COLORS.text,
@@ -256,9 +312,50 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   eyeIcon: {
-    fontSize: 18,
     opacity: 0.8,
-    color: COLORS.muted
+  },
+  logoContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SPACING.lg,
+    position: 'relative',
+    height: 120,
+    width: '100%',
+  },
+  logoSubtleGlow: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: 'rgba(139, 92, 246, 0.15)',
+    transform: [{ translateX: -70 }, { translateY: -70 }],
+    opacity: 0.5,
+  },
+  logoTextWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+    position: 'relative',
+  },
+  logoTop: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    fontWeight: '500',
+    letterSpacing: 4,
+    textAlign: 'center',
+    marginBottom: 2,
+  },
+  logoNumber: {
+    fontSize: 60,
+    fontWeight: '900',
+    textAlign: 'center',
+    color: '#FFFFFF',
+    textShadowColor: '#8B5CF6',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 20,
+    includeFontPadding: false,
   },
 });
 

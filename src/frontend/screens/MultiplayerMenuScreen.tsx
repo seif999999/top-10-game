@@ -10,7 +10,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { COLORS, SPACING, TYPOGRAPHY, ACCESSIBILITY } from '../../backend/utils/constants';
+import { LinearGradient } from 'expo-linear-gradient';
+import { COLORS, SPACING } from '../../backend/utils/constants';
 
 const { width, height } = Dimensions.get('window');
 
@@ -34,6 +35,14 @@ const MultiplayerMenuScreen: React.FC<MultiplayerMenuScreenProps> = () => {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Dark Purple Background */}
+      <LinearGradient
+        colors={['#1a1a2e', '#16213e', '#0f0f1e']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + SPACING.md }]}>
         <TouchableOpacity 
@@ -42,8 +51,9 @@ const MultiplayerMenuScreen: React.FC<MultiplayerMenuScreenProps> = () => {
           accessibilityLabel="Go back"
           accessibilityHint="Returns to main menu"
         >
-          <View style={styles.backButtonIcon}>
-            <Text style={styles.backButtonArrow}>‹</Text>
+          <View style={styles.backButtonContent}>
+            <Text style={styles.backButtonArrow}>←</Text>
+            <View style={styles.backButtonDash} />
           </View>
         </TouchableOpacity>
         <View style={styles.headerContent}>
@@ -58,68 +68,92 @@ const MultiplayerMenuScreen: React.FC<MultiplayerMenuScreenProps> = () => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.welcomeSection}>
-          <Text style={styles.welcomeTitle}>Welcome to Multiplayer!</Text>
-          <Text style={styles.welcomeSubtitle}>
-            Create a room and invite friends, or join an existing game
+        {/* Description */}
+        <View style={styles.descriptionSection}>
+          <Text style={styles.descriptionText}>
+            Create or join a room to play with friends online
           </Text>
         </View>
 
-        {/* Action Buttons */}
+        {/* Action Cards */}
         <View style={styles.buttonContainer}>
           <TouchableOpacity
-            style={[styles.actionButton, styles.createButton]}
+            style={styles.actionCard}
             onPress={handleCreateRoom}
+            activeOpacity={0.9}
             accessibilityLabel="Create a new room"
             accessibilityHint="Opens room creation screen where you can select category and questions"
           >
-            <Text style={styles.createButtonIcon}>🏠</Text>
-            <Text style={styles.createButtonTitle}>Create Room</Text>
-            <Text style={styles.createButtonSubtitle}>
-              Host a new game and invite friends
-            </Text>
+            <LinearGradient
+              colors={['#8B5CF6', '#A78BFA']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.cardGradient}
+            >
+              <View style={styles.cardContent}>
+                <Text style={styles.cardIcon}>🏡</Text>
+                <View style={styles.cardTextContainer}>
+                  <Text style={styles.cardTitle}>Create Room</Text>
+                  <Text style={styles.cardSubtitle}>
+                    Host a new game and invite friends
+                  </Text>
+                </View>
+              </View>
+            </LinearGradient>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.actionButton, styles.joinButton]}
+            style={styles.actionCard}
             onPress={handleJoinRoom}
+            activeOpacity={0.9}
             accessibilityLabel="Join an existing room"
             accessibilityHint="Opens room joining screen where you can enter a room code"
           >
-            <Text style={styles.joinButtonIcon}>🚪</Text>
-            <Text style={styles.joinButtonTitle}>Join Room</Text>
-            <Text style={styles.joinButtonSubtitle}>
-              Enter a room code to join a game
-            </Text>
+            <LinearGradient
+              colors={['#7C3AED', '#8B5CF6']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.cardGradient}
+            >
+              <View style={styles.cardContent}>
+                <Text style={styles.cardIcon}>🚪</Text>
+                <View style={styles.cardTextContainer}>
+                  <Text style={styles.cardTitle}>Join Room</Text>
+                  <Text style={styles.cardSubtitle}>
+                    Enter a room code to join a game
+                  </Text>
+                </View>
+              </View>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
 
-        {/* Info Section */}
+        {/* How it works Section */}
         <View style={styles.infoSection}>
           <Text style={styles.infoTitle}>How it works:</Text>
           <View style={styles.infoList}>
             <View style={styles.infoItem}>
-              <Text style={styles.infoBullet}>•</Text>
+              <View style={styles.infoBulletDot} />
               <Text style={styles.infoText}>
-                Create a room to host an online game with up to 8 players
+                Create a room for up to 8 players
               </Text>
             </View>
             <View style={styles.infoItem}>
-              <Text style={styles.infoBullet}>•</Text>
+              <View style={styles.infoBulletDot} />
               <Text style={styles.infoText}>
-                Share the room code with friends to invite them to join
+                Share the room code with your friends
               </Text>
             </View>
             <View style={styles.infoItem}>
-              <Text style={styles.infoBullet}>•</Text>
+              <View style={styles.infoBulletDot} />
               <Text style={styles.infoText}>
-                Host controls the game flow and can start/end games
+                Host controls the game and questions
               </Text>
             </View>
             <View style={styles.infoItem}>
-              <Text style={styles.infoBullet}>•</Text>
+              <View style={styles.infoBulletDot} />
               <Text style={styles.infoText}>
-                Players submit answers and compete for the top score
+                Players compete for the top score
               </Text>
             </View>
           </View>
@@ -132,7 +166,7 @@ const MultiplayerMenuScreen: React.FC<MultiplayerMenuScreenProps> = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#1a1a2e',
   },
   scrollView: {
     flex: 1,
@@ -140,48 +174,30 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: SPACING.lg,
-    paddingBottom: SPACING.xl + 20, // Extra padding for safe scrolling
+    paddingBottom: SPACING.xxl,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
     paddingBottom: SPACING.xl,
+    zIndex: 10,
   },
   backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: 22,
-    backgroundColor: 'rgba(139, 92, 246, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.2)',
-    shadowColor: '#8B5CF6',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  backButtonIcon: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    width: 40,
+    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
   },
   backButtonArrow: {
-    color: '#8B5CF6',
-    fontSize: 18,
-    fontWeight: 'bold' as const,
-    lineHeight: 20,
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '600' as const,
+    textShadowColor: 'rgba(173, 216, 230, 0.6)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 8,
+    includeFontPadding: false,
   },
   headerContent: {
     flex: 1,
@@ -189,120 +205,122 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    fontSize: 20,
-    fontWeight: 'bold' as const,
-    color: COLORS.text,
+    fontSize: 24,
+    fontWeight: '600' as const,
+    color: '#FFFFFF',
     textAlign: 'center',
   },
   placeholder: {
-    width: 60, // Same width as back button for centering
+    width: 40,
   },
-  content: {
-    flex: 1,
-    paddingTop: SPACING.xl,
+  descriptionSection: {
+    alignItems: 'center',
+    marginTop: SPACING.xl,
+    marginBottom: SPACING.xxl,
+  },
+  descriptionText: {
+    fontSize: 16,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    lineHeight: 22,
+    maxWidth: width * 0.85,
   },
   welcomeSection: {
     alignItems: 'center',
     marginBottom: SPACING.xxl,
+    marginTop: SPACING.lg,
   },
   welcomeTitle: {
-    fontSize: 28,
-    fontWeight: 'bold' as const,
-    color: COLORS.text,
+    fontSize: 32,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
     textAlign: 'center',
     marginBottom: SPACING.sm,
   },
   welcomeSubtitle: {
     fontSize: 16,
-    color: COLORS.muted,
+    color: '#9CA3AF',
     textAlign: 'center',
     lineHeight: 24,
+    maxWidth: width * 0.9,
   },
   buttonContainer: {
     gap: SPACING.lg,
     marginBottom: SPACING.xxl,
+    marginTop: SPACING.lg,
   },
-  actionButton: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 16,
-    padding: SPACING.xl,
-    alignItems: 'center',
-    shadowColor: '#000',
+  actionCard: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: '#8B5CF6',
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 8,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12,
   },
-  createButton: {
-    borderWidth: 2,
-    borderColor: COLORS.primary,
+  cardGradient: {
+    padding: 20,
+    borderRadius: 20,
   },
-  joinButton: {
-    borderWidth: 2,
-    borderColor: COLORS.secondary,
+  cardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  createButtonIcon: {
+  cardIcon: {
     fontSize: 48,
-    marginBottom: SPACING.md,
+    marginRight: SPACING.lg,
   },
-  createButtonTitle: {
-    fontSize: 24,
-    fontWeight: 'bold' as const,
-    color: COLORS.text,
-    marginBottom: SPACING.sm,
+  cardTextContainer: {
+    flex: 1,
   },
-  createButtonSubtitle: {
+  cardTitle: {
+    fontSize: 20,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  cardSubtitle: {
     fontSize: 14,
-    color: COLORS.muted,
-    textAlign: 'center',
-  },
-  joinButtonIcon: {
-    fontSize: 48,
-    marginBottom: SPACING.md,
-  },
-  joinButtonTitle: {
-    fontSize: 24,
-    fontWeight: 'bold' as const,
-    color: COLORS.text,
-    marginBottom: SPACING.sm,
-  },
-  joinButtonSubtitle: {
-    fontSize: 14,
-    color: COLORS.muted,
-    textAlign: 'center',
+    color: 'rgba(255, 255, 255, 0.80)',
+    lineHeight: 20,
   },
   infoSection: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    padding: SPACING.lg,
+    backgroundColor: '#1e1e2e',
+    borderRadius: 16,
+    padding: SPACING.xl,
+    marginTop: SPACING.lg,
+    borderWidth: 1,
+    borderColor: '#666666',
   },
   infoTitle: {
     fontSize: 18,
-    fontWeight: 'bold' as const,
-    color: COLORS.text,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
     marginBottom: SPACING.md,
   },
   infoList: {
-    gap: SPACING.sm,
+    gap: SPACING.md,
   },
   infoItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
   },
-  infoBullet: {
-    fontSize: 16,
-    color: COLORS.primary,
-    marginRight: SPACING.sm,
-    marginTop: 2,
+  infoBulletDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#60A5FA',
+    marginRight: SPACING.md,
+    marginTop: 6,
   },
   infoText: {
-    fontSize: 14,
-    color: COLORS.muted,
+    fontSize: 16,
+    color: '#FFFFFF',
     flex: 1,
-    lineHeight: 20,
+    lineHeight: 24,
   },
 });
 

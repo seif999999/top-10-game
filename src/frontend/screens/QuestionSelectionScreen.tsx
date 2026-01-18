@@ -3,7 +3,6 @@ import {
   View, 
   Text, 
   StyleSheet, 
-  SafeAreaView, 
   TouchableOpacity, 
   ScrollView, 
   ActivityIndicator,
@@ -11,7 +10,8 @@ import {
   Alert,
   Animated
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING, TYPOGRAPHY, ANIMATIONS, COMPONENT_STYLES } from '../design-system';
 import { logger } from '../../backend/utils/logger';
 import { QuestionSelectionScreenProps } from '../../shared/types/navigation';
@@ -28,9 +28,6 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
   const [loading, setLoading] = useState(true);
   const [showTeamSetup, setShowTeamSetup] = useState(false);
   const [selectedQuestion, setSelectedQuestion] = useState<GameQuestion | null>(null);
-  
-  // Animation values
-  const backButtonScale = useRef(new Animated.Value(1)).current;
   
   logger.log('🎯 QuestionSelectionScreen loaded with params:', route.params);
   logger.log('🎯 Category name:', categoryName);
@@ -110,26 +107,18 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
   };
 
   const handleBackToCategories = () => {
-    // Button press animation
-    Animated.sequence([
-      Animated.timing(backButtonScale, {
-        toValue: 0.9,
-        duration: ANIMATIONS.duration.fast,
-        useNativeDriver: true,
-      }),
-      Animated.timing(backButtonScale, {
-        toValue: 1,
-        duration: ANIMATIONS.duration.fast,
-        useNativeDriver: true,
-      })
-    ]).start();
-    
     navigation.navigate('Categories', { gameMode: 'single' });
   };
 
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
+        <LinearGradient
+          colors={['#1a1a2e', '#16213e', '#0f0f1e']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>Loading questions...</Text>
@@ -141,16 +130,18 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
   if (questions.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <Animated.View style={{ transform: [{ scale: backButtonScale }] }}>
-            <TouchableOpacity onPress={handleBackToCategories} style={styles.backButton}>
-              <View style={styles.backButtonIcon}>
-                <Text style={styles.backButtonArrow}>‹</Text>
-              </View>
-            </TouchableOpacity>
-          </Animated.View>
+        <LinearGradient
+          colors={['#1a1a2e', '#16213e', '#0f0f1e']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+        <View style={[styles.header, { paddingTop: insets.top + SPACING.md }]}>
+          <TouchableOpacity onPress={handleBackToCategories} style={styles.backButton}>
+            <Text style={styles.backButtonArrow}>←</Text>
+          </TouchableOpacity>
           <View style={styles.headerContent}>
-            <Text style={styles.title}>Choose a Question</Text>
+            <Text style={styles.title}>{categoryName}</Text>
           </View>
           <View style={styles.placeholder} />
         </View>
@@ -173,35 +164,21 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
     );
   }
 
-  const renderQuestionItem = ({ item, index }: { item: GameQuestion; index: number }) => (
-    <TouchableOpacity 
-      style={styles.questionCard} 
-      onPress={() => handleQuestionSelect(item)}
-    >
-      <View style={styles.questionContent}>
-        <Text style={styles.questionTitle}>{item.title}</Text>
-        <Text style={styles.questionSubtitle}>
-          {item.answers?.length || 0} answers • Tap to play
-        </Text>
-      </View>
-      <View style={styles.questionArrow}>
-        <Text style={styles.arrowText}>→</Text>
-      </View>
-    </TouchableOpacity>
-  );
-
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
-      <View style={[styles.header, { paddingTop: insets.top + SPACING.lg }]}>
-        <Animated.View style={{ transform: [{ scale: backButtonScale }] }}>
-          <TouchableOpacity onPress={handleBackToCategories} style={styles.backButton}>
-            <View style={styles.backButtonIcon}>
-              <Text style={styles.backButtonArrow}>‹</Text>
-            </View>
-          </TouchableOpacity>
-        </Animated.View>
+      {/* Dark Purple Background */}
+      <LinearGradient
+        colors={['#1a1a2e', '#16213e', '#0f0f1e']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={[styles.header, { paddingTop: insets.top + SPACING.md }]}>
+        <TouchableOpacity onPress={handleBackToCategories} style={styles.backButton}>
+          <Text style={styles.backButtonArrow}>←</Text>
+        </TouchableOpacity>
         <View style={styles.headerContent}>
-          <Text style={styles.title}>Choose a Question</Text>
+          <Text style={styles.title}>{categoryName}</Text>
         </View>
         <View style={styles.placeholder} />
       </View>
@@ -211,19 +188,21 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        <View style={styles.categoryInfo}>
-          <Text style={styles.categoryTitle}>{categoryName}</Text>
-          <Text style={styles.categorySubtitle}>
-            {questions.length} question{questions.length !== 1 ? 's' : ''} available
-          </Text>
-        </View>
-
+        {/* Questions List */}
         <View style={styles.questionsList}>
           {questions.map((item, index) => (
-            <View key={item.id || item.title}>
-              {renderQuestionItem({ item, index })}
-              {index < questions.length - 1 && <View style={styles.separator} />}
-            </View>
+            <TouchableOpacity 
+              key={item.id || item.title}
+              style={styles.questionCard} 
+              onPress={() => handleQuestionSelect(item)}
+              activeOpacity={0.8}
+            >
+              <View style={styles.questionCardContent}>
+                <Text style={styles.questionNumber}>Question {index + 1}</Text>
+                <Text style={styles.questionText}>{item.title}</Text>
+              </View>
+              <Text style={styles.questionArrow}>→</Text>
+            </TouchableOpacity>
           ))}
         </View>
       </ScrollView>
@@ -241,48 +220,30 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background
+    backgroundColor: '#1a1a2e',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
     paddingBottom: SPACING.xl,
+    zIndex: 10,
   },
   backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: 22,
-    backgroundColor: 'rgba(139, 92, 246, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.2)',
-    shadowColor: '#8B5CF6',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  backButtonIcon: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    width: 40,
+    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
   },
   backButtonArrow: {
-    color: '#8B5CF6',
-    fontSize: 18,
-    fontWeight: '700' as const,
-    lineHeight: 20,
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '600' as const,
+    textShadowColor: 'rgba(173, 216, 230, 0.6)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 8,
+    includeFontPadding: false,
   },
   headerContent: {
     flex: 1,
@@ -290,84 +251,73 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    color: COLORS.text,
-    fontSize: 20,
-    fontWeight: '700',
-    textAlign: 'center'
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '700' as const,
+    textAlign: 'center',
   },
   placeholder: {
-    width: 60
+    width: 40,
   },
   content: {
     flex: 1,
-    padding: SPACING.lg
   },
   scrollContent: {
-    flexGrow: 1,
-    paddingBottom: SPACING.xl,
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING['2xl'],
   },
-  categoryInfo: {
-    backgroundColor: COLORS.card,
-    borderRadius: 12,
-    padding: SPACING.lg,
-    marginBottom: SPACING.xl,
-    alignItems: 'center'
+  sectionLabelContainer: {
+    marginTop: SPACING.lg,
+    marginBottom: SPACING.lg,
   },
-  categoryTitle: {
-    color: COLORS.text,
-    fontSize: 24,
-    fontWeight: '800',
-    marginBottom: SPACING.sm,
-    textAlign: 'center'
-  },
-  categorySubtitle: {
-    color: COLORS.muted,
-    fontSize: 16,
-    textAlign: 'center'
+  sectionLabel: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    fontWeight: '600' as const,
+    letterSpacing: 1,
+    textAlign: 'left',
   },
   questionsList: {
-    paddingBottom: SPACING.xl
+    gap: SPACING.md,
   },
   questionCard: {
-    backgroundColor: COLORS.card,
-    borderRadius: 12,
-    padding: SPACING.lg,
+    backgroundColor: '#1e1e2e',
+    borderRadius: 16,
+    padding: SPACING.xl,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     borderWidth: 1,
-    borderColor: COLORS.border,
-    marginBottom: SPACING.md,
+    borderColor: '#666666',
+    shadowColor: '#8B5CF6',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 8,
   },
-  questionContent: {
-    flex: 1
+  questionCardContent: {
+    flex: 1,
   },
-  questionTitle: {
-    color: COLORS.text,
-    fontSize: 18,
-    fontWeight: '700',
+  questionNumber: {
+    color: '#A78BFA',
+    fontSize: 14,
+    fontWeight: '600' as const,
     marginBottom: SPACING.sm,
-    lineHeight: 24
   },
-  questionSubtitle: {
-    color: COLORS.muted,
-    fontSize: 14
+  questionText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700' as const,
+    lineHeight: 24,
   },
   questionArrow: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: SPACING.md
-  },
-  arrowText: {
-    color: COLORS.white,
-    fontSize: 18,
-    fontWeight: '700'
-  },
-  separator: {
-    height: SPACING.md
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '300' as const,
+    marginLeft: SPACING.md,
   },
   loadingContainer: {
     flex: 1,
@@ -393,7 +343,7 @@ const styles = StyleSheet.create({
     textAlign: 'center'
   },
   noQuestionsText: {
-    color: COLORS.muted,
+    color: COLORS.textMuted,
     fontSize: 16,
     textAlign: 'center',
     marginBottom: SPACING.xl,

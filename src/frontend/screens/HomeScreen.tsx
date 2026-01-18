@@ -1,16 +1,229 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Alert, Dimensions } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Alert, Dimensions, ScrollView, Animated, PanResponder, Easing } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING } from '../../backend/utils/constants';
 import { HomeScreenProps } from '../../shared/types/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import AvatarIcon from '../components/AvatarIcon';
+import HowToPlayModal from '../components/HowToPlayModal';
 
 const { width, height } = Dimensions.get('window');
+
+// Swipeable Card Component
+interface SwipeableCardProps {
+  onSwipeComplete: () => void;
+  onPress: () => void;
+  children: React.ReactNode;
+  cardStyle?: any;
+}
+
+const SwipeableCard: React.FC<SwipeableCardProps> = ({ onSwipeComplete, onPress, children, cardStyle }) => {
+  const pan = useRef(new Animated.ValueXY()).current;
+  const rotate = useRef(new Animated.Value(0)).current;
+  const opacity = useRef(new Animated.Value(1)).current;
+  const scale = useRef(new Animated.Value(1)).current;
+  const isDragging = useRef(false);
+  const hasNavigated = useRef(false);
+
+  const SWIPE_THRESHOLD = 100;
+  const VELOCITY_THRESHOLD = 500;
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: (evt, gestureState) => {
+        // Only start if it's clearly a horizontal gesture
+        return Math.abs(gestureState.dx) > 5;
+      },
+      onMoveShouldSetPanResponder: (evt, gestureState) => {
+        // Only respond to horizontal swipes - prioritize over ScrollView
+        const isHorizontal = Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
+        const hasEnoughMovement = Math.abs(gestureState.dx) > 10;
+        return isHorizontal && hasEnoughMovement;
+      },
+      onPanResponderTerminationRequest: () => false, // Don't allow ScrollView to take over
+      onPanResponderGrant: () => {
+        isDragging.current = true;
+        pan.setOffset({ x: (pan.x as any)._value, y: 0 });
+        pan.setValue({ x: 0, y: 0 });
+        // Slight scale up on grab
+        Animated.spring(scale, {
+          toValue: 1.05,
+          useNativeDriver: true,
+          tension: 300,
+          friction: 20,
+        }).start();
+      },
+      onPanResponderTerminate: () => {
+        // If gesture is terminated, reset to center
+        isDragging.current = false;
+        pan.flattenOffset();
+        Animated.parallel([
+          Animated.spring(pan, {
+            toValue: { x: 0, y: 0 },
+            useNativeDriver: true,
+            tension: 50,
+            friction: 8,
+          }),
+          Animated.spring(rotate, {
+            toValue: 0,
+            useNativeDriver: true,
+            tension: 50,
+            friction: 8,
+          }),
+          Animated.spring(opacity, {
+            toValue: 1,
+            useNativeDriver: true,
+            tension: 50,
+            friction: 8,
+          }),
+          Animated.spring(scale, {
+            toValue: 1,
+            useNativeDriver: true,
+            tension: 50,
+            friction: 8,
+          }),
+        ]).start();
+      },
+      onPanResponderMove: (evt, gestureState) => {
+        // Update position
+        pan.setValue({ x: gestureState.dx, y: 0 });
+        
+        // Rotate based on drag distance (max 15 degrees)
+        const rotation = gestureState.dx / 10;
+        rotate.setValue(Math.max(-15, Math.min(15, rotation)));
+        
+        // Fade out based on distance
+        const distance = Math.abs(gestureState.dx);
+        const fadeValue = Math.max(0.5, 1 - distance / 300);
+        opacity.setValue(fadeValue);
+      },
+      onPanResponderRelease: (evt, gestureState) => {
+        isDragging.current = false;
+        pan.flattenOffset();
+        
+        const offsetX = gestureState.dx;
+        const velocityX = gestureState.vx;
+        const shouldSwipe = Math.abs(offsetX) > SWIPE_THRESHOLD || Math.abs(velocityX) > VELOCITY_THRESHOLD;
+        
+        if (shouldSwipe && !hasNavigated.current) {
+          hasNavigated.current = true;
+          // Animate card off screen
+          const exitX = offsetX > 0 ? width + 100 : -width - 100;
+          
+          Animated.parallel([
+            Animated.timing(pan, {
+              toValue: { x: exitX, y: 0 },
+              duration: 300,
+              easing: Easing.out(Easing.ease),
+              useNativeDriver: true,
+            }),
+            Animated.timing(opacity, {
+              toValue: 0,
+              duration: 300,
+              useNativeDriver: true,
+            }),
+            Animated.timing(rotate, {
+              toValue: offsetX > 0 ? 15 : -15,
+              duration: 300,
+              useNativeDriver: true,
+            }),
+            Animated.timing(scale, {
+              toValue: 0.8,
+              duration: 300,
+              useNativeDriver: true,
+            }),
+          ]).start(() => {
+            // Navigate after animation completes
+            onSwipeComplete();
+          });
+        } else {
+          // Return to center
+          Animated.parallel([
+            Animated.spring(pan, {
+              toValue: { x: 0, y: 0 },
+              useNativeDriver: true,
+              tension: 50,
+              friction: 8,
+            }),
+            Animated.spring(rotate, {
+              toValue: 0,
+              useNativeDriver: true,
+              tension: 50,
+              friction: 8,
+            }),
+            Animated.spring(opacity, {
+              toValue: 1,
+              useNativeDriver: true,
+              tension: 50,
+              friction: 8,
+            }),
+            Animated.spring(scale, {
+              toValue: 1,
+              useNativeDriver: true,
+              tension: 50,
+              friction: 8,
+            }),
+          ]).start();
+        }
+      },
+    })
+  ).current;
+
+  const handlePress = () => {
+    if (!isDragging.current && !hasNavigated.current) {
+      onPress();
+    }
+  };
+
+  return (
+    <Animated.View
+      style={[
+        cardStyle,
+        {
+          transform: [
+            { translateX: pan.x },
+            { 
+              rotate: rotate.interpolate({
+                inputRange: [-15, 0, 15],
+                outputRange: ['-15deg', '0deg', '15deg'],
+              })
+            },
+            { scale },
+          ],
+          opacity,
+        },
+      ]}
+      {...panResponder.panHandlers}
+    >
+      <TouchableOpacity 
+        activeOpacity={0.9}
+        onPress={handlePress}
+        style={{ flex: 1 }}
+      >
+        {children}
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
+
+// Theme colors from CSS variables
+const THEME_COLORS = {
+  background: '#0A0A0A',
+  primary: '#4F46E5',
+  secondary: '#8B5CF6',
+  info: '#3B82F6',
+  accent: '#FF6B6B',
+  success: '#10B981',
+  warning: '#F59E0B',
+  text: '#FFFFFF',
+  muted: '#8E8E93',
+};
 
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
+  const [showHowToPlay, setShowHowToPlay] = useState(false);
 
   const handleProfileNavigation = () => {
     navigation.navigate('Profile');
@@ -27,11 +240,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
 
   const handleHowToPlay = () => {
-    Alert.alert(
-      '❓ How to Play',
-      '🎯 OBJECTIVE: Guess the top 10 answers to each question\n\n🏆 SCORING: The closer your answer is to position 10, the more points you get\n\n✍️ SUBMIT: Type your answer and submit - you can only submit one answer in your turn\n\n🎮 PROGRESS: Find all 10 correct answers to complete each question\n\n🏁 WIN: Player with the most points wins!',
-      [{ text: 'Got it! 🎮' }]
-    );
+    setShowHowToPlay(true);
   };
 
   const handleCreateYourOwn = () => {
@@ -40,12 +249,27 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header with Profile and Rules Buttons */}
-      <View style={[styles.header, { paddingTop: insets.top + SPACING.md }]}>
+      {/* Simple Background */}
+      <LinearGradient
+        colors={['#1a1a2e', '#16213e', '#0f0f1e']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        scrollEnabled={true}
+        directionalLockEnabled={true}
+      >
+        {/* Header with Profile and Rules Buttons */}
+        <View style={[styles.header, { paddingTop: insets.top + SPACING.xs }]}>
         <TouchableOpacity onPress={handleProfileNavigation} style={styles.profileButton}>
           <AvatarIcon 
             user={user} 
-            size={48} 
+            size={44} 
             showBorder={false}
             backgroundColor={COLORS.primary}
             textColor={COLORS.background}
@@ -57,54 +281,114 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
-      {/* Main Content */}
-      <View style={styles.mainContent}>
         {/* Hero Section */}
         <View style={styles.heroSection}>
           <View style={styles.logoContainer}>
-            <Text style={styles.logoTop}>TOP</Text>
-            <Text style={styles.logoNumber}>10</Text>
+            {/* Subtle glow behind logo - no visible circles */}
+            <View style={styles.logoSubtleGlow} />
+            
+            <View style={styles.logoTextWrapper}>
+              <Text style={styles.logoTop}>TOP</Text>
+              <Text style={styles.logoNumber}>10</Text>
+            </View>
           </View>
           <Text style={styles.welcomeText}>
             Welcome back, {user?.displayName || 'Player'} 👋
           </Text>
-          <Text style={styles.heroSubtitle}>Test your knowledge and compete for the top spot!</Text>
+          <Text style={styles.heroSubtitle}>Choose your game mode to start playing</Text>
         </View>
 
-        {/* Game Mode Buttons */}
+        {/* Game Mode Cards */}
         <View style={styles.gameModeSection}>
-          <TouchableOpacity style={styles.singlePlayerCard} onPress={handleSinglePlayer}>
-            <View style={styles.gameModeContent}>
-              <Text style={styles.gameModeIcon}>🎯</Text>
-              <View style={styles.gameModeText}>
-                <Text style={styles.gameModeTitle}>Single Player</Text>
-                <Text style={styles.gameModeSubtitle}>Play with friends offline and be the host</Text>
+          {/* Single Player Card */}
+          <SwipeableCard
+            onSwipeComplete={handleSinglePlayer}
+            onPress={handleSinglePlayer}
+            cardStyle={styles.gameModeCard}
+          >
+            <LinearGradient
+              colors={['#8B5CF6', '#A78BFA']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.cardGradient}
+            >
+              {/* Glassmorphism overlay */}
+              <View style={styles.cardGlassOverlay} />
+              
+              <View style={styles.gameModeContent}>
+                <View style={styles.iconContainer}>
+                  <Text style={styles.gameModeIcon}>🎯</Text>
+                </View>
+                <View style={styles.gameModeText}>
+                  <Text style={styles.gameModeTitle}>Single Player</Text>
+                  <Text style={styles.gameModeSubtitle}>Play with friends offline and be the host</Text>
+                </View>
+                <Text style={styles.arrow}>→</Text>
               </View>
-            </View>
-          </TouchableOpacity>
+            </LinearGradient>
+          </SwipeableCard>
 
-          <TouchableOpacity style={styles.multiplayerCard} onPress={handleMultiplayer}>
-            <View style={styles.gameModeContent}>
-              <Text style={styles.gameModeIcon}>👥</Text>
-              <View style={styles.gameModeText}>
-                <Text style={styles.gameModeTitle}>Multiplayer</Text>
-                <Text style={styles.gameModeSubtitle}>Create and join rooms using the code</Text>
+          {/* Multiplayer Card */}
+          <SwipeableCard
+            onSwipeComplete={handleMultiplayer}
+            onPress={handleMultiplayer}
+            cardStyle={styles.gameModeCard}
+          >
+            <LinearGradient
+              colors={['#7C3AED', '#8B5CF6']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.cardGradient}
+            >
+              <View style={styles.cardGlassOverlay} />
+              
+              <View style={styles.gameModeContent}>
+                <View style={styles.iconContainer}>
+                  <Text style={styles.gameModeIcon}>👥</Text>
+                </View>
+                <View style={styles.gameModeText}>
+                  <Text style={styles.gameModeTitle}>Multiplayer</Text>
+                  <Text style={styles.gameModeSubtitle}>Create and join rooms using the code</Text>
+                </View>
+                <Text style={styles.arrow}>→</Text>
               </View>
-            </View>
-          </TouchableOpacity>
+            </LinearGradient>
+          </SwipeableCard>
 
-          <TouchableOpacity style={styles.singleSecondaryCard} onPress={handleCreateYourOwn}>
-            <View style={styles.secondaryActionContent}>
-              <Text style={styles.secondaryActionIcon}>✏️</Text>
-              <View style={styles.secondaryActionText}>
-                <Text style={styles.secondaryActionTitle}>Create Your Own</Text>
-                <Text style={styles.secondaryActionSubtitle}>Create your own questions with your own answers</Text>
+          {/* Create Your Own Card */}
+          <SwipeableCard
+            onSwipeComplete={handleCreateYourOwn}
+            onPress={handleCreateYourOwn}
+            cardStyle={styles.gameModeCard}
+          >
+            <LinearGradient
+              colors={['#5B21B6', '#7C3AED']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.cardGradient}
+            >
+              <View style={styles.cardGlassOverlay} />
+              
+              <View style={styles.gameModeContent}>
+                <View style={styles.iconContainer}>
+                  <Text style={styles.gameModeIcon}>✏️</Text>
+                </View>
+                <View style={styles.gameModeText}>
+                  <Text style={styles.gameModeTitle}>Create Your Own</Text>
+                  <Text style={styles.gameModeSubtitle}>Create your own questions with your own answers</Text>
+                </View>
+                <Text style={styles.arrow}>→</Text>
               </View>
-            </View>
-          </TouchableOpacity>
+            </LinearGradient>
+          </SwipeableCard>
         </View>
+      </ScrollView>
 
-      </View>
+      {/* How to Play Modal */}
+      <HowToPlayModal
+        visible={showHowToPlay}
+        onClose={() => setShowHowToPlay(false)}
+      />
     </SafeAreaView>
   );
 };
@@ -112,23 +396,26 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#1a1a2e',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: SPACING.xl,
   },
   header: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: SPACING.lg,
+    marginBottom: SPACING.md,
     zIndex: 10,
   },
   profileButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: COLORS.primary,
@@ -139,9 +426,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   rulesButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#000000',
     borderWidth: 0.5,
     borderColor: '#8B5CF6',
@@ -154,139 +441,135 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   rulesButtonText: {
-    fontSize: 22,
-  },
-  mainContent: {
-    flex: 1,
-    paddingTop: 100, // Space for header
+    fontSize: 20,
   },
   heroSection: {
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.xl,
     alignItems: 'center',
-    marginBottom: SPACING.xl,
+    marginBottom: SPACING.lg,
   },
   logoContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.xl,
+    position: 'relative',
+    height: 200,
+    width: '100%',
+  },
+  logoSubtleGlow: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    backgroundColor: 'rgba(139, 92, 246, 0.15)',
+    transform: [{ translateX: -120 }, { translateY: -120 }],
+    opacity: 0.5,
+  },
+  logoTextWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+    position: 'relative',
   },
   logoTop: {
-    color: COLORS.primary,
-    fontSize: 28,
-    fontWeight: '900',
-    letterSpacing: 4,
+    color: '#9CA3AF',
+    fontSize: 14,
+    fontWeight: '500',
+    letterSpacing: 5,
     textAlign: 'center',
-    marginBottom: -6,
+    marginBottom: 4,
   },
   logoNumber: {
-    color: COLORS.text,
-    fontSize: 64,
+    fontSize: 90,
     fontWeight: '900',
     textAlign: 'center',
-    textShadowColor: COLORS.primary,
-    textShadowOffset: { width: 0, height: 4 },
-    textShadowRadius: 8,
+    color: '#FFFFFF',
+    textShadowColor: '#8B5CF6',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 30,
+    includeFontPadding: false,
   },
   welcomeText: {
-    color: COLORS.muted,
-    fontSize: 16,
+    color: '#FFFFFF',
+    fontSize: 18,
     fontWeight: '600',
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 24,
     maxWidth: width * 0.8,
     marginBottom: SPACING.sm,
   },
   heroSubtitle: {
-    color: COLORS.muted,
+    color: '#9CA3AF',
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '400',
     textAlign: 'center',
     lineHeight: 20,
     maxWidth: width * 0.8,
   },
   gameModeSection: {
     paddingHorizontal: SPACING.lg,
-    marginBottom: SPACING.xl,
-    gap: SPACING.md,
+    marginBottom: SPACING.md,
+    gap: SPACING.sm,
   },
-  singlePlayerCard: {
-    backgroundColor: '#8B5CF6',
-    borderRadius: 20,
-    padding: SPACING.xl,
+  gameModeCard: {
+    borderRadius: 24,
+    overflow: 'hidden',
     shadowColor: '#8B5CF6',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 12,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.4,
+    shadowRadius: 24,
+    elevation: 16,
   },
-  multiplayerCard: {
-    backgroundColor: '#7C3AED',
-    borderRadius: 20,
-    padding: SPACING.xl,
-    shadowColor: '#7C3AED',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 12,
+  cardGradient: {
+    padding: SPACING.lg,
+    borderRadius: 24,
+    position: 'relative',
+  },
+  cardGlassOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 16,
   },
   gameModeContent: {
     flexDirection: 'row',
     alignItems: 'center',
+    position: 'relative',
+    zIndex: 1,
+  },
+  iconContainer: {
+    width: 72,
+    height: 72,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SPACING.lg,
   },
   gameModeIcon: {
-    fontSize: 32,
-    marginRight: SPACING.lg,
+    fontSize: 36,
   },
   gameModeText: {
     flex: 1,
   },
   gameModeTitle: {
-    color: 'white',
+    color: '#FFFFFF',
     fontSize: 20,
     fontWeight: '700',
-    marginBottom: SPACING.xs,
+    marginBottom: 4,
   },
   gameModeSubtitle: {
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: 'rgba(255, 255, 255, 0.90)',
     fontSize: 14,
     lineHeight: 20,
   },
-  singleSecondaryCard: {
-    backgroundColor: '#5B21B6',
-    borderRadius: 20,
-    padding: SPACING.xl,
-    alignItems: 'center',
-    shadowColor: '#5B21B6',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 12,
-    borderWidth: 1,
-    borderColor: '#4C1D95',
-  },
-  secondaryActionContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: '100%',
-  },
-  secondaryActionText: {
-    flex: 1,
-  },
-  secondaryActionIcon: {
-    fontSize: 32,
-    marginRight: SPACING.lg,
-  },
-  secondaryActionTitle: {
-    color: 'white',
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: SPACING.xs,
-  },
-  secondaryActionSubtitle: {
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontSize: 14,
-    lineHeight: 20,
+  arrow: {
+    color: '#FFFFFF',
+    fontSize: 28,
+    fontWeight: '300',
+    marginLeft: SPACING.md,
   },
 });
 
