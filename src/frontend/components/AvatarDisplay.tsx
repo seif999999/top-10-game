@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
 } from 'react-native';
+import type { StyleProp, ViewStyle } from 'react-native';
 import { COLORS, SPACING } from '../design-system';
 import { logger } from '../../backend/utils/logger';
 
@@ -14,7 +15,7 @@ interface AvatarDisplayProps {
   size?: 'small' | 'medium' | 'large' | number;
   showBorder?: boolean;
   onPress?: () => void;
-  style?: any;
+  style?: StyleProp<ViewStyle>;
   fallbackText?: string;
 }
 

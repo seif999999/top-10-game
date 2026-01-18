@@ -1,15 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { logger } from '../utils/logger';
-
-export interface CustomQuestion {
-  id: string;
-  question: string;
-  answers: string[];
-  createdAt: Date;
-  lastPlayed?: Date;
-  playCount: number;
-}
+import type { CustomQuestion } from '../../shared/types';
 
 const CUSTOM_QUESTIONS_KEY = 'custom_questions';
 
@@ -84,10 +76,10 @@ export class CustomQuestionService {
         return [];
       }
 
-      const questions = JSON.parse(questionsData);
+      const questions = JSON.parse(questionsData) as Array<CustomQuestion & { createdAt: string; lastPlayed?: string | null }>;
       
       // Convert date strings back to Date objects
-      const parsedQuestions = questions.map((q: any) => ({
+      const parsedQuestions = questions.map((q) => ({
         ...q,
         createdAt: new Date(q.createdAt),
         lastPlayed: q.lastPlayed ? new Date(q.lastPlayed) : undefined

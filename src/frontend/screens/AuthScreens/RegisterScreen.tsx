@@ -9,6 +9,7 @@ import { RegisterScreenProps } from '../../../shared/types/navigation';
 import { InputValidator } from '../../../backend/utils/inputValidator';
 import PrivacyPolicyService from '../../../backend/services/privacyPolicyService';
 import { logger } from '../../../backend/utils/logger';
+import { toAppError } from '../../../shared/errors';
 
 type Props = RegisterScreenProps;
 
@@ -157,8 +158,13 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
       await signUp(sanitizedEmail, sanitizedPassword, sanitizedDisplayName);
       logger.log('✅ DEBUG: SignUp successful');
     } catch (error) {
-      logger.error('❌ DEBUG: SignUp error:', error);
-      Alert.alert('Registration Failed', error instanceof Error ? error.message : 'An error occurred');
+      const appError = toAppError(error, {
+        code: 'AUTH_REGISTER_FAILED',
+        message: 'Registration failed',
+        userMessage: 'Registration failed. Please try again.'
+      });
+      logger.error('❌ DEBUG: SignUp error:', appError);
+      Alert.alert('Registration Failed', appError.userMessage ?? appError.message);
     } finally {
       logger.log('🔍 DEBUG: Setting local loading to false...');
       setLocalLoading(false);

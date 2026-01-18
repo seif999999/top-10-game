@@ -3,7 +3,6 @@ import {
   View, 
   Text, 
   StyleSheet, 
-  SafeAreaView, 
   TouchableOpacity, 
   ScrollView, 
   ActivityIndicator,
@@ -11,11 +10,12 @@ import {
   Alert,
   Animated
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING, TYPOGRAPHY, ANIMATIONS, COMPONENT_STYLES } from '../design-system';
 import { logger } from '../../backend/utils/logger';
 import { QuestionSelectionScreenProps } from '../../shared/types/navigation';
+import type { GameQuestion } from '../../shared/types';
 import { getQuestionsByCategory } from '../../backend/services/questionsService';
 import { FEATURES } from '../../backend/config/featureFlags';
 import TeamSetupModal from '../components/TeamSetupModal';
@@ -24,10 +24,10 @@ import { TeamSetupConfig } from '../../shared/types/teams';
 const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navigation, route }) => {
   const { categoryName, gameMode } = route.params;
   const insets = useSafeAreaInsets();
-  const [questions, setQuestions] = useState<any[]>([]);
+  const [questions, setQuestions] = useState<GameQuestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [showTeamSetup, setShowTeamSetup] = useState(false);
-  const [selectedQuestion, setSelectedQuestion] = useState<any>(null);
+  const [selectedQuestion, setSelectedQuestion] = useState<GameQuestion | null>(null);
   
   logger.log('🎯 QuestionSelectionScreen loaded with params:', route.params);
   logger.log('🎯 Category name:', categoryName);
@@ -48,7 +48,7 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
     }
   };
 
-  const handleQuestionSelect = (question: any) => {
+  const handleQuestionSelect = (question: GameQuestion) => {
     logger.log('🎯 Question selected:', question.title);
     
     if (gameMode === 'multiplayer') {
@@ -164,7 +164,6 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
     );
   }
 
-
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
       {/* Dark Purple Background */}
@@ -265,7 +264,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: SPACING.lg,
-    paddingBottom: SPACING.xxl,
+    paddingBottom: SPACING['2xl'],
   },
   sectionLabelContainer: {
     marginTop: SPACING.lg,
@@ -344,7 +343,7 @@ const styles = StyleSheet.create({
     textAlign: 'center'
   },
   noQuestionsText: {
-    color: COLORS.muted,
+    color: COLORS.textMuted,
     fontSize: 16,
     textAlign: 'center',
     marginBottom: SPACING.xl,

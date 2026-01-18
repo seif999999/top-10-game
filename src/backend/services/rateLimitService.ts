@@ -285,7 +285,7 @@ export class RateLimitService {
       const docId = `${userId}_${actionType}`;
       const docRef = doc(db, this.RATE_LIMIT_COLLECTION, docId);
       
-      const updateData: any = {
+      const updateData: Record<string, unknown> = {
         lastAttempt: serverTimestamp()
       };
       
@@ -312,7 +312,7 @@ export class RateLimitService {
       const docId = `${userId}_${actionType}`;
       const docRef = doc(db, this.RATE_LIMIT_COLLECTION, docId);
       
-      const updateData: any = {
+      const updateData: Record<string, unknown> = {
         attempts: 1, // Will be incremented by Firestore
         lastAttempt: serverTimestamp()
       };
@@ -428,7 +428,7 @@ export class RateLimitService {
    */
   static async getSuspiciousActivity(
     timeWindowMs: number = 3600000 // 1 hour
-  ): Promise<{ userId: string; actionType: string; count: number; metadata: any }[]> {
+  ): Promise<{ userId: string; actionType: string; count: number; metadata: unknown }[]> {
     try {
       const now = new Date();
       const windowStart = new Date(now.getTime() - timeWindowMs);
@@ -441,7 +441,7 @@ export class RateLimitService {
       );
       
       const logsSnap = await getDocs(logsQuery);
-      const suspiciousActivities: { [key: string]: { userId: string; actionType: string; count: number; metadata: any } } = {};
+      const suspiciousActivities: { [key: string]: { userId: string; actionType: string; count: number; metadata: unknown } } = {};
       
       logsSnap.forEach(doc => {
         const data = doc.data();

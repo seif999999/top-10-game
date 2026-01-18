@@ -1,6 +1,7 @@
 import { collection, addDoc, serverTimestamp, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
 import { db } from './firebase';
 import { logger } from '../utils/logger';
+import { AppError } from '../../shared/errors';
 import { COLLECTIONS } from '../utils/constants';
 
 export interface SecurityEvent {
@@ -15,7 +16,7 @@ export interface SecurityEvent {
     roomCode?: string;
     action?: string;
     error?: string;
-    [key: string]: any;
+    [key: string]: unknown;
   };
   timestamp: Date;
   resolved: boolean;
@@ -87,7 +88,11 @@ class SecurityMonitoringService {
       return docRef.id;
     } catch (error) {
       logger.error('Error logging security event:', error);
-      throw new Error('Failed to log security event');
+      throw new AppError({
+        code: 'SECURITY_EVENT_LOG_FAILED',
+        message: 'Failed to log security event',
+        userMessage: 'Failed to log security event.'
+      });
     }
   }
 
@@ -221,7 +226,11 @@ class SecurityMonitoringService {
       return docRef.id;
     } catch (error) {
       logger.error('Error creating security alert:', error);
-      throw new Error('Failed to create security alert');
+      throw new AppError({
+        code: 'SECURITY_ALERT_CREATE_FAILED',
+        message: 'Failed to create security alert',
+        userMessage: 'Failed to create security alert.'
+      });
     }
   }
 
@@ -234,7 +243,11 @@ class SecurityMonitoringService {
       logger.log(`Security alert acknowledged: ${alertId} by ${acknowledgedBy}`);
     } catch (error) {
       logger.error('Error acknowledging alert:', error);
-      throw new Error('Failed to acknowledge alert');
+      throw new AppError({
+        code: 'SECURITY_ALERT_ACK_FAILED',
+        message: 'Failed to acknowledge alert',
+        userMessage: 'Failed to acknowledge alert.'
+      });
     }
   }
 
@@ -344,7 +357,11 @@ class SecurityMonitoringService {
       logger.log(`Security event resolved: ${eventId} by ${resolvedBy}`);
     } catch (error) {
       logger.error('Error resolving event:', error);
-      throw new Error('Failed to resolve event');
+      throw new AppError({
+        code: 'SECURITY_EVENT_RESOLVE_FAILED',
+        message: 'Failed to resolve event',
+        userMessage: 'Failed to resolve event.'
+      });
     }
   }
 
@@ -370,7 +387,11 @@ class SecurityMonitoringService {
       };
     } catch (error) {
       logger.error('Error getting dashboard data:', error);
-      throw new Error('Failed to get dashboard data');
+      throw new AppError({
+        code: 'SECURITY_DASHBOARD_FAILED',
+        message: 'Failed to get dashboard data',
+        userMessage: 'Failed to load security dashboard.'
+      });
     }
   }
 

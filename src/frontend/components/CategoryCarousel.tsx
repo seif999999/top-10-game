@@ -7,6 +7,7 @@ import {
   FlatList,
   Dimensions
 } from 'react-native';
+import type { StyleProp, ViewStyle } from 'react-native';
 import { COLORS, SPACING } from '../design-system';
 import { RESPONSIVE } from '../utils/responsive';
 
@@ -55,9 +56,9 @@ export interface CategoryCarouselProps {
   /** Text for the select button */
   buttonText?: string;
   /** Additional styles for the container */
-  style?: any;
+  style?: StyleProp<ViewStyle>;
   /** Additional styles for the FlatList content container */
-  contentContainerStyle?: any;
+  contentContainerStyle?: StyleProp<ViewStyle>;
 }
 
 /**

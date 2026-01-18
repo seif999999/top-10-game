@@ -1,14 +1,17 @@
 import { distance } from 'fastest-levenshtein';
 import { logger } from '../utils/logger';
+import type { Answer } from '../../shared/types/game';
 
 /**
  * Enhanced fuzzy matching service for answer validation
  * Provides flexible answer matching with typos, casing, and common variations
  */
 
+type AnswerLike = Answer | string;
+
 export interface FuzzyMatchResult {
   isMatch: boolean;
-  matchedAnswer?: any;
+  matchedAnswer?: AnswerLike;
   similarity: number;
   confidence: 'exact' | 'high' | 'medium' | 'low' | 'none';
   originalAnswer: string;
@@ -292,7 +295,7 @@ export function isSimilarEnough(str1: string, str2: string, config: AnswerMatchC
  */
 export function findBestMatch(
   userAnswer: string,
-  correctAnswers: any[],
+  correctAnswers: AnswerLike[],
   config: AnswerMatchConfig = DEFAULT_CONFIG
 ): FuzzyMatchResult {
   if (!userAnswer || !correctAnswers || correctAnswers.length === 0) {
@@ -312,7 +315,7 @@ export function findBestMatch(
     correctAnswersCount: correctAnswers.length
   });
   
-  let bestMatch: any = null;
+  let bestMatch: AnswerLike | null = null;
   let bestSimilarity = 0;
   let bestConfidence: 'exact' | 'high' | 'medium' | 'low' | 'none' = 'none';
 
@@ -424,11 +427,11 @@ export function findBestMatch(
  */
 export function validateAnswerFuzzy(
   userAnswer: string,
-  correctAnswers: any[],
+  correctAnswers: AnswerLike[],
   config: AnswerMatchConfig = DEFAULT_CONFIG
 ): {
   isCorrect: boolean;
-  matchedAnswer?: any;
+  matchedAnswer?: AnswerLike;
   rank?: number;
   points?: number;
   similarity: number;
@@ -440,11 +443,13 @@ export function validateAnswerFuzzy(
   
   if (result.isMatch && result.matchedAnswer) {
     const answer = result.matchedAnswer;
+    const answerRank = typeof answer === 'string' ? undefined : answer.rank;
+    const answerPoints = typeof answer === 'string' ? undefined : (answer.points ?? answer.rank);
     return {
       isCorrect: true,
       matchedAnswer: answer,
-      rank: answer.rank || 0,
-      points: answer.points || (answer.rank || 0),
+      rank: answerRank,
+      points: answerPoints,
       similarity: result.similarity,
       confidence: result.confidence,
       originalAnswer: result.originalAnswer,
@@ -471,7 +476,7 @@ export function createMatchConfig(overrides: Partial<AnswerMatchConfig>): Answer
 /**
  * Debug function to test fuzzy matching
  */
-export function debugFuzzyMatching(userAnswer: string, correctAnswers: any[]): void {
+export function debugFuzzyMatching(userAnswer: string, correctAnswers: AnswerLike[]): void {
   logger.log('🔍 Fuzzy Matching Debug:');
   logger.log('User Answer:', userAnswer);
   logger.log('Normalized:', normalizeAnswerEnhanced(userAnswer));

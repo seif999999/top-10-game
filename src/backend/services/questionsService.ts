@@ -270,10 +270,10 @@ export const getQuestionStats = async (category?: string) => {
   return {
     totalQuestions: questions.length,
     categories: getCategories(),
-    difficultyBreakdown: questions.reduce((acc: any, q: GameQuestion) => {
-      acc[q.difficulty] = (acc[q.difficulty] || 0) + 1;
+    difficultyBreakdown: questions.reduce<Record<GameQuestion['difficulty'], number>>((acc, q) => {
+      acc[q.difficulty] = (acc[q.difficulty] ?? 0) + 1;
       return acc;
-    }, {}),
+    }, { easy: 0, medium: 0, hard: 0 }),
     averageAnswersPerQuestion: questions.reduce((sum: number, q: GameQuestion) => sum + q.answers.length, 0) / questions.length
   };
 };
@@ -313,7 +313,7 @@ export const shuffleQuestions = (questions: GameQuestion[]): GameQuestion[] => {
  * Normalize a legacy question with string[] answers to the new Question format
  * This is the key migration function for data structure unification
  */
-export const normalizeQuestion = (legacyQuestion: LegacyQuestion | GameQuestion): Question => {
+export const normalizeQuestion = (legacyQuestion: LegacyQuestion | GameQuestion | Question): Question => {
   logger.log(`🔄 NORMALIZE_QUESTION: Converting question "${'text' in legacyQuestion ? legacyQuestion.text : ('title' in legacyQuestion ? legacyQuestion.title : 'Unknown')}"`);
   
   // Handle GameQuestion format (already has QuestionAnswer[])
@@ -328,8 +328,8 @@ export const normalizeQuestion = (legacyQuestion: LegacyQuestion | GameQuestion)
         text: 'text' in legacyQuestion ? legacyQuestion.text : ('title' in legacyQuestion ? legacyQuestion.title : 'Unknown'),
         category: legacyQuestion.category,
         difficulty: legacyQuestion.difficulty,
-        answers: legacyQuestion.answers.map((qa: any) => ({
-          id: qa.id || `${legacyQuestion.id}_answer_${qa.rank || 0}`,
+        answers: (legacyQuestion.answers as Array<Answer | (QuestionAnswer & { id?: string })>).map((qa) => ({
+          id: 'id' in qa && qa.id ? qa.id : `${legacyQuestion.id}_answer_${qa.rank || 0}`,
           text: qa.text,
           rank: qa.rank || 1,
           aliases: qa.aliases || []
@@ -430,7 +430,7 @@ export const safeToLower = (s?: string): string => {
 /**
  * Validate question shape at runtime
  */
-export const assertQuestionShape = (question: any): Question => {
+export const assertQuestionShape = (question: unknown): Question => {
   if (!question || typeof question !== 'object') {
     logger.warn('⚠️ ASSERT_QUESTION_SHAPE: Invalid question object, creating fallback');
     return {

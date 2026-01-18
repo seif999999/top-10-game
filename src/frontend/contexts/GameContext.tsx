@@ -3,6 +3,8 @@ import { startNewGame, processAnswer, nextQuestion, generateGameResults, isQuest
 import { GameState, GameResults, PlayerAnswer, GameQuestion } from '../../shared/types';
 import { Team, TeamGameState, TeamSetupConfig, TEAM_COLORS } from '../../shared/types/teams';
 import { logger } from '../../backend/utils/logger';
+import { AppError, toAppError } from '../../shared/errors';
+import type { AppErrorOptions } from '../../shared/errors';
 
 export type GamePhase = 'lobby' | 'question' | 'answered' | 'results' | 'finished';
 
@@ -18,7 +20,7 @@ interface GameContextState {
 }
 
 type GameAction =
-  | { type: 'START_GAME'; payload: { category: string; players: string[]; selectedQuestion?: any } }
+  | { type: 'START_GAME'; payload: { category: string; players: string[]; selectedQuestion?: GameQuestion } }
   | { type: 'START_GAME_SUCCESS'; payload: { gameState: GameState } }
   | { type: 'SET_ANSWER'; payload: string }
   | { type: 'SUBMIT_ANSWER'; payload: { playerId: string; answer: string } }
@@ -29,7 +31,7 @@ type GameAction =
   | { type: 'SET_SUGGESTIONS'; payload: string[] }
   | { type: 'RESET_GAME' }
   // Team mode actions
-  | { type: 'START_TEAMS_GAME'; payload: { category: string; selectedQuestion?: any; config: TeamSetupConfig } }
+  | { type: 'START_TEAMS_GAME'; payload: { category: string; selectedQuestion?: GameQuestion; config: TeamSetupConfig } }
   | { type: 'START_TEAMS_GAME_SUCCESS'; payload: { gameState: GameState; config: TeamSetupConfig } }
   | { type: 'ASSIGN_ANSWER_TO_TEAM'; payload: { answerIndex: number; teamId: string; points: number } }
   | { type: 'END_TEAM_TURN' }
@@ -44,6 +46,12 @@ const initialState: GameContextState = {
   error: null,
   teamGameState: null,
   isTeamMode: false
+};
+
+const buildGameError = (error: unknown, fallback: AppErrorOptions): AppError => {
+  const appError = toAppError(error, fallback);
+  logger.error(`❌ GameContext:${appError.code}`, appError);
+  return appError;
 };
 
 const gameReducer = (state: GameContextState, action: GameAction): GameContextState => {
@@ -67,10 +75,14 @@ const gameReducer = (state: GameContextState, action: GameAction): GameContextSt
           error: null
         };
       } catch (error) {
-        logger.error(`❌ START_GAME_SUCCESS error:`, error);
+        const appError = buildGameError(error, {
+          code: 'GAME_START_FAILED',
+          message: 'Failed to start game',
+          userMessage: 'Failed to start game. Please try again.'
+        });
         return {
           ...state,
-          error: 'Failed to start game'
+          error: appError.userMessage ?? appError.message
         };
       }
 
@@ -82,7 +94,13 @@ const gameReducer = (state: GameContextState, action: GameAction): GameContextSt
 
     case 'SUBMIT_ANSWER':
       try {
-        if (!state.gameState) throw new Error('No active game');
+        if (!state.gameState) {
+          throw new AppError({
+            code: 'GAME_NO_ACTIVE',
+            message: 'No active game',
+            userMessage: 'No active game.'
+          });
+        }
 
         logger.log(`\n📝 SUBMIT_ANSWER ACTION:`);
         logger.log(`   Player: ${action.payload.playerId}`);
@@ -107,16 +125,26 @@ const gameReducer = (state: GameContextState, action: GameAction): GameContextSt
           suggestions: []
         };
       } catch (error) {
-        logger.error('❌ SUBMIT_ANSWER Error:', error);
+        const appError = buildGameError(error, {
+          code: 'GAME_SUBMIT_FAILED',
+          message: 'Failed to submit answer',
+          userMessage: 'Failed to submit answer. Please try again.'
+        });
         return {
           ...state,
-          error: 'Failed to submit answer'
+          error: appError.userMessage ?? appError.message
         };
       }
 
     case 'NEXT_QUESTION':
       try {
-        if (!state.gameState) throw new Error('No active game');
+        if (!state.gameState) {
+          throw new AppError({
+            code: 'GAME_NO_ACTIVE',
+            message: 'No active game',
+            userMessage: 'No active game.'
+          });
+        }
         
         const updatedState = nextQuestion(state.gameState);
         
@@ -128,9 +156,14 @@ const gameReducer = (state: GameContextState, action: GameAction): GameContextSt
           error: null
         };
       } catch (error) {
+        const appError = buildGameError(error, {
+          code: 'GAME_NEXT_QUESTION_FAILED',
+          message: 'Failed to move to next question',
+          userMessage: 'Failed to load next question. Please try again.'
+        });
         return {
           ...state,
-          error: 'Failed to move to next question'
+          error: appError.userMessage ?? appError.message
         };
       }
 
@@ -214,16 +247,26 @@ const gameReducer = (state: GameContextState, action: GameAction): GameContextSt
           error: null,
         };
       } catch (error) {
-        logger.error(`❌ START_TEAMS_GAME error:`, error);
+        const appError = buildGameError(error, {
+          code: 'GAME_TEAM_START_FAILED',
+          message: 'Failed to start teams game',
+          userMessage: 'Failed to start team game. Please try again.'
+        });
         return {
           ...state,
-          error: 'Failed to start team game'
+          error: appError.userMessage ?? appError.message
         };
       }
 
     case 'ASSIGN_ANSWER_TO_TEAM':
       try {
-        if (!state.teamGameState) throw new Error('No active team game');
+        if (!state.teamGameState) {
+          throw new AppError({
+            code: 'GAME_TEAM_NO_ACTIVE',
+            message: 'No active team game',
+            userMessage: 'No active team game.'
+          });
+        }
         
         const { answerIndex, teamId, points } = action.payload;
         const updatedTeamGameState = { ...state.teamGameState };
@@ -244,16 +287,26 @@ const gameReducer = (state: GameContextState, action: GameAction): GameContextSt
           teamGameState: updatedTeamGameState,
         };
       } catch (error) {
-        logger.error('❌ ASSIGN_ANSWER_TO_TEAM Error:', error);
+        const appError = buildGameError(error, {
+          code: 'GAME_ASSIGN_ANSWER_FAILED',
+          message: 'Failed to assign answer to team',
+          userMessage: 'Failed to assign answer. Please try again.'
+        });
         return {
           ...state,
-          error: 'Failed to assign answer to team'
+          error: appError.userMessage ?? appError.message
         };
       }
 
     case 'END_TEAM_TURN':
       try {
-        if (!state.teamGameState) throw new Error('No active team game');
+        if (!state.teamGameState) {
+          throw new AppError({
+            code: 'GAME_TEAM_NO_ACTIVE',
+            message: 'No active team game',
+            userMessage: 'No active team game.'
+          });
+        }
         
         const updatedTeamGameState = { ...state.teamGameState };
         
@@ -276,16 +329,26 @@ const gameReducer = (state: GameContextState, action: GameAction): GameContextSt
           teamGameState: updatedTeamGameState,
         };
       } catch (error) {
-        logger.error('❌ END_TEAM_TURN Error:', error);
+        const appError = buildGameError(error, {
+          code: 'GAME_END_TEAM_TURN_FAILED',
+          message: 'Failed to end team turn',
+          userMessage: 'Failed to end team turn. Please try again.'
+        });
         return {
           ...state,
-          error: 'Failed to end team turn'
+          error: appError.userMessage ?? appError.message
         };
       }
 
     case 'SET_TEAM_TIMER':
       try {
-        if (!state.teamGameState) throw new Error('No active team game');
+        if (!state.teamGameState) {
+          throw new AppError({
+            code: 'GAME_TEAM_NO_ACTIVE',
+            message: 'No active team game',
+            userMessage: 'No active team game.'
+          });
+        }
         
         const updatedTeamGameState = { ...state.teamGameState };
         updatedTeamGameState.timeRemaining = action.payload;
@@ -307,10 +370,14 @@ const gameReducer = (state: GameContextState, action: GameAction): GameContextSt
           teamGameState: updatedTeamGameState,
         };
       } catch (error) {
-        logger.error('❌ SET_TEAM_TIMER Error:', error);
+        const appError = buildGameError(error, {
+          code: 'GAME_SET_TIMER_FAILED',
+          message: 'Failed to update team timer',
+          userMessage: 'Failed to update team timer. Please try again.'
+        });
         return {
           ...state,
-          error: 'Failed to update team timer'
+          error: appError.userMessage ?? appError.message
         };
       }
 
@@ -327,7 +394,7 @@ const gameReducer = (state: GameContextState, action: GameAction): GameContextSt
 };
 
 interface GameContextType extends GameContextState {
-  startGame: (category: string, players: string[], selectedQuestion?: any) => void;
+  startGame: (category: string, players: string[], selectedQuestion?: GameQuestion) => void;
   submitAnswer: (playerId: string, answer: string) => void;
   nextQuestion: () => void;
   endGame: () => void;
@@ -340,7 +407,7 @@ interface GameContextType extends GameContextState {
   getCorrectAnswersFound: () => number;
   resetGame: () => void;
   // Team mode functions
-  startTeamsGame: (category: string, config: TeamSetupConfig, selectedQuestion?: any) => void;
+  startTeamsGame: (category: string, config: TeamSetupConfig, selectedQuestion?: GameQuestion) => void;
   assignAnswerToTeam: (answerIndex: number, teamId: string, points: number) => void;
   endTeamTurn: () => void;
   setTeamTimer: (seconds: number) => void;
@@ -355,7 +422,11 @@ const GameContext = createContext<GameContextType | undefined>(undefined);
 export const useGame = () => {
   const context = useContext(GameContext);
   if (!context) {
-    throw new Error('useGame must be used within a GameProvider');
+    throw new AppError({
+      code: 'GAME_CONTEXT_MISSING',
+      message: 'useGame must be used within a GameProvider',
+      userMessage: 'Game context is not available.'
+    });
   }
   return context;
 };
@@ -367,14 +438,19 @@ interface GameProviderProps {
 export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
   const [state, dispatch] = useReducer(gameReducer, initialState);
 
-  const startGame = useCallback(async (category: string, players: string[], selectedQuestion?: any) => {
+  const startGame = useCallback(async (category: string, players: string[], selectedQuestion?: GameQuestion) => {
     dispatch({ type: 'SET_LOADING', payload: true });
     try {
       const newGameState = await startNewGame(category, players, selectedQuestion ? 1 : 10, selectedQuestion);
       dispatch({ type: 'START_GAME_SUCCESS', payload: { gameState: newGameState } });
     } catch (error) {
-      logger.error('❌ Error starting game:', error);
-      dispatch({ type: 'SET_ERROR', payload: 'Failed to start game' });
+      const appError = buildGameError(error, {
+        code: 'GAME_START_FAILED',
+        message: 'Failed to start game',
+        userMessage: 'Failed to start game. Please try again.',
+        context: { category }
+      });
+      dispatch({ type: 'SET_ERROR', payload: appError.userMessage ?? appError.message });
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
@@ -451,14 +527,19 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
   }, []);
 
   // Team mode functions
-  const startTeamsGame = useCallback(async (category: string, config: TeamSetupConfig, selectedQuestion?: any) => {
+  const startTeamsGame = useCallback(async (category: string, config: TeamSetupConfig, selectedQuestion?: GameQuestion) => {
     dispatch({ type: 'SET_LOADING', payload: true });
     try {
       const newGameState = await startNewGame(category, ['Host'], selectedQuestion ? 1 : 10, selectedQuestion);
       dispatch({ type: 'START_TEAMS_GAME_SUCCESS', payload: { gameState: newGameState, config } });
     } catch (error) {
-      logger.error('❌ Error starting team game:', error);
-      dispatch({ type: 'SET_ERROR', payload: 'Failed to start team game' });
+      const appError = buildGameError(error, {
+        code: 'GAME_TEAM_START_FAILED',
+        message: 'Failed to start team game',
+        userMessage: 'Failed to start team game. Please try again.',
+        context: { category }
+      });
+      dispatch({ type: 'SET_ERROR', payload: appError.userMessage ?? appError.message });
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }

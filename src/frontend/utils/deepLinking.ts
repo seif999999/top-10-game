@@ -1,6 +1,7 @@
 import { Linking } from 'react-native';
 import { NavigationContainerRef } from '@react-navigation/native';
 import { logger } from './logger';
+import type { RootStackParamList } from '../../shared/types/navigation';
 
 /**
  * Deep linking utility for handling Firebase password reset links
@@ -8,7 +9,7 @@ import { logger } from './logger';
  * instead of Firebase's default page
  */
 
-export const handlePasswordResetLink = (url: string, navigation: NavigationContainerRef<any>) => {
+export const handlePasswordResetLink = (url: string, navigation: NavigationContainerRef<RootStackParamList>) => {
   try {
     // Parse the URL to extract the reset code
     const urlObj = new URL(url);
@@ -31,7 +32,7 @@ export const handlePasswordResetLink = (url: string, navigation: NavigationConta
   }
 };
 
-export const setupDeepLinking = (navigation: NavigationContainerRef<any>) => {
+export const setupDeepLinking = (navigation: NavigationContainerRef<RootStackParamList>) => {
   // Handle initial URL (when app is opened via deep link)
   Linking.getInitialURL().then((url) => {
     if (url) {

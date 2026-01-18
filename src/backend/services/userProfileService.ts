@@ -2,6 +2,7 @@ import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firest
 import { db } from './firebase';
 import { User } from '../../shared/types';
 import { logger } from '../utils/logger';
+import { AppError } from '../../shared/errors';
 import { COLLECTIONS } from '../utils/constants';
 
 /**
@@ -36,7 +37,11 @@ export class UserProfileService {
         logger.error('❌ UserProfileService: Invalid userId provided:', userId);
         logger.error('❌ UserProfileService: userId type:', typeof userId);
         logger.error('❌ UserProfileService: userId length:', userId ? userId.length : 'undefined');
-        throw new Error('UserId missing from session. Ensure session stores Firebase UID.');
+        throw new AppError({
+          code: 'USER_PROFILE_INVALID_ID',
+          message: 'UserId missing from session. Ensure session stores Firebase UID.',
+          userMessage: 'User session is invalid. Please sign in again.'
+        });
       }
       
       const userRef = doc(db, COLLECTIONS.USER_PROFILES, userId);
@@ -100,7 +105,7 @@ export class UserProfileService {
     try {
       const userRef = doc(db, COLLECTIONS.USER_PROFILES, userId);
       
-      const updateData: any = {
+      const updateData: Record<string, unknown> = {
         selectedAvatar: selectedAvatar,
         lastUpdated: serverTimestamp(),
       };

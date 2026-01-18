@@ -58,6 +58,8 @@ export type RevealedAnswer = {
 };
 
 // Room data structure - Updated to match specification
+import type { Timestamp } from 'firebase/firestore';
+
 export type RoomData = {
   // Room Info
   roomCode: string;
@@ -77,14 +79,14 @@ export type RoomData = {
   
   // Game State
   gamePhase: GamePhase;
-  questionStartTime: number;    // server timestamp
+  questionStartTime: number | Timestamp;    // server timestamp
   questionTimeLimit: number;    // seconds
-  roundStartTs?: number;        // server timestamp for current round
+  roundStartTs?: number | Timestamp;        // server timestamp for current round
   roundDurationSeconds?: number; // duration for current round
   
   // Turn-based system
   currentPlayerId?: string;     // ID of player whose turn it is
-  turnStartTime?: number;       // server timestamp when turn started
+  turnStartTime?: number | Timestamp;       // server timestamp when turn started
   turnTimeLimit: number;        // seconds per turn (default 60)
   turnOrder: string[];          // array of player IDs in turn order
   currentTurnIndex: number;     // index in turnOrder array
@@ -104,7 +106,7 @@ export type RoomData = {
       answer: string;
       isCorrect: boolean;
       points: number;
-      timestamp: any; // Firestore timestamp
+      timestamp: number | Timestamp; // Firestore timestamp
     }
   };
   
@@ -117,7 +119,7 @@ export type RoomData = {
   systemMessage?: {
     type: 'host_migrated' | 'room_terminated' | 'game_terminated';
     message: string;
-    timestamp: any; // Firestore serverTimestamp
+    timestamp: number | Timestamp; // Firestore serverTimestamp
     newHostId?: string;
     newHostName?: string;
   };

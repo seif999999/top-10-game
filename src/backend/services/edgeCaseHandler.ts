@@ -440,7 +440,7 @@ export class EdgeCaseHandler {
   /**
    * Handle rapid state changes with optimistic locking
    */
-  async handleConcurrentStateChange(roomCode: string, updateFunction: () => Promise<any>): Promise<boolean> {
+  async handleConcurrentStateChange(roomCode: string, updateFunction: () => Promise<unknown>): Promise<boolean> {
     const maxRetries = 3;
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -449,19 +449,20 @@ export class EdgeCaseHandler {
         await updateFunction();
         logger.log(`✅ Concurrent state change successful on attempt ${attempt}`);
         return true;
-      } catch (error: any) {
+      } catch (error) {
         logger.error(`❌ Concurrent state change attempt ${attempt} failed:`, error);
         
         // Check if it's a validation error (don't retry these)
-        if (error.message?.includes('invalid data') || 
-            error.message?.includes('Unsupported field value: undefined') ||
-            error.message?.includes('Data sanitization failed') ||
-            error.message?.includes('Room data validation failed')) {
+        if (error instanceof Error &&
+            (error.message.includes('invalid data') || 
+             error.message.includes('Unsupported field value: undefined') ||
+             error.message.includes('Data sanitization failed') ||
+             error.message.includes('Room data validation failed'))) {
           logger.error('❌ Firestore validation error: undefined values detected');
           throw new Error('Invalid data: undefined values not allowed in Firestore');
         }
         
-        if (error.code === 'failed-precondition') {
+        if (typeof error === 'object' && error && 'code' in error && (error as { code?: string }).code === 'failed-precondition') {
           // Conflict detected, retry
           if (attempt < maxRetries) {
             const delay = 1000 * attempt; // Exponential backoff
@@ -574,7 +575,7 @@ export class EdgeCaseHandler {
     logger.log(`📢 Room ${roomCode}: ${message}`);
   }
 
-  private repairRoomData(roomData: any): any {
+  private repairRoomData(roomData: Partial<RoomData>): Partial<RoomData> {
     // Implement data validation and repair logic
     const repaired = { ...roomData };
     

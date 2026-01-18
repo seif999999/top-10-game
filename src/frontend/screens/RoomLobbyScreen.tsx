@@ -84,7 +84,7 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
 
   // Set up navigation callback for auto-navigation when game starts
   useEffect(() => {
-    setNavigationCallback((params: any) => {
+    setNavigationCallback((params: RootStackParamList['GameScreen']) => {
       logger.log('🎮 RoomLobbyScreen: Auto-navigating to GameScreen with params:', params);
       navigation.navigate('GameScreen', params);
     });
@@ -354,7 +354,7 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
                 <Text style={styles.gameInfoLabel}>Status</Text>
                 <Text style={[
                   styles.gameInfoValue,
-                  (styles as any)[`status${currentRoom.status.charAt(0).toUpperCase() + currentRoom.status.slice(1)}`]
+                  styles[`status${currentRoom.status.charAt(0).toUpperCase() + currentRoom.status.slice(1)}` as keyof typeof styles]
                 ]}>
                   {currentRoom.status}
                 </Text>

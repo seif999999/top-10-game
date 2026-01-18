@@ -24,6 +24,15 @@ export type Avatar = {
   description: string;
 };
 
+export interface CustomQuestion {
+  id: string;
+  question: string;
+  answers: string[];
+  createdAt: Date;
+  lastPlayed?: Date;
+  playCount: number;
+}
+
 export type Category = {
   id: string;
   name: string;

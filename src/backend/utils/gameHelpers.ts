@@ -2,6 +2,8 @@
  * Game utility functions for common operations
  */
 
+import type { GameResults } from '../../shared/types';
+
 /**
  * Normalize answer text for comparison
  */
@@ -88,7 +90,7 @@ export const formatTimeReadable = (seconds: number): string => {
 /**
  * Generate a shareable game summary
  */
-export const generateGameSummary = (gameResults: any): string => {
+export const generateGameSummary = (gameResults: GameResults): string => {
   const { category, finalScores, winner, totalTime, averageScore } = gameResults;
   
   const playerScores = Object.entries(finalScores)
@@ -206,7 +208,7 @@ export const getMinValue = (numbers: number[]): number => {
 /**
  * Debounce function
  */
-export const debounce = <T extends (...args: any[]) => any>(
+export const debounce = <T extends (...args: unknown[]) => unknown>(
   func: T,
   wait: number
 ): ((...args: Parameters<T>) => void) => {
@@ -220,7 +222,7 @@ export const debounce = <T extends (...args: any[]) => any>(
 /**
  * Throttle function
  */
-export const throttle = <T extends (...args: any[]) => any>(
+export const throttle = <T extends (...args: unknown[]) => unknown>(
   func: T,
   limit: number
 ): ((...args: Parameters<T>) => void) => {

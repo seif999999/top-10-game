@@ -6,6 +6,7 @@ import { COLORS, SPACING } from '../../backend/utils/constants';
 import { GameLobbyScreenProps } from '../../shared/types/navigation';
 import { useGame } from '../contexts/GameContext';
 import { getRandomQuestion } from '../../backend/services/questionsService';
+import type { GameQuestion } from '../../shared/types';
 
 const GameLobbyScreen: React.FC<GameLobbyScreenProps> = ({ navigation, route }) => {
   const { categoryId, categoryName, selectedQuestion } = route.params;
@@ -13,7 +14,7 @@ const GameLobbyScreen: React.FC<GameLobbyScreenProps> = ({ navigation, route }) 
   const [roomCode, setRoomCode] = useState('');
   const [isHost, setIsHost] = useState(false);
   const [players, setPlayers] = useState(['You']);
-  const [sampleQuestion, setSampleQuestion] = useState<any>(null);
+  const [sampleQuestion, setSampleQuestion] = useState<GameQuestion | null>(null);
 
   useEffect(() => {
     // Load a sample question for preview

@@ -13,18 +13,20 @@ import {
   where,
   getDocs,
   deleteDoc,
-  runTransaction
+  runTransaction,
+  Timestamp
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { AuthService } from './authService';
 import { EdgeCaseHandler } from './edgeCaseHandler';
 import { distance } from 'fastest-levenshtein';
-import { Question, Answer, RoomData, Player, GamePhase, RoomStatus } from '../../shared/types/game';
+import { Question, Answer, RoomData, Player, GamePhase, RoomStatus, LegacyQuestion } from '../../shared/types/game';
 import { normalizeQuestion, safeToLower, assertQuestionShape } from './questionsService';
 import { pointsForRank } from './scoring';
 import { awardAnswer, startRound, endRound, updatePlayerPresence, hostStartGame, advanceTurn, submitTurnAnswer as submitTurnAnswerTransaction, forceAdvanceExpiredTurn } from './multiplayerTransaction';
 import { startGame as startGameFlow, submitAnswer as submitAnswerFlow, endGame as endGameFlow, advanceTurnOnTimeout } from './multiplayerGameFlow';
 import { hostStartGame as hostStartGameV2, submitAnswer as submitAnswerOriginal, submitAnswerRoundBased, advanceTurnOnTimeout as advanceTurnOnTimeoutV2, hostEndGame as hostEndGameV2, getServerOffset, calculateTimeRemaining, isAllowedToSubmit, resetRoomStatus, skipTurn as skipTurnV2, handleHostDisconnection, terminateGame } from './multiplayerGameFlowV2';
+import { AppError, toAppError } from '../../shared/errors';
 import { getServerTimeOffset, formatTimeRemaining } from './timeSync';
 import { findBestMatch, normalizeAnswerEnhanced } from './fuzzyMatching';
 import { ServerGameService } from './serverGameService';
@@ -37,6 +39,59 @@ import { TIMING, COLLECTIONS } from '../utils/constants';
 export type { Player, Question, RoomData, AnswerResult, GameResult } from '../../shared/types/game';
 
 class MultiplayerService {
+  private async startGameCore(options: {
+    roomCode: string;
+    hostId: string;
+    label: string;
+    start: () => Promise<{ success: boolean; error?: string }>;
+    reset?: () => Promise<{ success: boolean; error?: string }>;
+  }): Promise<void> {
+    const { roomCode, hostId, label, start, reset } = options;
+    logger.log(`🎮 ${label}: Starting game in room ${roomCode} for host ${hostId}`);
+
+    try {
+      const result = await start();
+      if (!result.success) {
+        if (reset && result.error?.includes('not in lobby state')) {
+          logger.log(`🔄 ${label}: Room in invalid state, attempting reset...`);
+          const resetResult = await reset();
+          if (resetResult.success) {
+            logger.log(`✅ ${label}: Room reset successful, retrying start...`);
+            const retryResult = await start();
+            if (!retryResult.success) {
+              throw new AppError({
+                code: 'MP_START_GAME_FAILED',
+                message: retryResult.error || 'Failed to start game after reset',
+                userMessage: retryResult.error || 'Failed to start game after reset.'
+              });
+            }
+          } else {
+            throw new AppError({
+              code: 'MP_RESET_FAILED',
+              message: `Failed to reset room: ${resetResult.error}`,
+              userMessage: `Failed to reset room: ${resetResult.error}`
+            });
+          }
+        } else {
+          throw new AppError({
+            code: 'MP_START_GAME_FAILED',
+            message: result.error || 'Failed to start game',
+            userMessage: result.error || 'Failed to start game.'
+          });
+        }
+      }
+
+      logger.log(`✅ ${label}: Game started successfully`);
+    } catch (error) {
+      const appError = toAppError(error, {
+        code: 'MP_START_GAME_FAILED',
+        message: 'Failed to start game',
+        userMessage: 'Failed to start game.'
+      });
+      logger.error(`❌ ${label}: Error starting game:`, appError);
+      throw appError;
+    }
+  }
   private unsubscribeFunctions: Map<string, () => void> = new Map();
   private authService = AuthService.getInstance();
   private edgeCaseHandler = EdgeCaseHandler.getInstance();
@@ -79,7 +134,7 @@ class MultiplayerService {
   /**
    * Creates a new multiplayer room with comprehensive edge case handling
    */
-  async createRoom(hostId: string, category: string, questions: any[], hostName?: string, selectedAvatar?: string): Promise<string> {
+  async createRoom(hostId: string, category: string, questions: Array<Question | LegacyQuestion>, hostName?: string, selectedAvatar?: string): Promise<string> {
     try {
       logger.log('🔍 DEBUG: Starting room creation...');
       logger.log('🔍 DEBUG: HostId parameter:', hostId);
@@ -255,7 +310,7 @@ class MultiplayerService {
     } catch (error) {
       logger.error('❌ DEBUG: Error in createRoom:', {
         message: error instanceof Error ? error.message : 'Unknown error',
-        code: (error as any)?.code,
+        code: (error as { code?: string })?.code,
         stack: error instanceof Error ? error.stack : undefined
       });
       
@@ -485,7 +540,7 @@ class MultiplayerService {
           });
           
           // Also remove the leaving host from the room
-          const updateData: any = {
+          const updateData: Record<string, unknown> = {
             [`players.${playerId}`]: arrayRemove(roomData.players[playerId]),
             lastActivity: serverTimestamp()
           };
@@ -545,7 +600,7 @@ class MultiplayerService {
         // Regular player leaving
         logger.log(`👤 PLAYER_LEAVING: Player ${playerId} is leaving room ${roomCode}`);
         
-        const updateData: any = {
+        const updateData: Record<string, unknown> = {
           [`players.${playerId}`]: arrayRemove(roomData.players[playerId]),
           lastActivity: serverTimestamp()
         };
@@ -571,21 +626,12 @@ class MultiplayerService {
    * Starts the game (host only) - atomic transition from lobby to playing
    */
   async startGame(roomCode: string, hostId: string, timeLimit: number = 60): Promise<void> {
-    try {
-      logger.log('🎮 ROOM_START: Starting game in room:', roomCode, 'for host:', hostId);
-      
-      // Use atomic hostStartGame transaction
-      const result = await hostStartGame(roomCode, hostId, timeLimit);
-      
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to start game');
-      }
-
-      logger.log(`✅ ROOM_START: Game started in room ${roomCode}`);
-    } catch (error) {
-      logger.error('❌ ROOM_START: Error starting game:', error);
-      throw error;
-    }
+    await this.startGameCore({
+      roomCode,
+      hostId,
+      label: 'ROOM_START',
+      start: () => hostStartGame(roomCode, hostId, timeLimit),
+    });
   }
 
   /**
@@ -702,7 +748,7 @@ class MultiplayerService {
       
       // Process each answer and award points atomically
       let totalPoints = 0;
-      const processedAnswers: any[] = [];
+      const processedAnswers: Array<{ answer: string; isCorrect: boolean; points: number; rank: number }> = [];
       
       for (const answer of validAnswers) {
         try {
@@ -819,20 +865,12 @@ class MultiplayerService {
    * Clean game flow methods
    */
   async startGameClean(roomCode: string, hostId: string): Promise<void> {
-    try {
-      logger.log(`🎮 START_GAME_CLEAN: Starting game in room ${roomCode}`);
-      
-      const result = await startGameFlow(roomCode, hostId);
-      
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to start game');
-      }
-      
-      logger.log(`✅ START_GAME_CLEAN: Game started successfully`);
-    } catch (error) {
-      logger.error('❌ START_GAME_CLEAN: Error starting game:', error);
-      throw error;
-    }
+    await this.startGameCore({
+      roomCode,
+      hostId,
+      label: 'START_GAME_CLEAN',
+      start: () => startGameFlow(roomCode, hostId),
+    });
   }
 
   async submitAnswerClean(roomCode: string, playerId: string, answer: string): Promise<void> {
@@ -890,37 +928,13 @@ class MultiplayerService {
    * V2 Game Flow Methods - Following exact specification
    */
   async startGameV2(roomCode: string, hostId: string, turnTimeLimitSec: number = 60): Promise<void> {
-    try {
-      logger.log(`🎮 START_GAME_V2: Starting game in room ${roomCode}`);
-      
-      const result = await hostStartGameV2(roomCode, hostId, turnTimeLimitSec);
-      
-      if (!result.success) {
-        // If the room is in an invalid state (like 'closed'), try to reset it
-        if (result.error?.includes('not in lobby state')) {
-          logger.log(`🔄 START_GAME_V2: Room in invalid state, attempting to reset...`);
-          const resetResult = await resetRoomStatus(roomCode, hostId);
-          
-          if (resetResult.success) {
-            logger.log(`✅ START_GAME_V2: Room reset successful, retrying game start...`);
-            // Retry starting the game
-            const retryResult = await hostStartGameV2(roomCode, hostId, turnTimeLimitSec);
-            if (!retryResult.success) {
-              throw new Error(retryResult.error || 'Failed to start game after reset');
-            }
-          } else {
-            throw new Error(`Failed to reset room: ${resetResult.error}`);
-          }
-        } else {
-          throw new Error(result.error || 'Failed to start game');
-        }
-      }
-      
-      logger.log(`✅ START_GAME_V2: Game started successfully`);
-    } catch (error) {
-      logger.error('❌ START_GAME_V2: Error starting game:', error);
-      throw error;
-    }
+    await this.startGameCore({
+      roomCode,
+      hostId,
+      label: 'START_GAME_V2',
+      start: () => hostStartGameV2(roomCode, hostId, turnTimeLimitSec),
+      reset: () => resetRoomStatus(roomCode, hostId),
+    });
   }
 
   async submitAnswerV2(roomCode: string, playerId: string, answerText: string): Promise<{ success: boolean; points?: number; error?: string; roundEnded?: boolean }> {
@@ -1100,7 +1114,7 @@ class MultiplayerService {
     return await getServerOffset();
   }
 
-  calculateTimeRemainingV2(turnStartTime: any, turnTimeLimitSec: number, serverOffset: number): number {
+  calculateTimeRemainingV2(turnStartTime: number | Timestamp | { seconds: number } | null | undefined, turnTimeLimitSec: number, serverOffset: number): number {
     return calculateTimeRemaining(turnStartTime, turnTimeLimitSec, serverOffset);
   }
 
@@ -1492,7 +1506,7 @@ class MultiplayerService {
   /**
    * Sanitize object for Firestore compatibility by removing undefined values
    */
-  private sanitizeObjectForFirestore(obj: any): any {
+  private sanitizeObjectForFirestore(obj: unknown): unknown {
     if (obj === null || obj === undefined) {
       return null;
     }
@@ -1502,7 +1516,7 @@ class MultiplayerService {
     }
     
     if (typeof obj === 'object') {
-      const sanitized: any = {};
+      const sanitized: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(obj)) {
         if (value !== undefined) {
           sanitized[key] = this.sanitizeObjectForFirestore(value);
@@ -1517,7 +1531,7 @@ class MultiplayerService {
   /**
    * Validate room data structure before Firestore write
    */
-  private validateRoomDataStructure(roomData: any): boolean {
+  private validateRoomDataStructure(roomData: unknown): boolean {
     const requiredFields = [
       'roomCode', 'hostId', 'createdAt', 'status', 'category', 
       'questions', 'currentQuestionIndex', 'players', 'gamePhase'
@@ -1559,7 +1573,7 @@ class MultiplayerService {
   /**
    * Debug log object and detect undefined values
    */
-  private debugLogObject(obj: any, name: string): void {
+  private debugLogObject(obj: unknown, name: string): void {
     logger.log(`🔍 DEBUG: ${name}:`, JSON.stringify(obj, (key, value) => {
       if (value === undefined) {
         logger.warn(`⚠️ UNDEFINED VALUE found at key: ${key}`);
@@ -1637,7 +1651,7 @@ class MultiplayerService {
   /**
    * Validate room data for Firestore compatibility
    */
-  private validateRoomDataForFirestore(roomData: RoomData): any {
+  private validateRoomDataForFirestore(roomData: RoomData): Record<string, unknown> {
     // Remove any undefined values and ensure all fields are Firestore-compatible
     const validated = { ...roomData };
     

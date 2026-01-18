@@ -1,10 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Animated, Dimensions } from 'react-native';
 import { COLORS, SPACING } from '../../backend/utils/constants';
+import type { QuestionAnswer } from '../../shared/types';
+import type { Answer } from '../../shared/types/game';
+
+type RankingQuestion = {
+  answers: Array<QuestionAnswer | Answer>;
+};
 
 interface RankingOverlayProps {
   visible: boolean;
-  question: any;
+  question: RankingQuestion;
   submittedAnswers: string[];
   onHide?: () => void;
   isGameEnd?: boolean;
@@ -71,7 +77,7 @@ const RankingOverlay: React.FC<RankingOverlayProps> = ({
 
 
 
-  const getAnswerStatus = (answer: any) => {
+  const getAnswerStatus = (answer: QuestionAnswer | Answer) => {
     const isSubmitted = submittedAnswers.some(
       submitted => {
         const normalizedSubmitted = submitted.toLowerCase().trim();
@@ -133,7 +139,7 @@ const RankingOverlay: React.FC<RankingOverlayProps> = ({
 
                                    <View style={styles.rankingsContainer}>
                     {question.answers
-                      .filter((answer: any) => {
+                      .filter((answer: QuestionAnswer | Answer) => {
                         // For game end, show all answers. For regular overlay, only show found answers
                         if (isGameEnd) {
                           return true;
@@ -159,8 +165,8 @@ const RankingOverlay: React.FC<RankingOverlayProps> = ({
                           }
                         );
                       })
-                      .sort((a: any, b: any) => a.rank - b.rank) // Sort by rank
-                      .map((answer: any, index: number) => {
+                      .sort((a: QuestionAnswer | Answer, b: QuestionAnswer | Answer) => a.rank - b.rank) // Sort by rank
+                      .map((answer: QuestionAnswer | Answer, index: number) => {
                         const { status, color } = getAnswerStatus(answer);
                         
                         return (

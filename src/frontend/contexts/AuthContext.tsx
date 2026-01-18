@@ -8,6 +8,8 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import { RateLimitService } from '../../backend/services/rateLimitService';
 import { View } from 'react-native';
 import { logger } from '../../backend/utils/logger';
+import { AppError, toAppError } from '../../shared/errors';
+import type { AppErrorOptions } from '../../shared/errors';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -15,6 +17,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [pendingAction, setPendingAction] = useState<boolean>(false);
+
+  const buildAuthError = (error: unknown, fallback: AppErrorOptions): AppError => {
+    const appError = toAppError(error, fallback);
+    logger.error(`❌ AuthContext:${appError.code}`, appError);
+    return appError;
+  };
 
   // Sync AuthService with AuthContext user state
   const syncAuthService = (user: User | null) => {
@@ -81,7 +89,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           isInitialized = true;
         }
       } catch (error) {
-        logger.error('❌ AuthContext: Error during authentication initialization:', error);
+        buildAuthError(error, {
+          code: 'AUTH_INIT_FAILED',
+          message: 'Authentication initialization failed',
+          userMessage: 'Unable to initialize authentication. Please try again.'
+        });
         setLoading(false);
         isInitialized = true;
       }
@@ -176,8 +188,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // The auth state listener will update the user data, so this is not critical
       }
     } catch (error) {
-      logger.error('❌ DEBUG: AuthContext signInWithEmail error:', error);
-      throw error;
+      throw buildAuthError(error, {
+        code: 'AUTH_SIGNIN_FAILED',
+        message: 'Sign in failed',
+        userMessage: 'Sign in failed. Please try again.',
+        context: { email }
+      });
     } finally {
       logger.log('🔍 DEBUG: AuthContext setPendingAction(false)');
       setPendingAction(false);
@@ -202,8 +218,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await signUpWithEmail(email, password, displayName);
       logger.log('✅ DEBUG: AuthContext signUpWithEmail successful');
     } catch (error) {
-      logger.error('❌ DEBUG: AuthContext signUpWithEmail error:', error);
-      throw error;
+      throw buildAuthError(error, {
+        code: 'AUTH_SIGNUP_FAILED',
+        message: 'Sign up failed',
+        userMessage: 'Sign up failed. Please try again.',
+        context: { email, displayName }
+      });
     } finally {
       logger.log('🔍 DEBUG: AuthContext setPendingAction(false)');
       setPendingAction(false);
@@ -245,15 +265,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (!rateLimitResult.allowed) {
         logger.log('❌ AuthContext: Rate limit exceeded');
-        throw new Error(rateLimitResult.error || 'Too many password reset attempts. Please try again later.');
+        throw new AppError({
+          code: 'AUTH_RATE_LIMITED',
+          message: rateLimitResult.error || 'Too many password reset attempts.',
+          userMessage: rateLimitResult.error || 'Too many password reset attempts. Please try again later.',
+          context: { email }
+        });
       }
       
       logger.log('✅ AuthContext: Rate limit check passed, calling resetPasswordService...');
       await resetPasswordService(email);
       logger.log('✅ AuthContext: Password reset service completed successfully');
     } catch (error) {
-      logger.error('❌ AuthContext: Password reset error:', error);
-      throw error;
+      throw buildAuthError(error, {
+        code: 'AUTH_RESET_FAILED',
+        message: 'Password reset failed',
+        userMessage: 'Failed to send password reset email. Please try again.',
+        context: { email }
+      });
     } finally {
       setPendingAction(false);
     }
@@ -286,7 +315,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       logger.log('✅ AuthContext: Sign-out completed successfully');
     } catch (error) {
-      logger.error('💥 AuthContext: Sign-out error:', error);
+      const appError = buildAuthError(error, {
+        code: 'AUTH_SIGNOUT_FAILED',
+        message: 'Sign out failed',
+        userMessage: 'Sign out failed. Please try again.'
+      });
       
       // Even if there's an error, clear the local user state and storage
       // This ensures the user is redirected to login screen
@@ -303,7 +336,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       syncAuthService(null);
       
       // Re-throw the error for the UI to handle
-      throw error;
+      throw appError;
     } finally {
       setPendingAction(false);
     }
@@ -325,14 +358,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           syncAuthService(currentUser);
         } else {
           logger.error('❌ AuthContext: No user available for profile update');
-          throw new Error('No user is currently signed in. Please sign in again.');
+          throw new AppError({
+            code: 'AUTH_NO_USER',
+            message: 'No user is currently signed in',
+            userMessage: 'Please sign in again.'
+          });
         }
       }
       
       // Ensure we have a valid user with ID
       if (!user || !user.id) {
         logger.error('❌ AuthContext: User missing or invalid ID:', user);
-        throw new Error('User session is invalid. Please sign in again.');
+        throw new AppError({
+          code: 'AUTH_SESSION_INVALID',
+          message: 'User session is invalid',
+          userMessage: 'Please sign in again.'
+        });
       }
       
       // Handle displayName updates with local storage first
@@ -403,8 +444,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
     } catch (error) {
-      logger.error('💥 AuthContext: Profile update error:', error);
-      throw error;
+      throw buildAuthError(error, {
+        code: 'AUTH_PROFILE_UPDATE_FAILED',
+        message: 'Profile update failed',
+        userMessage: 'Failed to update profile. Please try again.',
+        context: { updates }
+      });
     } finally {
       setPendingAction(false);
     }
@@ -441,8 +486,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       logger.log('✅ AuthContext: Avatar updated successfully');
     } catch (error) {
-      logger.error('💥 AuthContext: Avatar update error:', error);
-      throw error;
+      throw buildAuthError(error, {
+        code: 'AUTH_AVATAR_UPDATE_FAILED',
+        message: 'Avatar update failed',
+        userMessage: 'Failed to update avatar. Please try again.'
+      });
     } finally {
       setPendingAction(false);
     }
@@ -465,7 +513,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       logger.log('✅ AuthContext: Profile with avatar retrieved successfully');
       return profile;
     } catch (error) {
-      logger.error('💥 AuthContext: Get profile with avatar error:', error);
+      buildAuthError(error, {
+        code: 'AUTH_PROFILE_FETCH_FAILED',
+        message: 'Profile fetch failed',
+        userMessage: 'Failed to load profile. Please try again.'
+      });
       return user; // Return current user state if error
     }
   };
@@ -488,7 +540,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 export const useAuth = (): AuthContextType => {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+  if (!ctx) {
+    throw new AppError({
+      code: 'AUTH_CONTEXT_MISSING',
+      message: 'useAuth must be used within AuthProvider',
+      userMessage: 'Authentication is not available.'
+    });
+  }
   return ctx;
 };
 

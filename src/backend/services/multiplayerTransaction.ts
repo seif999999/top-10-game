@@ -6,12 +6,25 @@ import {
   doc, 
   getDoc,
   updateDoc,
-  serverTimestamp 
+  serverTimestamp,
+  Timestamp 
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { pointsForRank } from './scoring';
 import { RoomData, Answer } from '../../shared/types/game';
 import { logger } from '../utils/logger';
+import { getStartGameData } from './gameStartCore';
+import { toAppError } from '../../shared/errors';
+
+const getTurnStartMillis = (turnStartTime?: RoomData['turnStartTime']): number => {
+  if (typeof turnStartTime === 'number') {
+    return turnStartTime;
+  }
+  if (turnStartTime instanceof Timestamp) {
+    return turnStartTime.toMillis();
+  }
+  return 0;
+};
 
 /**
  * Award an answer to a player atomically
@@ -126,36 +139,7 @@ export async function hostStartGame(
       
       const roomData = roomSnap.data() as RoomData;
       logger.log(`🔍 HOST_START_GAME: Current room status: ${roomData.status}, hostId: ${roomData.hostId}`);
-      
-      // Verify host
-      if (roomData.hostId !== hostId) {
-        throw new Error('Only the host can start the game');
-      }
-      
-      // Check if room is in lobby state
-      if (roomData.status !== 'lobby') {
-        throw new Error(`Room is not in lobby state (current: ${roomData.status})`);
-      }
-      
-      // Check minimum players
-      if (Object.keys(roomData.players).length < 1) {
-        throw new Error('Need at least 1 player to start');
-      }
-      
-      // Validate questions array
-      if (!roomData.questions || roomData.questions.length === 0) {
-        throw new Error('No questions available. Please select questions before starting the game.');
-      }
-      
-      // Get first question
-      const currentQuestion = roomData.questions[0];
-      if (!currentQuestion) {
-        throw new Error('First question not found');
-      }
-      
-      // Create turn order from player IDs
-      const playerIds = Object.keys(roomData.players);
-      const turnOrder = playerIds.sort(); // Simple alphabetical order, can be randomized later
+      const { turnOrder, firstQuestion: currentQuestion } = getStartGameData(roomData, hostId);
       
       // Atomic transition: lobby -> playing + start first round + initialize turns
       const updates = {
@@ -191,9 +175,14 @@ export async function hostStartGame(
     return result;
   } catch (error) {
     logger.error(`❌ HOST_START_GAME: Failed to start game:`, error);
+    const appError = toAppError(error, {
+      code: 'MP_START_GAME_FAILED',
+      message: 'Failed to start game',
+      userMessage: 'Failed to start game.'
+    });
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: appError.message
     };
   }
 }
@@ -292,11 +281,7 @@ export async function advanceTurn(
       
       // Verify it's the current player's turn or allow if turn has expired
       const now = Date.now();
-      const turnStartTime = typeof roomData.turnStartTime === 'object' && roomData.turnStartTime && 'seconds' in roomData.turnStartTime
-        ? (roomData.turnStartTime as any).seconds * 1000
-        : typeof roomData.turnStartTime === 'number'
-        ? roomData.turnStartTime
-        : 0;
+      const turnStartTime = getTurnStartMillis(roomData.turnStartTime);
       
       const turnExpired = turnStartTime > 0 && (now - turnStartTime) > (roomData.turnTimeLimit || 60) * 1000;
       
@@ -398,11 +383,7 @@ export async function forceAdvanceExpiredTurn(
       
       // Check if turn has actually expired
       const now = Date.now();
-      const turnStartTime = typeof roomData.turnStartTime === 'object' && roomData.turnStartTime && 'seconds' in roomData.turnStartTime
-        ? (roomData.turnStartTime as any).seconds * 1000
-        : typeof roomData.turnStartTime === 'number'
-        ? roomData.turnStartTime
-        : 0;
+      const turnStartTime = getTurnStartMillis(roomData.turnStartTime);
       
       const turnExpired = turnStartTime > 0 && (now - turnStartTime) > (roomData.turnTimeLimit || 60) * 1000;
       

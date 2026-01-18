@@ -3,10 +3,21 @@
  * Based on the user's requirements for turn-based multiplayer system
  */
 
-import { runTransaction, doc, serverTimestamp } from 'firebase/firestore';
+import { runTransaction, doc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db } from './firebase';
 import { RoomData } from '../../shared/types/game';
 import { logger } from '../utils/logger';
+import { AppError, toAppError } from '../../shared/errors';
+
+const getTurnStartMillis = (turnStartTime?: RoomData['turnStartTime']): number => {
+  if (typeof turnStartTime === 'number') {
+    return turnStartTime;
+  }
+  if (turnStartTime instanceof Timestamp) {
+    return turnStartTime.toMillis();
+  }
+  return 0;
+};
 
 /**
  * Start the game - transitions from lobby to playing
@@ -24,36 +35,60 @@ export async function startGame(
       const roomSnap = await transaction.get(roomRef);
       
       if (!roomSnap.exists()) {
-        throw new Error('Room not found');
+        throw new AppError({
+          code: 'MP_ROOM_NOT_FOUND',
+          message: 'Room not found',
+          userMessage: 'Room not found.'
+        });
       }
       
       const roomData = roomSnap.data() as RoomData;
       
       // Verify host
       if (roomData.hostId !== hostId) {
-        throw new Error('Only the host can start the game');
+        throw new AppError({
+          code: 'MP_HOST_ONLY',
+          message: 'Only the host can start the game',
+          userMessage: 'Only the host can start the game.'
+        });
       }
       
       // Check if room is in lobby state
       if (roomData.status !== 'lobby') {
-        throw new Error(`Room is not in lobby state (current: ${roomData.status})`);
+        throw new AppError({
+          code: 'MP_ROOM_INVALID_STATE',
+          message: `Room is not in lobby state (current: ${roomData.status})`,
+          userMessage: 'Room is not ready to start.'
+        });
       }
       
       // Check minimum players
       const playerIds = Object.keys(roomData.players);
       if (playerIds.length < 1) {
-        throw new Error('Need at least 1 player to start');
+        throw new AppError({
+          code: 'MP_NO_PLAYERS',
+          message: 'Need at least 1 player to start',
+          userMessage: 'Need at least 1 player to start.'
+        });
       }
       
       // Validate questions
       if (!roomData.questions || roomData.questions.length === 0) {
-        throw new Error('No questions available');
+        throw new AppError({
+          code: 'MP_NO_QUESTIONS',
+          message: 'No questions available',
+          userMessage: 'No questions available.'
+        });
       }
       
       // Get first question
       const firstQuestion = roomData.questions[0];
       if (!firstQuestion) {
-        throw new Error('First question not found');
+        throw new AppError({
+          code: 'MP_QUESTION_NOT_FOUND',
+          message: 'First question not found',
+          userMessage: 'First question not found.'
+        });
       }
       
       // Create turn order (simple alphabetical for now)
@@ -86,9 +121,14 @@ export async function startGame(
     return result;
   } catch (error) {
     logger.error(`❌ START_GAME: Failed to start game:`, error);
+    const appError = toAppError(error, {
+      code: 'MP_START_GAME_FAILED',
+      message: 'Failed to start game',
+      userMessage: 'Failed to start game.'
+    });
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: appError.message
     };
   }
 }
@@ -110,19 +150,31 @@ export async function submitAnswer(
       const roomSnap = await transaction.get(roomRef);
       
       if (!roomSnap.exists()) {
-        throw new Error('Room not found');
+        throw new AppError({
+          code: 'MP_ROOM_NOT_FOUND',
+          message: 'Room not found',
+          userMessage: 'Room not found.'
+        });
       }
       
       const roomData = roomSnap.data() as RoomData;
       
       // Verify it's the current player's turn
       if (roomData.currentPlayerId !== playerId) {
-        throw new Error('Not your turn');
+        throw new AppError({
+          code: 'MP_NOT_YOUR_TURN',
+          message: 'Not your turn',
+          userMessage: 'It is not your turn.'
+        });
       }
       
       // Check if game is in question phase
       if (roomData.gamePhase !== 'question') {
-        throw new Error('Cannot submit answers at this time');
+        throw new AppError({
+          code: 'MP_INVALID_PHASE',
+          message: 'Cannot submit answers at this time',
+          userMessage: 'You cannot submit answers right now.'
+        });
       }
       
       // Calculate points for the answer
@@ -216,9 +268,14 @@ export async function submitAnswer(
     return result;
   } catch (error) {
     logger.error(`❌ SUBMIT_ANSWER: Failed to submit answer:`, error);
+    const appError = toAppError(error, {
+      code: 'MP_SUBMIT_FAILED',
+      message: 'Failed to submit answer',
+      userMessage: 'Failed to submit answer.'
+    });
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: appError.message
     };
   }
 }
@@ -239,14 +296,22 @@ export async function endGame(
       const roomSnap = await transaction.get(roomRef);
       
       if (!roomSnap.exists()) {
-        throw new Error('Room not found');
+        throw new AppError({
+          code: 'MP_ROOM_NOT_FOUND',
+          message: 'Room not found',
+          userMessage: 'Room not found.'
+        });
       }
       
       const roomData = roomSnap.data() as RoomData;
       
       // Verify host
       if (roomData.hostId !== hostId) {
-        throw new Error('Only the host can end the game');
+        throw new AppError({
+          code: 'MP_HOST_ONLY',
+          message: 'Only the host can end the game',
+          userMessage: 'Only the host can end the game.'
+        });
       }
       
       // End the game
@@ -265,9 +330,14 @@ export async function endGame(
     return result;
   } catch (error) {
     logger.error(`❌ END_GAME: Failed to end game:`, error);
+    const appError = toAppError(error, {
+      code: 'MP_END_GAME_FAILED',
+      message: 'Failed to end game',
+      userMessage: 'Failed to end game.'
+    });
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: appError.message
     };
   }
 }
@@ -288,23 +358,27 @@ export async function advanceTurnOnTimeout(
       const roomSnap = await transaction.get(roomRef);
       
       if (!roomSnap.exists()) {
-        throw new Error('Room not found');
+        throw new AppError({
+          code: 'MP_ROOM_NOT_FOUND',
+          message: 'Room not found',
+          userMessage: 'Room not found.'
+        });
       }
       
       const roomData = roomSnap.data() as RoomData;
       
       // Check if turn has actually expired
       const now = Date.now();
-      const turnStartTime = typeof roomData.turnStartTime === 'object' && roomData.turnStartTime && 'seconds' in roomData.turnStartTime
-        ? (roomData.turnStartTime as any).seconds * 1000
-        : typeof roomData.turnStartTime === 'number'
-        ? roomData.turnStartTime
-        : 0;
+      const turnStartTime = getTurnStartMillis(roomData.turnStartTime);
       
       const turnExpired = turnStartTime > 0 && (now - turnStartTime) > (roomData.turnTimeLimit || 60) * 1000;
       
       if (!turnExpired) {
-        throw new Error('Turn has not expired yet');
+        throw new AppError({
+          code: 'MP_TURN_NOT_EXPIRED',
+          message: 'Turn has not expired yet',
+          userMessage: 'Turn has not expired yet.'
+        });
       }
       
       // Advance to next turn or next question
@@ -363,9 +437,14 @@ export async function advanceTurnOnTimeout(
     return result;
   } catch (error) {
     logger.error(`❌ ADVANCE_TURN_TIMEOUT: Failed to advance turn:`, error);
+    const appError = toAppError(error, {
+      code: 'MP_ADVANCE_TURN_FAILED',
+      message: 'Failed to advance turn',
+      userMessage: 'Failed to advance turn.'
+    });
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: appError.message
     };
   }
 }

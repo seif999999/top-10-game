@@ -11,11 +11,15 @@ export const createUserProfile = async (userId: string, userData: Partial<UserPr
   }, { merge: true });
 };
 
+type UserProfileDoc = Partial<UserProfile> & {
+  createdAt?: { toDate?: () => Date };
+};
+
 export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
   const ref = doc(db, 'users', userId);
   const snap = await getDoc(ref);
   if (!snap.exists()) return null;
-  const data = snap.data() as any;
+  const data = snap.data() as UserProfileDoc;
   return {
     id: userId,
     email: data.email ?? '',

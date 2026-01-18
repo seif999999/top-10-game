@@ -9,11 +9,13 @@
  * - Proper answer matching with aliases
  */
 
-import { runTransaction, doc, serverTimestamp, collection, setDoc, getDoc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { runTransaction, doc, serverTimestamp, collection, setDoc, getDoc, deleteDoc, updateDoc, Timestamp } from 'firebase/firestore';
 import { db } from './firebase';
 import { RoomData, RevealedAnswer, Answer } from '../../shared/types/game';
 import { findBestMatch, normalizeAnswerEnhanced } from './fuzzyMatching';
 import { pointsForRank } from './scoring';
+import { getStartGameData } from './gameStartCore';
+import { toAppError } from '../../shared/errors';
 import { logger } from '../utils/logger';
 
 // Server time offset cache
@@ -59,12 +61,16 @@ export async function getServerOffset(): Promise<number> {
 /**
  * Calculate time remaining for current turn
  */
-export function calculateTimeRemaining(turnStartTime: any, turnTimeLimitSec: number, serverOffset: number): number {
+type TurnStartTime = number | Timestamp | { seconds: number } | null | undefined;
+
+export function calculateTimeRemaining(turnStartTime: TurnStartTime, turnTimeLimitSec: number, serverOffset: number): number {
   const now = Date.now() + serverOffset;
-  const turnStart = typeof turnStartTime === 'object' && turnStartTime && 'seconds' in turnStartTime
-    ? turnStartTime.seconds * 1000
-    : typeof turnStartTime === 'number'
+  const turnStart = typeof turnStartTime === 'number'
     ? turnStartTime
+    : turnStartTime instanceof Timestamp
+    ? turnStartTime.toMillis()
+    : typeof turnStartTime === 'object' && turnStartTime && 'seconds' in turnStartTime
+    ? turnStartTime.seconds * 1000
     : 0;
   
   const elapsed = now - turnStart;
@@ -143,19 +149,9 @@ export async function hostStartGame(
             requestingHostId: hostId
           }
         });
-        throw new Error(`Room is not in lobby state (current: ${room.status})`);
       }
-      
-      if (room.hostId !== hostId) {
-        throw new Error('Only the host can start the game');
-      }
-      
-      if (!room.questions || room.questions.length === 0) {
-        throw new Error('No questions available');
-      }
-      
-      // Create turn order (deterministic sort by player ID)
-      const turnOrder = Object.keys(room.players).sort();
+
+      const { turnOrder, firstQuestion } = getStartGameData(room, hostId);
       
       // Initialize revealed answers array with 10 nulls
       const revealedAnswers: (null | RevealedAnswer)[] = Array(10).fill(null);
@@ -167,10 +163,7 @@ export async function hostStartGame(
       }
       
       // Get first question
-      const firstQuestion = room.questions[0];
-      if (!firstQuestion) {
-        throw new Error('First question not found');
-      }
+      // firstQuestion provided by getStartGameData
       
       // Transaction writes
       const updates = {
@@ -209,9 +202,14 @@ export async function hostStartGame(
     return result;
   } catch (error) {
     logger.error(`❌ HOST_START_GAME: Failed to start game:`, error);
+    const appError = toAppError(error, {
+      code: 'MP_START_GAME_FAILED',
+      message: 'Failed to start game',
+      userMessage: 'Failed to start game.'
+    });
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: appError.message
     };
   }
 }
@@ -416,7 +414,7 @@ Available answers count: ${currentQuestion?.answers?.length || 0}`);
       });
       
       // Simplified updates to reduce transaction conflicts
-      let updates: any = {
+      let updates: Record<string, unknown> = {
         lastActivity: serverTimestamp()
       };
       

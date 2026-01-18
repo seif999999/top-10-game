@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
 import { TouchableOpacity, Text, StyleSheet, Alert, ActivityIndicator, View } from 'react-native';
+import type { StyleProp, TextStyle, ViewStyle } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { signInWithGoogle as googleAuth } from '../../backend/services/googleAuth';
 import { COLORS, SPACING } from '../../backend/utils/constants';
 import { logger } from '../../backend/utils/logger';
+import { AppError, toAppError } from '../../shared/errors';
 
 interface GoogleSignInButtonProps {
   onSuccess?: () => void;
   onError?: (error: string) => void;
-  style?: any;
-  textStyle?: any;
+  style?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
 }
 
 const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
@@ -45,11 +47,20 @@ const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
           onSuccess();
         }
       } else {
-        throw new Error('Google authentication failed - no ID token received');
+        throw new AppError({
+          code: 'GOOGLE_SIGNIN_NO_TOKEN',
+          message: 'Google authentication failed - no ID token received',
+          userMessage: 'Google sign-in failed. Please try again.'
+        });
       }
     } catch (error) {
-      logger.error('❌ GoogleSignInButton: Error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Google sign-in failed';
+      const appError = toAppError(error, {
+        code: 'GOOGLE_SIGNIN_FAILED',
+        message: 'Google sign-in failed',
+        userMessage: 'Google sign-in failed. Please try again.'
+      });
+      logger.error('❌ GoogleSignInButton: Error:', appError);
+      const errorMessage = appError.userMessage ?? appError.message;
       
       // Call error callback
       if (onError) {

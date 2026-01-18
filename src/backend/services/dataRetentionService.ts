@@ -16,6 +16,8 @@ import {
 import { db } from './firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLLECTIONS } from '../utils/constants';
+import { logger } from '../utils/logger';
+import { AppError } from '../../shared/errors';
 
 export interface DataRetentionPolicy {
   userProfiles: number; // days
@@ -31,10 +33,10 @@ export interface DataExport {
   userId: string;
   exportDate: Date;
   data: {
-    profile: any;
-    gameHistory: any[];
-    privacyPolicyAcceptance: any;
-    supportTickets: any[];
+    profile: Record<string, unknown> | null;
+    gameHistory: Array<Record<string, unknown>>;
+    privacyPolicyAcceptance: Record<string, unknown> | null;
+    supportTickets: Array<Record<string, unknown>>;
   };
 }
 
@@ -52,7 +54,7 @@ export interface AnonymizedData {
   originalUserId: string;
   anonymizedAt: Date;
   dataType: string;
-  anonymizedData: any;
+  anonymizedData: unknown;
 }
 
 class DataRetentionService {
@@ -166,7 +168,7 @@ class DataRetentionService {
   static async anonymizeUserData(
     userId: string,
     dataType: string,
-    originalData: any
+    originalData: unknown
   ): Promise<AnonymizedData> {
     try {
       const anonymizedData: AnonymizedData = {
@@ -188,7 +190,11 @@ class DataRetentionService {
       return anonymizedData;
     } catch (error) {
       logger.error('Error anonymizing user data:', error);
-      throw new Error('Failed to anonymize user data');
+      throw new AppError({
+        code: 'DATA_ANONYMIZE_FAILED',
+        message: 'Failed to anonymize user data',
+        userMessage: 'Failed to anonymize user data.'
+      });
     }
   }
 
@@ -219,7 +225,11 @@ class DataRetentionService {
       return exportData;
     } catch (error) {
       logger.error('Error exporting user data:', error);
-      throw new Error('Failed to export user data');
+      throw new AppError({
+        code: 'DATA_EXPORT_FAILED',
+        message: 'Failed to export user data',
+        userMessage: 'Failed to export user data.'
+      });
     }
   }
 
@@ -351,7 +361,7 @@ class DataRetentionService {
     await AsyncStorage.multiRemove(userKeys);
   }
 
-  private static anonymizeData(data: any): any {
+  private static anonymizeData(data: unknown): unknown {
     if (typeof data === 'string') {
       return '***ANONYMIZED***';
     }
@@ -365,7 +375,7 @@ class DataRetentionService {
       return data.map(item => this.anonymizeData(item));
     }
     if (typeof data === 'object' && data !== null) {
-      const anonymized: any = {};
+      const anonymized: Record<string, unknown> = {};
       for (const key in data) {
         anonymized[key] = this.anonymizeData(data[key]);
       }
@@ -374,22 +384,22 @@ class DataRetentionService {
     return data;
   }
 
-  private static async getUserProfile(userId: string): Promise<any> {
+  private static async getUserProfile(userId: string): Promise<Record<string, unknown> | null> {
     // This would fetch user profile data
     return { userId, profile: 'user profile data' };
   }
 
-  private static async getUserGameHistory(userId: string): Promise<any[]> {
+  private static async getUserGameHistory(userId: string): Promise<Array<Record<string, unknown>>> {
     // This would fetch user game history
     return [];
   }
 
-  private static async getPrivacyPolicyAcceptance(userId: string): Promise<any> {
+  private static async getPrivacyPolicyAcceptance(userId: string): Promise<Record<string, unknown> | null> {
     // This would fetch privacy policy acceptance data
     return { userId, accepted: true };
   }
 
-  private static async getSupportTickets(userId: string): Promise<any[]> {
+  private static async getSupportTickets(userId: string): Promise<Array<Record<string, unknown>>> {
     // This would fetch support tickets
     return [];
   }

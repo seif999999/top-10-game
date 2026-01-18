@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useMultiplayer } from '../contexts/MultiplayerContext';
 import { COLORS, SPACING, TYPOGRAPHY, ACCESSIBILITY } from '../design-system';
@@ -20,11 +21,15 @@ import { Question } from '../../backend/services/multiplayerService';
 import { AuthService } from '../../backend/services/authService';
 import { sampleQuestions } from '../../backend/data/sampleQuestions';
 import CategoryCarousel, { Category } from '../components/CategoryCarousel';
+import type { LegacyQuestion } from '../../shared/types/game';
+import type { RootStackParamList } from '../../shared/types/navigation';
+
+type SampleQuestion = typeof sampleQuestions[number];
 
 interface CreateRoomScreenProps {}
 
 const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
   const { 
     selectedCategory, 
@@ -121,6 +126,14 @@ const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
     setQuestions([]);
   };
 
+  const toLegacyQuestion = (gameQuestion: SampleQuestion): LegacyQuestion => ({
+    id: gameQuestion.id,
+    text: gameQuestion.title,
+    answers: gameQuestion.answers.map(answer => answer.text),
+    category: gameQuestion.category,
+    difficulty: gameQuestion.difficulty
+  });
+
   const handleQuestionSelect = (questionId: string) => {
     setSelectedQuestionId(questionId);
     
@@ -130,7 +143,7 @@ const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
     );
     
     if (selectedQuestion) {
-      setQuestions([selectedQuestion] as any); // Type assertion for now
+      setQuestions([toLegacyQuestion(selectedQuestion)]);
     }
   };
 
@@ -146,16 +159,22 @@ const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
     }
 
     // Filter out invalid questions instead of rejecting all
-    const validQuestions = (selectedQuestions as any[]).filter(q => {
-      const isValid = q && 
-        q.title && 
-        q.title.trim() !== '' && 
-        q.answers && 
-        Array.isArray(q.answers) && 
-        q.answers.length > 0 &&
-        q.answers.some((a: any) => a && a.text && a.text.trim() !== '');
-      
-      return isValid;
+    // Check if it's a LegacyQuestion (answers is string[]) vs Question (answers is Answer[])
+    // Cast to union type to allow proper type narrowing
+    const questionsArray = selectedQuestions as Array<Question | LegacyQuestion>;
+    const validQuestions = questionsArray.filter((question): question is LegacyQuestion => {
+      if (!Array.isArray(question.answers) || question.answers.length === 0) {
+        return false;
+      }
+      // LegacyQuestion has string[] answers, Question has Answer[] answers
+      // Check if first answer is a string (LegacyQuestion) vs object (Question)
+      const firstAnswer = question.answers[0];
+      if (typeof firstAnswer !== 'string') {
+        return false;
+      }
+      return question.answers.every((answer): answer is string => 
+        typeof answer === 'string' && answer.trim() !== ''
+      );
     });
 
     if (validQuestions.length === 0) {
@@ -168,18 +187,8 @@ const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
       await authService.ensureAuthenticated();
       
       // Convert GameQuestion to Question format for multiplayer service
-      const convertedQuestions: any[] = validQuestions.map((gameQuestion: any) => {
-        return {
-          id: gameQuestion.id,
-          text: gameQuestion.title, // Use title as text
-          answers: gameQuestion.answers.map((answer: any) => answer.text), // Convert QuestionAnswer[] to string[]
-          category: gameQuestion.category,
-          difficulty: gameQuestion.difficulty
-        };
-      });
-      
-      const roomCode = await createRoom(selectedCategory, convertedQuestions);
-      (navigation as any).navigate('RoomLobby', { 
+      const roomCode = await createRoom(selectedCategory, validQuestions);
+      navigation.navigate('RoomLobby', { 
         roomCode, 
         turnDuration: selectedTurnDuration 
       });
@@ -406,7 +415,7 @@ const styles = StyleSheet.create({
   },
   sectionSubtitle: {
     fontSize: 14,
-    color: COLORS.muted,
+    color: COLORS.textMuted,
     marginBottom: SPACING.md,
     textAlign: 'center',
   },
@@ -473,7 +482,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   createButtonDisabled: {
-    backgroundColor: COLORS.muted,
+    backgroundColor: COLORS.textMuted,
+    opacity: 0.5,
   },
   createButtonText: {
     fontSize: 18,

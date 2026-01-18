@@ -3,22 +3,25 @@ import {
   View, 
   Text, 
   StyleSheet, 
-  SafeAreaView, 
   TouchableOpacity, 
   ScrollView, 
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, SPACING } from '../design-system';
+import { COLORS, SPACING, TYPOGRAPHY, ANIMATIONS, COMPONENT_STYLES } from '../design-system';
 import { getQuestionsByCategory } from '../../backend/services/questionsService';
 import { useMultiplayer } from '../contexts/MultiplayerContext';
 import { logger } from '../../backend/utils/logger';
+import type { GameQuestion } from '../../shared/types';
+import type { LegacyQuestion } from '../../shared/types/game';
+import type { RootStackParamList } from '../../shared/types/navigation';
 
 const MultiplayerQuestionsScreen: React.FC = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute();
   const insets = useSafeAreaInsets();
   const { 
@@ -35,10 +38,11 @@ const MultiplayerQuestionsScreen: React.FC = () => {
   } = useMultiplayer();
 
   const { categoryName } = route.params as { categoryName: string };
-  const [questions, setQuestionsState] = useState<any[]>([]);
+  const [questions, setQuestionsState] = useState<GameQuestion[]>([]);
   const [loadingQuestions, setLoadingQuestions] = useState(true);
-  const [selectedQuestion, setSelectedQuestion] = useState<any>(null);
+  const [selectedQuestion, setSelectedQuestion] = useState<GameQuestion | null>(null);
   const [selectedTurnDuration, setSelectedTurnDuration] = useState<number>(60); // Default 60 seconds
+  const [creatingRoomForQuestion, setCreatingRoomForQuestion] = useState<string | null>(null);
 
   // Timer duration options (in seconds)
   const turnDurationOptions = [
@@ -74,27 +78,35 @@ const MultiplayerQuestionsScreen: React.FC = () => {
     }
   };
 
-  const handleQuestionSelect = async (question: any) => {
+  const toLegacyQuestion = (question: GameQuestion): LegacyQuestion => ({
+    id: question.id,
+    text: question.title,
+    answers: question.answers.map(answer => answer.text),
+    category: question.category,
+    difficulty: question.difficulty
+  });
+
+  const handleQuestionSelect = async (question: GameQuestion) => {
+    // Prevent multiple simultaneous room creations
+    if (creatingRoomForQuestion || loading) {
+      return;
+    }
+
     logger.log('🎯 Question selected, creating room:', question.title);
     setSelectedQuestion(question);
-    setQuestions([question] as any);
+    setQuestions([toLegacyQuestion(question)]);
+    setCreatingRoomForQuestion(question.id || question.title);
 
     try {
-      const convertedQuestions: any[] = [{
-        id: question.id,
-        text: question.title,
-        answers: question.answers.map((answer: any) => answer.text),
-        category: question.category,
-        difficulty: question.difficulty
-      }];
-
+      const convertedQuestions: LegacyQuestion[] = [toLegacyQuestion(question)];
       const roomCode = await createRoom(categoryName, convertedQuestions);
-      (navigation as any).navigate('RoomLobby', {
-        roomCode,
-        turnDuration: selectedTurnDuration
+      navigation.navigate('RoomLobby', { 
+        roomCode, 
+        turnDuration: selectedTurnDuration 
       });
     } catch (error) {
       // Error is handled by the context; user can tap another question to retry
+      setCreatingRoomForQuestion(null);
     }
   };
 
@@ -206,35 +218,40 @@ const MultiplayerQuestionsScreen: React.FC = () => {
           </View>
         </View>
 
-        {/* Questions List - tap to select and create room */}
+        {/* Questions List - tap to create room instantly */}
         <View style={styles.questionsList}>
-          {questions.map((item, index) => (
-            <TouchableOpacity 
-              key={item.id || item.title}
-              style={[
-                styles.questionCard,
-                selectedQuestion?.id === item.id && styles.questionCardSelected
-              ]} 
-              onPress={() => handleQuestionSelect(item)}
-              disabled={loading}
-              activeOpacity={0.8}
-            >
-              <View style={styles.questionCardContent}>
-                <Text style={styles.questionNumber}>Question {index + 1}</Text>
-                <Text style={styles.questionText}>{item.title}</Text>
-              </View>
-              <Text style={styles.questionArrow}>→</Text>
-            </TouchableOpacity>
-          ))}
+          {questions.map((item, index) => {
+            const isCreating = creatingRoomForQuestion === (item.id || item.title);
+            const isDisabled = loading || creatingRoomForQuestion !== null;
+            
+            return (
+              <TouchableOpacity 
+                key={item.id || item.title}
+                style={[
+                  styles.questionCard,
+                  isCreating && styles.questionCardSelected
+                ]} 
+                onPress={() => handleQuestionSelect(item)}
+                disabled={isDisabled}
+                activeOpacity={0.8}
+                accessibilityLabel={`Question ${index + 1}: ${item.title}`}
+                accessibilityRole="button"
+                accessibilityHint={`Tap to create room with this question. ${item.answers?.length || 0} answers available.`}
+                accessibilityState={{ selected: isCreating, disabled: isDisabled }}
+              >
+                <View style={styles.questionCardContent}>
+                  <Text style={styles.questionNumber}>Question {index + 1}</Text>
+                  <Text style={styles.questionText}>{item.title}</Text>
+                </View>
+                {isCreating ? (
+                  <ActivityIndicator size="small" color={COLORS.primary} />
+                ) : (
+                  <Text style={styles.questionArrow}>→</Text>
+                )}
+              </TouchableOpacity>
+            );
+          })}
         </View>
-
-        {/* Creating room indicator */}
-        {loading && (
-          <View style={styles.creatingRoomContainer}>
-            <ActivityIndicator size="small" color={COLORS.primary} />
-            <Text style={styles.creatingRoomText}>Creating room...</Text>
-          </View>
-        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -429,7 +446,7 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontSize: 16,
     fontWeight: '600'
-  }
+  },
 });
 
 export default MultiplayerQuestionsScreen;
