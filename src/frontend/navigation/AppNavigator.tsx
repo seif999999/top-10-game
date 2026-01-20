@@ -10,8 +10,7 @@ import RegisterScreen from '../screens/AuthScreens/RegisterScreen';
 import HomeScreen from '../screens/HomeScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import QuestionSelectionScreen from '../screens/QuestionSelectionScreen';
-import GameLobbyScreen from '../screens/GameLobbyScreen';
-import CategoriesCarouselScreen from '../screens/CategoriesCarouselScreen';
+import GameSetupScreen from '../screens/GameSetupScreen';
 import GameScreen from '../screens/GameScreen';
 import ForgotPasswordScreen from '../screens/AuthScreens/ForgotPasswordScreen';
 import PasswordResetSuccessScreen from '../screens/AuthScreens/PasswordResetSuccessScreen';
@@ -43,24 +42,17 @@ const AppNavigator: React.FC = () => {
           contentStyle: {
             backgroundColor: '#1a1a2e',
           },
-          cardStyle: {
-            backgroundColor: '#1a1a2e',
-          },
           animationDuration: 250,
           fullScreenGestureEnabled: true,
           gestureDirection: 'horizontal',
-          statusBarStyle: 'light',
-          statusBarBackgroundColor: '#1a1a2e',
-          detachPreviousScreen: false,
         }}
       >
         {user ? (
           <>
             <Stack.Screen name="Home" component={HomeScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />
-            <Stack.Screen name="Categories" component={CategoriesCarouselScreen} />
+            <Stack.Screen name="Categories" component={GameSetupScreen} />
             <Stack.Screen name="QuestionSelection" component={QuestionSelectionScreen} />
-            <Stack.Screen name="GameLobby" component={GameLobbyScreen} />
             <Stack.Screen name="GameScreen" component={GameScreen} />
             <Stack.Screen name="MultiplayerMenu" component={MultiplayerMenuScreen} />
             <Stack.Screen name="CreateRoom" component={CreateRoomScreen} />

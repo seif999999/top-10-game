@@ -16,8 +16,7 @@ export type MainStackParamList = {
   Home: undefined;
   Profile: undefined;
   Categories: { gameMode: 'single' | 'multiplayer' };
-  QuestionSelection: { categoryName: string; gameMode?: 'single' | 'multiplayer' };
-  GameLobby: { categoryId: string; categoryName: string; selectedQuestion?: GameQuestion };
+  QuestionSelection: { categoryName: string; gameMode?: 'single' | 'multiplayer'; teamConfig?: TeamSetupConfig };
   GameScreen: { roomId: string; categoryId: string; categoryName?: string; selectedQuestion?: GameQuestion; isMultiplayer?: boolean; teamConfig?: TeamSetupConfig; gameMode?: 'single' | 'multiplayer'; roomCode?: string; customQuestion?: CustomQuestion; isCustomQuestion?: boolean };
   MultiplayerMenu: undefined;
   CreateRoom: undefined;
@@ -42,7 +41,6 @@ export type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>
 export type ProfileScreenProps = NativeStackScreenProps<RootStackParamList, 'Profile'>;
 export type CategoriesScreenProps = NativeStackScreenProps<RootStackParamList, 'Categories'>;
 export type QuestionSelectionScreenProps = NativeStackScreenProps<RootStackParamList, 'QuestionSelection'>;
-export type GameLobbyScreenProps = NativeStackScreenProps<RootStackParamList, 'GameLobby'>;
 export type GameScreenProps = NativeStackScreenProps<RootStackParamList, 'GameScreen'>;
 export type MultiplayerMenuScreenProps = NativeStackScreenProps<RootStackParamList, 'MultiplayerMenu'>;
 export type CreateRoomScreenProps = NativeStackScreenProps<RootStackParamList, 'CreateRoom'>;

@@ -7,7 +7,8 @@ export const createUserProfile = async (userId: string, userData: Partial<UserPr
   await setDoc(ref, {
     ...userData,
     createdAt: serverTimestamp(),
-    stats: userData.stats ?? { gamesPlayed: 0, wins: 0, totalScore: 0, averageScore: 0 }
+    stats: userData.stats ?? { gamesPlayed: 0, wins: 0, totalScore: 0, averageScore: 0 },
+    coins: userData.coins ?? 0 // Default to 0 coins for new users
   }, { merge: true });
 };
 
@@ -25,7 +26,8 @@ export const getUserProfile = async (userId: string): Promise<UserProfile | null
     email: data.email ?? '',
     displayName: data.displayName,
     createdAt: data.createdAt?.toDate?.() ?? undefined,
-    stats: data.stats
+    stats: data.stats,
+    coins: data.coins ?? 0 // Default to 0 if not set
   };
 };
 

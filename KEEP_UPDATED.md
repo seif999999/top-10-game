@@ -1,6 +1,6 @@
 # Top 10 Game - Complete Project Documentation
 
-**Last Updated:** 2024  
+**Last Updated:** December 2024  
 **Version:** 0.1.0  
 **Status:** Active Development
 
@@ -57,7 +57,7 @@ Top 10 Game is a cross-platform trivia game application where players compete to
 ### Frontend Framework
 
 - **React Native**: `^0.81.4` - Core mobile framework
-- **Expo**: `~54.0.0` - Development platform and tooling
+- **Expo**: `~54.0.31` - Development platform and tooling
 - **React**: `19.1.0` - UI library
 - **TypeScript**: `~5.9.2` - Type-safe JavaScript
 - **React Navigation**: `^6.1.17` - Navigation library
@@ -89,6 +89,8 @@ Top 10 Game is a cross-platform trivia game application where players compete to
 - **isomorphic-dompurify**: `^2.26.0` - XSS protection and HTML sanitization
 - **expo-auth-session**: `~7.0.8` - OAuth session management
 - **expo-crypto**: `~15.0.7` - Cryptographic utilities
+- **expo-linear-gradient**: `~15.0.8` - Gradient backgrounds for UI components
+- **framer-motion**: `^12.27.0` - Animation library (installed, usage TBD)
 
 ### Logging
 
@@ -224,15 +226,17 @@ Located in `firestore.rules`:
 
 **Auth Stack** (unauthenticated): Login, Register, ForgotPassword, PasswordResetSuccess, ResetPassword
 
-**Main Stack** (authenticated): Home, Profile, Categories, QuestionSelection, GameLobby, GameScreen, MultiplayerMenu, CreateRoom, MultiplayerCategory, MultiplayerQuestions, JoinRoom, RoomLobby, AvatarSelection, CreateCustomQuestion
+**Main Stack** (authenticated): Home, Profile, Categories (GameSetup), QuestionSelection, GameScreen, MultiplayerMenu, CreateRoom, MultiplayerCategory, MultiplayerQuestions, JoinRoom, RoomLobby, AvatarSelection, CreateCustomQuestion
 
 ### Screen Components
 
 All screens located in `src/screens/`:
 - **Auth Screens**: Login, Register, ForgotPassword, PasswordResetSuccess, ResetPassword
-- **Game Screens**: Home, CategoriesCarousel, QuestionSelection, GameLobby, GameScreen (1,779 lines - largest file)
+- **Game Screens**: Home, GameSetup (formerly CategoriesCarousel), QuestionSelection, GameScreen (1,779 lines - largest file)
 - **Multiplayer Screens**: MultiplayerMenu, CreateRoom, MultiplayerCategory, MultiplayerQuestions, JoinRoom, RoomLobby, MultiplayerLeaderboard
 - **Other Screens**: Profile, AvatarSelection, CustomQuestion
+
+**Note**: `GameLobbyScreen` has been removed - game setup is now handled directly in `GameSetupScreen` (single-player) and `MultiplayerCategoryScreen` (multiplayer).
 
 ---
 
@@ -264,8 +268,13 @@ All screens located in `src/screens/`:
 
 ### Content Moderation Services
 
-- **`src/services/contentModerationService.ts`**: Content moderation (profanity filtering, personal information detection, spam detection)
+- **`src/services/contentModerationService.ts`**: Content moderation (profanity filtering, personal information detection, spam detection) - Uses `textSanitizer.ts` to avoid circular dependencies
 - **`src/services/externalModerationService.ts`**: External moderation service integration (mock implementation)
+
+### Input Validation & Sanitization
+
+- **`src/utils/inputValidator.ts`**: Input validation and sanitization service (delegates to `textSanitizer.ts` to avoid circular dependencies)
+- **`src/utils/textSanitizer.ts`**: Text sanitization utility (extracted to break circular dependency between `inputValidator.ts` and `contentModerationService.ts`, uses DOMPurify for XSS protection)
 
 ### Security Services
 
@@ -303,8 +312,10 @@ All screens located in `src/screens/`:
 
 ### Single-Player Features
 
-1. **Game Modes**: Category selection, question selection, custom questions support
-2. **Gameplay**: Answer submission, real-time feedback, score tracking, progress indicators
+1. **Game Setup**: Category selection with team configuration (2-4 teams), team naming with color indicators, turn duration settings
+2. **Game Modes**: Question selection, custom questions support
+3. **Gameplay**: Answer submission, real-time feedback, score tracking, progress indicators
+4. **Team Management**: Team selection (2-4 teams), team naming, color-coded team display
 
 ### Multiplayer Features
 
@@ -423,6 +434,7 @@ Complete multiplayer room state. Key fields: `roomCode`, `hostId`, `status`, `ga
 1. **Hardcoded Firebase Config** ✅ **RESOLVED**: Previously in `src/services/firebase.ts` - Now uses environment variables
 2. **In-Memory Rate Limiting** ⚠️: Location: `src/services/auth.ts`, `src/services/rateLimitService.ts` - Should be Firestore-based for production
 3. **Excessive Console Logging** ✅ **RESOLVED**: Previously throughout codebase - Now uses centralized logger utility that only logs in development mode
+4. **Circular Dependency** ✅ **RESOLVED**: Previously `inputValidator.ts` ↔ `contentModerationService.ts` - Fixed by extracting sanitization logic to `textSanitizer.ts` utility
 
 ---
 
@@ -597,6 +609,7 @@ npm run test:coverage    # Test coverage
    - `GameScreen.tsx`: 1,779 lines (should be split)
    - `multiplayerService.ts`: 1,700+ lines (should be modularized)
    - `multiplayerGameFlowV2.ts`: 1,100+ lines (should be split)
+   - `GameSetupScreen.tsx`: 762 lines (formerly CategoriesCarouselScreen, handles single-player game setup)
 
 2. **Type Safety**: Some `any` types used (should be properly typed)
 

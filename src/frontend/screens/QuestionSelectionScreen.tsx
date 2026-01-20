@@ -5,32 +5,26 @@ import {
   StyleSheet, 
   TouchableOpacity, 
   ScrollView, 
-  ActivityIndicator,
-  FlatList,
-  Alert,
-  Animated
+  ActivityIndicator
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, SPACING, TYPOGRAPHY, ANIMATIONS, COMPONENT_STYLES } from '../design-system';
+import { COLORS, SPACING } from '../design-system';
 import { logger } from '../../backend/utils/logger';
 import { QuestionSelectionScreenProps } from '../../shared/types/navigation';
 import type { GameQuestion } from '../../shared/types';
 import { getQuestionsByCategory } from '../../backend/services/questionsService';
-import { FEATURES } from '../../backend/config/featureFlags';
-import TeamSetupModal from '../components/TeamSetupModal';
 import { TeamSetupConfig } from '../../shared/types/teams';
 
 const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navigation, route }) => {
-  const { categoryName, gameMode } = route.params;
+  const { categoryName, gameMode, teamConfig: passedTeamConfig } = route.params;
   const insets = useSafeAreaInsets();
   const [questions, setQuestions] = useState<GameQuestion[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showTeamSetup, setShowTeamSetup] = useState(false);
-  const [selectedQuestion, setSelectedQuestion] = useState<GameQuestion | null>(null);
   
   logger.log('🎯 QuestionSelectionScreen loaded with params:', route.params);
   logger.log('🎯 Category name:', categoryName);
+  logger.log('🎯 Team config passed:', passedTeamConfig);
 
   useEffect(() => {
     loadQuestions();
@@ -62,10 +56,17 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
         isMultiplayer: true
       });
     } else {
-      // For single player - check if teams are enabled
-      if (FEATURES.teamsEnabled) {
-        setSelectedQuestion(question);
-        setShowTeamSetup(true);
+      // For single player - check if teamConfig was passed from category screen
+      if (passedTeamConfig && passedTeamConfig.numberOfTeams > 1) {
+        // Use the team config from category selection
+        navigation.navigate('GameScreen', {
+          roomId: 'single-player',
+          categoryId: categoryName,
+          categoryName: categoryName,
+          selectedQuestion: question,
+          isMultiplayer: false,
+          teamConfig: passedTeamConfig
+        });
       } else {
         // Regular single player mode
         navigation.navigate('GameScreen', {
@@ -79,32 +80,6 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
     }
   };
 
-  const handleTeamSetupStart = (config: TeamSetupConfig) => {
-    try {
-      logger.log('🎮 Starting team game with config:', config);
-      
-      if (!selectedQuestion) {
-        Alert.alert('Error', 'No question selected');
-        return;
-      }
-
-      // Navigate to GameScreen with team configuration
-      navigation.navigate('GameScreen', {
-        roomId: 'single-player',
-        categoryId: categoryName,
-        categoryName: categoryName,
-        selectedQuestion: selectedQuestion,
-        isMultiplayer: false,
-        teamConfig: config
-      });
-      
-      // Close the modal
-      setShowTeamSetup(false);
-    } catch (error) {
-      logger.error('Error starting team game:', error);
-      Alert.alert('Error', 'Failed to start team game. Please try again.');
-    }
-  };
 
   const handleBackToCategories = () => {
     navigation.navigate('Categories', { gameMode: 'single' });
@@ -136,7 +111,7 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
           end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFill}
         />
-        <View style={[styles.header, { paddingTop: insets.top + SPACING.md }]}>
+        <View style={[styles.header, { paddingTop: insets.top * 0.5 }]}>
           <TouchableOpacity onPress={handleBackToCategories} style={styles.backButton}>
             <Text style={styles.backButtonArrow}>←</Text>
           </TouchableOpacity>
@@ -173,7 +148,7 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
-      <View style={[styles.header, { paddingTop: insets.top + SPACING.md }]}>
+      <View style={[styles.header, { paddingTop: insets.top * 0.5 }]}>
         <TouchableOpacity onPress={handleBackToCategories} style={styles.backButton}>
           <Text style={styles.backButtonArrow}>←</Text>
         </TouchableOpacity>
@@ -206,13 +181,6 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
           ))}
         </View>
       </ScrollView>
-
-      {/* Team Setup Modal */}
-      <TeamSetupModal
-        visible={showTeamSetup}
-        onClose={() => setShowTeamSetup(false)}
-        onStartGame={handleTeamSetupStart}
-      />
     </SafeAreaView>
   );
 };
@@ -229,6 +197,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingBottom: SPACING.xl,
     zIndex: 10,
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
   backButton: {
     width: 40,

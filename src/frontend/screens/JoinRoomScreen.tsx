@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
   },
   title: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold' as const,
     color: COLORS.text,
     textAlign: 'center',

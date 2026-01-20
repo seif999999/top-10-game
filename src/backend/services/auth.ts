@@ -552,7 +552,8 @@ const mapFirebaseUser = (fbUser: FirebaseUser): User => {
     email: fbUser.email ?? '',
     displayName: fbUser.displayName ?? undefined,
     createdAt: fbUser.metadata?.creationTime ? new Date(fbUser.metadata.creationTime) : undefined,
-    stats: undefined
+    stats: undefined,
+    coins: 0 // Default coin balance for new users
   };
 };
 

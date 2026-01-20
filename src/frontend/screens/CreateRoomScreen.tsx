@@ -14,7 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useMultiplayer } from '../contexts/MultiplayerContext';
-import { COLORS, SPACING, TYPOGRAPHY, ACCESSIBILITY } from '../design-system';
+import { COLORS, SPACING } from '../design-system';
 import { logger } from '../../backend/utils/logger';
 import { RESPONSIVE } from '../utils/responsive';
 import { Question } from '../../backend/services/multiplayerService';
@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
   },
   title: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold' as const,
     color: COLORS.text,
     textAlign: 'center',

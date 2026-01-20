@@ -18,9 +18,6 @@ import { COLORS, SPACING } from '../../backend/utils/constants';
 import { logger } from '../../backend/utils/logger';
 import { CustomQuestionScreenProps } from '../../shared/types/navigation';
 import CustomQuestionService, { CustomQuestion } from '../../backend/services/customQuestionService';
-import TeamSetupModal from '../components/TeamSetupModal';
-import { TeamSetupConfig } from '../../shared/types/teams';
-import { FEATURES } from '../../backend/config/features';
 
 const { width } = Dimensions.get('window');
 
