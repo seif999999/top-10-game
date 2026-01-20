@@ -5,14 +5,13 @@ import {
   StyleSheet, 
   TouchableOpacity, 
   ScrollView, 
-  ActivityIndicator,
-  Alert,
+  ActivityIndicator
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, SPACING, TYPOGRAPHY, ANIMATIONS, COMPONENT_STYLES } from '../design-system';
+import { COLORS, SPACING } from '../design-system';
 import { getQuestionsByCategory } from '../../backend/services/questionsService';
 import { useMultiplayer } from '../contexts/MultiplayerContext';
 import { logger } from '../../backend/utils/logger';
@@ -25,33 +24,17 @@ const MultiplayerQuestionsScreen: React.FC = () => {
   const route = useRoute();
   const insets = useSafeAreaInsets();
   const { 
-    selectedCategory, 
-    selectedQuestions, 
     setQuestions, 
     createRoom, 
     loading, 
     error,
-    clearError,
-    leaveRoom,
-    resetAll,
-    cleanup
+    clearError
   } = useMultiplayer();
 
   const { categoryName } = route.params as { categoryName: string };
   const [questions, setQuestionsState] = useState<GameQuestion[]>([]);
   const [loadingQuestions, setLoadingQuestions] = useState(true);
-  const [selectedQuestion, setSelectedQuestion] = useState<GameQuestion | null>(null);
-  const [selectedTurnDuration, setSelectedTurnDuration] = useState<number>(60); // Default 60 seconds
   const [creatingRoomForQuestion, setCreatingRoomForQuestion] = useState<string | null>(null);
-
-  // Timer duration options (in seconds)
-  const turnDurationOptions = [
-    { value: 30, label: '30 seconds', description: 'Quick rounds' },
-    { value: 45, label: '45 seconds', description: 'Fast-paced' },
-    { value: 60, label: '1 minute', description: 'Standard' },
-    { value: 90, label: '1.5 minutes', description: 'Relaxed' },
-    { value: 120, label: '2 minutes', description: 'Leisurely' }
-  ];
   
   logger.log('🎯 MultiplayerQuestionsScreen loaded with category:', categoryName);
 
@@ -93,7 +76,6 @@ const MultiplayerQuestionsScreen: React.FC = () => {
     }
 
     logger.log('🎯 Question selected, creating room:', question.title);
-    setSelectedQuestion(question);
     setQuestions([toLegacyQuestion(question)]);
     setCreatingRoomForQuestion(question.id || question.title);
 
@@ -101,8 +83,7 @@ const MultiplayerQuestionsScreen: React.FC = () => {
       const convertedQuestions: LegacyQuestion[] = [toLegacyQuestion(question)];
       const roomCode = await createRoom(categoryName, convertedQuestions);
       navigation.navigate('RoomLobby', { 
-        roomCode, 
-        turnDuration: selectedTurnDuration 
+        roomCode
       });
     } catch (error) {
       // Error is handled by the context; user can tap another question to retry
@@ -141,7 +122,7 @@ const MultiplayerQuestionsScreen: React.FC = () => {
           end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFill}
         />
-        <View style={[styles.header, { paddingTop: insets.top + SPACING.md }]}>
+        <View style={[styles.header, { paddingTop: insets.top * 0.5 }]}>
           <TouchableOpacity onPress={handleBackToCategories} style={styles.backButton}>
             <Text style={styles.backButtonArrow}>←</Text>
           </TouchableOpacity>
@@ -177,7 +158,7 @@ const MultiplayerQuestionsScreen: React.FC = () => {
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
-      <View style={[styles.header, { paddingTop: insets.top + SPACING.md }]}>
+      <View style={[styles.header, { paddingTop: insets.top * 0.5 }]}>
         <TouchableOpacity onPress={handleBackToCategories} style={styles.backButton}>
           <Text style={styles.backButtonArrow}>←</Text>
         </TouchableOpacity>
@@ -192,32 +173,6 @@ const MultiplayerQuestionsScreen: React.FC = () => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Turn Duration - at top */}
-        <View style={styles.timerSection}>
-          <Text style={styles.timerTitle}>⏱️ Turn Duration</Text>
-          <View style={styles.durationRow}>
-            {turnDurationOptions.map((option) => (
-              <TouchableOpacity
-                key={option.value}
-                style={[
-                  styles.durationButton,
-                  selectedTurnDuration === option.value && styles.durationButtonSelected
-                ]}
-                onPress={() => setSelectedTurnDuration(option.value)}
-                accessibilityLabel={`Select ${option.value} seconds turn duration`}
-                accessibilityState={{ selected: selectedTurnDuration === option.value }}
-              >
-                <Text style={[
-                  styles.durationButtonText,
-                  selectedTurnDuration === option.value && styles.durationButtonTextSelected
-                ]}>
-                  {option.value}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
         {/* Questions List - tap to create room instantly */}
         <View style={styles.questionsList}>
           {questions.map((item, index) => {
@@ -269,6 +224,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingBottom: SPACING.xl,
     zIndex: 10,
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
   backButton: {
     width: 40,
@@ -305,50 +262,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: SPACING.lg,
     paddingBottom: SPACING['2xl'],
-  },
-  timerSection: {
-    backgroundColor: '#1e1e2e',
-    borderRadius: 16,
-    padding: SPACING.xl,
-    marginBottom: SPACING.lg,
-    borderWidth: 1,
-    borderColor: '#666666',
-  },
-  timerTitle: {
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: COLORS.text,
-    marginBottom: SPACING.md,
-    textAlign: 'center',
-  },
-  durationRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: SPACING.sm,
-  },
-  durationButton: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 8,
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    borderWidth: 1,
-    borderColor: '#666666',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    minHeight: 40,
-  },
-  durationButtonSelected: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  durationButtonText: {
-    fontSize: 14,
-    fontWeight: 'bold' as const,
-    color: COLORS.text,
-  },
-  durationButtonTextSelected: {
-    color: COLORS.white,
   },
   questionsList: {
     gap: SPACING.md,
@@ -392,19 +305,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '300' as const,
     marginLeft: SPACING.md,
-  },
-  creatingRoomContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING.sm,
-    paddingTop: SPACING.xl,
-    paddingBottom: SPACING.lg,
-  },
-  creatingRoomText: {
-    color: COLORS.text,
-    fontSize: 16,
-    fontWeight: '600',
   },
   loadingContainer: {
     flex: 1,

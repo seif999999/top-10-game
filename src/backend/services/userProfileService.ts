@@ -61,6 +61,7 @@ export class UserProfileService {
         stats: userData.stats,
         selectedAvatar: userData.selectedAvatar,
         avatarUrl: userData.avatarUrl,
+        coins: userData.coins ?? 0, // Default to 0 if not set
       } as User;
     } catch (error) {
       logger.error('Error getting user profile:', error);
@@ -82,6 +83,7 @@ export class UserProfileService {
         stats: user.stats,
         selectedAvatar: user.selectedAvatar,
         avatarUrl: user.avatarUrl,
+        coins: user.coins ?? 0, // Include coins in profile data
         lastUpdated: serverTimestamp(),
       };
 

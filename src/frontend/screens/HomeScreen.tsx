@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Alert, Dimensions, ScrollView, Animated, PanResponder, Easing } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Dimensions, ScrollView, Animated, PanResponder, Easing, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING } from '../../backend/utils/constants';
@@ -9,6 +9,15 @@ import AvatarIcon from '../components/AvatarIcon';
 import HowToPlayModal from '../components/HowToPlayModal';
 
 const { width, height } = Dimensions.get('window');
+
+// Safely load coin image with fallback
+let coinImageSource: any = null;
+try {
+  coinImageSource = require('../assets/avatars/coin.png');
+} catch (e) {
+  // Image not found, will use emoji fallback
+  coinImageSource = null;
+}
 
 // Swipeable Card Component
 interface SwipeableCardProps {
@@ -207,19 +216,6 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({ onSwipeComplete, onPress,
   );
 };
 
-// Theme colors from CSS variables
-const THEME_COLORS = {
-  background: '#0A0A0A',
-  primary: '#4F46E5',
-  secondary: '#8B5CF6',
-  info: '#3B82F6',
-  accent: '#FF6B6B',
-  success: '#10B981',
-  warning: '#F59E0B',
-  text: '#FFFFFF',
-  muted: '#8E8E93',
-};
-
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
@@ -264,7 +260,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         scrollEnabled={true}
         directionalLockEnabled={true}
       >
-        {/* Header with Profile and Rules Buttons */}
+        {/* Header with Profile, Coins, and Rules Buttons */}
         <View style={[styles.header, { paddingTop: insets.top + SPACING.xs }]}>
         <TouchableOpacity onPress={handleProfileNavigation} style={styles.profileButton}>
           <AvatarIcon 
@@ -276,9 +272,36 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           />
         </TouchableOpacity>
         
-        <TouchableOpacity onPress={handleHowToPlay} style={styles.rulesButton}>
-          <Text style={styles.rulesButtonText}>❓</Text>
-        </TouchableOpacity>
+        {/* Right side - Coins & Help */}
+        <View style={styles.headerRight}>
+          {/* Coin Display */}
+          <View style={styles.coinDisplay}>
+            {/* Coin Icon */}
+            <View style={styles.coinIconContainer}>
+              {coinImageSource ? (
+                <Image
+                  source={coinImageSource}
+                  style={styles.coinImage}
+                  resizeMode="contain"
+                  onError={() => {
+                    // Silently fallback - error already handled
+                  }}
+                />
+              ) : (
+                <Text style={styles.coinIcon}>🪙</Text>
+              )}
+            </View>
+            {/* Coin Balance */}
+            <Text style={styles.coinBalance}>
+              {(user?.coins ?? 0).toLocaleString()}
+            </Text>
+          </View>
+
+          {/* Help Button */}
+          <TouchableOpacity onPress={handleHowToPlay} style={styles.rulesButton}>
+            <Text style={styles.rulesButtonText}>❓</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
         {/* Hero Section */}
@@ -424,6 +447,46 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
     overflow: 'hidden',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  coinDisplay: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.sm,
+    borderRadius: 20,
+    backgroundColor: 'rgba(245, 158, 11, 0.2)', // Gold with transparency
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    shadowColor: '#F59E0B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+    marginRight: SPACING.sm,
+  },
+  coinIconContainer: {
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SPACING.xs,
+  },
+  coinImage: {
+    width: 24,
+    height: 24,
+  },
+  coinIcon: {
+    fontSize: 20,
+  },
+  coinBalance: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+    minWidth: 30,
   },
   rulesButton: {
     width: 44,

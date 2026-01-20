@@ -481,11 +481,22 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   // Check if game is finished and show results - simplified dependencies
   useEffect(() => {
     if (gameState?.gamePhase === 'finished' && !showResults) {
-      logger.log('🎉 Game finished! Showing results...');
-      setShowGameEndRanking(true);
-      setShowResults(true);
+      logger.log('🎉 Game finished!');
+      if (isMultiplayerMode) {
+        // Show results modal for multiplayer games
+        setShowGameEndRanking(true);
+        setShowResults(true);
+      } else {
+        // For single player games, automatically navigate back to categories
+        setShowGameEndRanking(true);
+        // Don't show results modal, just navigate away after a brief delay
+        setTimeout(() => {
+          resetGame();
+          navigation.navigate('Categories', { gameMode: 'single' });
+        }, 2000); // Show ranking overlay for 2 seconds then navigate
+      }
     }
-  }, [gameState?.gamePhase, showResults]);
+  }, [gameState?.gamePhase, showResults, isMultiplayerMode]);
 
   // Handle system messages (Sporcle-style notifications)
   useEffect(() => {
@@ -739,10 +750,13 @@ const handleEndGame = () => {
     if (confirmed) {
       if (isMultiplayerMode) {
         endMultiplayerGame();
+        setShowResults(true);
       } else {
         endGame();
+        // For single player, navigate away without showing results modal
+        resetGame();
+        navigation.navigate('Categories', { gameMode: 'single' });
       }
-      setShowResults(true);
     }
   } else {
     // Mobile version
@@ -757,10 +771,13 @@ const handleEndGame = () => {
           onPress: () => {
             if (isMultiplayerMode) {
               endMultiplayerGame();
+              setShowResults(true);
             } else {
               endGame();
+              // For single player, navigate away without showing results modal
+              resetGame();
+              navigation.navigate('Categories', { gameMode: 'single' });
             }
-            setShowResults(true);
           }
         }
       ]
@@ -1133,15 +1150,16 @@ const handleEndGame = () => {
   const handleNextQuestion = () => {
     if (isMultiplayerMode) {
       if (multiplayerState && (multiplayerState.currentQuestionIndex || 0) >= (multiplayerState.questions?.length || 0) - 1) {
-        // Game finished, show results
+        // Game finished, show results for multiplayer
         setShowResults(true);
       } else {
         nextMultiplayerQuestion();
       }
     } else {
       if (gameState && gameState.currentRound >= gameState.totalRounds) {
-        // Game finished, show results
-        setShowResults(true);
+        // Game finished for single player - navigate away without showing results modal
+        resetGame();
+        navigation.navigate('Categories', { gameMode: 'single' });
       } else {
         nextQuestion();
       }
@@ -1584,14 +1602,16 @@ const handleEndGame = () => {
 
       </ScrollView>
 
-             {/* Results Modal */}
-       <ResultsModal
-         visible={showResults}
-         gameResults={getGameResults()}
-         onClose={() => setShowResults(false)}
-         onPlayAgain={handlePlayAgain}
-         onBackToCategories={handleBackToCategories}
-       />
+             {/* Results Modal - Only show for multiplayer games */}
+       {isMultiplayerMode && (
+         <ResultsModal
+           visible={showResults}
+           gameResults={getGameResults()}
+           onClose={() => setShowResults(false)}
+           onPlayAgain={handlePlayAgain}
+           onBackToCategories={handleBackToCategories}
+         />
+       )}
        
        
 

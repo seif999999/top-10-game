@@ -3,19 +3,21 @@ import {
   View, 
   Text, 
   StyleSheet, 
-  SafeAreaView, 
   TouchableOpacity, 
   Dimensions,
-  Animated
+  Animated,
+  TextInput,
+  ScrollView
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING, TYPOGRAPHY, ANIMATIONS } from '../design-system';
 import { logger } from '../../backend/utils/logger';
 import { CategoriesScreenProps } from '../../shared/types/navigation';
 import { getQuestionsByCategory } from '../../backend/services/questionsService';
+import { TeamSetupConfig, ROUND_TIMER_OPTIONS, TEAM_COLORS } from '../../shared/types/teams';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 const categories = [
   {
@@ -84,11 +86,16 @@ const categories = [
   },
 ];
 
-const CategoriesCarouselScreen: React.FC<CategoriesScreenProps> = ({ navigation, route }) => {
+const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route }) => {
   const { gameMode } = route.params;
   const [currentIndex, setCurrentIndex] = useState(0);
   const [questionCounts, setQuestionCounts] = useState<{ [key: string]: number }>({});
   const insets = useSafeAreaInsets();
+  
+  // Team and timer settings
+  const [numberOfTeams, setNumberOfTeams] = useState(2);
+  const [teamNames, setTeamNames] = useState(['Team 1', 'Team 2', 'Team 3', 'Team 4']);
+  const [roundTimer, setRoundTimer] = useState(60);
   
   // Animation values
   const backButtonScale = useRef(new Animated.Value(1)).current;
@@ -148,14 +155,57 @@ const CategoriesCarouselScreen: React.FC<CategoriesScreenProps> = ({ navigation,
     navigation.goBack();
   };
 
+  const handleNumberOfTeamsChange = (value: number) => {
+    const clampedValue = Math.max(1, Math.min(4, value));
+    setNumberOfTeams(clampedValue);
+    // Ensure we have enough team names
+    const newTeamNames = [...teamNames];
+    for (let i = teamNames.length; i < clampedValue; i++) {
+      newTeamNames.push(`Team ${i + 1}`);
+    }
+    setTeamNames(newTeamNames);
+  };
+
+  const handleTeamNameChange = (index: number, name: string) => {
+    const newTeamNames = [...teamNames];
+    newTeamNames[index] = name;
+    setTeamNames(newTeamNames);
+  };
+
   const handleContinue = () => {
     const currentCategory = categories[currentIndex];
     logger.log('🎯 Continue pressed with category:', currentCategory.name);
     
-    navigation.navigate('QuestionSelection', {
-      categoryName: currentCategory.name,
-      gameMode: gameMode
-    });
+    // If teams mode is enabled (numberOfTeams > 1), create team config
+    if (numberOfTeams > 1) {
+      const validTeamNames = teamNames.slice(0, numberOfTeams).filter(name => name.trim() !== '');
+      if (validTeamNames.length !== numberOfTeams) {
+        logger.error('❌ Invalid team names');
+        return;
+      }
+
+      const teamConfig: TeamSetupConfig = {
+        numberOfTeams,
+        teamNames: validTeamNames,
+        roundTimer,
+        maxRounds: undefined,
+        isHostedLocal: true,
+      };
+
+      // Navigate directly to GameScreen with team config (skip question selection for now)
+      // Or navigate to QuestionSelection with teamConfig param
+      navigation.navigate('QuestionSelection', {
+        categoryName: currentCategory.name,
+        gameMode: gameMode,
+        teamConfig: teamConfig
+      });
+    } else {
+      // Single player mode - no teams
+      navigation.navigate('QuestionSelection', {
+        categoryName: currentCategory.name,
+        gameMode: gameMode
+      });
+    }
   };
 
   const handlePreviousCategory = () => {
@@ -214,80 +264,166 @@ const CategoriesCarouselScreen: React.FC<CategoriesScreenProps> = ({ navigation,
         />
         
         {/* Header */}
-        <View style={[styles.header, { paddingTop: insets.top }]}>
+        <View style={[styles.header, { paddingTop: insets.top * 0.5 }]}>
           <Animated.View style={{ transform: [{ scale: backButtonScale }] }}>
             <TouchableOpacity onPress={handleBackToHome} style={styles.backButton}>
               <Text style={styles.backButtonArrow}>←</Text>
             </TouchableOpacity>
           </Animated.View>
           <View style={styles.headerContent}>
-            <Text style={styles.headerTitle}>Select Category</Text>
+            <Text style={styles.headerTitle}>Game Setup</Text>
           </View>
           <View style={styles.headerPlaceholder} />
         </View>
 
-        {/* Carousel Container */}
-        <View style={styles.carouselWrapper}>
-          {/* Left Navigation Button */}
-          <View style={styles.navButtonContainer}>
-            {currentIndex > 0 && (
-              <Animated.View style={{ transform: [{ scale: leftButtonScale }] }}>
-                <TouchableOpacity
-                  onPress={handlePreviousCategory}
-                  style={styles.navButton}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.navButtonChevron}>{'<'}</Text>
-                </TouchableOpacity>
-              </Animated.View>
-            )}
+        <ScrollView 
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Category Label */}
+          <View style={styles.categoryLabelContainer}>
+            <Text style={styles.settingLabel}>Category</Text>
           </View>
 
-          {/* Current Card - Always Centered */}
-          <Animated.View
-            style={[
-              styles.currentCard,
-              {
-                opacity: cardOpacity,
-              },
-            ]}
-          >
-            <LinearGradient
-              colors={currentCategory.gradient as [string, string]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.categoryCardGradient}
+          {/* Carousel Container */}
+          <View style={styles.carouselWrapper}>
+            {/* Left Navigation Button */}
+            <View style={styles.navButtonContainer}>
+              {currentIndex > 0 && (
+                <Animated.View style={{ transform: [{ scale: leftButtonScale }] }}>
+                  <TouchableOpacity
+                    onPress={handlePreviousCategory}
+                    style={styles.navButton}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.navButtonChevron}>{'<'}</Text>
+                  </TouchableOpacity>
+                </Animated.View>
+              )}
+            </View>
+
+            {/* Current Card - Always Centered */}
+            <Animated.View
+              style={[
+                styles.currentCard,
+                {
+                  opacity: cardOpacity,
+                },
+              ]}
             >
-              <View style={styles.cardContent}>
-                <View style={styles.cardContentInner}>
-                  <Text style={styles.categoryIcon}>{currentCategory.icon}</Text>
-                  <Text style={styles.categoryName}>{currentCategory.name}</Text>
-                  <Text style={styles.categoryDescription}>{currentCategory.description}</Text>
+              <LinearGradient
+                colors={currentCategory.gradient as [string, string]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.categoryCardGradient}
+              >
+                <View style={styles.cardContent}>
+                  <View style={styles.cardContentInner}>
+                    <Text style={styles.categoryIcon}>{currentCategory.icon}</Text>
+                    <Text style={styles.categoryName}>{currentCategory.name}</Text>
+                    <Text style={styles.categoryDescription}>{currentCategory.description}</Text>
+                  </View>
+                  <View style={styles.questionCountBadge}>
+                    <Text style={styles.questionCountText}>
+                      {questionCounts[currentCategory.name] || currentCategory.questionCount} Questions
+                    </Text>
+                  </View>
                 </View>
-                <View style={styles.questionCountBadge}>
-                  <Text style={styles.questionCountText}>
-                    {questionCounts[currentCategory.name] || currentCategory.questionCount} Questions
-                  </Text>
-                </View>
-              </View>
-            </LinearGradient>
-          </Animated.View>
+              </LinearGradient>
+            </Animated.View>
 
-          {/* Right Navigation Button */}
-          <View style={styles.navButtonContainer}>
-            {currentIndex < categories.length - 1 && (
-              <Animated.View style={{ transform: [{ scale: rightButtonScale }] }}>
-                <TouchableOpacity
-                  onPress={handleNextCategory}
-                  style={styles.navButton}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.navButtonChevron}>{'>'}</Text>
-                </TouchableOpacity>
-              </Animated.View>
-            )}
+            {/* Right Navigation Button */}
+            <View style={styles.navButtonContainer}>
+              {currentIndex < categories.length - 1 && (
+                <Animated.View style={{ transform: [{ scale: rightButtonScale }] }}>
+                  <TouchableOpacity
+                    onPress={handleNextCategory}
+                    style={styles.navButton}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.navButtonChevron}>{'>'}</Text>
+                  </TouchableOpacity>
+                </Animated.View>
+              )}
+            </View>
           </View>
-        </View>
+
+          {/* Game Settings Section */}
+          <View style={styles.settingsSection}>
+            {/* Number of Teams */}
+            <View style={styles.settingRow}>
+              <Text style={styles.settingLabel}>Number of Teams</Text>
+              <View style={styles.teamCountContainer}>
+                {[2, 3, 4].map((count) => (
+                  <TouchableOpacity
+                    key={count}
+                    onPress={() => handleNumberOfTeamsChange(count)}
+                    style={[
+                      styles.teamCountButton,
+                      numberOfTeams === count && styles.teamCountButtonActive
+                    ]}
+                  >
+                    <Text style={[
+                      styles.teamCountButtonText,
+                      numberOfTeams === count && styles.teamCountButtonTextActive
+                    ]}>
+                      {count}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Team Names (show for all teams, including single team) */}
+            <View style={styles.settingRow}>
+              <Text style={styles.settingLabel}>Team Names</Text>
+              <View style={styles.teamNamesContainer}>
+                {teamNames.slice(0, numberOfTeams).map((name, index) => (
+                  <View key={index} style={styles.teamNameRow}>
+                    <View
+                      style={[
+                        styles.teamColorIndicator,
+                        { backgroundColor: TEAM_COLORS[index] },
+                      ]}
+                    />
+                    <TextInput
+                      style={styles.teamNameInput}
+                      value={name}
+                      onChangeText={(text) => handleTeamNameChange(index, text)}
+                      placeholder={`Team ${index + 1}`}
+                      placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                    />
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            {/* Turn Duration */}
+            <View style={styles.settingRow}>
+              <Text style={styles.settingLabel}>Turn Duration</Text>
+              <View style={styles.timerContainer}>
+                {ROUND_TIMER_OPTIONS.map((timer) => (
+                  <TouchableOpacity
+                    key={timer}
+                    onPress={() => setRoundTimer(timer)}
+                    style={[
+                      styles.timerButton,
+                      roundTimer === timer && styles.timerButtonActive
+                    ]}
+                  >
+                    <Text style={[
+                      styles.timerButtonText,
+                      roundTimer === timer && styles.timerButtonTextActive
+                    ]}>
+                      {timer === 0 ? '∞' : `${timer}s`}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </View>
+        </ScrollView>
 
         {/* Continue Button */}
         <View style={[styles.continueButtonContainer, { paddingBottom: insets.bottom + SPACING.md }]}>
@@ -371,17 +507,24 @@ const styles = StyleSheet.create({
     width: 44,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '600',
     color: '#FFFFFF',
   },
-  carouselWrapper: {
+  scrollView: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: SPACING.xl,
+  },
+  carouselWrapper: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.xl,
+    minHeight: 400,
   },
   navButtonContainer: {
     width: 40,
@@ -479,7 +622,7 @@ const styles = StyleSheet.create({
   continueButtonContainer: {
     paddingHorizontal: SPACING.md,
     paddingTop: SPACING.md,
-    borderTopWidth: 1,
+    borderTopWidth: 0.5,
     borderTopColor: '#374151',
     backgroundColor: '#0A0A0A',
   },
@@ -522,6 +665,107 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontSize: 16,
   },
+  settingsSection: {
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.lg,
+    gap: SPACING.xl,
+  },
+  categoryLabelContainer: {
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  settingRow: {
+    marginBottom: SPACING.lg,
+  },
+  settingLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: SPACING.md,
+  },
+  teamCountContainer: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    justifyContent: 'center',
+  },
+  teamCountButton: {
+    width: 60,
+    height: 50,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  teamCountButtonActive: {
+    backgroundColor: '#4F46E5',
+    borderColor: '#6366F1',
+  },
+  teamCountButtonText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.7)',
+  },
+  teamCountButtonTextActive: {
+    color: '#FFFFFF',
+  },
+  teamNamesContainer: {
+    gap: SPACING.sm,
+  },
+  teamNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  teamColorIndicator: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  teamNameInput: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 12,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    fontSize: 16,
+    color: '#FFFFFF',
+    minHeight: 48,
+  },
+  timerContainer: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+  },
+  timerButton: {
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    minWidth: 70,
+    alignItems: 'center',
+  },
+  timerButtonActive: {
+    backgroundColor: '#4F46E5',
+    borderColor: '#6366F1',
+  },
+  timerButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.7)',
+  },
+  timerButtonTextActive: {
+    color: '#FFFFFF',
+  },
 });
 
-export default CategoriesCarouselScreen;
+export default GameSetupScreen;

@@ -13,6 +13,7 @@ export type User = {
   stats?: GameStats;
   selectedAvatar?: string; // Avatar ID or undefined for no avatar
   avatarUrl?: string; // Cached avatar URL
+  coins?: number; // Coin balance (defaults to 0)
 };
 
 export type UserProfile = User;

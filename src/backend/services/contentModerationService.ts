@@ -1,4 +1,4 @@
-import { InputValidator } from '../utils/inputValidator';
+import { sanitizeText } from '../utils/textSanitizer';
 import { ExternalModerationService } from './externalModerationService';
 import { ModerationLoggingService } from './moderationLoggingService';
 import { logger } from '../utils/logger';
@@ -109,7 +109,7 @@ export class ContentModerationService {
   ): Promise<ModerationResult> {
     try {
       // Sanitize input first
-      const sanitizedContent = InputValidator.sanitizeText(content, 500);
+      const sanitizedContent = sanitizeText(content, 500);
       
       // Check for profanity
       const profanityCheck = this.checkProfanity(sanitizedContent);
