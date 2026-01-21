@@ -24,7 +24,7 @@ The codebase demonstrates strong security practices with comprehensive input val
 - ✅ Rate limiting implemented (Firestore-based, persistent)
 
 ### 2. **Input Validation & Sanitization**
-- ✅ DOMPurify used for all user inputs (`textSanitizer.ts`)
+- ✅ Manual sanitization used for all user inputs (`textSanitizer.ts`) - optimized for React Native
 - ✅ InputValidator class with comprehensive validation
 - ✅ Room code format validation (`InputValidator.validateRoomCode()`)
 - ✅ Answer format validation (`AnswerValidationService`)
@@ -121,7 +121,7 @@ The codebase demonstrates strong security practices with comprehensive input val
 - [x] Rate limiting prevents brute force attacks
 
 ### Input Validation
-- [x] All user inputs sanitized with DOMPurify
+- [x] All user inputs sanitized with manual pattern-based sanitization
 - [x] Room codes validated for format
 - [x] Answers validated before processing
 - [x] Email/password/display name validation
@@ -163,7 +163,7 @@ The codebase demonstrates strong security practices with comprehensive input val
 - ✅ `package.json` - Dependencies
 
 ### Security Patterns Verified
-- ✅ Input sanitization: DOMPurify + manual sanitization
+- ✅ Input sanitization: Manual pattern-based sanitization (removes dangerous patterns like javascript:, event handlers, script tags)
 - ✅ Output encoding: React automatically escapes
 - ✅ Authentication: Firebase Auth with proper persistence
 - ✅ Authorization: Firestore rules + server-side validation

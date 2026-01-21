@@ -39,7 +39,8 @@ const STORAGE_KEYS = {
   GAME_STATS: 'game_stats',
   GAME_HISTORY: 'game_history',
   FAVORITE_CATEGORIES: 'favorite_categories',
-  USER_PREFERENCES: 'user_preferences'
+  USER_PREFERENCES: 'user_preferences',
+  DEVICE_AUDIO_PREFERENCES: 'device_audio_preferences' // Device-local audio settings
 };
 
 /**
@@ -296,5 +297,55 @@ export const clearAllCachedData = async (): Promise<void> => {
     ]);
   } catch (error) {
     logger.error('Error clearing all cached data:', error);
+  }
+};
+
+/**
+ * Device-local audio preferences (persist across sign out/in)
+ */
+export interface DeviceAudioPreferences {
+  soundEnabled: boolean;
+  musicEnabled: boolean;
+  musicVolume: number;
+  sfxVolume: number;
+}
+
+/**
+ * Get device-local audio preferences
+ */
+export const getDeviceAudioPreferences = async (): Promise<DeviceAudioPreferences> => {
+  try {
+    const prefsJson = await AsyncStorage.getItem(STORAGE_KEYS.DEVICE_AUDIO_PREFERENCES);
+    if (prefsJson) {
+      return JSON.parse(prefsJson);
+    }
+    // Default values
+    return {
+      soundEnabled: true,
+      musicEnabled: true,
+      musicVolume: 0.3,
+      sfxVolume: 0.7
+    };
+  } catch (error) {
+    logger.error('Error getting device audio preferences:', error);
+    return {
+      soundEnabled: true,
+      musicEnabled: true,
+      musicVolume: 0.3,
+      sfxVolume: 0.7
+    };
+  }
+};
+
+/**
+ * Save device-local audio preferences
+ */
+export const saveDeviceAudioPreferences = async (preferences: Partial<DeviceAudioPreferences>): Promise<void> => {
+  try {
+    const currentPrefs = await getDeviceAudioPreferences();
+    const newPrefs = { ...currentPrefs, ...preferences };
+    await AsyncStorage.setItem(STORAGE_KEYS.DEVICE_AUDIO_PREFERENCES, JSON.stringify(newPrefs));
+  } catch (error) {
+    logger.error('Error saving device audio preferences:', error);
   }
 };

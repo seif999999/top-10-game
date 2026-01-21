@@ -588,10 +588,10 @@ Password requirements are good (8+ chars, complexity), but could be stronger:
 ### ✅ **VERIFIED SECURE**
 
 #### Cross-Site Scripting (XSS) Protection
-- ✅ DOMPurify used for all user inputs via `textSanitizer.ts`
-- ✅ All HTML tags removed (`ALLOWED_TAGS: []`)
+- ✅ Manual sanitization used for all user inputs via `textSanitizer.ts` (optimized for React Native)
+- ✅ Dangerous patterns removed (javascript:, data:, vbscript: protocols)
 - ✅ Event handlers stripped (`on\w+=` pattern removed)
-- ✅ JavaScript/data/vbscript protocols removed
+- ✅ Script/iframe/object/embed tags removed
 - ✅ React automatically escapes output (no `dangerouslySetInnerHTML` found)
 - ✅ **FIXED:** `AnswerValidationService` now uses `sanitizeText()` instead of basic `trim().toLowerCase()`
 
@@ -1204,7 +1204,7 @@ Various ID generation functions used `Math.random()` for non-security-critical I
 - ✅ Session management with timeout (24 hours)
 
 ### Input Validation
-- ✅ DOMPurify used for all user inputs
+- ✅ Manual sanitization used for all user inputs (pattern-based, optimized for React Native)
 - ✅ InputValidator class with comprehensive validation
 - ✅ Room code format validation
 - ✅ Answer format validation
@@ -1339,7 +1339,7 @@ Various ID generation functions used `Math.random()` for non-security-critical I
 - [ ] ⚠️ Session fallback risk (CRITICAL)
 
 ### Input Validation
-- [x] All user inputs sanitized with DOMPurify
+- [x] All user inputs sanitized with manual pattern-based sanitization
 - [x] Room codes validated
 - [x] Answers validated
 - [x] Email/password/display name validation
@@ -1492,7 +1492,7 @@ The codebase has **strong security foundations** and **all critical vulnerabilit
 15. ✅ **FIXED** - Insecure randomness in room code generation (now uses cryptographically secure random)
 
 **Part 3: Input Validation & Sanitization - Status:** ✅ **SECURE**
-- XSS protection: DOMPurify used, React auto-escaping, no dangerouslySetInnerHTML
+- XSS protection: Manual sanitization used (removes dangerous patterns), React auto-escaping, no dangerouslySetInnerHTML
 - NoSQL injection: Parameterized queries, no dynamic query construction
 - Command injection: No eval/exec/Function calls found
 - Path traversal: No file operations

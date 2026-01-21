@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import audioService from '../../backend/services/audioService';
-import { getUserPreferences, saveUserPreferences, UserPreferences } from '../../backend/services/localStorage';
-import { useAuth } from './AuthContext';
+import { getDeviceAudioPreferences, saveDeviceAudioPreferences, DeviceAudioPreferences } from '../../backend/services/localStorage';
 import { logger } from '../../backend/utils/logger';
 
 interface AudioContextType {
@@ -40,19 +39,41 @@ interface AudioProviderProps {
 }
 
 export const AudioProvider: React.FC<AudioProviderProps> = ({ children }) => {
-  const { user } = useAuth();
   const [isInitialized, setIsInitialized] = useState(false);
   const [isSFXEnabled, setIsSFXEnabled] = useState(true);
   const [isMusicEnabled, setIsMusicEnabled] = useState(true);
   const [sfxVolume, setSFXVolumeState] = useState(0.7);
   const [musicVolume, setMusicVolumeState] = useState(0.3);
 
-  // Initialize audio service and load preferences
+  // Initialize audio service and load device-local preferences
   useEffect(() => {
     const initAudio = async () => {
       try {
         await audioService.init();
         await audioService.preloadSounds();
+        
+        // Load device-local audio preferences (persist across sign out/in)
+        try {
+          const prefs = await getDeviceAudioPreferences();
+          
+          setIsSFXEnabled(prefs.soundEnabled);
+          setIsMusicEnabled(prefs.musicEnabled);
+          setSFXVolumeState(prefs.sfxVolume);
+          setMusicVolumeState(prefs.musicVolume);
+          
+          // Apply settings to audio service
+          audioService.applySettings({
+            sfxEnabled: prefs.soundEnabled,
+            musicEnabled: prefs.musicEnabled,
+            sfxVolume: prefs.sfxVolume,
+            musicVolume: prefs.musicVolume,
+          });
+          
+          logger.log('Device-local audio preferences loaded');
+        } catch (error) {
+          logger.error('Error loading device audio preferences:', error);
+        }
+        
         setIsInitialized(true);
         logger.log('Audio context initialized');
       } catch (error) {
@@ -68,48 +89,14 @@ export const AudioProvider: React.FC<AudioProviderProps> = ({ children }) => {
     };
   }, []);
 
-  // Load user preferences when user changes
-  useEffect(() => {
-    const loadPreferences = async () => {
-      if (user?.id) {
-        try {
-          const prefs = await getUserPreferences(user.id);
-          
-          setIsSFXEnabled(prefs.soundEnabled);
-          setIsMusicEnabled(prefs.musicEnabled);
-          setSFXVolumeState(prefs.sfxVolume);
-          setMusicVolumeState(prefs.musicVolume);
-          
-          // Apply settings to audio service
-          audioService.applySettings({
-            sfxEnabled: prefs.soundEnabled,
-            musicEnabled: prefs.musicEnabled,
-            sfxVolume: prefs.sfxVolume,
-            musicVolume: prefs.musicVolume,
-          });
-          
-          logger.log('Audio preferences loaded for user:', user.id);
-        } catch (error) {
-          logger.error('Error loading audio preferences:', error);
-        }
-      }
-    };
-
-    loadPreferences();
-  }, [user?.id]);
-
-  // Save preferences helper
-  const savePreferences = useCallback(async (updates: Partial<UserPreferences>) => {
-    if (user?.id) {
-      try {
-        const currentPrefs = await getUserPreferences(user.id);
-        const newPrefs = { ...currentPrefs, ...updates };
-        await saveUserPreferences(user.id, newPrefs);
-      } catch (error) {
-        logger.error('Error saving audio preferences:', error);
-      }
+  // Save preferences helper (device-local, persists across sign out/in)
+  const savePreferences = useCallback(async (updates: Partial<DeviceAudioPreferences>) => {
+    try {
+      await saveDeviceAudioPreferences(updates);
+    } catch (error) {
+      logger.error('Error saving device audio preferences:', error);
     }
-  }, [user?.id]);
+  }, []);
 
   // Sound effect methods
   const playButtonClick = useCallback(async () => {
@@ -164,7 +151,7 @@ export const AudioProvider: React.FC<AudioProviderProps> = ({ children }) => {
   const toggleMusic = useCallback(async () => {
     const newValue = !isMusicEnabled;
     setIsMusicEnabled(newValue);
-    await audioService.setMusicEnabled(newValue);
+    audioService.setMusicEnabled(newValue);
     await savePreferences({ musicEnabled: newValue });
   }, [isMusicEnabled, savePreferences]);
 

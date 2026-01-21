@@ -206,8 +206,21 @@ class AudioService {
     try {
       // Stop existing music first
       if (this.backgroundMusic) {
-        await this.backgroundMusic.stopAsync();
-        await this.backgroundMusic.unloadAsync();
+        try {
+          // Check if sound is loaded before stopping
+          const status = await this.backgroundMusic.getStatusAsync();
+          if (status.isLoaded) {
+            await this.backgroundMusic.stopAsync();
+            await this.backgroundMusic.unloadAsync();
+          }
+        } catch (soundError: any) {
+          // If sound is not loaded or already unloaded, just clear the reference
+          if (soundError?.message?.includes('not loaded') || soundError?.message?.includes('Cannot complete operation')) {
+            logger.log('Existing background music not loaded, clearing reference');
+          } else {
+            throw soundError;
+          }
+        }
         this.backgroundMusic = null;
       }
 
@@ -233,13 +246,28 @@ class AudioService {
   async stopBackgroundMusic(): Promise<void> {
     try {
       if (this.backgroundMusic) {
-        await this.backgroundMusic.stopAsync();
-        await this.backgroundMusic.unloadAsync();
+        try {
+          // Check if sound is loaded before stopping
+          const status = await this.backgroundMusic.getStatusAsync();
+          if (status.isLoaded) {
+            await this.backgroundMusic.stopAsync();
+            await this.backgroundMusic.unloadAsync();
+          }
+        } catch (soundError: any) {
+          // If sound is not loaded or already unloaded, just clear the reference
+          if (soundError?.message?.includes('not loaded') || soundError?.message?.includes('Cannot complete operation')) {
+            logger.log('Background music already stopped or not loaded');
+          } else {
+            throw soundError;
+          }
+        }
         this.backgroundMusic = null;
         logger.log('Background music stopped');
       }
     } catch (error) {
       logger.error('Error stopping background music:', error);
+      // Clear reference even on error to prevent future issues
+      this.backgroundMusic = null;
     }
   }
 
@@ -249,7 +277,20 @@ class AudioService {
   async pauseBackgroundMusic(): Promise<void> {
     try {
       if (this.backgroundMusic) {
-        await this.backgroundMusic.pauseAsync();
+        try {
+          // Check if sound is loaded before pausing
+          const status = await this.backgroundMusic.getStatusAsync();
+          if (status.isLoaded) {
+            await this.backgroundMusic.pauseAsync();
+          }
+        } catch (soundError: any) {
+          // If sound is not loaded, just log and continue
+          if (soundError?.message?.includes('not loaded') || soundError?.message?.includes('Cannot complete operation')) {
+            logger.log('Background music not loaded, cannot pause');
+          } else {
+            throw soundError;
+          }
+        }
       }
     } catch (error) {
       logger.error('Error pausing background music:', error);
@@ -264,7 +305,25 @@ class AudioService {
     
     try {
       if (this.backgroundMusic) {
-        await this.backgroundMusic.playAsync();
+        try {
+          // Check if sound is loaded before resuming
+          const status = await this.backgroundMusic.getStatusAsync();
+          if (status.isLoaded) {
+            await this.backgroundMusic.playAsync();
+          } else {
+            // If not loaded, try to start it fresh
+            logger.log('Background music not loaded, starting fresh');
+            await this.playBackgroundMusic();
+          }
+        } catch (soundError: any) {
+          // If sound is not loaded, try to start it fresh
+          if (soundError?.message?.includes('not loaded') || soundError?.message?.includes('Cannot complete operation')) {
+            logger.log('Background music not loaded, starting fresh');
+            await this.playBackgroundMusic();
+          } else {
+            throw soundError;
+          }
+        }
       }
     } catch (error) {
       logger.error('Error resuming background music:', error);
@@ -381,8 +440,17 @@ class AudioService {
     try {
       // Stop and unload background music
       if (this.backgroundMusic) {
-        await this.backgroundMusic.stopAsync();
-        await this.backgroundMusic.unloadAsync();
+        try {
+          // Check if sound is loaded before stopping
+          const status = await this.backgroundMusic.getStatusAsync();
+          if (status.isLoaded) {
+            await this.backgroundMusic.stopAsync();
+            await this.backgroundMusic.unloadAsync();
+          }
+        } catch (e) {
+          // Ignore errors for already unloaded sounds
+          logger.log('Background music already unloaded or not loaded');
+        }
         this.backgroundMusic = null;
       }
 

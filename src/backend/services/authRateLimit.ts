@@ -78,7 +78,12 @@ export class AuthRateLimit {
       }
       
       return null;
-    } catch (error) {
+    } catch (error: any) {
+      // Handle offline mode gracefully - don't block users when offline
+      if (error?.code === 'unavailable' || error?.message?.includes('offline')) {
+        logger.log('⚠️ Firestore offline, rate limit check skipped (allowing access)');
+        return null; // Fail open when offline
+      }
       logger.error('Error getting auth rate limit entry:', error);
       return null;
     }
@@ -105,7 +110,12 @@ export class AuthRateLimit {
       }
       
       await setDoc(docRef, data, { merge: true });
-    } catch (error) {
+    } catch (error: any) {
+      // Handle offline mode gracefully
+      if (error?.code === 'unavailable' || error?.message?.includes('offline')) {
+        logger.log('⚠️ Firestore offline, rate limit entry not saved (will retry when online)');
+        return;
+      }
       logger.error('Error saving auth rate limit entry:', error);
     }
   }
@@ -200,10 +210,33 @@ export class AuthRateLimit {
    */
   async reset(identifier: string): Promise<void> {
     try {
-      const docId = `auth_${identifier.toLowerCase()}`;
-      const docRef = doc(db, this.COLLECTION, docId);
-      await deleteDoc(docRef);
-      logger.log(`🔓 Auth rate limit: Reset for ${identifier}`);
+      // Validate identifier before proceeding
+      if (!identifier || typeof identifier !== 'string' || identifier.trim() === '') {
+        logger.warn('⚠️ Cannot reset auth rate limit: invalid identifier');
+        return;
+      }
+
+      // Validate collection path - use the static property directly
+      const collection = AuthRateLimit.COLLECTION;
+      if (!collection || typeof collection !== 'string' || collection.trim() === '') {
+        logger.warn('⚠️ Cannot reset auth rate limit: collection path is invalid');
+        return;
+      }
+
+      const docId = `auth_${identifier.toLowerCase().trim()}`;
+      const docRef = doc(db, collection, docId);
+      
+      try {
+        await deleteDoc(docRef);
+        logger.log(`🔓 Auth rate limit: Reset for ${identifier}`);
+      } catch (firestoreError: any) {
+        // Handle offline mode gracefully
+        if (firestoreError?.code === 'unavailable' || firestoreError?.message?.includes('offline')) {
+          logger.log('⚠️ Firestore offline, skipping rate limit reset (will retry when online)');
+          return;
+        }
+        throw firestoreError;
+      }
     } catch (error) {
       logger.error('Error resetting auth rate limit:', error);
     }

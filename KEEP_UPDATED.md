@@ -86,7 +86,6 @@ Top 10 Game is a cross-platform trivia game application where players compete to
 ### Utilities & Libraries
 
 - **fastest-levenshtein**: `^1.0.16` - String similarity for fuzzy matching
-- **isomorphic-dompurify**: `^2.26.0` - XSS protection and HTML sanitization
 - **expo-auth-session**: `~7.0.8` - OAuth session management
 - **expo-crypto**: `~15.0.7` - Cryptographic utilities
 - **expo-linear-gradient**: `~15.0.8` - Gradient backgrounds for UI components
@@ -274,7 +273,7 @@ All screens located in `src/screens/`:
 ### Input Validation & Sanitization
 
 - **`src/utils/inputValidator.ts`**: Input validation and sanitization service (delegates to `textSanitizer.ts` to avoid circular dependencies)
-- **`src/utils/textSanitizer.ts`**: Text sanitization utility (extracted to break circular dependency between `inputValidator.ts` and `contentModerationService.ts`, uses DOMPurify for XSS protection)
+- **`src/utils/textSanitizer.ts`**: Text sanitization utility (extracted to break circular dependency between `inputValidator.ts` and `contentModerationService.ts`, uses manual sanitization patterns optimized for React Native)
 
 ### Security Services
 
@@ -333,7 +332,7 @@ All screens located in `src/screens/`:
 ### Security Features
 
 1. **Rate Limiting**: Per-action rate limits, block duration on violation (⚠️ In-memory, should be Firestore-based)
-2. **Input Validation**: XSS protection (DOMPurify), input sanitization, length/format validation
+2. **Input Validation**: XSS protection (manual sanitization), input sanitization, length/format validation
 3. **Security Monitoring**: Event logging, alert generation, suspicious activity detection, audit trail
 4. **Authentication Security**: Session timeout (24 hours), failed login tracking, password strength requirements (8+ characters), account lockout
 
@@ -410,7 +409,7 @@ Complete multiplayer room state. Key fields: `roomCode`, `hostId`, `status`, `ga
 
 ### Input Security
 
-1. **XSS Protection**: DOMPurify for HTML sanitization, all user inputs sanitized
+1. **XSS Protection**: Manual sanitization (removes dangerous patterns like javascript:, event handlers, script tags), all user inputs sanitized
 2. **Input Validation**: Length limits, format validation, type checking
 3. **Content Moderation**: Profanity filtering, personal information detection, spam detection
 
@@ -439,7 +438,7 @@ Complete multiplayer room state. Key fields: `roomCode`, `hostId`, `status`, `ga
 6. **JSON.parse Error Handling** ✅ **RESOLVED**: All `JSON.parse()` calls now wrapped in try-catch blocks with proper error handling to prevent app crashes from malformed JSON data. Fixed in: `sessionManager.ts`, `customQuestionService.ts`, `privacyPolicyService.ts`.
 7. **Firestore Rules - Multiplayer Games** ✅ **RESOLVED**: Previously allowed any authenticated user to read all game rooms. Now restricted to only room participants (players or host) for privacy and security.
 8. **Session Storage Encryption** ⚠️ **LOW PRIORITY**: Session data (user ID, email, displayName, avatar) stored in AsyncStorage is not encrypted. However, this is low risk because: (1) AsyncStorage is sandboxed per app on iOS/Android, (2) Data stored is non-sensitive (no passwords/tokens), (3) Tokens are stored separately by Firebase Auth. Consider encryption if storing highly sensitive data in the future.
-9. **Input Sanitization** ✅ **RESOLVED**: DOMPurify is used for comprehensive XSS protection in `textSanitizer.ts`. All user inputs are sanitized before processing.
+9. **Input Sanitization** ✅ **RESOLVED**: Manual sanitization is used for comprehensive XSS protection in `textSanitizer.ts`. All user inputs are sanitized before processing using pattern-based sanitization optimized for React Native.
 10. **Password Handling** ✅ **RESOLVED**: Passwords are properly masked in logs (`password ? '***' : ''`) in `auth.ts`. No passwords are logged or stored in plain text.
 11. **Security Headers** ✅ **RESOLVED**: CSP and security headers are configured in `app.config.js` for web deployment. Note: These are web-only and don't affect mobile apps (iOS/Android), which have their own security mechanisms.
 12. **Content Moderation** ✅ **RESOLVED**: Profanity filtering, personal information detection, and spam detection are implemented in `contentModerationService.ts`.
@@ -471,7 +470,7 @@ Complete multiplayer room state. Key fields: `roomCode`, `hostId`, `status`, `ga
 #### ✅ **Verified Secure (No Issues Found)**
 
 1. **Authentication**: Firebase Auth with proper persistence, password masking in logs, session management
-2. **Input Sanitization**: DOMPurify used for all user inputs, XSS protection in place
+2. **Input Sanitization**: Manual sanitization used for all user inputs (removes dangerous patterns), XSS protection in place
 3. **Authorization**: User ID validation, room participant checks, Firestore rules enforce access control
 4. **Rate Limiting**: Firestore-based (persistent), per-action limits, block duration on violation
 5. **Error Handling**: All JSON.parse() calls wrapped in try-catch, friendly error messages (no info leakage)
