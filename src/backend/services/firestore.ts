@@ -15,6 +15,9 @@ export const createUserProfile = async (userId: string, userData: Partial<UserPr
 
 type UserProfileDoc = Partial<UserProfile> & {
   createdAt?: { toDate?: () => Date };
+  lastLoginDate?: { toDate?: () => Date };
+  currentStreak?: number;
+  currentWeek?: number;
 };
 
 export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
@@ -28,7 +31,11 @@ export const getUserProfile = async (userId: string): Promise<UserProfile | null
     displayName: data.displayName,
     createdAt: data.createdAt?.toDate?.() ?? undefined,
     stats: data.stats,
-    coins: data.coins ?? 0 // Default to 0 if not set
+    coins: data.coins ?? 0, // Default to 0 if not set
+    // Daily streak fields
+    lastLoginDate: data.lastLoginDate?.toDate?.() ?? undefined,
+    currentStreak: data.currentStreak ?? 0,
+    currentWeek: data.currentWeek ?? 1,
   };
 };
 

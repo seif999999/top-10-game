@@ -15,6 +15,7 @@ import { GameScreenProps } from '../../shared/types/navigation';
 import { useGame } from '../contexts/GameContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useMultiplayer } from '../contexts/MultiplayerContext';
+import { useAudio } from '../contexts/AudioContext';
 import multiplayerService from '../../backend/services/multiplayerService';
 import { QuestionAnswer, GameQuestion } from '../../shared/types';
 import type { Answer } from '../../shared/types/game';
@@ -59,6 +60,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     isTeamMode
   } = useGame();
   const { user } = useAuth();
+  const { playButtonClick, playSuccess, playError, playGameStart, playGameEnd } = useAudio();
   
   // Multiplayer context
   const {
@@ -313,6 +315,13 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     initializeGame();
   }, [initializeGame]);
 
+  // Play game start sound when game initializes
+  useEffect(() => {
+    if (gameState?.gamePhase === 'question' || (isMultiplayerMode && multiplayerState?.gamePhase === 'question')) {
+      playGameStart();
+    }
+  }, [gameState?.gamePhase, multiplayerState?.gamePhase, isMultiplayerMode]);
+
   // Sync multiplayer state changes - simplified dependencies
   useEffect(() => {
     if (isMultiplayerMode && multiplayerState) {
@@ -489,6 +498,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   useEffect(() => {
     if (gameState?.gamePhase === 'finished' && !showResults) {
       logger.log('🎉 Game finished!');
+      playGameEnd(); // Play game end sound
       if (isMultiplayerMode) {
         // Show results modal for multiplayer games
         setShowGameEndRanking(true);
@@ -1141,6 +1151,7 @@ const handleEndGame = () => {
           if (result.points && result.points > 0) {
             setLastAnswerResult('correct');
             setPointsEarned(result.points);
+            playSuccess(); // Play success sound for correct answer
             logger.log(`✅ Correct answer! Earned ${result.points} points`);
             // Show success message with points
             ThemedAlert.success(
@@ -1151,6 +1162,7 @@ const handleEndGame = () => {
           } else {
             setLastAnswerResult('incorrect');
             setPointsEarned(0);
+            playError(); // Play error sound for wrong answer
             logger.log(`❌ Wrong answer - no points earned`);
             // Show error message
             ThemedAlert.error(
@@ -1180,6 +1192,13 @@ const handleEndGame = () => {
         // Determine answer result and show feedback
         const isCorrect = checkAnswerCorrectness(sanitizedAnswer);
         setLastAnswerResult(isCorrect ? 'correct' : 'incorrect');
+        
+        // Play sound based on answer correctness
+        if (isCorrect) {
+          playSuccess();
+        } else {
+          playError();
+        }
       }
       
       setSubmittedAnswers(prev => [...prev, sanitizedAnswer]);

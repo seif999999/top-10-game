@@ -26,7 +26,10 @@ export interface GameHistory {
 }
 
 export interface UserPreferences {
-  soundEnabled: boolean;
+  soundEnabled: boolean;     // Master SFX toggle
+  musicEnabled: boolean;     // Background music toggle
+  musicVolume: number;       // 0-1
+  sfxVolume: number;         // 0-1
   hapticEnabled: boolean;
   defaultTimer: number;
   theme: 'dark' | 'light';
@@ -225,6 +228,9 @@ export const getUserPreferences = async (userId: string): Promise<UserPreference
     const allPreferences = await getAllUserPreferences();
     return allPreferences[userId] || {
       soundEnabled: true,
+      musicEnabled: true,
+      musicVolume: 0.3,
+      sfxVolume: 0.7,
       hapticEnabled: true,
       defaultTimer: 60,
       theme: 'dark'
@@ -233,6 +239,9 @@ export const getUserPreferences = async (userId: string): Promise<UserPreference
     logger.error('Error getting user preferences:', error);
     return {
       soundEnabled: true,
+      musicEnabled: true,
+      musicVolume: 0.3,
+      sfxVolume: 0.7,
       hapticEnabled: true,
       defaultTimer: 60,
       theme: 'dark'

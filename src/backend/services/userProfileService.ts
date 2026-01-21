@@ -87,6 +87,10 @@ export class UserProfileService {
         selectedAvatar: userData.selectedAvatar,
         avatarUrl: userData.avatarUrl,
         coins: userData.coins ?? 0, // Default to 0 if not set
+        // Daily streak fields
+        lastLoginDate: userData.lastLoginDate?.toDate(),
+        currentStreak: userData.currentStreak ?? 0,
+        currentWeek: userData.currentWeek ?? 1,
       } as User;
     } catch (error) {
       logger.error('Error getting user profile:', error);

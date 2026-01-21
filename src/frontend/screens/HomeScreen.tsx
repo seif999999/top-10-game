@@ -1,12 +1,15 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Dimensions, ScrollView, Animated, PanResponder, Easing, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING } from '../../backend/utils/constants';
 import { HomeScreenProps } from '../../shared/types/navigation';
 import { useAuth } from '../contexts/AuthContext';
+import { useAudio } from '../contexts/AudioContext';
 import AvatarIcon from '../components/AvatarIcon';
 import HowToPlayModal from '../components/HowToPlayModal';
+import DailyRewardModal from '../components/DailyRewardModal';
+import { getStreakInfo, StreakInfo } from '../../backend/services/dailyRewardService';
 
 const { width, height } = Dimensions.get('window');
 
@@ -217,30 +220,88 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({ onSwipeComplete, onPress,
 };
 
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
-  const { user } = useAuth();
+  const { user, getUserProfileWithAvatar } = useAuth();
+  const { playButtonClick, isMusicEnabled, playBackgroundMusic, stopBackgroundMusic } = useAudio();
   const insets = useSafeAreaInsets();
   const [showHowToPlay, setShowHowToPlay] = useState(false);
+  const [showDailyReward, setShowDailyReward] = useState(false);
+  const [streakInfo, setStreakInfo] = useState<StreakInfo | null>(null);
+  const [displayedCoins, setDisplayedCoins] = useState(user?.coins ?? 0);
+
+  // Start background music when on home screen (if enabled)
+  useEffect(() => {
+    if (isMusicEnabled) {
+      playBackgroundMusic();
+    }
+    
+    // Stop music when leaving home screen
+    return () => {
+      stopBackgroundMusic();
+    };
+  }, [isMusicEnabled]);
+
+  // Load streak info on mount and when user changes
+  useEffect(() => {
+    const loadStreakInfo = async () => {
+      if (user?.id) {
+        const info = await getStreakInfo(user.id);
+        setStreakInfo(info);
+        // Auto-show modal if reward is available (can claim)
+        if (info.canClaim) {
+          setShowDailyReward(true);
+        }
+      }
+    };
+    loadStreakInfo();
+  }, [user?.id]);
+
+  // Update displayed coins when user changes
+  useEffect(() => {
+    setDisplayedCoins(user?.coins ?? 0);
+  }, [user?.coins]);
+
+  const handleRewardClaimed = async (reward: number) => {
+    // Update displayed coins immediately for smooth UX
+    setDisplayedCoins(prev => prev + reward);
+    // Refresh user profile to get updated coins from server
+    if (getUserProfileWithAvatar) {
+      await getUserProfileWithAvatar();
+    }
+    // Update streak info
+    if (user?.id) {
+      const info = await getStreakInfo(user.id);
+      setStreakInfo(info);
+    }
+  };
 
   const handleProfileNavigation = () => {
+    playButtonClick();
     navigation.navigate('Profile');
   };
 
   const handleSinglePlayer = () => {
+    playButtonClick();
     navigation.navigate('Categories', { gameMode: 'single' });
   };
 
   const handleMultiplayer = () => {
+    playButtonClick();
     navigation.navigate('MultiplayerMenu');
   };
 
-
-
   const handleHowToPlay = () => {
+    playButtonClick();
     setShowHowToPlay(true);
   };
 
   const handleCreateYourOwn = () => {
+    playButtonClick();
     navigation.navigate('CreateCustomQuestion');
+  };
+  
+  const handleDailyRewardOpen = () => {
+    playButtonClick();
+    setShowDailyReward(true);
   };
 
   return (
@@ -272,8 +333,21 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           />
         </TouchableOpacity>
         
-        {/* Right side - Coins & Help */}
+        {/* Right side - Coins, Daily Reward & Help */}
         <View style={styles.headerRight}>
+          {/* Daily Reward Button */}
+          <TouchableOpacity 
+            onPress={handleDailyRewardOpen} 
+            style={[styles.dailyRewardButton, streakInfo?.canClaim && styles.dailyRewardButtonActive]}
+          >
+            <Text style={styles.dailyRewardIcon}>🎁</Text>
+            {streakInfo?.canClaim && (
+              <View style={styles.dailyRewardBadge}>
+                <Text style={styles.dailyRewardBadgeText}>!</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
           {/* Coin Display */}
           <View style={styles.coinDisplay}>
             {/* Coin Icon */}
@@ -293,7 +367,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             </View>
             {/* Coin Balance */}
             <Text style={styles.coinBalance}>
-              {(user?.coins ?? 0).toLocaleString()}
+              {displayedCoins.toLocaleString()}
             </Text>
           </View>
 
@@ -412,6 +486,16 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         visible={showHowToPlay}
         onClose={() => setShowHowToPlay(false)}
       />
+
+      {/* Daily Reward Modal */}
+      {user?.id && (
+        <DailyRewardModal
+          visible={showDailyReward}
+          onClose={() => setShowDailyReward(false)}
+          userId={user.id}
+          onRewardClaimed={handleRewardClaimed}
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -451,6 +535,48 @@ const styles = StyleSheet.create({
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  dailyRewardButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SPACING.sm,
+    position: 'relative',
+  },
+  dailyRewardButtonActive: {
+    backgroundColor: 'rgba(34, 197, 94, 0.2)',
+    borderColor: 'rgba(34, 197, 94, 0.5)',
+    shadowColor: '#22C55E',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  dailyRewardIcon: {
+    fontSize: 22,
+  },
+  dailyRewardBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#EF4444',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#1a1a2e',
+  },
+  dailyRewardBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
   },
   coinDisplay: {
     flexDirection: 'row',

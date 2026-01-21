@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, TextInput, Modal } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, TextInput, Modal, Switch } from 'react-native';
 import ThemedAlert from '../utils/themedAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -7,6 +7,7 @@ import AvatarDisplay from '../components/AvatarDisplay';
 import { COLORS, SPACING } from '../../backend/utils/constants';
 import { ProfileScreenProps } from '../../shared/types/navigation';
 import { useAuth } from '../contexts/AuthContext';
+import { useAudio } from '../contexts/AudioContext';
 import { InputValidator } from '../../backend/utils/inputValidator';
 import { RateLimitService } from '../../backend/services/rateLimitService';
 import { logger } from '../../backend/utils/logger';
@@ -15,6 +16,7 @@ import { toAppError } from '../../shared/errors';
 
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const { user, signOut, updateUserProfile, updateUserAvatar } = useAuth();
+  const { isSFXEnabled, isMusicEnabled, toggleSFX, toggleMusic, playButtonClick } = useAudio();
   const insets = useSafeAreaInsets();
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [updatedDisplayName, setUpdatedDisplayName] = useState(user?.displayName || '');
@@ -133,7 +135,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + SPACING.md }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => { playButtonClick(); navigation.goBack(); }} style={styles.backButton}>
           <View style={styles.backButtonContent}>
             <Text style={styles.backButtonText}>←</Text>
             <View style={styles.backButtonDash} />
@@ -153,7 +155,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         {/* User Information Section */}
         <View style={styles.profileSection}>
           <TouchableOpacity 
-            onPress={() => navigation.navigate('AvatarSelection' as never)} 
+            onPress={() => { playButtonClick(); navigation.navigate('AvatarSelection' as never); }} 
             style={styles.avatarContainer}
           >
             <View style={styles.avatarWrapper}>
@@ -173,7 +175,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           </TouchableOpacity>
           
           <TouchableOpacity 
-            onPress={() => setIsEditing(true)} 
+            onPress={() => { playButtonClick(); setIsEditing(true); }} 
             style={styles.userNameContainer}
             activeOpacity={0.7}
           >
@@ -196,8 +198,55 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         <View style={styles.settingsSection}>
           <Text style={styles.sectionTitle}>SETTINGS</Text>
           
+          {/* Sound Settings */}
+          <View style={styles.settingsCard}>
+            <Text style={styles.settingsCardTitle}>Sound</Text>
+            
+            {/* Sound Effects Toggle */}
+            <View style={styles.settingRow}>
+              <View style={styles.settingInfo}>
+                <Text style={styles.settingIcon}>🔊</Text>
+                <View>
+                  <Text style={styles.settingLabel}>Sound Effects</Text>
+                  <Text style={styles.settingDescription}>Button clicks and game sounds</Text>
+                </View>
+              </View>
+              <Switch
+                value={isSFXEnabled}
+                onValueChange={() => {
+                  playButtonClick();
+                  toggleSFX();
+                }}
+                trackColor={{ false: '#4B5563', true: '#8B5CF6' }}
+                thumbColor={isSFXEnabled ? '#FFFFFF' : '#9CA3AF'}
+                ios_backgroundColor="#4B5563"
+              />
+            </View>
+            
+            {/* Background Music Toggle */}
+            <View style={styles.settingRow}>
+              <View style={styles.settingInfo}>
+                <Text style={styles.settingIcon}>🎵</Text>
+                <View>
+                  <Text style={styles.settingLabel}>Background Music</Text>
+                  <Text style={styles.settingDescription}>Ambient music during gameplay</Text>
+                </View>
+              </View>
+              <Switch
+                value={isMusicEnabled}
+                onValueChange={() => {
+                  playButtonClick();
+                  toggleMusic();
+                }}
+                trackColor={{ false: '#4B5563', true: '#8B5CF6' }}
+                thumbColor={isMusicEnabled ? '#FFFFFF' : '#9CA3AF'}
+                ios_backgroundColor="#4B5563"
+              />
+            </View>
+          </View>
+          
           <TouchableOpacity
-            onPress={handleSignOut}
+            onPress={() => { playButtonClick(); handleSignOut(); }}
             style={styles.signOutButton}
             activeOpacity={0.8}
           >
@@ -373,6 +422,49 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: SPACING.lg,
     letterSpacing: 1,
+  },
+  settingsCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 16,
+    padding: SPACING.lg,
+    marginBottom: SPACING.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  settingsCardTitle: {
+    color: '#9CA3AF',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: SPACING.md,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  settingInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: SPACING.md,
+  },
+  settingIcon: {
+    fontSize: 24,
+  },
+  settingLabel: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  settingDescription: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    marginTop: 2,
   },
   signOutButton: {
     backgroundColor: '#EF4444',

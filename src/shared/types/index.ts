@@ -14,6 +14,10 @@ export type User = {
   selectedAvatar?: string; // Avatar ID or undefined for no avatar
   avatarUrl?: string; // Cached avatar URL
   coins?: number; // Coin balance (defaults to 0)
+  // Daily streak fields
+  lastLoginDate?: Date; // Last time user claimed daily reward
+  currentStreak?: number; // Consecutive days logged in (1-7, resets each week)
+  currentWeek?: number; // Which week they're on (1, 2, 3, etc.) - determines reward multiplier
 };
 
 export type UserProfile = User;

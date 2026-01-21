@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './src/frontend/contexts/AuthContext';
 import { GameProvider } from './src/frontend/contexts/GameContext';
 import { MultiplayerProvider } from './src/frontend/contexts/MultiplayerContext';
+import { AudioProvider } from './src/frontend/contexts/AudioContext';
 import AppNavigator from './src/frontend/navigation/AppNavigator';
 import { ThemedAlertModal } from './src/frontend/components/CrossPlatformAlert';
 import { View, Text, StyleSheet } from 'react-native';
@@ -43,30 +44,32 @@ export default function App() {
     <SafeAreaProvider style={styles.safeAreaProvider}>
       <ErrorBoundary>
         <AuthProvider>
-          <GameProvider>
-            <MultiplayerProvider>
-              <ThemedAlertModal />
-              <View style={styles.navigationWrapper}>
-                <NavigationContainer
-                  theme={{
-                    ...DarkTheme,
-                    colors: {
-                      ...DarkTheme.colors,
-                      background: '#1a1a2e',
-                      card: '#1a1a2e',
-                      text: '#FFFFFF',
-                      border: '#666666',
-                      notification: '#8B5CF6',
-                      primary: '#8B5CF6',
-                    },
-                  }}
-                >
-                  <StatusBar style="light" />
-                  <AppNavigator />
-                </NavigationContainer>
-              </View>
-            </MultiplayerProvider>
-          </GameProvider>
+          <AudioProvider>
+            <GameProvider>
+              <MultiplayerProvider>
+                <ThemedAlertModal />
+                <View style={styles.navigationWrapper}>
+                  <NavigationContainer
+                    theme={{
+                      ...DarkTheme,
+                      colors: {
+                        ...DarkTheme.colors,
+                        background: '#1a1a2e',
+                        card: '#1a1a2e',
+                        text: '#FFFFFF',
+                        border: '#666666',
+                        notification: '#8B5CF6',
+                        primary: '#8B5CF6',
+                      },
+                    }}
+                  >
+                    <StatusBar style="light" />
+                    <AppNavigator />
+                  </NavigationContainer>
+                </View>
+              </MultiplayerProvider>
+            </GameProvider>
+          </AudioProvider>
         </AuthProvider>
       </ErrorBoundary>
     </SafeAreaProvider>
