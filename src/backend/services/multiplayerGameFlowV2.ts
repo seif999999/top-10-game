@@ -15,7 +15,7 @@ import { RoomData, RevealedAnswer, Answer } from '../../shared/types/game';
 import { findBestMatch, normalizeAnswerEnhanced } from './fuzzyMatching';
 import { pointsForRank } from './scoring';
 import { getStartGameData } from './gameStartCore';
-import { toAppError } from '../../shared/errors';
+import { AppError, toAppError } from '../../shared/errors';
 import { logger } from '../utils/logger';
 import { COLLECTIONS } from '../utils/constants';
 
@@ -131,7 +131,11 @@ export async function hostStartGame(
       const roomSnap = await transaction.get(roomRef);
       
       if (!roomSnap.exists()) {
-        throw new Error('Room not found');
+        throw new AppError({
+          code: 'ROOM_NOT_FOUND',
+          message: 'Room not found',
+          userMessage: 'Room not found. Please check the room code and try again.'
+        });
       }
       
       const room = roomSnap.data() as RoomData;
@@ -250,28 +254,48 @@ Room: ${roomCode}`);
       const roomSnap = await transaction.get(roomRef);
       
       if (!roomSnap.exists()) {
-        throw new Error('Room not found');
+        throw new AppError({
+          code: 'ROOM_NOT_FOUND',
+          message: 'Room not found',
+          userMessage: 'Room not found. Please check the room code and try again.'
+        });
       }
       
       const room = roomSnap.data() as RoomData;
       
       // Validation checks
       if (room.status !== 'playing') {
-        throw new Error('Game is not in playing state');
+        throw new AppError({
+          code: 'GAME_NOT_PLAYING',
+          message: 'Game is not in playing state',
+          userMessage: 'Game is not in playing state. Please wait for the game to start.'
+        });
       }
       
       if (room.currentPlayerId !== playerId) {
-        throw new Error('Not your turn');
+        throw new AppError({
+          code: 'NOT_YOUR_TURN',
+          message: 'Not your turn',
+          userMessage: "It's not your turn. Please wait for your turn."
+        });
       }
       
       if (room.answersSubmittedCount >= 10) {
-        throw new Error('All answers have been revealed for this question');
+        throw new AppError({
+          code: 'ALL_ANSWERS_REVEALED',
+          message: 'All answers have been revealed for this question',
+          userMessage: 'All answers have been revealed for this question.'
+        });
       }
       
       // Find matching answer
       const currentQuestion = room.questions[room.currentQuestionIndex];
       if (!currentQuestion) {
-        throw new Error('No current question found');
+        throw new AppError({
+          code: 'NO_CURRENT_QUESTION',
+          message: 'No current question found',
+          userMessage: 'No current question found. Please try again.'
+        });
       }
       
       // Ensure revealedAnswers array is properly initialized
@@ -335,13 +359,21 @@ Points: ${pointsToAdd}`);
         // Check if answer is already revealed
         if (room.revealedAnswers[index] !== null) {
           logger.log(`❌ ALREADY_REVEALED: Answer at index ${index} is already revealed`);
-          throw new Error('Answer already revealed');
+          throw new AppError({
+            code: 'ANSWER_ALREADY_REVEALED',
+            message: 'Answer already revealed',
+            userMessage: 'This answer has already been revealed.'
+          });
         }
         
         // Validate array bounds
         if (index < 0 || index >= 10) {
           logger.log(`❌ INVALID_INDEX: Answer index ${index} is out of bounds (0-9)`);
-          throw new Error('Invalid answer index');
+          throw new AppError({
+            code: 'INVALID_ANSWER_INDEX',
+            message: 'Invalid answer index',
+            userMessage: 'Invalid answer index. Please try again.'
+          });
         }
         
         // Calculate points
@@ -548,7 +580,11 @@ Should have updated:
     const roomSnap = await getDoc(roomRef);
     
     if (!roomSnap.exists()) {
-      throw new Error('Room not found');
+      throw new AppError({
+        code: 'ROOM_NOT_FOUND',
+        message: 'Room not found',
+        userMessage: 'Room not found. Please check the room code and try again.'
+      });
     }
     
     const room = roomSnap.data() as RoomData;
@@ -556,7 +592,11 @@ Should have updated:
     // Find matching answer
     const currentQuestion = room.questions[room.currentQuestionIndex];
     if (!currentQuestion) {
-      throw new Error('No current question found');
+      throw new AppError({
+        code: 'NO_CURRENT_QUESTION',
+        message: 'No current question found',
+        userMessage: 'No current question found. Please try again.'
+      });
     }
     
     const match = findMatchingAnswer(answerText, currentQuestion.answers);
@@ -626,14 +666,22 @@ export async function advanceTurnOnTimeout(
       const roomSnap = await transaction.get(roomRef);
       
       if (!roomSnap.exists()) {
-        throw new Error('Room not found');
+        throw new AppError({
+          code: 'ROOM_NOT_FOUND',
+          message: 'Room not found',
+          userMessage: 'Room not found. Please check the room code and try again.'
+        });
       }
       
       const room = roomSnap.data() as RoomData;
       
       // Check if game is in playing state
       if (room.status !== 'playing') {
-        throw new Error('Game is not in playing state');
+        throw new AppError({
+          code: 'GAME_NOT_PLAYING',
+          message: 'Game is not in playing state',
+          userMessage: 'Game is not in playing state. Please wait for the game to start.'
+        });
       }
       
       // Check if turn has actually expired
@@ -641,7 +689,11 @@ export async function advanceTurnOnTimeout(
       const timeRemaining = calculateTimeRemaining(room.turnStartTime, room.turnTimeLimit, serverOffset);
       
       if (timeRemaining > 0) {
-        throw new Error('Turn has not expired yet');
+        throw new AppError({
+          code: 'TURN_NOT_EXPIRED',
+          message: 'Turn has not expired yet',
+          userMessage: 'Turn has not expired yet. Please wait.'
+        });
       }
       
       // Advance turn
@@ -686,14 +738,22 @@ export async function hostEndGame(
       const roomSnap = await transaction.get(roomRef);
       
       if (!roomSnap.exists()) {
-        throw new Error('Room not found');
+        throw new AppError({
+          code: 'ROOM_NOT_FOUND',
+          message: 'Room not found',
+          userMessage: 'Room not found. Please check the room code and try again.'
+        });
       }
       
       const room = roomSnap.data() as RoomData;
       
       // Verify host
       if (room.hostId !== hostId) {
-        throw new Error('Only the host can end the game');
+        throw new AppError({
+          code: 'HOST_ONLY_ACTION',
+          message: 'Only the host can end the game',
+          userMessage: 'Only the host can end the game.'
+        });
       }
       
       // Close the room
@@ -735,14 +795,22 @@ export async function resetRoomStatus(
       const roomSnap = await transaction.get(roomRef);
       
       if (!roomSnap.exists()) {
-        throw new Error('Room not found');
+        throw new AppError({
+          code: 'ROOM_NOT_FOUND',
+          message: 'Room not found',
+          userMessage: 'Room not found. Please check the room code and try again.'
+        });
       }
       
       const room = roomSnap.data() as RoomData;
       
       // Verify host
       if (room.hostId !== hostId) {
-        throw new Error('Only the host can reset room status');
+        throw new AppError({
+          code: 'HOST_ONLY_ACTION',
+          message: 'Only the host can reset room status',
+          userMessage: 'Only the host can reset room status.'
+        });
       }
       
       // Reset to lobby state
@@ -795,22 +863,38 @@ export async function skipTurn(
       const roomSnap = await transaction.get(roomRef);
       
       if (!roomSnap.exists()) {
-        throw new Error('Room not found');
+        throw new AppError({
+          code: 'ROOM_NOT_FOUND',
+          message: 'Room not found',
+          userMessage: 'Room not found. Please check the room code and try again.'
+        });
       }
       
       const room = roomSnap.data() as RoomData;
       
       // Validation checks
       if (room.status !== 'playing') {
-        throw new Error('Game is not in playing state');
+        throw new AppError({
+          code: 'GAME_NOT_PLAYING',
+          message: 'Game is not in playing state',
+          userMessage: 'Game is not in playing state. Please wait for the game to start.'
+        });
       }
       
       if (room.currentPlayerId !== playerId) {
-        throw new Error('Not your turn');
+        throw new AppError({
+          code: 'NOT_YOUR_TURN',
+          message: 'Not your turn',
+          userMessage: "It's not your turn. Please wait for your turn."
+        });
       }
       
       if (room.answersSubmittedCount >= 10) {
-        throw new Error('All answers have been revealed for this question');
+        throw new AppError({
+          code: 'ALL_ANSWERS_REVEALED',
+          message: 'All answers have been revealed for this question',
+          userMessage: 'All answers have been revealed for this question.'
+        });
       }
       
       // Advance turn to next player
@@ -895,19 +979,31 @@ export async function migrateHost(
       const roomSnap = await transaction.get(roomRef);
       
       if (!roomSnap.exists()) {
-        throw new Error('Room not found during migration');
+        throw new AppError({
+          code: 'ROOM_NOT_FOUND',
+          message: 'Room not found during migration',
+          userMessage: 'Room not found. Please try again.'
+        });
       }
       
       const currentRoom = roomSnap.data() as RoomData;
       const currentRemainingPlayers = Object.keys(currentRoom.players).filter(playerId => playerId !== disconnectedHostId);
       
       if (currentRemainingPlayers.length < 3) {
-        throw new Error('Not enough players for host migration');
+        throw new AppError({
+          code: 'NOT_ENOUGH_PLAYERS',
+          message: 'Not enough players for host migration',
+          userMessage: 'Not enough players for host migration.'
+        });
       }
       
       // Ensure we're not trying to migrate to a player who no longer exists
       if (!currentRoom.players[newHostId]) {
-        throw new Error('Selected new host no longer exists');
+        throw new AppError({
+          code: 'NEW_HOST_NOT_FOUND',
+          message: 'Selected new host no longer exists',
+          userMessage: 'Selected new host no longer exists.'
+        });
       }
       
       // Atomic host migration - update hostId and add system message
@@ -967,14 +1063,22 @@ export async function terminateRoom(
       const roomSnap = await transaction.get(roomRef);
       
       if (!roomSnap.exists()) {
-        throw new Error('Room not found during termination');
+        throw new AppError({
+          code: 'ROOM_NOT_FOUND',
+          message: 'Room not found during termination',
+          userMessage: 'Room not found. Please try again.'
+        });
       }
       
       const currentRoom = roomSnap.data() as RoomData;
       const currentRemainingPlayers = Object.keys(currentRoom.players).filter(playerId => playerId !== disconnectedHostId);
       
       if (currentRemainingPlayers.length !== 1) {
-        throw new Error('Room termination requires exactly 1 remaining player');
+        throw new AppError({
+          code: 'INVALID_TERMINATION_CONDITION',
+          message: 'Room termination requires exactly 1 remaining player',
+          userMessage: 'Room termination requires exactly 1 remaining player.'
+        });
       }
       
       // Add system message before deletion for the remaining player
@@ -1090,14 +1194,22 @@ export async function terminateGame(
       const roomSnap = await transaction.get(roomRef);
       
       if (!roomSnap.exists()) {
-        throw new Error('Room not found during game termination');
+        throw new AppError({
+          code: 'ROOM_NOT_FOUND',
+          message: 'Room not found during game termination',
+          userMessage: 'Room not found. Please try again.'
+        });
       }
       
       const currentRoom = roomSnap.data() as RoomData;
       const currentRemainingPlayers = Object.keys(currentRoom.players).filter(playerId => playerId !== disconnectedPlayerId);
       
       if (currentRemainingPlayers.length > 2) {
-        throw new Error('Game termination requires 2 or fewer remaining players');
+        throw new AppError({
+          code: 'INVALID_TERMINATION_CONDITION',
+          message: 'Game termination requires 2 or fewer remaining players',
+          userMessage: 'Game termination requires 2 or fewer remaining players.'
+        });
       }
       
       // Update game status to finished and set gamePhase to 'finished'

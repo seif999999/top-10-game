@@ -159,7 +159,11 @@ class MultiplayerService {
       );
       
       if (!rateLimitResult.allowed) {
-        throw new Error(rateLimitResult.error || 'Too many room creation attempts. Please wait before creating another room.');
+        throw new AppError({
+          code: 'RATE_LIMIT_EXCEEDED',
+          message: rateLimitResult.error || 'Too many room creation attempts. Please wait before creating another room.',
+          userMessage: 'Too many room creation attempts. Please wait before creating another room.'
+        });
       }
       
       // Server-side validation for room creation
@@ -171,7 +175,11 @@ class MultiplayerService {
       );
       
       if (!validationResult.valid) {
-        throw new Error(validationResult.error || 'Room creation validation failed');
+        throw new AppError({
+          code: 'ROOM_CREATION_VALIDATION_FAILED',
+          message: validationResult.error || 'Room creation validation failed',
+          userMessage: 'Room creation validation failed. Please try again.'
+        });
       }
       
       // Check for rate limiting (disabled for development)
@@ -256,12 +264,20 @@ class MultiplayerService {
       const hasUndefined = JSON.stringify(sanitizedRoomData).includes('undefined');
       if (hasUndefined) {
         logger.error('❌ Sanitized data still contains undefined values:', sanitizedRoomData);
-        throw new Error('Data sanitization failed - undefined values detected');
+        throw new AppError({
+          code: 'DATA_SANITIZATION_FAILED',
+          message: 'Data sanitization failed - undefined values detected',
+          userMessage: 'Invalid data format. Please try again.'
+        });
       }
       
       // Validate room data structure
       if (!this.validateRoomDataStructure(sanitizedRoomData)) {
-        throw new Error('Room data validation failed');
+        throw new AppError({
+          code: 'ROOM_DATA_VALIDATION_FAILED',
+          message: 'Room data validation failed',
+          userMessage: 'Room data validation failed. Please try again.'
+        });
       }
       
       // Apply additional Firestore compatibility validation
@@ -276,14 +292,22 @@ class MultiplayerService {
       });
 
       if (!success) {
-        throw new Error('Failed to create room due to concurrent state changes');
+        throw new AppError({
+          code: 'CONCURRENT_STATE_CHANGE',
+          message: 'Failed to create room due to concurrent state changes',
+          userMessage: 'Room creation failed due to concurrent changes. Please try again.'
+        });
       }
 
       // Verify room was created successfully
       const verifyRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const verifySnap = await getDoc(verifyRef);
       if (!verifySnap.exists()) {
-        throw new Error('Failed to create room - verification failed');
+        throw new AppError({
+          code: 'ROOM_CREATION_VERIFICATION_FAILED',
+          message: 'Failed to create room - verification failed',
+          userMessage: 'Room creation failed. Please try again.'
+        });
       }
       logger.log('✅ DEBUG: Room creation verified successfully');
 
@@ -304,7 +328,11 @@ class MultiplayerService {
         await this.edgeCaseHandler.handleAuthenticationFailure(hostId);
       }
       
-      throw new Error('Failed to create room');
+      throw new AppError({
+        code: 'ROOM_CREATION_FAILED',
+        message: 'Failed to create room',
+        userMessage: 'Failed to create room. Please try again.'
+      });
     }
   }
 
@@ -363,7 +391,11 @@ class MultiplayerService {
       );
       
       if (!rateLimitResult.allowed) {
-        throw new Error(rateLimitResult.error || 'Too many room joining attempts. Please wait before trying again.');
+        throw new AppError({
+          code: 'RATE_LIMIT_EXCEEDED',
+          message: rateLimitResult.error || 'Too many room joining attempts. Please wait before trying again.',
+          userMessage: 'Too many room joining attempts. Please wait before trying again.'
+        });
       }
       
       // Server-side validation for player joining
@@ -374,7 +406,11 @@ class MultiplayerService {
       );
       
       if (!validationResult.valid) {
-        throw new Error(validationResult.error || 'Player join validation failed');
+        throw new AppError({
+          code: 'PLAYER_JOIN_VALIDATION_FAILED',
+          message: validationResult.error || 'Player join validation failed',
+          userMessage: 'Player join validation failed. Please try again.'
+        });
       }
       
       // Check for malicious activity

@@ -16,6 +16,7 @@ import { auth } from './firebase';
 import { User } from '../../shared/types';
 import SecurityMonitoringService from './securityMonitoringService';
 import { logger } from '../utils/logger';
+import { AppError } from '../../shared/errors';
 // Split modules for rate limiting and session management
 import { authRateLimit } from './authRateLimit';
 import { 
@@ -72,7 +73,11 @@ export const signInWithEmail = async (email: string, password: string): Promise<
     const remainingTime = await authRateLimit.getRemainingTime(email);
     const remainingMinutes = Math.ceil(remainingTime / 1000 / 60);
     logger.log('❌ DEBUG: Rate limit exceeded for email:', email);
-    throw new Error(`Too many login attempts. Please try again in ${remainingMinutes} minutes.`);
+    throw new AppError({
+      code: 'RATE_LIMIT_EXCEEDED',
+      message: `Too many login attempts. Please try again in ${remainingMinutes} minutes.`,
+      userMessage: `Too many login attempts. Please try again in ${remainingMinutes} minutes.`
+    });
   }
 
   try {

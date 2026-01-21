@@ -99,6 +99,32 @@ service cloud.firestore {
         return false;
       }
       
+      // ✅ SECURITY: Field type validation for room updates
+      // Validate roomCode is string and matches document ID
+      if (request.resource.data.keys().hasAny(['roomCode'])) {
+        return request.resource.data.roomCode is string &&
+               request.resource.data.roomCode == roomCode &&
+               request.resource.data.roomCode.size() == 6;
+      }
+      
+      // Validate hostId is string if present
+      if (request.resource.data.keys().hasAny(['hostId'])) {
+        return request.resource.data.hostId is string &&
+               request.resource.data.hostId.size() > 0;
+      }
+      
+      // Validate status is valid enum value
+      if (request.resource.data.keys().hasAny(['status'])) {
+        return request.resource.data.status is string &&
+               request.resource.data.status in ['lobby', 'playing', 'finished', 'closed'];
+      }
+      
+      // Validate gamePhase is valid enum value
+      if (request.resource.data.keys().hasAny(['gamePhase'])) {
+        return request.resource.data.gamePhase is string &&
+               request.resource.data.gamePhase in ['lobby', 'question', 'answers', 'results', 'finished'];
+      }
+      
       // ✅ SECURITY: Prevent privilege escalation - only host can modify hostId or isHost
       let isHost = resource.data.hostId == request.auth.uid;
       

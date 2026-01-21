@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import { logger } from '../utils/logger';
 import type { CustomQuestion } from '../../shared/types';
 import { RATE_LIMITS } from '../utils/constants';
+import { AppError } from '../../shared/errors';
 
 const CUSTOM_QUESTIONS_KEY = 'custom_questions';
 
@@ -43,7 +44,11 @@ export class CustomQuestionService {
       
       // ✅ SECURITY: Enforce limit to prevent DoS attacks
       if (existingQuestions.length >= RATE_LIMITS.MAX_CUSTOM_QUESTIONS_PER_USER) {
-        throw new Error(`Maximum limit of ${RATE_LIMITS.MAX_CUSTOM_QUESTIONS_PER_USER} custom questions reached. Please delete some questions before creating new ones.`);
+        throw new AppError({
+          code: 'CUSTOM_QUESTION_LIMIT_REACHED',
+          message: `Maximum limit of ${RATE_LIMITS.MAX_CUSTOM_QUESTIONS_PER_USER} custom questions reached. Please delete some questions before creating new ones.`,
+          userMessage: `You've reached the maximum limit of ${RATE_LIMITS.MAX_CUSTOM_QUESTIONS_PER_USER} custom questions. Please delete some before creating new ones.`
+        });
       }
       
       // Add new question

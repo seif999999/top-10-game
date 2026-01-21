@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useCallback, useMemo } from 'react';
 import { startNewGame, processAnswer, nextQuestion, generateGameResults, isQuestionComplete as checkQuestionComplete } from '../../backend/services/gameLogic';
 import { GameState, GameResults, PlayerAnswer, GameQuestion } from '../../shared/types';
 import { Team, TeamGameState, TeamSetupConfig, TEAM_COLORS } from '../../shared/types/teams';
@@ -577,7 +577,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     return Object.keys(state.teamGameState.answerAssignments).length;
   }, [state.teamGameState]);
 
-  const contextValue: GameContextType = {
+  const contextValue: GameContextType = useMemo(() => ({
     ...state,
     startGame,
     submitAnswer,
@@ -600,7 +600,29 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     getCurrentTeam,
     getTeamScore,
     getAssignedAnswersCount,
-  };
+  }), [
+    state,
+    startGame,
+    submitAnswer,
+    nextQuestion,
+    endGame,
+    setAnswer,
+    getGameResults,
+    getCurrentQuestion,
+    getPlayerScore,
+    getGameProgress,
+    isQuestionComplete,
+    getCorrectAnswersFound,
+    resetGame,
+    startTeamsGame,
+    assignAnswerToTeam,
+    endTeamTurn,
+    setTeamTimer,
+    resetTeamsGame,
+    getCurrentTeam,
+    getTeamScore,
+    getAssignedAnswersCount,
+  ]);
 
   return (
     <GameContext.Provider value={contextValue}>
