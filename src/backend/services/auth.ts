@@ -67,10 +67,12 @@ export const signInWithEmail = async (email: string, password: string): Promise<
   logger.log('🔍 DEBUG: signInWithEmail called with:', { email, password: password ? '***' : '' });
   
   // Check rate limiting
-  if (authRateLimit.isBlocked(email)) {
-    const remainingTime = Math.ceil(authRateLimit.getRemainingTime(email) / 1000 / 60);
+  const isBlocked = await authRateLimit.isBlocked(email);
+  if (isBlocked) {
+    const remainingTime = await authRateLimit.getRemainingTime(email);
+    const remainingMinutes = Math.ceil(remainingTime / 1000 / 60);
     logger.log('❌ DEBUG: Rate limit exceeded for email:', email);
-    throw new Error(`Too many login attempts. Please try again in ${remainingTime} minutes.`);
+    throw new Error(`Too many login attempts. Please try again in ${remainingMinutes} minutes.`);
   }
 
   try {
@@ -79,7 +81,7 @@ export const signInWithEmail = async (email: string, password: string): Promise<
     logger.log('✅ DEBUG: signInWithEmailAndPassword successful');
     
     // Reset rate limiting on successful login
-    authRateLimit.reset(email);
+    await authRateLimit.reset(email);
     logger.log('🔍 DEBUG: Rate limit reset for email');
     
     // Start session management
@@ -101,7 +103,7 @@ export const signInWithEmail = async (email: string, password: string): Promise<
   } catch (error) {
     logger.error('❌ DEBUG: signInWithEmail error:', error);
     // Record failed attempt
-    authRateLimit.recordAttempt(email);
+    await authRateLimit.recordAttempt(email);
     logger.log('🔍 DEBUG: Failed attempt recorded for email');
     
     // Log security event
@@ -222,10 +224,12 @@ export const getCurrentUser = async (): Promise<User | null> => {
     logger.log('🔍 Platform:', Platform.OS);
     
     const fbUser = auth.currentUser;
-    logger.log('🔍 Current Firebase user:', fbUser ? `ID: ${fbUser.uid}, Email: ${fbUser.email}` : 'None');
+    // ✅ SECURITY: Log user ID only, email only in dev mode for debugging
+    logger.log('🔍 Current Firebase user:', fbUser ? `ID: ${fbUser.uid}${__DEV__ ? `, Email: ${fbUser.email}` : ''}` : 'None');
     
     if (fbUser) {
-      logger.log('✅ User is already authenticated:', fbUser.email);
+      // ✅ SECURITY: Email only logged in dev mode
+      logger.log('✅ User is already authenticated:', __DEV__ ? fbUser.email : fbUser.uid);
       
       // Load user profile with avatar data from Firestore
       try {
@@ -234,7 +238,9 @@ export const getCurrentUser = async (): Promise<User | null> => {
         const userProfile = await userProfileService.getUserProfile(fbUser.uid);
         
         if (userProfile) {
-          logger.log('✅ User profile loaded from Firestore:', userProfile.displayName || userProfile.email);
+          // ✅ SECURITY: Email only logged in dev mode
+          const displayInfo = userProfile.displayName || (__DEV__ ? userProfile.email : 'User');
+          logger.log('✅ User profile loaded from Firestore:', displayInfo);
           logger.log('🔍 User profile selectedAvatar:', userProfile.selectedAvatar);
           const user = {
             ...userProfile,
@@ -261,30 +267,24 @@ export const getCurrentUser = async (): Promise<User | null> => {
         return user;
       }
     } else {
-      logger.log('🚪 No Firebase user found, checking stored session...');
+      // ✅ SECURITY: Firebase Auth says NO user - DO NOT fall back to stored session
+      // This prevents session fixation attacks and ensures Firebase Auth is the source of truth
+      logger.log('🚪 No Firebase user found - clearing any stale stored session');
       
-      // Try to retrieve from stored session as fallback
-      const storedUser = await retrieveUserSession();
-      if (storedUser) {
-        logger.log('✅ Retrieved user from stored session:', storedUser.email);
-        return storedUser;
-      }
+      // Clear any stale stored session for security
+      await clearUserSession();
       
-      logger.log('🚪 No stored session found');
+      logger.log('🚪 No authenticated user');
       return null;
     }
   } catch (error) {
     logger.error('❌ Error checking current user:', error);
     
-    // Try to retrieve from stored session as fallback
+    // ✅ SECURITY: On error, fail secure - clear session and return null
     try {
-      const storedUser = await retrieveUserSession();
-      if (storedUser) {
-        logger.log('✅ Retrieved user from stored session (fallback):', storedUser.email);
-        return storedUser;
-      }
-    } catch (fallbackError) {
-      logger.error('❌ Error retrieving stored session:', fallbackError);
+      await clearUserSession();
+    } catch (clearError) {
+      logger.error('❌ Error clearing session:', clearError);
     }
     
     return null;
@@ -298,11 +298,12 @@ export const updateUserProfile = async (updates: { displayName?: string; avatarI
     logger.log('🔍 updateUserProfile: Updates:', updates);
     
     const currentUser = auth.currentUser;
-    logger.log('🔍 updateUserProfile: Current user:', currentUser ? `ID: ${currentUser.uid}, Email: ${currentUser.email}` : 'None');
+    // ✅ SECURITY: Email only logged in dev mode
+    logger.log('🔍 updateUserProfile: Current user:', currentUser ? `ID: ${currentUser.uid}${__DEV__ ? `, Email: ${currentUser.email}` : ''}` : 'None');
     
     // Always try to get user from stored session first, as it's more reliable
     const storedUser = await retrieveUserSession();
-    logger.log('🔍 updateUserProfile: Stored user:', storedUser ? `ID: ${storedUser.id}, Email: ${storedUser.email}` : 'None');
+    logger.log('🔍 updateUserProfile: Stored user:', storedUser ? `ID: ${storedUser.id}${__DEV__ ? `, Email: ${storedUser.email}` : ''}` : 'None');
     
     if (!currentUser && !storedUser) {
       logger.error('❌ updateUserProfile: No Firebase user or stored session found');
@@ -504,7 +505,8 @@ export const subscribeToAuthChanges = (cb: (user: User | null) => void): AuthLis
   logger.log('🔐 subscribeToAuthChanges: Setting up Firebase auth state listener...');
   
   const unsub = onAuthStateChanged(auth, async (fbUser) => {
-    logger.log('🔄 Firebase auth state changed:', fbUser ? `User ID: ${fbUser.uid}, Email: ${fbUser.email}` : 'No user');
+    // ✅ SECURITY: Email only logged in dev mode
+    logger.log('🔄 Firebase auth state changed:', fbUser ? `User ID: ${fbUser.uid}${__DEV__ ? `, Email: ${fbUser.email}` : ''}` : 'No user');
     
     if (fbUser) {
       logger.log('👤 Loading user profile for:', fbUser.uid);
@@ -516,7 +518,9 @@ export const subscribeToAuthChanges = (cb: (user: User | null) => void): AuthLis
         const userProfile = await userProfileService.getUserProfile(fbUser.uid);
         
         if (userProfile) {
-          logger.log('✅ User profile loaded from Firestore:', userProfile.displayName || userProfile.email);
+          // ✅ SECURITY: Email only logged in dev mode
+          const displayInfo = userProfile.displayName || (__DEV__ ? userProfile.email : 'User');
+          logger.log('✅ User profile loaded from Firestore:', displayInfo);
           // Ensure displayName falls back to Firebase user's displayName if not set in Firestore
           // Always use email from Firebase Auth user, not from Firestore
           const userWithFallbackDisplayName = {
@@ -581,16 +585,20 @@ const getFriendlyAuthMessage = (error: AuthError | Error): string => {
       return 'This account has been disabled. Please contact support.';
     }
     
-    // Login-specific errors
-    if (code === 'auth/invalid-credential') {
+    // ✅ SECURITY: Use generic error messages to prevent account enumeration
+    // Login-specific errors - use generic message to prevent distinguishing between
+    // "user not found" and "wrong password" (prevents account enumeration)
+    if (code === 'auth/invalid-credential' || code === 'auth/wrong-password') {
       return 'Invalid email or password. Please check your credentials and try again.';
     }
-    if (code === 'auth/wrong-password') {
-      return 'Incorrect password. Please try again.';
+    if (code === 'auth/user-not-found') {
+      // ✅ SECURITY: Use same generic message as wrong password to prevent account enumeration
+      return 'Invalid email or password. Please check your credentials and try again.';
     }
     
     // Registration-specific errors
     if (code === 'auth/email-already-in-use') {
+      // ✅ SECURITY: This is acceptable to show during registration (user is trying to create account)
       return 'An account with this email already exists. Please sign in instead.';
     }
     if (code === 'auth/weak-password') {

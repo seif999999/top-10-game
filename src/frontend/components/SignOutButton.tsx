@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { TouchableOpacity, Text, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import ThemedAlert from '../utils/themedAlert';
 import type { StyleProp, TextStyle, ViewStyle } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { COLORS, SPACING } from '../../backend/utils/constants';
@@ -24,7 +25,7 @@ const SignOutButton: React.FC<SignOutButtonProps> = ({
   const handleSignOut = async () => {
     if (isLoading) return;
     
-    Alert.alert(
+    ThemedAlert.warning(
       'Sign Out',
       'Are you sure you want to sign out?',
       [
@@ -38,7 +39,7 @@ const SignOutButton: React.FC<SignOutButtonProps> = ({
               await signOut();
             } catch (error) {
               logger.error('Sign out error:', error);
-              Alert.alert('Error', 'Failed to sign out. Please try again.');
+              ThemedAlert.error('Error', 'Failed to sign out. Please try again.');
             } finally {
               setIsLoading(false);
             }

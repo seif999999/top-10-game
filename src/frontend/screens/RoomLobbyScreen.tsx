@@ -7,7 +7,6 @@ import {
   SafeAreaView,
   ScrollView,
   ActivityIndicator,
-  Alert,
   BackHandler,
   Animated,
   Dimensions,
@@ -15,6 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { logger } from '../../backend/utils/logger';
+import ThemedAlert from '../utils/themedAlert';
 import AvatarIcon from '../components/AvatarIcon';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -61,7 +61,7 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
 
   useEffect(() => {
     if (error) {
-      Alert.alert('Error', error, [{ text: 'OK', onPress: clearError }]);
+      ThemedAlert.error('Error', error, [{ text: 'OK', onPress: clearError }]);
     }
   }, [error, clearError]);
 
@@ -93,7 +93,7 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
   // Handle back button to prevent accidental exits
   useEffect(() => {
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      Alert.alert(
+      ThemedAlert.warning(
         'Leave Room',
         'Are you sure you want to leave this room? This will end the room session.',
         [
@@ -120,7 +120,7 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
   }, [leaveRoom, navigation]);
 
   const handleLeaveRoom = async () => {
-    Alert.alert(
+    ThemedAlert.warning(
       'Leave Room',
       'Are you sure you want to leave this room? This will end the room session.',
       [
@@ -159,11 +159,11 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
     
     const playerCount = Object.keys(currentRoom.players).length;
     if (playerCount < 2) {
-      Alert.alert('Not Enough Players', 'You need at least 2 players to start the game');
+      ThemedAlert.warning('Not Enough Players', 'You need at least 2 players to start the game');
       return;
     }
 
-    Alert.alert(
+    ThemedAlert.info(
       'Start Game',
       `Start the game with ${playerCount} players?`,
       [
@@ -178,7 +178,7 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
               // Navigation will be handled automatically by the context
             } catch (error) {
               logger.error('Error starting game:', error);
-              Alert.alert('Error', 'Failed to start the game. Please try again.');
+              ThemedAlert.error('Error', 'Failed to start the game. Please try again.');
             }
           }
         }
@@ -187,7 +187,7 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
   };
 
   const handleEndGame = async () => {
-    Alert.alert(
+    ThemedAlert.warning(
       'End Game',
       'Are you sure you want to end the game? All players will be exited from the room.',
       [
@@ -226,7 +226,7 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
 
 
   const handleKickPlayer = (player: Player) => {
-    Alert.alert(
+    ThemedAlert.warning(
       'Remove Player',
       `Remove ${player.name || 'Unknown Player'} from the room?`,
       [

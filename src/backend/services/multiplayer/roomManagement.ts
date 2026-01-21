@@ -19,17 +19,14 @@ import { COLLECTIONS } from '../../utils/constants';
 import { RateLimitService } from '../rateLimitService';
 import { ServerGameService } from '../serverGameService';
 import { AppError, toAppError } from '../../../shared/errors';
+import { generateSecureRoomCode } from '../../utils/secureRandom';
 
 /**
  * Generate a unique 6-character room code
+ * ✅ SECURITY: Uses cryptographically secure random generation
  */
-export function generateRoomCode(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let result = '';
-  for (let i = 0; i < 6; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return result;
+export async function generateRoomCode(): Promise<string> {
+  return generateSecureRoomCode();
 }
 
 /**
@@ -48,17 +45,19 @@ export async function isRoomCodeAvailable(roomCode: string): Promise<boolean> {
 
 /**
  * Generate a unique available room code
+ * ✅ SECURITY: Uses cryptographically secure random generation
  */
 export async function generateUniqueRoomCode(maxAttempts: number = 10): Promise<string> {
   let attempts = 0;
   let roomCode: string;
   
   do {
-    roomCode = generateRoomCode();
+    roomCode = await generateRoomCode();
     attempts++;
     if (attempts > maxAttempts) {
-      // Append timestamp for uniqueness
-      roomCode = `${roomCode.substring(0, 4)}${Date.now().toString(36).substring(-2).toUpperCase()}`;
+      // ✅ SECURITY: Append secure random suffix if collisions persist
+      const suffix = await generateSecureRoomCode();
+      roomCode = `${roomCode.substring(0, 4)}${suffix.substring(0, 2)}`;
       break;
     }
   } while (!(await isRoomCodeAvailable(roomCode)));

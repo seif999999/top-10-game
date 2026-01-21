@@ -7,17 +7,18 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Dimensions,
 } from 'react-native';
+import ThemedAlert from '../utils/themedAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING } from '../../backend/utils/constants';
 import { logger } from '../../backend/utils/logger';
 import { CustomQuestionScreenProps } from '../../shared/types/navigation';
 import CustomQuestionService, { CustomQuestion } from '../../backend/services/customQuestionService';
+import { InputValidator } from '../../backend/utils/inputValidator';
 
 const { width } = Dimensions.get('window');
 
@@ -26,7 +27,6 @@ const CustomQuestionScreen: React.FC<CustomQuestionScreenProps> = ({ navigation 
   const [question, setQuestion] = useState('');
   const [answers, setAnswers] = useState(['', '', '', '']); // Start with 4 empty answers
   const [isLoading, setIsLoading] = useState(false);
-  const [showTeamSetup, setShowTeamSetup] = useState(false);
   const [savedQuestion, setSavedQuestion] = useState<CustomQuestion | null>(null);
 
   const handleAddAnswer = () => {
@@ -51,19 +51,19 @@ const CustomQuestionScreen: React.FC<CustomQuestionScreenProps> = ({ navigation 
   const handleCreateQuestion = async () => {
     // Validate question
     if (!question.trim()) {
-      Alert.alert('Missing Question', 'Please enter a question.');
+      ThemedAlert.warning('Missing Question', 'Please enter a question.');
       return;
     }
 
     // Validate answers
     const validAnswers = answers.filter(answer => answer.trim().length > 0);
     if (validAnswers.length < 2) {
-      Alert.alert('Not Enough Answers', 'Please provide at least 2 answers.');
+      ThemedAlert.warning('Not Enough Answers', 'Please provide at least 2 answers.');
       return;
     }
 
     if (validAnswers.length > 10) {
-      Alert.alert('Too Many Answers', 'Please provide no more than 10 answers.');
+      ThemedAlert.warning('Too Many Answers', 'Please provide no more than 10 answers.');
       return;
     }
 
@@ -78,22 +78,18 @@ const CustomQuestionScreen: React.FC<CustomQuestionScreenProps> = ({ navigation 
       logger.log('✅ Custom question created:', savedQuestion.id);
       setSavedQuestion(savedQuestion);
       
-      // Check if teams are enabled
-      if (FEATURES.teamsEnabled) {
-        setShowTeamSetup(true);
-      } else {
-        // Navigate directly to game with custom question
-        navigation.navigate('GameScreen', {
-          roomId: 'single-player',
-          categoryId: 'Custom',
-          customQuestion: savedQuestion,
-          isCustomQuestion: true
-        });
-      }
+      // Navigate directly to game with custom question
+      navigation.navigate('GameScreen', {
+        roomId: 'single-player',
+        categoryId: 'Custom',
+        customQuestion: savedQuestion,
+        isCustomQuestion: true
+      });
       
     } catch (error) {
       logger.error('❌ Error creating custom question:', error);
-      Alert.alert('Error', 'Failed to create custom question. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create custom question. Please try again.';
+      ThemedAlert.error('Error', errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -103,35 +99,6 @@ const CustomQuestionScreen: React.FC<CustomQuestionScreenProps> = ({ navigation 
     navigation.goBack();
   };
 
-  const handleTeamSetupStart = (config: TeamSetupConfig) => {
-    try {
-      logger.log('🎮 Starting custom question team game with config:', config);
-      
-      if (!savedQuestion) {
-        Alert.alert('Error', 'No question saved');
-        return;
-      }
-
-      // Navigate to GameScreen with team configuration and custom question
-      navigation.navigate('GameScreen', {
-        roomId: 'single-player',
-        categoryId: 'Custom',
-        customQuestion: savedQuestion,
-        isCustomQuestion: true,
-        teamConfig: config
-      });
-      
-      // Close the modal
-      setShowTeamSetup(false);
-    } catch (error) {
-      logger.error('Error starting custom question team game:', error);
-      Alert.alert('Error', 'Failed to start team game. Please try again.');
-    }
-  };
-
-  const handleTeamSetupClose = () => {
-    setShowTeamSetup(false);
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -175,6 +142,7 @@ const CustomQuestionScreen: React.FC<CustomQuestionScreenProps> = ({ navigation 
               multiline
               numberOfLines={3}
               textAlignVertical="top"
+              maxLength={500}
             />
           </View>
 
@@ -210,6 +178,7 @@ const CustomQuestionScreen: React.FC<CustomQuestionScreenProps> = ({ navigation 
                   placeholderTextColor="#9CA3AF"
                   value={answer}
                   onChangeText={(value) => handleAnswerChange(index, value)}
+                  maxLength={100}
                 />
                 {answers.length > 2 && (
                   <TouchableOpacity 
@@ -269,13 +238,6 @@ const CustomQuestionScreen: React.FC<CustomQuestionScreenProps> = ({ navigation 
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
-
-      {/* Team Setup Modal */}
-      <TeamSetupModal
-        visible={showTeamSetup}
-        onClose={handleTeamSetupClose}
-        onStartGame={handleTeamSetupStart}
-      />
     </SafeAreaView>
   );
 };

@@ -1,9 +1,10 @@
 import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { GameStats, UserProfile } from '../../shared/types';
+import { COLLECTIONS } from '../utils/constants';
 
 export const createUserProfile = async (userId: string, userData: Partial<UserProfile>): Promise<void> => {
-  const ref = doc(db, 'users', userId);
+  const ref = doc(db, COLLECTIONS.USER_PROFILES, userId);
   await setDoc(ref, {
     ...userData,
     createdAt: serverTimestamp(),
@@ -17,7 +18,7 @@ type UserProfileDoc = Partial<UserProfile> & {
 };
 
 export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
-  const ref = doc(db, 'users', userId);
+  const ref = doc(db, COLLECTIONS.USER_PROFILES, userId);
   const snap = await getDoc(ref);
   if (!snap.exists()) return null;
   const data = snap.data() as UserProfileDoc;
@@ -32,7 +33,7 @@ export const getUserProfile = async (userId: string): Promise<UserProfile | null
 };
 
 export const updateUserStats = async (userId: string, stats: Partial<GameStats>): Promise<void> => {
-  const ref = doc(db, 'users', userId);
+  const ref = doc(db, COLLECTIONS.USER_PROFILES, userId);
   await updateDoc(ref, { stats });
 };
 

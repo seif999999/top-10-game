@@ -6,6 +6,7 @@ import { AuthProvider } from './src/frontend/contexts/AuthContext';
 import { GameProvider } from './src/frontend/contexts/GameContext';
 import { MultiplayerProvider } from './src/frontend/contexts/MultiplayerContext';
 import AppNavigator from './src/frontend/navigation/AppNavigator';
+import { ThemedAlertModal } from './src/frontend/components/CrossPlatformAlert';
 import { View, Text, StyleSheet } from 'react-native';
 
 
@@ -44,6 +45,7 @@ export default function App() {
         <AuthProvider>
           <GameProvider>
             <MultiplayerProvider>
+              <ThemedAlertModal />
               <View style={styles.navigationWrapper}>
                 <NavigationContainer
                   theme={{

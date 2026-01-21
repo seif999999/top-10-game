@@ -4,8 +4,10 @@ import { logger } from '../utils/logger';
 import { AppError } from '../../shared/errors';
 
 // Generate unique game ID
-const generateGameId = (): string => {
-  return `game_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+// ✅ SECURITY: Uses secure random for ID generation
+const generateGameId = async (): Promise<string> => {
+  const { generateSecureId } = await import('../utils/secureRandom');
+  return generateSecureId('game');
 };
 
 // Check if a question is complete (all answers submitted)
@@ -269,7 +271,7 @@ export const startNewGame = async (
   logger.log(`🎮 Adjusted totalRounds from ${totalRounds} to ${actualTotalRounds}`);
   
   const gameState: GameState = {
-    gameId: generateGameId(),
+    gameId: await generateGameId(),
     category,
     players,
     currentRound: 1,

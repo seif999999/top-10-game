@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
+import ThemedAlert from '../../utils/themedAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from '../../components/Button';
 import PrivacyPolicyModal from '../../components/PrivacyPolicyModal';
@@ -63,7 +64,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
     }
     
     if (!privacyPolicyAccepted) {
-      Alert.alert('Privacy Policy Required', 'You must accept the privacy policy to create an account.');
+      ThemedAlert.warning('Privacy Policy Required', 'You must accept the privacy policy to create an account.');
       return false;
     }
     
@@ -94,7 +95,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const handlePrivacyPolicyDecline = () => {
-    Alert.alert(
+    ThemedAlert.warning(
       'Privacy Policy Required',
       'You must accept the privacy policy to create an account.',
       [{ text: 'OK' }]
@@ -164,7 +165,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
         userMessage: 'Registration failed. Please try again.'
       });
       logger.error('❌ DEBUG: SignUp error:', appError);
-      Alert.alert('Registration Failed', appError.userMessage ?? appError.message);
+      ThemedAlert.error('Registration Failed', appError.userMessage ?? appError.message);
     } finally {
       logger.log('🔍 DEBUG: Setting local loading to false...');
       setLocalLoading(false);

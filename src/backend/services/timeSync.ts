@@ -83,8 +83,10 @@ async function computeServerTimeOffset(): Promise<number> {
 async function sampleServerTime(): Promise<number> {
   const clientTimeBefore = Date.now();
   
-  // Create a temporary document with server timestamp
-  const tempRef = doc(db, COLLECTIONS.TIME_SYNC_DOCS, `temp_${Date.now()}_${Math.random()}`);
+  // ✅ SECURITY: Create a temporary document with secure random ID
+  const { generateSecureId } = await import('../utils/secureRandom');
+  const tempId = await generateSecureId('temp');
+  const tempRef = doc(db, COLLECTIONS.TIME_SYNC_DOCS, tempId);
   await setDoc(tempRef, { 
     timestamp: serverTimestamp(),
     clientTime: clientTimeBefore 

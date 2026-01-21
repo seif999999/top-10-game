@@ -65,11 +65,11 @@ export class ModerationLoggingService {
   /**
    * Log a moderation action
    */
-  static logModeration(log: ModerationLog): void {
+  static async logModeration(log: ModerationLog): Promise<void> {
     this.logs.push(log);
     
     // Check for alerts
-    this.checkForAlerts(log);
+    await this.checkForAlerts(log);
     
     // In production, this would be sent to a logging service
     logger.log('Moderation logged:', {
@@ -85,7 +85,7 @@ export class ModerationLoggingService {
   /**
    * Create a moderation report
    */
-  static createReport(
+  static async createReport(
     title: string,
     description: string,
     severity: ModerationReport['severity'],
@@ -93,9 +93,11 @@ export class ModerationLoggingService {
     content: string,
     contentType: ModerationLog['contentType'],
     reportedUser?: string
-  ): ModerationReport {
+  ): Promise<ModerationReport> {
+    // ✅ SECURITY: Generate secure ID first (can't use await in object literal)
+    const reportId = await this.generateId('report');
     const report: ModerationReport = {
-      id: this.generateId('report'),
+      id: reportId,
       title,
       description,
       severity,
@@ -114,7 +116,7 @@ export class ModerationLoggingService {
     
     // Create alert for high severity reports
     if (severity === 'high' || severity === 'critical') {
-      this.createAlert(
+      await this.createAlert(
         'high_severity_report',
         'High Severity Moderation Report',
         `A ${severity} severity report has been created: ${title}`,
@@ -129,15 +131,17 @@ export class ModerationLoggingService {
   /**
    * Add action to a report
    */
-  static addActionToReport(
+  static async addActionToReport(
     reportId: string,
     action: Omit<ModerationAction, 'id' | 'performedAt'>
-  ): boolean {
+  ): Promise<boolean> {
     const report = this.reports.find(r => r.id === reportId);
     if (!report) return false;
 
+    // ✅ SECURITY: Generate secure ID first
+    const actionId = await this.generateId('action');
     const newAction: ModerationAction = {
-      id: this.generateId('action'),
+      id: actionId,
       ...action,
       performedAt: new Date()
     };
@@ -261,15 +265,17 @@ export class ModerationLoggingService {
   /**
    * Create an alert
    */
-  static createAlert(
+  static async createAlert(
     type: ModerationAlert['type'],
     title: string,
     description: string,
     severity: ModerationAlert['severity'],
     data?: unknown
-  ): ModerationAlert {
+  ): Promise<ModerationAlert> {
+    // ✅ SECURITY: Generate secure ID first (can't use await in object literal)
+    const alertId = await this.generateId('alert');
     const alert: ModerationAlert = {
-      id: this.generateId('alert'),
+      id: alertId,
       type,
       title,
       description,
@@ -318,7 +324,7 @@ export class ModerationLoggingService {
   /**
    * Check for alerts based on moderation log
    */
-  private static checkForAlerts(log: ModerationLog): void {
+  private static async checkForAlerts(log: ModerationLog): Promise<void> {
     // Check for high rejection rate
     const userLogs = this.logs.filter(l => l.userId === log.userId);
     const recentLogs = userLogs.filter(l => 
@@ -329,7 +335,7 @@ export class ModerationLoggingService {
       const rejectionRate = recentLogs.filter(l => !l.result.approved).length / recentLogs.length;
       
       if (rejectionRate > 0.7) {
-        this.createAlert(
+        await this.createAlert(
           'high_rejection_rate',
           'High Rejection Rate Detected',
           `User ${log.userId} has a ${(rejectionRate * 100).toFixed(1)}% rejection rate in the last 24 hours`,
@@ -350,7 +356,7 @@ export class ModerationLoggingService {
       const isSuspicious = suspiciousPatterns.some(pattern => pattern.test(log.content));
       
       if (isSuspicious) {
-        this.createAlert(
+        await this.createAlert(
           'suspicious_user',
           'Suspicious Content Pattern Detected',
           `User ${log.userId} submitted suspicious content: ${log.content.substring(0, 50)}...`,
@@ -366,7 +372,7 @@ export class ModerationLoggingService {
     );
     
     if (recentLogsAll.length > 100) {
-      this.createAlert(
+      await this.createAlert(
         'content_spike',
         'High Content Volume Detected',
         `${recentLogsAll.length} moderation requests in the last hour`,
@@ -378,9 +384,11 @@ export class ModerationLoggingService {
 
   /**
    * Generate unique ID
+   * ✅ SECURITY: Uses secure random for ID generation
    */
-  private static generateId(prefix: string): string {
-    return `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  private static async generateId(prefix: string): Promise<string> {
+    const { generateSecureId } = await import('../utils/secureRandom');
+    return generateSecureId(prefix);
   }
 
   /**

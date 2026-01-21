@@ -1,0 +1,52 @@
+﻿{
+  "auditReportVersion": 2,
+  "vulnerabilities": {
+    "tar": {
+      "name": "tar",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1112255,
+          "name": "tar",
+          "dependency": "tar",
+          "title": "node-tar is Vulnerable to Arbitrary File Overwrite and Symlink Poisoning via Insufficient Path Sanitization",
+          "url": "https://github.com/advisories/GHSA-8qq5-rm4j-mr97",
+          "severity": "high",
+          "cwe": [
+            "CWE-22"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": "<=7.5.2"
+        }
+      ],
+      "effects": [],
+      "range": "<=7.5.2",
+      "nodes": [
+        "node_modules/tar"
+      ],
+      "fixAvailable": true
+    }
+  },
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 1,
+      "critical": 0,
+      "total": 1
+    },
+    "dependencies": {
+      "prod": 884,
+      "dev": 429,
+      "optional": 14,
+      "peer": 0,
+      "peerOptional": 0,
+      "total": 1325
+    }
+  }
+}

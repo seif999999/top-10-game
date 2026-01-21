@@ -6,12 +6,12 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   Dimensions,
 } from 'react-native';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { COLORS, SPACING, TYPOGRAPHY } from '../../backend/utils/constants';
 import { logger } from '../../backend/utils/logger';
+import ThemedAlert from '../utils/themedAlert';
 
 interface PrivacyPolicyModalProps {
   visible: boolean;
@@ -41,7 +41,7 @@ const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({
 
   const handleAccept = async () => {
     if (!hasScrolledToBottom) {
-      Alert.alert(
+      ThemedAlert.warning(
         'Please Read the Privacy Policy',
         'You must scroll to the bottom of the privacy policy before accepting.',
         [{ text: 'OK' }]
@@ -56,14 +56,14 @@ const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({
       onAccept();
     } catch (error) {
       logger.error('Error accepting privacy policy:', error);
-      Alert.alert('Error', 'Failed to accept privacy policy. Please try again.');
+      ThemedAlert.error('Error', 'Failed to accept privacy policy. Please try again.');
     } finally {
       setIsAccepting(false);
     }
   };
 
   const handleDecline = () => {
-    Alert.alert(
+    ThemedAlert.warning(
       'Privacy Policy Required',
       'You must accept the privacy policy to use this app. Would you like to read it again?',
       [

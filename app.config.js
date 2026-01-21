@@ -130,13 +130,13 @@ module.exports = () => ({
     
     extra: {
       firebase: {
-        apiKey: 'AIzaSyAu096CybNo1NMFCHVLi1PtPfy4cXgpTgQ',
-        authDomain: 'top10-game-f9219.firebaseapp.com',
-        projectId: 'top10-game-f9219',
-        storageBucket: 'top10-game-f9219.firebasestorage.app',
-        messagingSenderId: '807249280703',
-        appId: '1:807249280703:web:3706f3bbf0029ef43d500a',
-        measurementId: 'G-NCGRYEPFKZ'
+        apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || '',
+        authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || '',
+        projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || '',
+        storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || '',
+        messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '',
+        appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || '',
+        measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID || ''
       }
     }
   }

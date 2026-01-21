@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import ThemedAlert from '../utils/themedAlert';
 import { getGoogleConfigStatus, isGoogleSignInConfigured } from '../../backend/config/google';
 import { COLORS, SPACING } from '../../backend/utils/constants';
 import { logger } from '../../backend/utils/logger';
@@ -16,7 +17,7 @@ const GoogleConfigChecker: React.FC<GoogleConfigCheckerProps> = ({ onConfigure }
     if (onConfigure) {
       onConfigure();
     } else {
-      Alert.alert(
+      ThemedAlert.info(
         'Google Sign-In Setup',
         'To set up Google Sign-In:\n\n1. Go to Google Cloud Console\n2. Create OAuth 2.0 credentials\n3. Update your .env file\n4. Restart the app\n\nSee GOOGLE_SIGNIN_SETUP.md for detailed instructions.',
         [

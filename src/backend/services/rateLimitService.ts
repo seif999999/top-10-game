@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, setDoc, updateDoc, serverTimestamp, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
+import { collection, doc, getDoc, setDoc, updateDoc, serverTimestamp, query, where, getDocs, orderBy, limit, increment } from 'firebase/firestore';
 import { db } from './firebase';
 import SecurityMonitoringService from './securityMonitoringService';
 import { logger } from '../utils/logger';
@@ -302,6 +302,7 @@ export class RateLimitService {
 
   /**
    * Increment attempts for a rate limit entry
+   * ✅ SECURITY: Uses Firestore increment to prevent race conditions
    */
   private static async incrementRateLimitEntry(
     userId: string,
@@ -312,8 +313,10 @@ export class RateLimitService {
       const docId = `${userId}_${actionType}`;
       const docRef = doc(db, this.RATE_LIMIT_COLLECTION, docId);
       
+      // ✅ SECURITY: Use Firestore increment() to atomically increment attempts
+      // This prevents race conditions where multiple requests could bypass rate limits
       const updateData: Record<string, unknown> = {
-        attempts: 1, // Will be incremented by Firestore
+        attempts: increment(1), // Atomically increment by 1
         lastAttempt: serverTimestamp()
       };
       
@@ -321,7 +324,25 @@ export class RateLimitService {
         updateData.metadata = metadata;
       }
       
-      await setDoc(docRef, updateData, { merge: true });
+      // Use updateDoc with increment for atomic operation
+      // If document doesn't exist, create it first
+      try {
+        await updateDoc(docRef, updateData);
+      } catch (updateError: any) {
+        // If document doesn't exist, create it with initial attempts = 1
+        if (updateError.code === 'not-found' || updateError.message?.includes('No document')) {
+          await setDoc(docRef, {
+            userId,
+            actionType,
+            attempts: 1,
+            firstAttempt: serverTimestamp(),
+            lastAttempt: serverTimestamp(),
+            metadata
+          });
+        } else {
+          throw updateError;
+        }
+      }
     } catch (error) {
       logger.error('Increment rate limit entry error:', error);
     }

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput } from 'react-native';
+import ThemedAlert from '../../utils/themedAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from '../../components/Button';
 import { COLORS, SPACING } from '../../../backend/utils/constants';
@@ -70,29 +71,29 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ navigation, r
 
     // Validate password
     if (!password.trim()) {
-      Alert.alert('Error', 'Password is required');
+      ThemedAlert.error('Error', 'Password is required');
       return;
     }
 
     if (!passwordValidation.isValid) {
-      Alert.alert('Error', passwordValidation.errors[0] || 'Password does not meet requirements');
+      ThemedAlert.error('Error', passwordValidation.errors[0] || 'Password does not meet requirements');
       return;
     }
 
     // Validate password confirmation
     if (!confirmPassword.trim()) {
-      Alert.alert('Error', 'Please confirm your password');
+      ThemedAlert.error('Error', 'Please confirm your password');
       return;
     }
 
     if (confirmPassword !== password) {
       setConfirmPasswordError('Passwords do not match');
-      Alert.alert('Error', 'Passwords do not match');
+      ThemedAlert.error('Error', 'Passwords do not match');
       return;
     }
 
     if (!oobCode) {
-      Alert.alert('Error', 'Invalid reset link. Please request a new password reset.');
+      ThemedAlert.error('Error', 'Invalid reset link. Please request a new password reset.');
       navigation.navigate('ForgotPassword');
       return;
     }
@@ -106,7 +107,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ navigation, r
       // Reset the password
       await confirmPasswordReset(auth, oobCode, password);
       
-      Alert.alert(
+      ThemedAlert.success(
         'Success!', 
         'Your password has been reset successfully. You can now sign in with your new password.',
         [
@@ -131,7 +132,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ navigation, r
         errorMessage = 'Password is too weak. Please choose a stronger password.';
       }
       
-      Alert.alert('Error', errorMessage);
+      ThemedAlert.error('Error', errorMessage);
     } finally {
       setLoading(false);
     }

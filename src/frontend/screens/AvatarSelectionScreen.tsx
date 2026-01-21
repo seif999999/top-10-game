@@ -7,7 +7,6 @@ import {
   SafeAreaView,
   ScrollView,
   Image,
-  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -15,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING, TYPOGRAPHY } from '../design-system';
 import { useAuth } from '../contexts/AuthContext';
 import { logger } from '../../backend/utils/logger';
+import ThemedAlert from '../utils/themedAlert';
 
 interface AvatarOption {
   id: string;
@@ -78,7 +78,7 @@ const AVATAR_OPTIONS: AvatarOption[] = [
 const AvatarSelectionScreen: React.FC = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
-  const { user, updateUserProfile } = useAuth();
+  const { user, updateUserAvatar } = useAuth();
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(user?.selectedAvatar || null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -88,17 +88,17 @@ const AvatarSelectionScreen: React.FC = () => {
 
   const handleSaveAvatar = async () => {
     if (!selectedAvatar) {
-      Alert.alert('No Selection', 'Please select an avatar before saving.');
+      ThemedAlert.warning('No Selection', 'Please select an avatar before saving.');
       return;
     }
 
     setIsLoading(true);
     try {
-      await updateUserProfile({ avatarId: selectedAvatar });
+      await updateUserAvatar(selectedAvatar);
       // Automatically go back after successful save
       navigation.goBack();
     } catch (error) {
-      Alert.alert('Error', 'Failed to update avatar. Please try again.');
+      ThemedAlert.error('Error', 'Failed to update avatar. Please try again.');
     } finally {
       setIsLoading(false);
     }

@@ -1,6 +1,7 @@
 import { findMatchingAnswer, calculatePoints } from './multiplayerGameFlowV2';
 import { Answer } from '../../shared/types/game';
 import { logger } from '../utils/logger';
+import { sanitizeText } from '../utils/textSanitizer';
 
 export interface ValidationResult {
   isValid: boolean;
@@ -20,8 +21,8 @@ export class AnswerValidationService {
    */
   static validateAnswer(userAnswer: string, correctAnswers: Answer[]): ValidationResult {
     try {
-      // Sanitize input
-      const sanitizedAnswer = userAnswer.trim().toLowerCase();
+      // ✅ SECURITY: Use proper sanitization to prevent XSS and injection attacks
+      const sanitizedAnswer = sanitizeText(userAnswer.trim(), 100).toLowerCase();
       
       if (!sanitizedAnswer) {
         return {

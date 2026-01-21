@@ -197,7 +197,14 @@ export const retrieveUserSession = async (): Promise<User | null> => {
       return null;
     }
     
-    const parsed = JSON.parse(sessionData);
+    let parsed: any;
+    try {
+      parsed = JSON.parse(sessionData);
+    } catch (parseError) {
+      logger.error('❌ Error parsing session data, clearing corrupted session:', parseError);
+      await clearUserSession();
+      return null;
+    }
     
     // Check if session is not too old (24 hours)
     const sessionAge = Date.now() - parsed.timestamp;

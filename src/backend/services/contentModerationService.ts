@@ -143,7 +143,7 @@ export class ContentModerationService {
 
       // Log successful moderation
       const logEntry = {
-        id: this.generateLogId(),
+        id: await this.generateLogId(),
         userId,
         content: sanitizedContent,
         contentType,
@@ -154,7 +154,7 @@ export class ContentModerationService {
       };
       
       this.logModeration(logEntry);
-      ModerationLoggingService.logModeration(logEntry);
+      await ModerationLoggingService.logModeration(logEntry);
 
       return this.createModerationResult(true, undefined, 1.0);
     } catch (error) {
@@ -162,7 +162,7 @@ export class ContentModerationService {
       
       // Log error
       const errorLogEntry = {
-        id: this.generateLogId(),
+        id: await this.generateLogId(),
         userId,
         content,
         contentType,
@@ -173,7 +173,7 @@ export class ContentModerationService {
       };
       
       this.logModeration(errorLogEntry);
-      ModerationLoggingService.logModeration(errorLogEntry);
+      await ModerationLoggingService.logModeration(errorLogEntry);
 
       // Default to blocking content on error for safety
       return this.createModerationResult(false, 'Content moderation failed. Please try again.', 0.5);
@@ -416,9 +416,11 @@ export class ContentModerationService {
 
   /**
    * Generate unique log ID
+   * ✅ SECURITY: Uses secure random for ID generation
    */
-  private static generateLogId(): string {
-    return `mod_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  private static async generateLogId(): Promise<string> {
+    const { generateSecureId } = await import('../utils/secureRandom');
+    return generateSecureId('mod');
   }
 
   /**

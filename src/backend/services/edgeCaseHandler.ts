@@ -1,4 +1,4 @@
-import { doc, getDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, deleteDoc, serverTimestamp, runTransaction } from 'firebase/firestore';
 import { db } from './firebase';
 import { RoomData, Player } from './multiplayerService';
 import { logger } from '../utils/logger';
@@ -46,6 +46,7 @@ export class EdgeCaseHandler {
   private activeListeners: Map<string, () => void> = new Map();
   private playerActivity: Map<string, { actions: number; lastAction: number }> = new Map();
   private roomCleanupTimers: Map<string, NodeJS.Timeout> = new Map();
+  private cleanupInterval: NodeJS.Timeout | null = null;
 
   private constructor(config: EdgeCaseConfig = DEFAULT_EDGE_CASE_CONFIG) {
     this.config = config;
@@ -193,7 +194,7 @@ export class EdgeCaseHandler {
     }
     
     // If still duplicate, generate completely new code
-    return this.generateSecureRoomCode();
+    return await this.generateSecureRoomCode();
   }
 
   /**
@@ -535,18 +536,59 @@ export class EdgeCaseHandler {
   // HELPER METHODS
   // ========================================
 
+  /**
+   * Promote a player to host (used for host disconnection scenarios)
+   * ✅ SECURITY: Validates authorization and uses transaction for atomic updates
+   */
   private async promoteToHost(roomCode: string, newHostId: string, oldHostId: string): Promise<void> {
-    const roomRef = doc(db, 'multiplayerGames', roomCode);
-    await updateDoc(roomRef, {
-      hostId: newHostId,
-      [`players.${newHostId}.isHost`]: true,
-      [`players.${oldHostId}.isHost`]: false,
-      lastActivity: serverTimestamp()
+    // ✅ CRITICAL SECURITY: Use transaction to atomically validate and update
+    await runTransaction(db, async (transaction) => {
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
+      const roomSnap = await transaction.get(roomRef);
+      
+      if (!roomSnap.exists()) {
+        throw new Error('Room not found during host promotion');
+      }
+      
+      const roomData = roomSnap.data() as RoomData;
+      
+      // ✅ Validate: oldHostId is actually the current host
+      if (roomData.hostId !== oldHostId) {
+        logger.warn('⚠️ Host promotion: Host ID mismatch - host may have already changed', {
+          currentHostId: roomData.hostId,
+          expectedOldHostId: oldHostId
+        });
+        throw new Error('Host ID mismatch - host may have already changed');
+      }
+      
+      // ✅ Validate: newHostId is a player in the room
+      if (!roomData.players[newHostId]) {
+        logger.error('❌ Host promotion: New host is not a player in the room', {
+          newHostId,
+          playersInRoom: Object.keys(roomData.players)
+        });
+        throw new Error('New host is not a player in the room');
+      }
+      
+      // ✅ Validate: newHostId is not the same as oldHostId
+      if (newHostId === oldHostId) {
+        throw new Error('New host cannot be the same as old host');
+      }
+      
+      // ✅ Atomic update with all validations passed
+      transaction.update(roomRef, {
+        hostId: newHostId,
+        [`players.${newHostId}.isHost`]: true,
+        [`players.${oldHostId}.isHost`]: false,
+        lastActivity: serverTimestamp()
+      });
+      
+      logger.log(`✅ Host promotion successful: ${oldHostId} -> ${newHostId}`);
     });
   }
 
   private async endGameDueToHostDisconnection(roomCode: string): Promise<void> {
-    const roomRef = doc(db, 'multiplayerGames', roomCode);
+    const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
     await updateDoc(roomRef, {
       status: 'finished',
       gamePhase: 'finished',
@@ -556,7 +598,7 @@ export class EdgeCaseHandler {
   }
 
   private async endGameWithError(roomCode: string, reason: string): Promise<void> {
-    const roomRef = doc(db, 'multiplayerGames', roomCode);
+    const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
     await updateDoc(roomRef, {
       status: 'finished',
       gamePhase: 'finished',
@@ -599,13 +641,10 @@ export class EdgeCaseHandler {
     }
   }
 
-  private generateSecureRoomCode(): string {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let result = '';
-    for (let i = 0; i < 6; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
+  private async generateSecureRoomCode(): Promise<string> {
+    // ✅ SECURITY: Use cryptographically secure random generation
+    const { generateSecureRoomCode } = await import('../utils/secureRandom');
+    return generateSecureRoomCode();
   }
 
   private async removeDisconnectedPlayer(roomCode: string, playerId: string): Promise<void> {
@@ -642,11 +681,16 @@ export class EdgeCaseHandler {
 
   private async testFirebaseConnection(): Promise<boolean> {
     try {
-      const testRef = doc(db, 'test', 'connection');
-      await updateDoc(testRef, { test: true });
+      // Test Firebase connection by reading a user profile (which requires auth)
+      // This is a safer way to test connectivity without using the blocked 'test' collection
+      // If we can read from Firestore, connection is working
+      const testRef = doc(db, COLLECTIONS.USER_PROFILES, 'connection_test');
+      await getDoc(testRef);
+      // Even if document doesn't exist, the read attempt confirms Firestore is accessible
       return true;
     } catch (error) {
-      throw error;
+      // Connection test failed
+      return false;
     }
   }
 
@@ -671,11 +715,30 @@ export class EdgeCaseHandler {
   }
 
   private startPeriodicCleanup(): void {
+    // Prevent multiple intervals from being created
+    if (this.cleanupInterval) {
+      logger.warn('⚠️ Periodic cleanup already running');
+      return;
+    }
+    
     // Run cleanup every 5 minutes
-    setInterval(() => {
+    this.cleanupInterval = setInterval(() => {
       this.cleanupListeners();
       this.cleanupExpiredRooms();
     }, 300000);
+    
+    logger.log('✅ Periodic cleanup started');
+  }
+
+  /**
+   * Stop periodic cleanup (useful for testing or service reset)
+   */
+  private stopPeriodicCleanup(): void {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+      logger.log('🛑 Periodic cleanup stopped');
+    }
   }
 
   private async cleanupExpiredRooms(): Promise<void> {

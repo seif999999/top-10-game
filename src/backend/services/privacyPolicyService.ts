@@ -46,8 +46,15 @@ class PrivacyPolicyService {
         // Check in local storage for anonymous users
         const accepted = await AsyncStorage.getItem(this.STORAGE_KEY);
         if (accepted) {
-          const data = JSON.parse(accepted);
-          return data.version === this.CURRENT_VERSION;
+          try {
+            const data = JSON.parse(accepted);
+            return data.version === this.CURRENT_VERSION;
+          } catch (parseError) {
+            logger.error('❌ Error parsing privacy policy acceptance data, clearing corrupted data:', parseError);
+            // Clear corrupted data
+            await AsyncStorage.removeItem(this.STORAGE_KEY);
+            return false;
+          }
         }
       }
       
