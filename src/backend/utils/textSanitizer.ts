@@ -1,14 +1,16 @@
 /**
  * Text Sanitization Utility
  * Extracted to break circular dependency between inputValidator and contentModerationService
+ * 
+ * Note: Uses manual sanitization optimized for React Native (iOS/Android).
+ * DOMPurify is not used as it's web-only and not needed for mobile apps.
  */
 
-const DOMPurify = require('isomorphic-dompurify');
-import { logger } from './logger';
 import { AppError } from '../../shared/errors';
 
 /**
  * Sanitize text input to prevent XSS and injection attacks
+ * Uses manual sanitization patterns optimized for React Native
  */
 export function sanitizeText(input: string, maxLength: number = 100): string {
   if (typeof input !== 'string') {
@@ -19,37 +21,17 @@ export function sanitizeText(input: string, maxLength: number = 100): string {
     });
   }
 
-  let sanitized: string;
-  
-  try {
-    // Use DOMPurify for comprehensive HTML sanitization
-    if (DOMPurify && typeof DOMPurify.sanitize === 'function') {
-      sanitized = DOMPurify.sanitize(input, {
-        ALLOWED_TAGS: [], // Remove all HTML tags
-        ALLOWED_ATTR: [], // Remove all attributes
-        KEEP_CONTENT: true, // Keep text content
-        ALLOW_DATA_ATTR: false, // Remove data attributes
-        ALLOW_UNKNOWN_PROTOCOLS: false, // Remove unknown protocols
-      });
-    } else {
-      throw new AppError({
-        code: 'SANITIZE_UNAVAILABLE',
-        message: 'DOMPurify not available',
-        userMessage: 'Unable to sanitize input.'
-      });
-    }
-  } catch (error) {
-    logger.warn('DOMPurify not available, using basic sanitization:', error);
-    // Fallback to basic sanitization
-    sanitized = input;
-  }
-
-  // Additional manual sanitization for extra security
-  sanitized = sanitized
+  // Manual sanitization for React Native (removes dangerous patterns)
+  let sanitized = input
     .replace(/javascript:/gi, '') // Remove javascript: protocols
-    .replace(/on\w+=/gi, '') // Remove event handlers
+    .replace(/on\w+=/gi, '') // Remove event handlers (onclick=, onerror=, etc.)
     .replace(/data:/gi, '') // Remove data: protocols
     .replace(/vbscript:/gi, '') // Remove vbscript: protocols
+    .replace(/<script/gi, '') // Remove script tags
+    .replace(/<\/script>/gi, '') // Remove closing script tags
+    .replace(/<iframe/gi, '') // Remove iframe tags
+    .replace(/<object/gi, '') // Remove object tags
+    .replace(/<embed/gi, '') // Remove embed tags
     .trim();
 
   // Limit length

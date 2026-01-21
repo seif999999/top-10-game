@@ -1,8 +1,8 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { Platform } from 'react-native';
-import { initializeAuth, getAuth } from 'firebase/auth';
+import { initializeAuth, getAuth, connectAuthEmulator } from 'firebase/auth';
 import type { Auth } from 'firebase/auth';
-import { getFirestore, serverTimestamp } from 'firebase/firestore';
+import { getFirestore, serverTimestamp, connectFirestoreEmulator } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
@@ -120,6 +120,41 @@ if (Platform.OS === 'web') {
 export { auth };
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+
+// Connect to Firebase Emulators (optional)
+// Set EXPO_PUBLIC_USE_FIREBASE_EMULATOR=true in your .env file to enable
+// By default, the app connects to the real Firebase services
+const USE_EMULATOR = process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATOR === 'true';
+
+if (USE_EMULATOR) {
+  try {
+    // Determine emulator host based on platform
+    // For React Native: Android uses 10.0.2.2, iOS/Web use localhost
+    const EMULATOR_HOST = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
+    
+    // Connect Firestore emulator (only if not already connected)
+    // Check if already connected by checking internal settings
+    const firestoreSettings = (db as any)._delegate?._settings;
+    if (!firestoreSettings?.host?.includes('localhost') && !firestoreSettings?.host?.includes('10.0.2.2')) {
+      connectFirestoreEmulator(db, EMULATOR_HOST, 8080);
+      logger.log(`✅ Connected to Firestore Emulator at ${EMULATOR_HOST}:8080`);
+    }
+    
+    // Connect Auth emulator (only if not already connected)
+    const authSettings = (auth as any)._delegate?._settings;
+    if (!authSettings?.config?.emulator) {
+      connectAuthEmulator(auth, `http://${EMULATOR_HOST}:9099`, { disableWarnings: true });
+      logger.log(`✅ Connected to Auth Emulator at ${EMULATOR_HOST}:9099`);
+    }
+  } catch (error: any) {
+    // Ignore "already connected" errors
+    if (error?.message?.includes('already connected') || error?.code === 'already-connected') {
+      logger.log('⚠️ Emulators already connected');
+    } else {
+      logger.warn('⚠️ Failed to connect to Firebase Emulators:', error?.message || error);
+    }
+  }
+}
 
 // Database type detection and helpers
 export const DATABASE_TYPE = 'firestore'; // Detected: using Firestore
