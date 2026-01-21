@@ -14,7 +14,7 @@ import { pointsForRank } from './scoring';
 import { RoomData, Answer } from '../../shared/types/game';
 import { logger } from '../utils/logger';
 import { getStartGameData } from './gameStartCore';
-import { toAppError } from '../../shared/errors';
+import { AppError, toAppError } from '../../shared/errors';
 import { COLLECTIONS } from '../utils/constants';
 
 const getTurnStartMillis = (turnStartTime?: RoomData['turnStartTime']): number => {
@@ -53,12 +53,20 @@ export async function awardAnswer(
       // Check if answer is already revealed
       if (roomData.revealedAnswers?.some(ra => ra && ra.answerId === answerText)) {
         logger.log(`⚠️ Answer "${answerText}" already revealed, skipping award`);
-        throw new Error('Answer already revealed');
+        throw new AppError({
+          code: 'ANSWER_ALREADY_REVEALED',
+          message: 'Answer already revealed',
+          userMessage: 'This answer has already been revealed.'
+        });
       }
       
       // Check if player exists in room
       if (!roomData.players?.[playerId]) {
-        throw new Error('Player not in room');
+        throw new AppError({
+          code: 'PLAYER_NOT_IN_ROOM',
+          message: 'Player not in room',
+          userMessage: 'You are not a member of this room.'
+        });
       }
       
       // Calculate points

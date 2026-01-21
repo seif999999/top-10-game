@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, ReactNode, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useReducer, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import { RoomData, Player, Question, LegacyQuestion } from '../../shared/types/game';
 import type { Timestamp } from 'firebase/firestore';
 import { AppError, toAppError } from '../../shared/errors';
@@ -883,7 +883,7 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
     dispatch({ type: 'RESET_ALL' });
   }, [state.unsubscribe]);
 
-  const value: MultiplayerContextType = {
+  const value: MultiplayerContextType = useMemo(() => ({
     // Current State
     currentRoom: state.currentRoom,
     isHost: state.isHost,
@@ -948,7 +948,49 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
     
     // Subscription Management
     unsubscribe: state.unsubscribe,
-  };
+  }), [
+    state.currentRoom,
+    state.isHost,
+    state.playerRole,
+    state.connectionStatus,
+    state.loading,
+    state.isStarting,
+    state.error,
+    state.systemMessage,
+    state.hostMigrationNotification,
+    state.selectedCategory,
+    state.selectedQuestions,
+    state.joinRoomCode,
+    state.currentAnswer,
+    state.submittedAnswers,
+    state.unsubscribe,
+    createRoom,
+    joinRoom,
+    leaveRoom,
+    startGame,
+    endGame,
+    kickPlayer,
+    nextQuestion,
+    revealAnswer,
+    submitAnswers,
+    advanceTurn,
+    skipTurn,
+    handleHostDisconnection,
+    clearHostMigrationNotification,
+    terminateGame,
+    clearSystemMessage,
+    setCategory,
+    setQuestions,
+    setJoinRoomCode,
+    setCurrentAnswer,
+    addSubmittedAnswer,
+    removeSubmittedAnswer,
+    clearError,
+    resetSelections,
+    resetAll,
+    setNavigationCallback,
+    cleanup,
+  ]);
 
   return (
     <MultiplayerContext.Provider value={value}>

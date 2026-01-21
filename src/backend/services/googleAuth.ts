@@ -10,6 +10,7 @@ WebBrowser.maybeCompleteAuthSession();
 import { GOOGLE_CONFIG, getGoogleClientId, getGoogleRedirectUri } from '../config/google';
 import { logger } from '../utils/logger';
 import { TIMING } from '../utils/constants';
+import { AppError } from '../../shared/errors';
 
 // Scopes for Google Sign-In
 const GOOGLE_SCOPES = GOOGLE_CONFIG.SCOPES;
@@ -146,7 +147,11 @@ export const signInWithGoogle = async (): Promise<{ idToken: string; accessToken
     // Check if client ID is properly configured
     const clientId = getGoogleClientId();
     if (clientId.includes('YOUR_') || clientId.includes('your_')) {
-      throw new Error('Google OAuth client ID not properly configured. Please check your .env file.');
+      throw new AppError({
+        code: 'GOOGLE_OAUTH_CONFIG_MISSING',
+        message: 'Google OAuth client ID not properly configured. Please check your .env file.',
+        userMessage: 'Google Sign-In is not properly configured. Please contact support.'
+      });
     }
     
     logger.log('🚀 Starting OAuth prompt...');
@@ -158,7 +163,11 @@ export const signInWithGoogle = async (): Promise<{ idToken: string; accessToken
     const result = await Promise.race([
       request.promptAsync(discovery),
       new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('OAuth prompt timed out after 30 seconds')), TIMING.TIMEOUT_30_SECONDS)
+        setTimeout(() => reject(new AppError({
+          code: 'OAUTH_TIMEOUT',
+          message: 'OAuth prompt timed out after 30 seconds',
+          userMessage: 'Sign-in timed out. Please try again.'
+        })), TIMING.TIMEOUT_30_SECONDS)
       )
     ]);
 
@@ -169,7 +178,11 @@ export const signInWithGoogle = async (): Promise<{ idToken: string; accessToken
       const stateValid = await validateOAuthState(result.params.state);
       if (!stateValid) {
         logger.error('❌ OAuth state validation failed - possible CSRF attack');
-        throw new Error('OAuth state validation failed. Please try again.');
+        throw new AppError({
+          code: 'OAUTH_STATE_VALIDATION_FAILED',
+          message: 'OAuth state validation failed. Please try again.',
+          userMessage: 'Security validation failed. Please try signing in again.'
+        });
       }
     } else if (result.type === 'success' && !result.params.state) {
       logger.warn('⚠️ OAuth response missing state parameter');
@@ -198,19 +211,35 @@ export const signInWithGoogle = async (): Promise<{ idToken: string; accessToken
           accessToken: accessToken
         };
       } else {
-        throw new Error('OAuth flow failed - missing required tokens');
+        throw new AppError({
+          code: 'OAUTH_MISSING_TOKENS',
+          message: 'OAuth flow failed - missing required tokens',
+          userMessage: 'Sign-in failed. Please try again.'
+        });
       }
     } else if (result.type === 'success' && !result.params.access_token) {
-      throw new Error('OAuth flow failed - missing access token');
+      throw new AppError({
+        code: 'OAUTH_MISSING_ACCESS_TOKEN',
+        message: 'OAuth flow failed - missing access token',
+        userMessage: 'Sign-in failed. Please try again.'
+      });
     } else if (result.type === 'cancel' || result.type === 'dismiss') {
       logger.log('❌ User cancelled or dismissed Google Sign-In');
       return null;
     } else if (result.type === 'error') {
       logger.error('❌ Google Sign-In error:', result.error);
-      throw new Error(`Google Sign-In failed: ${result.error}`);
+      throw new AppError({
+        code: 'GOOGLE_SIGNIN_ERROR',
+        message: `Google Sign-In failed: ${result.error}`,
+        userMessage: 'Google Sign-In failed. Please try again.'
+      });
     } else {
       logger.error('❌ Unexpected auth result:', result);
-      throw new Error('Unexpected authentication result');
+      throw new AppError({
+        code: 'OAUTH_UNEXPECTED_RESULT',
+        message: 'Unexpected authentication result',
+        userMessage: 'Sign-in failed. Please try again.'
+      });
     }
 
   } catch (error) {
@@ -219,17 +248,37 @@ export const signInWithGoogle = async (): Promise<{ idToken: string; accessToken
     // Provide more specific error messages
     if (error instanceof Error) {
       if (error.message.includes('network')) {
-        throw new Error('Network error. Please check your internet connection and try again.');
+        throw new AppError({
+          code: 'NETWORK_ERROR',
+          message: 'Network error. Please check your internet connection and try again.',
+          userMessage: 'Network error. Please check your internet connection and try again.'
+        });
       } else if (error.message.includes('client')) {
-        throw new Error('Google Sign-In configuration error. Please contact support.');
+        throw new AppError({
+          code: 'GOOGLE_CONFIG_ERROR',
+          message: 'Google Sign-In configuration error. Please contact support.',
+          userMessage: 'Google Sign-In configuration error. Please contact support.'
+        });
       } else if (error.message.includes('redirect')) {
-        throw new Error('Redirect URI mismatch. Please contact support.');
+        throw new AppError({
+          code: 'OAUTH_REDIRECT_MISMATCH',
+          message: 'Redirect URI mismatch. Please contact support.',
+          userMessage: 'Sign-in configuration error. Please contact support.'
+        });
       } else {
-        throw new Error(`Google Sign-In failed: ${error.message}`);
+        throw new AppError({
+          code: 'GOOGLE_SIGNIN_FAILED',
+          message: `Google Sign-In failed: ${error.message}`,
+          userMessage: 'Google Sign-In failed. Please try again.'
+        });
       }
     }
     
-    throw new Error('Failed to sign in with Google. Please try again.');
+    throw new AppError({
+      code: 'GOOGLE_SIGNIN_GENERAL_ERROR',
+      message: 'Failed to sign in with Google. Please try again.',
+      userMessage: 'Failed to sign in with Google. Please try again.'
+    });
   }
 };
 
@@ -255,11 +304,19 @@ export const getGoogleUserInfo = async (accessToken: string) => {
       return userInfo;
     } else {
       logger.error('❌ Failed to get user info:', response.status, response.statusText);
-      throw new Error(`Failed to get user info: ${response.status}`);
+      throw new AppError({
+        code: 'GOOGLE_USER_INFO_ERROR',
+        message: `Failed to get user info: ${response.status}`,
+        userMessage: 'Failed to retrieve user information. Please try again.'
+      });
     }
   } catch (error) {
     logger.error('💥 Error getting Google user info:', error);
-    throw new Error('Failed to get user information from Google.');
+    throw new AppError({
+      code: 'GOOGLE_USER_INFO_FAILED',
+      message: 'Failed to get user information from Google.',
+      userMessage: 'Failed to retrieve user information. Please try again.'
+    });
   }
 };
 
