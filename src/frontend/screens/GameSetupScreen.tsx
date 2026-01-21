@@ -16,6 +16,7 @@ import { logger } from '../../backend/utils/logger';
 import { CategoriesScreenProps } from '../../shared/types/navigation';
 import { getQuestionsByCategory } from '../../backend/services/questionsService';
 import { TeamSetupConfig, ROUND_TIMER_OPTIONS, TEAM_COLORS } from '../../shared/types/teams';
+import CustomQuestionService from '../../backend/services/customQuestionService';
 
 const { width } = Dimensions.get('window');
 
@@ -84,6 +85,22 @@ const categories = [
     gradient: ['#87CEEB', '#5DADE2'],
     questionCount: 14,
   },
+  {
+    id: 'Masry',
+    name: 'Masry',
+    icon: '🇪🇬',
+    description: 'Egyptian culture, food, movies, music, and more',
+    gradient: ['#C41E3A', '#000000'],
+    questionCount: 20,
+  },
+  {
+    id: 'Custom',
+    name: 'Create Your Own',
+    icon: '✏️',
+    description: 'Play your saved custom questions',
+    gradient: ['#5B21B6', '#7C3AED'],
+    questionCount: 0,
+  },
 ];
 
 const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route }) => {
@@ -118,8 +135,15 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
       const counts: { [key: string]: number } = {};
       for (const category of categories) {
         try {
-          const questions = await getQuestionsByCategory(category.name);
-          counts[category.name] = questions.length;
+          // Handle Custom category separately
+          if (category.id === 'Custom') {
+            const customQuestionService = CustomQuestionService.getInstance();
+            const customQuestions = await customQuestionService.getAllCustomQuestions();
+            counts[category.name] = customQuestions.length;
+          } else {
+            const questions = await getQuestionsByCategory(category.name);
+            counts[category.name] = questions.length;
+          }
         } catch (error) {
           logger.error(`Error loading questions for ${category.name}:`, error);
           counts[category.name] = category.questionCount; // Fallback to default
@@ -201,6 +225,9 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
     // Clear error if validation passes
     setDurationError('');
     
+    // Use category id for Custom category (questionsService expects 'Custom')
+    const categoryNameForNav = currentCategory.id === 'Custom' ? 'Custom' : currentCategory.name;
+    
     // If teams mode is enabled (numberOfTeams > 1), create team config
     if (numberOfTeams > 1) {
       const validTeamNames = teamNames.slice(0, numberOfTeams).filter(name => name.trim() !== '');
@@ -220,14 +247,14 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
       // Navigate directly to GameScreen with team config (skip question selection for now)
       // Or navigate to QuestionSelection with teamConfig param
       navigation.navigate('QuestionSelection', {
-        categoryName: currentCategory.name,
+        categoryName: categoryNameForNav,
         gameMode: gameMode,
         teamConfig: teamConfig
       });
     } else {
       // Single player mode - no teams, but still need timer
       navigation.navigate('QuestionSelection', {
-        categoryName: currentCategory.name,
+        categoryName: categoryNameForNav,
         gameMode: gameMode,
         teamConfig: {
           numberOfTeams: 1,

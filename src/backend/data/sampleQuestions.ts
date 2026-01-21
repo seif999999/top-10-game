@@ -733,6 +733,368 @@ export const sampleQuestions: GameQuestion[] = [
       { text: 'Rust', rank: 9, points: 9, normalized: 'rust' },
       { text: 'Swift', rank: 10, points: 10, normalized: 'swift' }
     ]
+  },
+
+  // Masry Category (Egyptian)
+  {
+    id: 'masry-1',
+    category: 'Masry',
+    title: 'Top 10 akla masry (Egyptian food)',
+    difficulty: 'easy',
+    answers: [
+      { text: 'Kefta', rank: 1, points: 1, normalized: 'kefta', aliases: ['kofta', 'kufta'] },
+      { text: 'Kebab', rank: 2, points: 2, normalized: 'kebab', aliases: ['kabab'] },
+      { text: 'Mahshy', rank: 3, points: 3, normalized: 'mahshy', aliases: ['mahshi', 'stuffed vegetables'] },
+      { text: 'Wara2 3enab', rank: 4, points: 4, normalized: 'wara2 3enab', aliases: ['waraq enab', 'grape leaves', 'stuffed grape leaves'] },
+      { text: 'Fatta', rank: 5, points: 5, normalized: 'fatta', aliases: ['fattah'] },
+      { text: 'Molokheya', rank: 6, points: 6, normalized: 'molokheya', aliases: ['molokhia', 'mulukhiyah'] },
+      { text: 'Shawerma', rank: 7, points: 7, normalized: 'shawerma', aliases: ['shawarma', 'shawrma'] },
+      { text: '7amam ma7shy', rank: 8, points: 8, normalized: '7amam ma7shy', aliases: ['hamam mahshi', 'stuffed pigeon'] },
+      { text: 'Falafel', rank: 9, points: 9, normalized: 'falafel', aliases: ['ta3meya', 'taamiya'] },
+      { text: 'Fool medames', rank: 10, points: 10, normalized: 'fool medames', aliases: ['ful medames', 'foul', 'ful'] }
+    ]
+  },
+  {
+    id: 'masry-2',
+    category: 'Masry',
+    title: 'Top 10 7elw masry (Egyptian desserts)',
+    difficulty: 'easy',
+    answers: [
+      { text: 'Konafa', rank: 1, points: 1, normalized: 'konafa', aliases: ['kunafa', 'knafeh'] },
+      { text: 'Basbousa', rank: 2, points: 2, normalized: 'basbousa', aliases: ['basboosa'] },
+      { text: 'Om Ali', rank: 3, points: 3, normalized: 'om ali', aliases: ['umm ali'] },
+      { text: 'Qatayef', rank: 4, points: 4, normalized: 'qatayef', aliases: ['katayef', 'atayef'] },
+      { text: 'Bala7 el sham', rank: 5, points: 5, normalized: 'bala7 el sham', aliases: ['balah el sham'] },
+      { text: 'Meshabbak', rank: 6, points: 6, normalized: 'meshabbak', aliases: ['mushabak'] },
+      { text: 'Ghorayeba', rank: 7, points: 7, normalized: 'ghorayeba', aliases: ['ghraybeh', 'ghorayba'] },
+      { text: 'Kahk', rank: 8, points: 8, normalized: 'kahk', aliases: ['kaak', 'eid cookies'] },
+      { text: 'Roz bel laban', rank: 9, points: 9, normalized: 'roz bel laban', aliases: ['rice pudding', 'roz be laban'] },
+      { text: 'Mehalabeya', rank: 10, points: 10, normalized: 'mehalabeya', aliases: ['muhallabia', 'mahalabia'] }
+    ]
+  },
+  {
+    id: 'masry-3',
+    category: 'Masry',
+    title: 'Top 10 aflam masry (Egyptian movies)',
+    difficulty: 'medium',
+    answers: [
+      { text: 'El Ard', rank: 1, points: 1, normalized: 'el ard', aliases: ['the land', 'al ard'] },
+      { text: 'El Kit Kat', rank: 2, points: 2, normalized: 'el kit kat', aliases: ['kit kat'] },
+      { text: 'Isma3eleyya Raye7 Gay', rank: 3, points: 3, normalized: 'isma3eleyya raye7 gay', aliases: ['ismailia rayeh gay'] },
+      { text: '3emaret Y3qobian', rank: 4, points: 4, normalized: '3emaret y3qobian', aliases: ['yacoubian building', 'emaret yaqoubian'] },
+      { text: 'El Erhab wel Kabab', rank: 5, points: 5, normalized: 'el erhab wel kabab', aliases: ['terrorism and kabab'] },
+      { text: 'El Bedaya', rank: 6, points: 6, normalized: 'el bedaya', aliases: ['the beginning', 'al bidaya'] },
+      { text: '3asal Eswed', rank: 7, points: 7, normalized: '3asal eswed', aliases: ['asal aswad', 'molasses'] },
+      { text: 'Film Thaqafy', rank: 8, points: 8, normalized: 'film thaqafy', aliases: ['cultural film'] },
+      { text: '7een Maysara', rank: 9, points: 9, normalized: '7een maysara', aliases: ['heen maysara'] },
+      { text: 'El Feel El Azra2', rank: 10, points: 10, normalized: 'el feel el azra2', aliases: ['the blue elephant', 'el fil el azraq'] }
+    ]
+  },
+  {
+    id: 'masry-4',
+    category: 'Masry',
+    title: 'Top 10 actresses masry (Egyptian actresses)',
+    difficulty: 'medium',
+    answers: [
+      { text: 'Faten 7amama', rank: 1, points: 1, normalized: 'faten 7amama', aliases: ['faten hamama'] },
+      { text: 'Mona Zaki', rank: 2, points: 2, normalized: 'mona zaki' },
+      { text: 'Yousra', rank: 3, points: 3, normalized: 'yousra', aliases: ['yosra'] },
+      { text: 'Nelly Karim', rank: 4, points: 4, normalized: 'nelly karim' },
+      { text: 'Menna Shalaby', rank: 5, points: 5, normalized: 'menna shalaby', aliases: ['mena shalabi'] },
+      { text: 'Hend Sabry', rank: 6, points: 6, normalized: 'hend sabry', aliases: ['hend sabri'] },
+      { text: 'Sherihan', rank: 7, points: 7, normalized: 'sherihan' },
+      { text: 'Laila Elwy', rank: 8, points: 8, normalized: 'laila elwy', aliases: ['layla elwi'] },
+      { text: 'Sawsan Badr', rank: 9, points: 9, normalized: 'sawsan badr' },
+      { text: 'Donia Samir Ghanem', rank: 10, points: 10, normalized: 'donia samir ghanem', aliases: ['donia ghanem'] }
+    ]
+  },
+  {
+    id: 'masry-5',
+    category: 'Masry',
+    title: 'Top 10 mo8aneyen masry (Egyptian singers)',
+    difficulty: 'easy',
+    answers: [
+      { text: '3amr Diab', rank: 1, points: 1, normalized: '3amr diab', aliases: ['amr diab'] },
+      { text: 'Mohamed Mounir', rank: 2, points: 2, normalized: 'mohamed mounir', aliases: ['mounir', 'el king'] },
+      { text: 'Tamer Hosny', rank: 3, points: 3, normalized: 'tamer hosny', aliases: ['tamer hosni'] },
+      { text: 'Hamaki', rank: 4, points: 4, normalized: 'hamaki', aliases: ['mohamed hamaki'] },
+      { text: 'Mohamed Hamaki', rank: 5, points: 5, normalized: 'mohamed hamaki' },
+      { text: 'Ramy Sabry', rank: 6, points: 6, normalized: 'ramy sabry' },
+      { text: 'Wael Gassar', rank: 7, points: 7, normalized: 'wael gassar', aliases: ['wael jassar'] },
+      { text: 'Mostafa Amar', rank: 8, points: 8, normalized: 'mostafa amar' },
+      { text: 'Ahmed Saad', rank: 9, points: 9, normalized: 'ahmed saad' },
+      { text: 'Bahaa Sultan', rank: 10, points: 10, normalized: 'bahaa sultan' }
+    ]
+  },
+  {
+    id: 'masry-6',
+    category: 'Masry',
+    title: 'Top 10 mo8aneyen sha3by (Sha3by singers)',
+    difficulty: 'medium',
+    answers: [
+      { text: 'Ahmed Adaweya', rank: 1, points: 1, normalized: 'ahmed adaweya', aliases: ['adaweya'] },
+      { text: 'Hakim', rank: 2, points: 2, normalized: 'hakim' },
+      { text: 'Shaaban Abdel Ra7im', rank: 3, points: 3, normalized: 'shaaban abdel ra7im', aliases: ['shaaban', 'shaban abdel rahim'] },
+      { text: 'Saad El Soghayar', rank: 4, points: 4, normalized: 'saad el soghayar', aliases: ['saad soghayar'] },
+      { text: 'Mahmoud El Leithy', rank: 5, points: 5, normalized: 'mahmoud el leithy', aliases: ['el leithy'] },
+      { text: 'Abdel Basset Hamouda', rank: 6, points: 6, normalized: 'abdel basset hamouda' },
+      { text: 'Oka w Ortega', rank: 7, points: 7, normalized: 'oka w ortega', aliases: ['oka we ortega', 'okka ortega'] },
+      { text: 'Hassan Shakosh', rank: 8, points: 8, normalized: 'hassan shakosh' },
+      { text: 'Hamo Beka', rank: 9, points: 9, normalized: 'hamo beka' },
+      { text: 'Reda El Bahrawy', rank: 10, points: 10, normalized: 'reda el bahrawy' }
+    ]
+  },
+  {
+    id: 'masry-7',
+    category: 'Masry',
+    title: 'Top 10 mo8aneyen pop masry (Egyptian pop singers)',
+    difficulty: 'easy',
+    answers: [
+      { text: '3amr Diab', rank: 1, points: 1, normalized: '3amr diab', aliases: ['amr diab'] },
+      { text: 'Tamer Hosny', rank: 2, points: 2, normalized: 'tamer hosny', aliases: ['tamer hosni'] },
+      { text: 'Mohamed Hamaki', rank: 3, points: 3, normalized: 'mohamed hamaki', aliases: ['hamaki'] },
+      { text: 'Ramy Sabry', rank: 4, points: 4, normalized: 'ramy sabry' },
+      { text: 'Angham', rank: 5, points: 5, normalized: 'angham' },
+      { text: 'Sherine', rank: 6, points: 6, normalized: 'sherine', aliases: ['shirine'] },
+      { text: 'Ruby', rank: 7, points: 7, normalized: 'ruby' },
+      { text: 'Donia Samir Ghanem', rank: 8, points: 8, normalized: 'donia samir ghanem', aliases: ['donia ghanem'] },
+      { text: 'Bahaa Sultan', rank: 9, points: 9, normalized: 'bahaa sultan' },
+      { text: 'Carmen Soliman', rank: 10, points: 10, normalized: 'carmen soliman' }
+    ]
+  },
+  {
+    id: 'masry-8',
+    category: 'Masry',
+    title: 'Top 10 football players in Egypt',
+    difficulty: 'easy',
+    answers: [
+      { text: 'Mohamed Salah', rank: 1, points: 1, normalized: 'mohamed salah', aliases: ['salah', 'mo salah'] },
+      { text: 'Mahmoud El Khatib', rank: 2, points: 2, normalized: 'mahmoud el khatib', aliases: ['el khatib', 'bibo'] },
+      { text: 'Mohamed Abou Trika', rank: 3, points: 3, normalized: 'mohamed abou trika', aliases: ['aboutrika', 'abu treika'] },
+      { text: 'Hossam Hassan', rank: 4, points: 4, normalized: 'hossam hassan' },
+      { text: 'Ahmed Hassan', rank: 5, points: 5, normalized: 'ahmed hassan' },
+      { text: 'Essam El Hadary', rank: 6, points: 6, normalized: 'essam el hadary', aliases: ['el hadary', 'hadary'] },
+      { text: 'Mohamed El Shenawy', rank: 7, points: 7, normalized: 'mohamed el shenawy', aliases: ['el shenawy'] },
+      { text: 'Ramadan Sobhy', rank: 8, points: 8, normalized: 'ramadan sobhy' },
+      { text: 'Mohamed Barakat', rank: 9, points: 9, normalized: 'mohamed barakat', aliases: ['barakat'] },
+      { text: 'Amr Zaki', rank: 10, points: 10, normalized: 'amr zaki' }
+    ]
+  },
+  {
+    id: 'masry-9',
+    category: 'Masry',
+    title: 'Top 10 Egyptian athletes',
+    difficulty: 'medium',
+    answers: [
+      { text: 'Mohamed Salah', rank: 1, points: 1, normalized: 'mohamed salah', aliases: ['salah'] },
+      { text: 'Farida Osman', rank: 2, points: 2, normalized: 'farida osman' },
+      { text: 'Hassan El Shorbagy', rank: 3, points: 3, normalized: 'hassan el shorbagy', aliases: ['mohamed el shorbagy'] },
+      { text: 'Nour El Sherbiny', rank: 4, points: 4, normalized: 'nour el sherbiny' },
+      { text: 'Karam Gaber', rank: 5, points: 5, normalized: 'karam gaber' },
+      { text: 'Hady El Gazzar', rank: 6, points: 6, normalized: 'hady el gazzar' },
+      { text: 'Ahmed El Gendy', rank: 7, points: 7, normalized: 'ahmed el gendy' },
+      { text: 'Sara Samir', rank: 8, points: 8, normalized: 'sara samir' },
+      { text: 'Ali Farag', rank: 9, points: 9, normalized: 'ali farag' },
+      { text: 'Hamada Helal', rank: 10, points: 10, normalized: 'hamada helal' }
+    ]
+  },
+  {
+    id: 'masry-10',
+    category: 'Masry',
+    title: 'Top 10 sports in Egypt',
+    difficulty: 'easy',
+    answers: [
+      { text: 'Football', rank: 1, points: 1, normalized: 'football', aliases: ['soccer', 'kora'] },
+      { text: 'Squash', rank: 2, points: 2, normalized: 'squash' },
+      { text: 'Handball', rank: 3, points: 3, normalized: 'handball' },
+      { text: 'Basketball', rank: 4, points: 4, normalized: 'basketball' },
+      { text: 'Volleyball', rank: 5, points: 5, normalized: 'volleyball' },
+      { text: 'Swimming', rank: 6, points: 6, normalized: 'swimming' },
+      { text: 'Boxing', rank: 7, points: 7, normalized: 'boxing' },
+      { text: 'Wrestling', rank: 8, points: 8, normalized: 'wrestling' },
+      { text: 'Karate', rank: 9, points: 9, normalized: 'karate' },
+      { text: 'Taekwondo', rank: 10, points: 10, normalized: 'taekwondo' }
+    ]
+  },
+  {
+    id: 'masry-11',
+    category: 'Masry',
+    title: 'Top 10 Egyptian restaurants (local)',
+    difficulty: 'medium',
+    answers: [
+      { text: 'Abou El Sid', rank: 1, points: 1, normalized: 'abou el sid', aliases: ['abu el sid'] },
+      { text: 'Sobhy Kaber', rank: 2, points: 2, normalized: 'sobhy kaber' },
+      { text: 'El Dahan', rank: 3, points: 3, normalized: 'el dahan' },
+      { text: 'El Prince', rank: 4, points: 4, normalized: 'el prince' },
+      { text: 'Gad', rank: 5, points: 5, normalized: 'gad' },
+      { text: 'Zooba', rank: 6, points: 6, normalized: 'zooba' },
+      { text: 'Koshary Abou Tarek', rank: 7, points: 7, normalized: 'koshary abou tarek', aliases: ['abou tarek', 'koshari abu tarek'] },
+      { text: 'Felfela', rank: 8, points: 8, normalized: 'felfela' },
+      { text: 'Qadoura', rank: 9, points: 9, normalized: 'qadoura', aliases: ['kadoura'] },
+      { text: 'Abo Ashraf', rank: 10, points: 10, normalized: 'abo ashraf', aliases: ['abu ashraf'] }
+    ]
+  },
+  {
+    id: 'masry-12',
+    category: 'Masry',
+    title: 'Top 10 restaurants in Egypt',
+    difficulty: 'medium',
+    answers: [
+      { text: 'Abou El Sid', rank: 1, points: 1, normalized: 'abou el sid', aliases: ['abu el sid'] },
+      { text: 'Sobhy Kaber', rank: 2, points: 2, normalized: 'sobhy kaber' },
+      { text: 'El Prince', rank: 3, points: 3, normalized: 'el prince' },
+      { text: 'Zooba', rank: 4, points: 4, normalized: 'zooba' },
+      { text: 'Koshary Abou Tarek', rank: 5, points: 5, normalized: 'koshary abou tarek', aliases: ['abou tarek'] },
+      { text: 'Sequoia', rank: 6, points: 6, normalized: 'sequoia' },
+      { text: 'Pier 88', rank: 7, points: 7, normalized: 'pier 88' },
+      { text: 'Crimson', rank: 8, points: 8, normalized: 'crimson' },
+      { text: 'Kazoku', rank: 9, points: 9, normalized: 'kazoku' },
+      { text: 'Andrea', rank: 10, points: 10, normalized: 'andrea' }
+    ]
+  },
+  {
+    id: 'masry-13',
+    category: 'Masry',
+    title: 'Top 10 populated places in Egypt',
+    difficulty: 'easy',
+    answers: [
+      { text: 'Cairo', rank: 1, points: 1, normalized: 'cairo', aliases: ['el qahera', 'al qahira'] },
+      { text: 'Giza', rank: 2, points: 2, normalized: 'giza', aliases: ['el giza'] },
+      { text: 'Alexandria', rank: 3, points: 3, normalized: 'alexandria', aliases: ['alex', 'el eskandereya'] },
+      { text: 'Shobra El Kheima', rank: 4, points: 4, normalized: 'shobra el kheima', aliases: ['shubra'] },
+      { text: 'Port Said', rank: 5, points: 5, normalized: 'port said', aliases: ['borsaid'] },
+      { text: 'Suez', rank: 6, points: 6, normalized: 'suez', aliases: ['el suways'] },
+      { text: 'Mansoura', rank: 7, points: 7, normalized: 'mansoura', aliases: ['el mansoura'] },
+      { text: 'Tanta', rank: 8, points: 8, normalized: 'tanta' },
+      { text: 'Assiut', rank: 9, points: 9, normalized: 'assiut', aliases: ['asyut'] },
+      { text: 'Zagazig', rank: 10, points: 10, normalized: 'zagazig' }
+    ]
+  },
+  {
+    id: 'masry-14',
+    category: 'Masry',
+    title: 'Top 10 monuments in Egypt',
+    difficulty: 'easy',
+    answers: [
+      { text: 'Pyramids of Giza', rank: 1, points: 1, normalized: 'pyramids of giza', aliases: ['pyramids', 'el ahramat', 'great pyramid'] },
+      { text: 'Sphinx', rank: 2, points: 2, normalized: 'sphinx', aliases: ['el sphinx', 'abu el hol'] },
+      { text: 'Luxor Temple', rank: 3, points: 3, normalized: 'luxor temple', aliases: ['luxor'] },
+      { text: 'Karnak Temple', rank: 4, points: 4, normalized: 'karnak temple', aliases: ['karnak'] },
+      { text: 'Valley of the Kings', rank: 5, points: 5, normalized: 'valley of the kings' },
+      { text: 'Abu Simbel', rank: 6, points: 6, normalized: 'abu simbel' },
+      { text: 'Egyptian Museum', rank: 7, points: 7, normalized: 'egyptian museum', aliases: ['el mat7af el masry'] },
+      { text: 'Citadel of Salah El Din', rank: 8, points: 8, normalized: 'citadel of salah el din', aliases: ['el qal3a', 'saladin citadel'] },
+      { text: 'Philae Temple', rank: 9, points: 9, normalized: 'philae temple', aliases: ['philae'] },
+      { text: 'Qaitbay Citadel', rank: 10, points: 10, normalized: 'qaitbay citadel', aliases: ['qaitbey', 'kal3et qaitbay'] }
+    ]
+  },
+  {
+    id: 'masry-15',
+    category: 'Masry',
+    title: 'Top 10 TikTokers',
+    difficulty: 'medium',
+    answers: [
+      { text: 'Khaby Lame', rank: 1, points: 1, normalized: 'khaby lame', aliases: ['khaby'] },
+      { text: 'Bella Poarch', rank: 2, points: 2, normalized: 'bella poarch' },
+      { text: 'Zach King', rank: 3, points: 3, normalized: 'zach king' },
+      { text: 'Addison Rae', rank: 4, points: 4, normalized: 'addison rae' },
+      { text: 'MrBeast', rank: 5, points: 5, normalized: 'mrbeast', aliases: ['mr beast'] },
+      { text: 'Mohamed Shawky', rank: 6, points: 6, normalized: 'mohamed shawky' },
+      { text: 'Noor Stars', rank: 7, points: 7, normalized: 'noor stars' },
+      { text: 'Ahmed El Sayed', rank: 8, points: 8, normalized: 'ahmed el sayed' },
+      { text: 'Youssef Abdelaziz', rank: 9, points: 9, normalized: 'youssef abdelaziz' },
+      { text: 'Karim Kamel', rank: 10, points: 10, normalized: 'karim kamel' }
+    ]
+  },
+  {
+    id: 'masry-16',
+    category: 'Masry',
+    title: 'Top 10 scientists in Egypt',
+    difficulty: 'hard',
+    answers: [
+      { text: 'Ahmed Zewail', rank: 1, points: 1, normalized: 'ahmed zewail', aliases: ['zewail'] },
+      { text: 'Mostafa Mosharafa', rank: 2, points: 2, normalized: 'mostafa mosharafa', aliases: ['mosharafa'] },
+      { text: 'Magdy Yacoub', rank: 3, points: 3, normalized: 'magdy yacoub', aliases: ['magdi yacoub'] },
+      { text: 'Farouk El Baz', rank: 4, points: 4, normalized: 'farouk el baz' },
+      { text: 'Ali Mostafa Mosharafa', rank: 5, points: 5, normalized: 'ali mostafa mosharafa' },
+      { text: 'Mohamed El Sherbiny', rank: 6, points: 6, normalized: 'mohamed el sherbiny' },
+      { text: 'Sameera Moussa', rank: 7, points: 7, normalized: 'sameera moussa', aliases: ['samira moussa'] },
+      { text: 'Sherif Sedky', rank: 8, points: 8, normalized: 'sherif sedky' },
+      { text: 'Hany Azmy', rank: 9, points: 9, normalized: 'hany azmy' },
+      { text: 'Adel Mahmoud', rank: 10, points: 10, normalized: 'adel mahmoud' }
+    ]
+  },
+  {
+    id: 'masry-17',
+    category: 'Masry',
+    title: 'Top 10 Egyptian historical figures',
+    difficulty: 'medium',
+    answers: [
+      { text: 'Ramses II', rank: 1, points: 1, normalized: 'ramses ii', aliases: ['ramses', 'ramesses ii'] },
+      { text: 'Cleopatra', rank: 2, points: 2, normalized: 'cleopatra' },
+      { text: 'Salah El Din', rank: 3, points: 3, normalized: 'salah el din', aliases: ['saladin', 'sala7 el din'] },
+      { text: 'Mohamed Ali Pasha', rank: 4, points: 4, normalized: 'mohamed ali pasha', aliases: ['muhammad ali pasha'] },
+      { text: 'Gamal Abdel Nasser', rank: 5, points: 5, normalized: 'gamal abdel nasser', aliases: ['nasser', 'abdel nasser'] },
+      { text: 'Anwar El Sadat', rank: 6, points: 6, normalized: 'anwar el sadat', aliases: ['sadat'] },
+      { text: 'Ahmed Orabi', rank: 7, points: 7, normalized: 'ahmed orabi', aliases: ['orabi'] },
+      { text: 'Saad Zaghloul', rank: 8, points: 8, normalized: 'saad zaghloul', aliases: ['zaghloul'] },
+      { text: 'Taha Hussein', rank: 9, points: 9, normalized: 'taha hussein', aliases: ['taha hussien'] },
+      { text: 'Om Kalthoum', rank: 10, points: 10, normalized: 'om kalthoum', aliases: ['um kulthum', 'oum kalthoum'] }
+    ]
+  },
+  {
+    id: 'masry-18',
+    category: 'Masry',
+    title: 'Top 10 schools in Egypt',
+    difficulty: 'hard',
+    answers: [
+      { text: 'International School of Choueifat', rank: 1, points: 1, normalized: 'international school of choueifat', aliases: ['choueifat', 'isc'] },
+      { text: 'British International School (BISC)', rank: 2, points: 2, normalized: 'british international school', aliases: ['bisc'] },
+      { text: 'American International School (AIS)', rank: 3, points: 3, normalized: 'american international school', aliases: ['ais'] },
+      { text: 'Deutsche Schule der Borromäerinnen', rank: 4, points: 4, normalized: 'deutsche schule der borromaerinen', aliases: ['dsb', 'german school'] },
+      { text: 'Lycée Français du Caire', rank: 5, points: 5, normalized: 'lycee francais du caire', aliases: ['french school', 'lycee'] },
+      { text: 'Cairo English School', rank: 6, points: 6, normalized: 'cairo english school', aliases: ['ces'] },
+      { text: 'Modern English School', rank: 7, points: 7, normalized: 'modern english school', aliases: ['mes'] },
+      { text: 'Manaret Heliopolis', rank: 8, points: 8, normalized: 'manaret heliopolis', aliases: ['manara heliopolis'] },
+      { text: 'Futures Language School', rank: 9, points: 9, normalized: 'futures language school', aliases: ['futures'] },
+      { text: 'Nefertari International School', rank: 10, points: 10, normalized: 'nefertari international school', aliases: ['nefertari'] }
+    ]
+  },
+  {
+    id: 'masry-19',
+    category: 'Masry',
+    title: 'Top 10 mobile apps used in Egypt',
+    difficulty: 'easy',
+    answers: [
+      { text: 'WhatsApp', rank: 1, points: 1, normalized: 'whatsapp' },
+      { text: 'Facebook', rank: 2, points: 2, normalized: 'facebook', aliases: ['fb'] },
+      { text: 'Instagram', rank: 3, points: 3, normalized: 'instagram', aliases: ['insta', 'ig'] },
+      { text: 'TikTok', rank: 4, points: 4, normalized: 'tiktok' },
+      { text: 'YouTube', rank: 5, points: 5, normalized: 'youtube', aliases: ['yt'] },
+      { text: 'Messenger', rank: 6, points: 6, normalized: 'messenger', aliases: ['fb messenger'] },
+      { text: 'Uber', rank: 7, points: 7, normalized: 'uber' },
+      { text: 'Careem', rank: 8, points: 8, normalized: 'careem' },
+      { text: 'Vodafone Cash', rank: 9, points: 9, normalized: 'vodafone cash', aliases: ['vf cash'] },
+      { text: 'Google Maps', rank: 10, points: 10, normalized: 'google maps', aliases: ['maps'] }
+    ]
+  },
+  {
+    id: 'masry-20',
+    category: 'Masry',
+    title: 'Top 10 games played in Egypt',
+    difficulty: 'easy',
+    answers: [
+      { text: 'FIFA / EA FC', rank: 1, points: 1, normalized: 'fifa', aliases: ['ea fc', 'ea sports fc', 'fifa 24'] },
+      { text: 'PUBG Mobile', rank: 2, points: 2, normalized: 'pubg mobile', aliases: ['pubg', 'pubg mobile'] },
+      { text: 'Free Fire', rank: 3, points: 3, normalized: 'free fire', aliases: ['freefire', 'ff'] },
+      { text: 'Call of Duty', rank: 4, points: 4, normalized: 'call of duty', aliases: ['cod', 'warzone'] },
+      { text: 'Fortnite', rank: 5, points: 5, normalized: 'fortnite' },
+      { text: 'League of Legends', rank: 6, points: 6, normalized: 'league of legends', aliases: ['lol'] },
+      { text: 'Valorant', rank: 7, points: 7, normalized: 'valorant' },
+      { text: 'GTA V', rank: 8, points: 8, normalized: 'gta v', aliases: ['gta 5', 'grand theft auto'] },
+      { text: 'PES', rank: 9, points: 9, normalized: 'pes', aliases: ['efootball', 'pro evolution soccer'] },
+      { text: 'Clash of Clans', rank: 10, points: 10, normalized: 'clash of clans', aliases: ['coc'] }
+    ]
   }
 ];
 

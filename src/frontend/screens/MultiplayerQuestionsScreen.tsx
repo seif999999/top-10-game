@@ -15,6 +15,8 @@ import { COLORS, SPACING } from '../design-system';
 import { getQuestionsByCategory } from '../../backend/services/questionsService';
 import { useMultiplayer } from '../contexts/MultiplayerContext';
 import { logger } from '../../backend/utils/logger';
+import CustomQuestionService from '../../backend/services/customQuestionService';
+import ThemedAlert from '../utils/themedAlert';
 import type { GameQuestion } from '../../shared/types';
 import type { LegacyQuestion } from '../../shared/types/game';
 import type { RootStackParamList } from '../../shared/types/navigation';
@@ -95,6 +97,30 @@ const MultiplayerQuestionsScreen: React.FC = () => {
     navigation.goBack();
   };
 
+  const handleCreateNewQuestion = () => {
+    navigation.navigate('CreateCustomQuestion');
+  };
+
+  const handleClearAll = () => {
+    ThemedAlert.confirm(
+      'Clear All Questions',
+      'Are you sure you want to delete all your custom questions? This cannot be undone.',
+      async () => {
+        try {
+          const customQuestionService = CustomQuestionService.getInstance();
+          await customQuestionService.clearAllCustomQuestions();
+          setQuestionsState([]);
+          logger.log('✅ All custom questions cleared');
+        } catch (error) {
+          logger.error('Error clearing custom questions:', error);
+          ThemedAlert.error('Error', 'Failed to clear questions. Please try again.');
+        }
+      }
+    );
+  };
+
+  // Check if this is the Custom category
+  const isCustomCategory = categoryName === 'Custom';
 
   if (loadingQuestions) {
     return (
@@ -127,22 +153,46 @@ const MultiplayerQuestionsScreen: React.FC = () => {
             <Text style={styles.backButtonArrow}>←</Text>
           </TouchableOpacity>
           <View style={styles.headerContent}>
-            <Text style={styles.title}>{categoryName}</Text>
+            <Text style={styles.title}>{isCustomCategory ? 'Create Your Own' : categoryName}</Text>
           </View>
           <View style={styles.placeholder} />
         </View>
         <View style={styles.content}>
           <View style={styles.noQuestionsContainer}>
-            <Text style={styles.noQuestionsTitle}>No Questions Available</Text>
-            <Text style={styles.noQuestionsText}>
-              No questions are available for the "{categoryName}" category.
-            </Text>
-            <TouchableOpacity 
-              style={styles.backToCategoriesButton} 
-              onPress={handleBackToCategories}
-            >
-              <Text style={styles.backToCategoriesButtonText}>Back to Categories</Text>
-            </TouchableOpacity>
+            {isCustomCategory ? (
+              <>
+                <Text style={styles.noQuestionsTitle}>No Custom Questions Yet</Text>
+                <Text style={styles.noQuestionsText}>
+                  Create your first custom question to play with friends!
+                </Text>
+                <TouchableOpacity 
+                  style={styles.createFirstButton} 
+                  onPress={handleCreateNewQuestion}
+                >
+                  <LinearGradient
+                    colors={['#5B21B6', '#7C3AED']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.createFirstButtonGradient}
+                  >
+                    <Text style={styles.createFirstButtonText}>Create First Question</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <Text style={styles.noQuestionsTitle}>No Questions Available</Text>
+                <Text style={styles.noQuestionsText}>
+                  No questions are available for the "{categoryName}" category.
+                </Text>
+                <TouchableOpacity 
+                  style={styles.backToCategoriesButton} 
+                  onPress={handleBackToCategories}
+                >
+                  <Text style={styles.backToCategoriesButtonText}>Back to Categories</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         </View>
       </SafeAreaView>
@@ -163,7 +213,7 @@ const MultiplayerQuestionsScreen: React.FC = () => {
           <Text style={styles.backButtonArrow}>←</Text>
         </TouchableOpacity>
         <View style={styles.headerContent}>
-          <Text style={styles.title}>{categoryName}</Text>
+          <Text style={styles.title}>{isCustomCategory ? 'Create Your Own' : categoryName}</Text>
         </View>
         <View style={styles.placeholder} />
       </View>
@@ -173,6 +223,35 @@ const MultiplayerQuestionsScreen: React.FC = () => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
+        {/* Action Buttons for Custom Category */}
+        {isCustomCategory && (
+          <View style={styles.customActionButtons}>
+            <TouchableOpacity 
+              style={styles.createNewButton} 
+              onPress={handleCreateNewQuestion}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={['#5B21B6', '#7C3AED']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.createNewButtonGradient}
+              >
+                <Text style={styles.createNewButtonIcon}>+</Text>
+                <Text style={styles.createNewButtonText}>Create New</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.clearAllButton} 
+              onPress={handleClearAll}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.clearAllButtonText}>Clear All</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Questions List - tap to create room instantly */}
         <View style={styles.questionsList}>
           {questions.map((item, index) => {
@@ -346,6 +425,72 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontSize: 16,
     fontWeight: '600'
+  },
+  customActionButtons: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+    marginBottom: SPACING.lg,
+  },
+  createNewButton: {
+    flex: 1,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  createNewButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.lg,
+    paddingHorizontal: SPACING.md,
+  },
+  createNewButtonIcon: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '700' as const,
+    marginRight: SPACING.sm,
+  },
+  createNewButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700' as const,
+  },
+  clearAllButton: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#EF4444',
+    paddingVertical: SPACING.lg,
+    paddingHorizontal: SPACING.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  clearAllButtonText: {
+    color: '#EF4444',
+    fontSize: 16,
+    fontWeight: '600' as const,
+  },
+  createFirstButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  createFirstButtonGradient: {
+    paddingVertical: SPACING.lg,
+    paddingHorizontal: SPACING.xl,
+    alignItems: 'center',
+  },
+  createFirstButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700' as const,
   },
 });
 

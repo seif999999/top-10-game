@@ -18,6 +18,7 @@ import { logger } from '../../backend/utils/logger';
 import { getQuestionsByCategory } from '../../backend/services/questionsService';
 import { ROUND_TIMER_OPTIONS } from '../../shared/types/teams';
 import type { RootStackParamList } from '../../shared/types/navigation';
+import CustomQuestionService from '../../backend/services/customQuestionService';
 
 const { width, height } = Dimensions.get('window');
 
@@ -86,6 +87,22 @@ const categories = [
     gradient: ['#87CEEB', '#5DADE2'],
     questionCount: 14,
   },
+  {
+    id: 'Masry',
+    name: 'Masry',
+    icon: '🇪🇬',
+    description: 'Egyptian culture, food, movies, music, and more',
+    gradient: ['#C41E3A', '#000000'],
+    questionCount: 20,
+  },
+  {
+    id: 'Custom',
+    name: 'Create Your Own',
+    icon: '✏️',
+    description: 'Play your saved custom questions',
+    gradient: ['#5B21B6', '#7C3AED'],
+    questionCount: 0,
+  },
 ];
 
 interface MultiplayerCategoryScreenProps {}
@@ -125,8 +142,15 @@ const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () =
       const counts: { [key: string]: number } = {};
       for (const category of categories) {
         try {
-          const questions = await getQuestionsByCategory(category.name);
-          counts[category.name] = questions.length;
+          // Handle Custom category separately
+          if (category.id === 'Custom') {
+            const customQuestionService = CustomQuestionService.getInstance();
+            const customQuestions = await customQuestionService.getAllCustomQuestions();
+            counts[category.name] = customQuestions.length;
+          } else {
+            const questions = await getQuestionsByCategory(category.name);
+            counts[category.name] = questions.length;
+          }
         } catch (error) {
           logger.error(`Error loading questions for ${category.name}:`, error);
           counts[category.name] = category.questionCount; // Fallback to default
@@ -232,9 +256,12 @@ const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () =
     logger.log('🎯 Category selected:', currentCategory.name);
     logger.log('🎯 Game mode: multiplayer');
     
+    // Use category id for Custom category (questionsService expects 'Custom')
+    const categoryNameForNav = currentCategory.id === 'Custom' ? 'Custom' : currentCategory.name;
+    
     // Navigate to MultiplayerQuestions with the selected category
     navigation.navigate('MultiplayerQuestions', { 
-      categoryName: currentCategory.name 
+      categoryName: categoryNameForNav 
     });
   };
 

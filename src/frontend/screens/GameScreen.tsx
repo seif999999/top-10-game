@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, TextInput, Platform, Animated, BackHandler } from 'react-native';
 import ThemedAlert from '../utils/themedAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, CommonActions } from '@react-navigation/native';
 import Button from '../components/Button';
 import ResultsModal from '../components/ResultsModal';
 import MultiplayerLeaderboard from '../components/MultiplayerLeaderboard';
@@ -473,11 +473,17 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   useEffect(() => {
     if (questionIsComplete && !showQuestionComplete) {
       setShowQuestionComplete(true);
+      
+      // Auto-end single-player game when all answers found
+      if (!isMultiplayerMode) {
+        endGame();
+      }
+      
       setTimeout(() => {
         setShowQuestionComplete(false);
       }, 3000);
     }
-  }, [questionIsComplete, showQuestionComplete]);
+  }, [questionIsComplete, showQuestionComplete, isMultiplayerMode, endGame]);
 
   // Check if game is finished and show results - simplified dependencies
   useEffect(() => {
@@ -493,7 +499,15 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
         // Don't show results modal, just navigate away after a brief delay
         setTimeout(() => {
           resetGame();
-          navigation.navigate('Categories', { gameMode: 'single' });
+          navigation.dispatch(
+            CommonActions.reset({
+              index: 1,
+              routes: [
+                { name: 'Home' },
+                { name: 'Categories', params: { gameMode: 'single' } }
+              ]
+            })
+          );
         }, 2000); // Show ranking overlay for 2 seconds then navigate
       }
     }
@@ -728,7 +742,15 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
               navigation.navigate('Home');
             } else {
               resetGame();
-              navigation.navigate('Categories', { gameMode: 'single' });
+              navigation.dispatch(
+                CommonActions.reset({
+                  index: 1,
+                  routes: [
+                    { name: 'Home' },
+                    { name: 'Categories', params: { gameMode: 'single' } }
+                  ]
+                })
+              );
             }
           }
         }
@@ -758,7 +780,15 @@ const handleEndGame = () => {
         endGame();
         // For single player, navigate away without showing results modal
         resetGame();
-        navigation.navigate('Categories', { gameMode: 'single' });
+        navigation.dispatch(
+          CommonActions.reset({
+            index: 1,
+            routes: [
+              { name: 'Home' },
+              { name: 'Categories', params: { gameMode: 'single' } }
+            ]
+          })
+        );
       }
     }
   } else {
@@ -800,7 +830,15 @@ const handleEndGame = () => {
               endGame();
               // For single player, navigate away without showing results modal
               resetGame();
-              navigation.navigate('Categories', { gameMode: 'single' });
+              navigation.dispatch(
+                CommonActions.reset({
+                  index: 1,
+                  routes: [
+                    { name: 'Home' },
+                    { name: 'Categories', params: { gameMode: 'single' } }
+                  ]
+                })
+              );
             }
           }
         ]
@@ -1183,7 +1221,15 @@ const handleEndGame = () => {
       if (gameState && gameState.currentRound >= gameState.totalRounds) {
         // Game finished for single player - navigate away without showing results modal
         resetGame();
-        navigation.navigate('Categories', { gameMode: 'single' });
+        navigation.dispatch(
+          CommonActions.reset({
+            index: 1,
+            routes: [
+              { name: 'Home' },
+              { name: 'Categories', params: { gameMode: 'single' } }
+            ]
+          })
+        );
       } else {
         nextQuestion();
       }
