@@ -1,7 +1,7 @@
 # Top 10 Game - Comprehensive Improvement List & Status
 
 **Last Updated:** 2026-01-19  
-**Progress:** 9/23 fully complete, 6/23 partially complete (65.2% complete)
+**Progress:** 10/23 fully complete, 6/23 partially complete (69.6% complete)
 
 ---
 
@@ -26,6 +26,14 @@
   - Removed redundant "Create Room" button - rooms now created immediately when question is tapped
   - Added loading indicators on selected question during room creation
   - Improved user experience with instant feedback
+
+- ✅ **Hardcoded Collection Names Fixed** - Replaced all hardcoded Firestore collection names with constants:
+  - Fixed `multiplayerTransaction.ts` (8 instances of `'multiplayerGames'` → `COLLECTIONS.MULTIPLAYER_GAMES`)
+  - Fixed `multiplayerGameFlowV2.ts` (14 instances of `'multiplayerGames'` → `COLLECTIONS.MULTIPLAYER_GAMES`, plus `'timeSync'` → `COLLECTIONS.TIME_SYNC_DOCS`)
+  - Fixed `multiplayerGameFlow.ts` (4 instances of `'multiplayerGames'` → `COLLECTIONS.MULTIPLAYER_GAMES`)
+  - Fixed `edgeCaseHandler.ts` (3 instances of `'multiplayerGames'` → `COLLECTIONS.MULTIPLAYER_GAMES`, plus fixed test collection usage)
+  - All collection references now use `COLLECTIONS` constants for maintainability and consistency
+  - Impact: Better code maintainability, prevents typos, ensures consistency with Firestore rules
 
 **Note:** Some `COLORS.muted` and `SPACING.xxl` references still exist in other files (RoomLobbyScreen, ProfileScreen, Auth screens, etc.) but these are separate from the merge conflict resolution and can be addressed in a future cleanup pass.
 
@@ -130,7 +138,7 @@
     - Fix: Extract to `src/utils/constants.ts` or config file
     - Status: ✅ **COMPLETED** - All magic numbers and strings extracted to centralized constants
     - Implementation: Extended `src/utils/constants.ts` with TIMING, RATE_LIMITS, GAME, VALIDATION, STORAGE_KEYS, COLLECTIONS, ERROR_MESSAGES
-    - Note: All hardcoded values now use constants for better maintainability. Replaced timing values, collection names, and other magic strings across key service files
+    - Note: All hardcoded values now use constants for better maintainability. Replaced timing values, collection names, and other magic strings across key service files. **Latest update (2026-01-19)**: Fixed remaining hardcoded collection names in `multiplayerTransaction.ts`, `multiplayerGameFlowV2.ts`, `multiplayerGameFlow.ts`, and `edgeCaseHandler.ts` - all now use `COLLECTIONS` constants
 
 ### **LOW PRIORITY (Enhancements & Best Practices)**
 
@@ -249,7 +257,7 @@
 **Not Done:** 8
 - #9, #10, #12, #15, #18, #20, #22, #23
 
-**Overall Progress:** 65.2% complete (9 fully done, 6 partially done out of 23 total)
+**Overall Progress:** 69.6% complete (10 fully done, 6 partially done out of 23 total)
 
 ---
 

@@ -3,7 +3,8 @@
  * Extracts pure logic from the main component
  */
 
-import { Platform, Alert } from 'react-native';
+import { Platform } from 'react-native';
+import ThemedAlert from '../../utils/themedAlert';
 import { logger } from '../../../backend/utils/logger';
 import type { RoomData } from '../../../shared/types/game';
 
@@ -60,7 +61,7 @@ export function showConfirmDialog(
       onConfirm();
     }
   } else {
-    Alert.alert(
+    ThemedAlert.info(
       title,
       message,
       [
@@ -75,7 +76,7 @@ export function showConfirmDialog(
  * Show help dialog
  */
 export function showHelpDialog(): void {
-  Alert.alert(
+  ThemedAlert.info(
     'How to Play TOP 10',
     'READ: Read the question carefully and think about the top 10 answers\n\nANSWER: Type your answer and submit - you can submit multiple answers!\n\nSCORE: The closer your answer is to #1, the more points you get\n\nTIP: Think broadly and submit as many relevant answers as possible!\n\nFind all 10 correct answers to complete each question!\n\nGood luck!',
     [{ text: 'Got it' }]
@@ -86,7 +87,7 @@ export function showHelpDialog(): void {
  * Show game rules dialog
  */
 export function showGameRulesDialog(): void {
-  Alert.alert(
+  ThemedAlert.info(
     'Game Rules',
     'OBJECTIVE: Guess the top 10 answers to each question\n\nSCORING:\n• #1 answer = 1 point\n• #2 answer = 2 points\n• #3 answer = 3 points\n• And so on...\n\nMULTIPLE ANSWERS: Submit as many as you can!\n\nPROGRESS: Find all 10 correct answers to complete each question',
     [{ text: 'Understood' }]

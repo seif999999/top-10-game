@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Alert, TextInput, Platform, Animated, BackHandler } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, TextInput, Platform, Animated, BackHandler } from 'react-native';
+import ThemedAlert from '../utils/themedAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import Button from '../components/Button';
@@ -250,7 +251,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
           } catch (error) {
             logger.error('❌ Failed to join room:', error);
             // Show error to user
-            Alert.alert('Connection Error', 'Failed to join the multiplayer room. Please try again.');
+            ThemedAlert.error('Connection Error', 'Failed to join the multiplayer room. Please try again.');
           }
         }
       }
@@ -354,7 +355,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     if (isMultiplayerMode && multiplayerState?.gamePhase === 'lobby') {
       const timeout = setTimeout(() => {
         logger.log('⏰ Multiplayer game loading timeout - showing error');
-        Alert.alert(
+        ThemedAlert.warning(
           'Game Loading Timeout',
           'The game is taking too long to start. Please try again.',
           [
@@ -671,7 +672,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   useEffect(() => {
     if (!isMultiplayerMode) {
       const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-        Alert.alert(
+        ThemedAlert.warning(
           'Exit Game',
           'Are you sure you want to exit? Your progress will be lost.',
           [
@@ -712,7 +713,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   );
 
   const handleExitGame = () => {
-    Alert.alert(
+    ThemedAlert.warning(
       'Exit Game',
       'Are you sure you want to exit? Your progress will be lost.',
       [
@@ -744,13 +745,15 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
 const handleEndGame = () => {
   if (Platform.OS === 'web') {
     // Web version
-    const confirmed = window.confirm(
-      "Are you sure you want to end the game? You'll see your final results."
-    );
+    const message = isMultiplayerMode 
+      ? 'Are you sure you want to exit? Your progress will be lost.'
+      : "Are you sure you want to end the game? You'll see your final results.";
+    const confirmed = window.confirm(message);
     if (confirmed) {
       if (isMultiplayerMode) {
-        endMultiplayerGame();
-        setShowResults(true);
+        leaveRoom();
+        forceDisconnect();
+        navigation.navigate('Home');
       } else {
         endGame();
         // For single player, navigate away without showing results modal
@@ -760,28 +763,49 @@ const handleEndGame = () => {
     }
   } else {
     // Mobile version
-    Alert.alert(
-      'End Game',
-      "Are you sure you want to end the game? You'll see your final results.",
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'End Game', 
-          style: 'destructive', 
-          onPress: () => {
-            if (isMultiplayerMode) {
-              endMultiplayerGame();
-              setShowResults(true);
-            } else {
+    const message = isMultiplayerMode 
+      ? 'Are you sure you want to exit? Your progress will be lost.'
+      : "Are you sure you want to end the game? You'll see your final results.";
+    const title = isMultiplayerMode ? 'Exit Game' : 'End Game';
+    const buttonText = isMultiplayerMode ? 'Exit' : 'End Game';
+    
+    // Use error style (red outline) for single player, warning style (yellow outline) for multiplayer
+    if (isMultiplayerMode) {
+      ThemedAlert.warning(
+        title,
+        message,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: buttonText, 
+            style: 'destructive', 
+            onPress: () => {
+              leaveRoom();
+              forceDisconnect();
+              navigation.navigate('Home');
+            }
+          }
+        ]
+      );
+    } else {
+      ThemedAlert.error(
+        title,
+        message,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: buttonText, 
+            style: 'destructive', 
+            onPress: () => {
               endGame();
               // For single player, navigate away without showing results modal
               resetGame();
               navigation.navigate('Categories', { gameMode: 'single' });
             }
           }
-        }
-      ]
-    );
+        ]
+      );
+    }
   }
 };
 
@@ -852,7 +876,7 @@ const handleEndGame = () => {
   const handleBackButton = () => {
     if (!isMultiplayerMode) {
       // Single player mode - show warning
-      Alert.alert(
+      ThemedAlert.warning(
         'Exit Game',
         'Are you sure you want to exit? Your progress will be lost.',
         [
@@ -875,7 +899,7 @@ const handleEndGame = () => {
   };
 
   const handleHelp = () => {
-    Alert.alert(
+    ThemedAlert.info(
       'How to Play TOP 10',
       'READ: Read the question carefully and think about the top 10 answers\n\nANSWER: Type your answer and submit - you can submit multiple answers!\n\nSCORE: The closer your answer is to #1, the more points you get\n\nTIP: Think broadly and submit as many relevant answers as possible!\n\nFind all 10 correct answers to complete each question!\n\nGood luck!',
       [{ text: 'Got it' }]
@@ -883,7 +907,7 @@ const handleEndGame = () => {
   };
 
   const handleShowGameRules = () => {
-    Alert.alert(
+    ThemedAlert.info(
       'Game Rules',
       'OBJECTIVE: Guess the top 10 answers to each question\n\nSCORING:\n• #1 answer = 1 point\n• #2 answer = 2 points\n• #3 answer = 3 points\n• And so on...\n\nMULTIPLE ANSWERS: Submit as many as you can!\n\nPROGRESS: Find all 10 correct answers to complete each question',
       [{ text: 'Understood' }]
@@ -955,7 +979,7 @@ const handleEndGame = () => {
       
       if (!rateLimitResult.allowed) {
         logger.log('❌ Rate limit exceeded:', rateLimitResult.error);
-        Alert.alert('Rate Limit Exceeded', rateLimitResult.error || 'Too many answer submissions. Please wait before trying again.');
+        ThemedAlert.warning('Rate Limit Exceeded', rateLimitResult.error || 'Too many answer submissions. Please wait before trying again.');
         return;
       }
     }
@@ -969,7 +993,7 @@ const handleEndGame = () => {
     const answerValidation = InputValidator.validateGameAnswer(answerToSubmit);
     if (!answerValidation.valid) {
       logger.log('❌ Invalid answer:', answerValidation.errors);
-      Alert.alert('Invalid Answer', answerValidation.errors.join('\n'));
+      ThemedAlert.error('Invalid Answer', answerValidation.errors.join('\n'));
       return;
     }
     
@@ -984,7 +1008,7 @@ const handleEndGame = () => {
       
       if (!moderationResult.approved) {
         logger.log('❌ Answer not approved by moderation:', moderationResult.errors);
-        Alert.alert('Content Not Approved', moderationResult.errors.join('\n'));
+        ThemedAlert.warning('Content Not Approved', moderationResult.errors.join('\n'));
         return;
       }
     }
@@ -1010,7 +1034,7 @@ const handleEndGame = () => {
         // Check if player has already submitted this turn
         if (hasSubmittedThisTurn) {
           logger.log('❌ Already submitted this turn');
-          Alert.alert('Already Submitted', 'You have already submitted an answer this turn. Wait for your next turn.');
+          ThemedAlert.warning('Already Submitted', 'You have already submitted an answer this turn. Wait for your next turn.');
           return;
         }
         
@@ -1019,7 +1043,7 @@ const handleEndGame = () => {
           const validation = multiplayerService.isAllowedToSubmitV2(user?.id || '', multiplayerState);
           if (!validation.allowed) {
             logger.log('❌ Cannot submit:', validation.reason || 'Wait for your turn to submit answers.');
-            Alert.alert('Not Your Turn', validation.reason || 'Wait for your turn to submit answers.');
+            ThemedAlert.warning('Not Your Turn', validation.reason || 'Wait for your turn to submit answers.');
             return;
           }
         }
@@ -1039,7 +1063,7 @@ const handleEndGame = () => {
                   matchedAnswer: currentQuestion.answers[index]?.text,
                   revealedAnswer: multiplayerState.revealedAnswers[index]
                 });
-                Alert.alert('Answer Already Revealed', 'This answer has already been revealed by another player. Please try a different answer.');
+                ThemedAlert.warning('Answer Already Revealed', 'This answer has already been revealed by another player. Please try a different answer.');
                 return;
               }
             }
@@ -1081,7 +1105,7 @@ const handleEndGame = () => {
             setPointsEarned(result.points);
             logger.log(`✅ Correct answer! Earned ${result.points} points`);
             // Show success message with points
-            Alert.alert(
+            ThemedAlert.success(
               'Correct Answer!',
               `You earned ${result.points} points!`,
               [{ text: 'Great!', style: 'default' }]
@@ -1091,7 +1115,7 @@ const handleEndGame = () => {
             setPointsEarned(0);
             logger.log(`❌ Wrong answer - no points earned`);
             // Show error message
-            Alert.alert(
+            ThemedAlert.error(
               'Wrong Answer',
               'That answer is not correct. Try again!',
               [{ text: 'OK', style: 'default' }]
@@ -1764,6 +1788,7 @@ const handleEndGame = () => {
                  onChangeText={isMultiplayerMode ? setMultiplayerAnswer : setAnswer}
                  style={styles.answerInput}
                  editable={true}
+                 maxLength={100}
                />
              </Animated.View>
              
@@ -1906,12 +1931,12 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.md,
     borderRadius: 12,
-    backgroundColor: '#EF4444',
-    borderWidth: 1,
-    borderColor: '#DC2626'
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderColor: COLORS.error
   },
   exitButtonText: {
-    color: 'white',
+    color: COLORS.error,
     fontSize: 16,
     fontWeight: '600'
   },
@@ -2867,19 +2892,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   endGameButton: {
-    backgroundColor: '#EF4444',
+    backgroundColor: COLORS.error,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#DC2626',
+    borderColor: COLORS.errorDark,
     marginTop: SPACING.lg,
     marginHorizontal: SPACING.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   endGameButtonText: {
-    color: 'white',
+    color: COLORS.white,
     fontSize: 16,
     fontWeight: '700',
   },

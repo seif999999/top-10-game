@@ -107,14 +107,11 @@ class MultiplayerService {
 
   /**
    * Generates a unique 6-character room code
+   * ✅ SECURITY: Uses cryptographically secure random generation
    */
-  private generateRoomCode(): string {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let result = '';
-    for (let i = 0; i < 6; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
+  private async generateRoomCode(): Promise<string> {
+    const { generateSecureRoomCode } = await import('../utils/secureRandom');
+    return generateSecureRoomCode();
   }
 
   /**
@@ -182,29 +179,17 @@ class MultiplayerService {
       //   throw new Error('Too many room creation attempts. Please wait before creating another room.');
       // }
       
-      // Test a simple write first with Firebase outage handling
-      logger.log('🔍 DEBUG: Testing basic Firestore write...');
-      try {
-        const testRef = doc(db, 'test', 'testDoc');
-        await setDoc(testRef, { 
-          test: true, 
-          userId: userId,
-          timestamp: serverTimestamp()
-        });
-        logger.log('✅ DEBUG: Basic Firestore write successful!');
-      } catch (testError) {
-        logger.error('❌ DEBUG: Basic Firestore write failed:', testError);
-        // Handle Firebase outage
-        await this.edgeCaseHandler.handleFirebaseOutage();
-        throw testError;
-      }
+      // Note: Removed test collection write - it was causing production failures
+      // because Firestore rules block test collection access. Firebase connectivity
+      // will be tested when creating the actual room document.
       
       // Generate unique room code with collision handling
+      // ✅ SECURITY: Uses cryptographically secure random generation
       logger.log('🔍 DEBUG: Generating room code...');
       let roomCode: string;
       let attempts = 0;
       do {
-        roomCode = this.generateRoomCode();
+        roomCode = await this.generateRoomCode();
         attempts++;
         if (attempts > 10) {
           // Handle duplicate room code edge case
@@ -295,7 +280,7 @@ class MultiplayerService {
       }
 
       // Verify room was created successfully
-      const verifyRef = doc(db, 'multiplayerGames', roomCode);
+      const verifyRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const verifySnap = await getDoc(verifyRef);
       if (!verifySnap.exists()) {
         throw new Error('Failed to create room - verification failed');
@@ -334,8 +319,9 @@ class MultiplayerService {
       const userId = await this.ensureAuthenticated();
       logger.log('Creating room with user:', userId);
       
-      // Generate simple room code
-      const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+      // ✅ SECURITY: Generate secure room code using cryptographically secure random
+      const { generateSecureRoomCode } = await import('../utils/secureRandom');
+      const roomCode = await generateSecureRoomCode();
       
       // Minimal room data
       const roomData = {
@@ -1327,7 +1313,7 @@ class MultiplayerService {
    * Subscribes to room updates
    */
   subscribeToRoom(roomCode: string, callback: (roomData: RoomData | null) => void): () => void {
-    const roomRef = doc(db, 'multiplayerGames', roomCode);
+    const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
     
     const unsubscribe = onSnapshot(roomRef, (snapshot) => {
       if (snapshot.exists()) {

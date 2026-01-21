@@ -42,12 +42,13 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
     }
   };
 
-  const handleQuestionSelect = (question: GameQuestion) => {
+  const handleQuestionSelect = async (question: GameQuestion) => {
     logger.log('🎯 Question selected:', question.title);
     
     if (gameMode === 'multiplayer') {
-      // For multiplayer, generate room ID and navigate to GameScreen
-      const roomId = `room_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      // ✅ SECURITY: For multiplayer, generate secure room ID and navigate to GameScreen
+      const { generateSecureId } = await import('../../backend/utils/secureRandom');
+      const roomId = await generateSecureId('room');
       navigation.navigate('GameScreen', {
         roomId,
         categoryId: categoryName,

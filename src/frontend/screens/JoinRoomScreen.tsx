@@ -7,7 +7,6 @@ import {
   SafeAreaView,
   TextInput,
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -17,6 +16,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { RootStackParamList } from '../../shared/types/navigation';
 import { useMultiplayer } from '../contexts/MultiplayerContext';
+import ThemedAlert from '../utils/themedAlert';
 import { COLORS, SPACING, TYPOGRAPHY, ACCESSIBILITY } from '../../backend/utils/constants';
 import { AuthService } from '../../backend/services/authService';
 import { logger } from '../../backend/utils/logger';
@@ -44,7 +44,7 @@ const JoinRoomScreen: React.FC<JoinRoomScreenProps> = () => {
 
   useEffect(() => {
     if (error) {
-      Alert.alert('Error', error, [{ text: 'OK', onPress: clearError }]);
+      ThemedAlert.error('Error', error, [{ text: 'OK', onPress: clearError }]);
     }
   }, [error, clearError]);
 
@@ -63,7 +63,7 @@ const JoinRoomScreen: React.FC<JoinRoomScreenProps> = () => {
 
   const handleJoinRoom = async () => {
     if (!isValidCode) {
-      Alert.alert('Invalid Code', 'Please enter a valid 6-character room code');
+      ThemedAlert.warning('Invalid Code', 'Please enter a valid 6-character room code');
       return;
     }
 
@@ -238,8 +238,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
     position: 'relative',
   },
   leaveButton: {
@@ -352,6 +350,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderRadius: 12,
     padding: SPACING.lg,
+    borderWidth: 1,
+    borderColor: '#666666',
   },
   helpTitle: {
     fontSize: 16,

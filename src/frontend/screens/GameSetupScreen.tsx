@@ -95,7 +95,13 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
   // Team and timer settings
   const [numberOfTeams, setNumberOfTeams] = useState(2);
   const [teamNames, setTeamNames] = useState(['Team 1', 'Team 2', 'Team 3', 'Team 4']);
-  const [roundTimer, setRoundTimer] = useState(60);
+  const [roundTimer, setRoundTimer] = useState<number | null>(null);
+  const [durationError, setDurationError] = useState<string>('');
+  
+  // Refs for scrolling
+  const scrollViewRef = useRef<ScrollView>(null);
+  const timerSectionRef = useRef<View>(null);
+  const [timerSectionY, setTimerSectionY] = useState(0);
   
   // Animation values
   const backButtonScale = useRef(new Animated.Value(1)).current;
@@ -176,6 +182,25 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
     const currentCategory = categories[currentIndex];
     logger.log('🎯 Continue pressed with category:', currentCategory.name);
     
+    // Validate turn duration is selected
+    if (roundTimer === null) {
+      setDurationError('Please select a turn duration');
+      // Scroll to timer section - scroll lower to show the buttons themselves
+      setTimeout(() => {
+        if (timerSectionY > 0) {
+          // Scroll to show the buttons, not just the label (add offset to go lower)
+          scrollViewRef.current?.scrollTo({ y: timerSectionY + 50, animated: true });
+        } else {
+          // Fallback: scroll to a calculated position (approximately where timer buttons are)
+          scrollViewRef.current?.scrollTo({ y: 700, animated: true });
+        }
+      }, 100);
+      return;
+    }
+    
+    // Clear error if validation passes
+    setDurationError('');
+    
     // If teams mode is enabled (numberOfTeams > 1), create team config
     if (numberOfTeams > 1) {
       const validTeamNames = teamNames.slice(0, numberOfTeams).filter(name => name.trim() !== '');
@@ -187,7 +212,7 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
       const teamConfig: TeamSetupConfig = {
         numberOfTeams,
         teamNames: validTeamNames,
-        roundTimer,
+        roundTimer: roundTimer!,
         maxRounds: undefined,
         isHostedLocal: true,
       };
@@ -200,10 +225,17 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
         teamConfig: teamConfig
       });
     } else {
-      // Single player mode - no teams
+      // Single player mode - no teams, but still need timer
       navigation.navigate('QuestionSelection', {
         categoryName: currentCategory.name,
-        gameMode: gameMode
+        gameMode: gameMode,
+        teamConfig: {
+          numberOfTeams: 1,
+          teamNames: ['Player'],
+          roundTimer: roundTimer!,
+          maxRounds: undefined,
+          isHostedLocal: true,
+        }
       });
     }
   };
@@ -277,6 +309,7 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
         </View>
 
         <ScrollView 
+          ref={scrollViewRef}
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
@@ -400,16 +433,30 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
             </View>
 
             {/* Turn Duration */}
-            <View style={styles.settingRow}>
+            <View 
+              style={styles.settingRow} 
+              ref={timerSectionRef}
+              onLayout={(event) => {
+                const { y } = event.nativeEvent.layout;
+                setTimerSectionY(y);
+              }}
+            >
               <Text style={styles.settingLabel}>Turn Duration</Text>
+              {durationError ? (
+                <Text style={styles.errorText}>{durationError}</Text>
+              ) : null}
               <View style={styles.timerContainer}>
                 {ROUND_TIMER_OPTIONS.map((timer) => (
                   <TouchableOpacity
                     key={timer}
-                    onPress={() => setRoundTimer(timer)}
+                    onPress={() => {
+                      setRoundTimer(timer);
+                      setDurationError(''); // Clear error when user selects
+                    }}
                     style={[
                       styles.timerButton,
-                      roundTimer === timer && styles.timerButtonActive
+                      roundTimer === timer && styles.timerButtonActive,
+                      durationError ? styles.timerButtonError : null
                     ]}
                   >
                     <Text style={[
@@ -765,6 +812,16 @@ const styles = StyleSheet.create({
   },
   timerButtonTextActive: {
     color: '#FFFFFF',
+  },
+  timerButtonError: {
+    borderColor: '#EF4444',
+    borderWidth: 2,
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#EF4444',
+    marginBottom: SPACING.sm,
+    fontWeight: '500',
   },
 });
 

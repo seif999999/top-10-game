@@ -26,6 +26,7 @@ export class UserProfileService {
 
   /**
    * Get user profile data from Firestore
+   * ✅ SECURITY: Validates userId matches authenticated user (defense-in-depth)
    */
   public async getUserProfile(userId: string): Promise<User | null> {
     try {
@@ -41,6 +42,30 @@ export class UserProfileService {
           code: 'USER_PROFILE_INVALID_ID',
           message: 'UserId missing from session. Ensure session stores Firebase UID.',
           userMessage: 'User session is invalid. Please sign in again.'
+        });
+      }
+      
+      // ✅ SECURITY: Validate userId matches authenticated user (defense-in-depth)
+      const { auth } = await import('./firebase');
+      const currentUser = auth.currentUser;
+      
+      if (!currentUser) {
+        throw new AppError({
+          code: 'AUTH_REQUIRED',
+          message: 'User must be authenticated to access profile',
+          userMessage: 'Please sign in to access your profile.'
+        });
+      }
+      
+      if (currentUser.uid !== userId) {
+        logger.error('❌ SECURITY: Unauthorized profile access attempt', {
+          authenticatedUserId: currentUser.uid,
+          requestedUserId: userId
+        });
+        throw new AppError({
+          code: 'UNAUTHORIZED_ACCESS',
+          message: 'Users can only access their own profile',
+          userMessage: 'You can only access your own profile.'
         });
       }
       
@@ -71,9 +96,34 @@ export class UserProfileService {
 
   /**
    * Create or update user profile in Firestore
+   * ✅ SECURITY: Validates user.id matches authenticated user (defense-in-depth)
    */
   public async updateUserProfile(user: User): Promise<void> {
     try {
+      // ✅ SECURITY: Validate user.id matches authenticated user (defense-in-depth)
+      const { auth } = await import('./firebase');
+      const currentUser = auth.currentUser;
+      
+      if (!currentUser) {
+        throw new AppError({
+          code: 'AUTH_REQUIRED',
+          message: 'User must be authenticated to update profile',
+          userMessage: 'Please sign in to update your profile.'
+        });
+      }
+      
+      if (currentUser.uid !== user.id) {
+        logger.error('❌ SECURITY: Unauthorized profile update attempt', {
+          authenticatedUserId: currentUser.uid,
+          requestedUserId: user.id
+        });
+        throw new AppError({
+          code: 'UNAUTHORIZED_UPDATE',
+          message: 'Users can only update their own profile',
+          userMessage: 'You can only update your own profile.'
+        });
+      }
+      
       const userRef = doc(db, COLLECTIONS.USER_PROFILES, user.id);
       
       const profileData = {

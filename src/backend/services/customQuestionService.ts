@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { logger } from '../utils/logger';
 import type { CustomQuestion } from '../../shared/types';
+import { RATE_LIMITS } from '../utils/constants';
 
 const CUSTOM_QUESTIONS_KEY = 'custom_questions';
 
@@ -27,8 +28,10 @@ export class CustomQuestionService {
     try {
       logger.log('💾 CustomQuestionService: Saving custom question...');
       
+      // ✅ SECURITY: Use secure random for ID generation
+      const { generateSecureId } = await import('../utils/secureRandom');
       const customQuestion: CustomQuestion = {
-        id: `custom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        id: await generateSecureId('custom'),
         question: question.trim(),
         answers: answers.filter(answer => answer.trim().length > 0),
         createdAt: new Date(),
@@ -37,6 +40,11 @@ export class CustomQuestionService {
 
       // Get existing questions
       const existingQuestions = await this.getAllCustomQuestions();
+      
+      // ✅ SECURITY: Enforce limit to prevent DoS attacks
+      if (existingQuestions.length >= RATE_LIMITS.MAX_CUSTOM_QUESTIONS_PER_USER) {
+        throw new Error(`Maximum limit of ${RATE_LIMITS.MAX_CUSTOM_QUESTIONS_PER_USER} custom questions reached. Please delete some questions before creating new ones.`);
+      }
       
       // Add new question
       const updatedQuestions = [...existingQuestions, customQuestion];
@@ -76,7 +84,19 @@ export class CustomQuestionService {
         return [];
       }
 
-      const questions = JSON.parse(questionsData) as Array<CustomQuestion & { createdAt: string; lastPlayed?: string | null }>;
+      let questions: Array<CustomQuestion & { createdAt: string; lastPlayed?: string | null }>;
+      try {
+        questions = JSON.parse(questionsData) as Array<CustomQuestion & { createdAt: string; lastPlayed?: string | null }>;
+      } catch (parseError) {
+        logger.error('❌ CustomQuestionService: Error parsing questions data, clearing corrupted data:', parseError);
+        // Clear corrupted data
+        if (Platform.OS === 'web') {
+          localStorage.removeItem(CUSTOM_QUESTIONS_KEY);
+        } else {
+          await AsyncStorage.removeItem(CUSTOM_QUESTIONS_KEY);
+        }
+        return [];
+      }
       
       // Convert date strings back to Date objects
       const parsedQuestions = questions.map((q) => ({

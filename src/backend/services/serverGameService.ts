@@ -8,6 +8,7 @@ import {
   serverTimestamp, 
   Timestamp 
 } from 'firebase/firestore';
+import { COLLECTIONS } from '../utils/constants';
 import { logger } from '../utils/logger';
 import { db } from './firebase';
 import { InputValidator } from '../utils/inputValidator';
@@ -147,7 +148,7 @@ export class ServerGameService {
     userId: string
   ): Promise<GameValidationResult> {
     try {
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomDoc = await getDoc(roomRef);
 
       if (!roomDoc.exists()) {
@@ -208,7 +209,7 @@ export class ServerGameService {
     clientTimestamp: number
   ): Promise<TurnValidation> {
     try {
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomDoc = await getDoc(roomRef);
       
       if (!roomDoc.exists()) {
@@ -291,7 +292,7 @@ export class ServerGameService {
     answer: string
   ): Promise<GameValidationResult> {
     try {
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomDoc = await getDoc(roomRef);
       
       if (!roomDoc.exists()) {
@@ -391,7 +392,7 @@ export class ServerGameService {
     clientTimestamp: number
   ): Promise<GameValidationResult> {
     try {
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       
       return await runTransaction(db, async (transaction) => {
         const roomDoc = await transaction.get(roomRef);
@@ -627,7 +628,7 @@ export class ServerGameService {
       }
 
       // Check room capacity
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomDoc = await getDoc(roomRef);
       
       if (!roomDoc.exists()) {

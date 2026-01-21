@@ -5,14 +5,14 @@ import { logger } from '../utils/logger';
 // You need to get these credentials from Google Cloud Console
 
 export const GOOGLE_CONFIG = {
-  // Web Client ID (for web platform) - Safe to expose
-  WEB_CLIENT_ID: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '807249280703-ahikkv2k0efoi1n2ar14fr04b9pcehgi.apps.googleusercontent.com',
+  // Web Client ID (for web platform) - Safe to expose, but should come from environment
+  WEB_CLIENT_ID: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '',
   
-  // iOS Client ID (for iOS platform) - Safe to expose
-  IOS_CLIENT_ID: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '807249280703-59r51ljb6pr3dd9k1mc87tpo0jo0opah.apps.googleusercontent.com',
+  // iOS Client ID (for iOS platform) - Safe to expose, but should come from environment
+  IOS_CLIENT_ID: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '',
   
-  // Android Client ID (for Android platform) - Safe to expose
-  ANDROID_CLIENT_ID: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '807249280703-9evbdhlaguccc9dcd39b9ssudn37chgo.apps.googleusercontent.com',
+  // Android Client ID (for Android platform) - Safe to expose, but should come from environment
+  ANDROID_CLIENT_ID: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '',
   
   // ⚠️ SECURITY WARNING: Client Secret should NEVER be exposed to client-side code
   // This should be moved to a secure backend service

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Alert, ScrollView, TextInput, Modal } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, TextInput, Modal } from 'react-native';
+import ThemedAlert from '../utils/themedAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import AvatarDisplay from '../components/AvatarDisplay';
@@ -39,7 +40,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       );
       
       if (!rateLimitResult.allowed) {
-        Alert.alert('Rate Limit Exceeded', rateLimitResult.error || 'Too many profile updates. Please wait before trying again.');
+        ThemedAlert.warning('Rate Limit Exceeded', rateLimitResult.error || 'Too many profile updates. Please wait before trying again.');
         return;
       }
     }
@@ -48,7 +49,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     const validation = InputValidator.validateDisplayName(displayName);
     
     if (!validation.valid) {
-      Alert.alert('Validation Error', validation.errors.join('\n'));
+      ThemedAlert.error('Validation Error', validation.errors.join('\n'));
       return;
     }
     
@@ -62,7 +63,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       );
       
       if (!moderationResult.approved) {
-        Alert.alert('Content Not Approved', moderationResult.errors.join('\n'));
+        ThemedAlert.warning('Content Not Approved', moderationResult.errors.join('\n'));
         return;
       }
     }
@@ -76,7 +77,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       
       // Update the local state to show the change
       setUpdatedDisplayName(sanitizedDisplayName);
-      Alert.alert('Success', 'Profile updated successfully!');
+      ThemedAlert.success('Success', 'Profile updated successfully!');
       setIsEditing(false);
     } catch (error) {
       const appError = toAppError(error, {
@@ -85,7 +86,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         userMessage: 'Failed to update profile. Please try again.'
       });
       logger.error('Profile update error:', appError);
-      Alert.alert('Error', appError.userMessage ?? appError.message);
+      ThemedAlert.error('Error', appError.userMessage ?? appError.message);
     }
   };
 
@@ -101,7 +102,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         userMessage: 'Failed to sign out. Please try again.'
       });
       logger.error('💥 ProfileScreen: Sign-out error:', appError);
-      Alert.alert(
+      ThemedAlert.error(
         'Sign-Out Error', 
         appError.userMessage ?? appError.message
       );

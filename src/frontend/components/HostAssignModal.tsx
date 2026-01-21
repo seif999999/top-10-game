@@ -6,7 +6,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   TextInput,
-  Alert,
 } from 'react-native';
 import { COLORS, SPACING, TYPOGRAPHY } from '../../backend/utils/constants';
 import { Team } from '../../shared/types/teams';
@@ -51,7 +50,7 @@ const HostAssignModal: React.FC<HostAssignModalProps> = ({
       });
 
       if (!selectedTeamId) {
-        Alert.alert('Error', 'Please select a team');
+        ThemedAlert.warning('Error', 'Please select a team');
         return;
       }
 
@@ -60,7 +59,7 @@ const HostAssignModal: React.FC<HostAssignModalProps> = ({
       onClose();
     } catch (error) {
       logger.error('❌ HostAssignModal: Error assigning answer:', error);
-      Alert.alert('Error', 'Failed to assign answer. Please try again.');
+      ThemedAlert.error('Error', 'Failed to assign answer. Please try again.');
     }
   };
 

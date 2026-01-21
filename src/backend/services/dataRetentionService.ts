@@ -90,12 +90,39 @@ class DataRetentionService {
 
   /**
    * Delete user data (Right to be Forgotten)
+   * ✅ SECURITY: Validates that userId matches authenticated user
    */
   static async deleteUserData(
     userId: string,
     reason: string = 'User requested data deletion'
   ): Promise<DataDeletionRequest> {
     try {
+      // ✅ CRITICAL SECURITY: Validate userId matches authenticated user
+      const { auth } = await import('./firebase');
+      const currentUser = auth.currentUser;
+      
+      if (!currentUser) {
+        throw new AppError({
+          code: 'AUTH_REQUIRED',
+          message: 'User must be authenticated to delete data',
+          userMessage: 'Please sign in to delete your data.'
+        });
+      }
+      
+      if (currentUser.uid !== userId) {
+        logger.error('❌ SECURITY: Unauthorized deletion attempt', {
+          authenticatedUserId: currentUser.uid,
+          requestedUserId: userId
+        });
+        throw new AppError({
+          code: 'UNAUTHORIZED_DELETION',
+          message: 'Users can only delete their own data',
+          userMessage: 'You can only delete your own data.'
+        });
+      }
+      
+      logger.log('✅ User data deletion authorized for:', userId);
+      
       const deletionRequest: DataDeletionRequest = {
         userId,
         requestedAt: new Date(),
@@ -171,8 +198,10 @@ class DataRetentionService {
     originalData: unknown
   ): Promise<AnonymizedData> {
     try {
+      // ✅ SECURITY: Use secure random for anonymized user ID
+      const { generateSecureId } = await import('../utils/secureRandom');
       const anonymizedData: AnonymizedData = {
-        userId: `anon_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        userId: await generateSecureId('anon'),
         originalUserId: userId,
         anonymizedAt: new Date(),
         dataType,
@@ -345,6 +374,8 @@ class DataRetentionService {
   }
 
   private static async deletePrivacyPolicyAcceptance(userId: string): Promise<void> {
+    // Note: Using 'privacyPolicyAcceptances' string literal as it's defined in PrivacyPolicyService.COLLECTION_NAME
+    // This collection has security rules that allow users to access only their own records
     const privacyRef = doc(db, 'privacyPolicyAcceptances', userId);
     await deleteDoc(privacyRef);
   }

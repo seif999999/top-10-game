@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { TouchableOpacity, Text, StyleSheet, Alert, ActivityIndicator, View } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, View } from 'react-native';
+import ThemedAlert from '../utils/themedAlert';
 import type { StyleProp, TextStyle, ViewStyle } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { signInWithGoogle as googleAuth } from '../../backend/services/googleAuth';
@@ -67,7 +68,7 @@ const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
         onError(errorMessage);
       } else {
         // Show default error alert
-        Alert.alert('Sign-In Error', errorMessage);
+        ThemedAlert.error('Sign-In Error', errorMessage);
       }
     } finally {
       logger.log('🔐 GoogleSignInButton: Setting loading to false');

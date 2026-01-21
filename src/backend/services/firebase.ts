@@ -47,45 +47,51 @@ logger.log('Project ID:', firebaseConfig.projectId);
 
 export const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
-// Initialize Auth with default persistence
+// Initialize Auth with proper persistence
 let auth: Auth;
 
-// Check if auth already exists
-try {
+if (Platform.OS === 'web') {
+  // For web, use getAuth which has localStorage persistence by default
   auth = getAuth(app);
-  logger.log('✅ Using existing Firebase Auth instance');
-} catch (error) {
-  logger.log('🔐 Initializing new Firebase Auth...');
-  
+  logger.log('✅ Firebase Auth initialized for web with localStorage persistence');
+} else {
+  // For React Native, ALWAYS use initializeAuth with AsyncStorage persistence
+  // This ensures authentication state persists across app restarts
   try {
-    if (Platform.OS === 'web') {
-      // For web, use getAuth which has localStorage persistence by default
+    // Try to import getReactNativePersistence (available in Firebase v9+)
+    const { getReactNativePersistence } = require('firebase/auth');
+    auth = initializeAuth(app, {
+      persistence: getReactNativePersistence(AsyncStorage)
+    });
+    logger.log('✅ Firebase Auth initialized for React Native with AsyncStorage persistence');
+  } catch (persistenceError: any) {
+    // If auth already exists, try to get it
+    if (persistenceError.code === 'auth/already-initialized') {
+      logger.log('⚠️ Auth already initialized, using existing instance...');
       auth = getAuth(app);
-      logger.log('✅ Firebase Auth initialized for web with localStorage persistence');
+      logger.log('✅ Using existing Firebase Auth instance');
     } else {
-      // For React Native, use initializeAuth with AsyncStorage persistence
+      // Other error - try initializeAuth without explicit persistence (fallback)
+      logger.log('⚠️ Could not import getReactNativePersistence, trying initializeAuth without explicit persistence...');
       try {
-        // Try to import getReactNativePersistence (available in Firebase v9+)
-        const { getReactNativePersistence } = require('firebase/auth');
-        auth = initializeAuth(app, {
-          persistence: getReactNativePersistence(AsyncStorage)
-        });
-        logger.log('✅ Firebase Auth initialized for React Native with AsyncStorage persistence');
-      } catch (persistenceError) {
-        // Fallback: initializeAuth should automatically use AsyncStorage if available
-        logger.log('⚠️ Could not import getReactNativePersistence, using default persistence');
         auth = initializeAuth(app);
         logger.log('✅ Firebase Auth initialized for React Native (default persistence)');
+      } catch (initError: any) {
+        if (initError.code === 'auth/already-initialized') {
+          logger.log('⚠️ Auth already initialized, using existing instance...');
+          auth = getAuth(app);
+          logger.log('✅ Using existing Firebase Auth instance');
+        } else {
+          logger.error('❌ Failed to initialize Firebase Auth:', initError);
+          throw new AppError({
+            code: 'FIREBASE_AUTH_INIT_FAILED',
+            message: 'Failed to initialize Firebase Auth',
+            userMessage: 'Failed to initialize authentication. Please try again.',
+            cause: initError
+          });
+        }
       }
     }
-  } catch (error) {
-    logger.error('❌ Failed to initialize Firebase Auth:', error);
-    throw new AppError({
-      code: 'FIREBASE_AUTH_INIT_FAILED',
-      message: 'Failed to initialize Firebase Auth',
-      userMessage: 'Failed to initialize authentication. Please try again.',
-      cause: error
-    });
   }
 }
 

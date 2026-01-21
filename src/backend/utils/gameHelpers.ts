@@ -238,9 +238,11 @@ export const throttle = <T extends (...args: unknown[]) => unknown>(
 
 /**
  * Generate random ID
+ * ✅ SECURITY: Uses secure random for ID generation
  */
-export const generateId = (): string => {
-  return Math.random().toString(36).substr(2, 9);
+export const generateId = async (): Promise<string> => {
+  const { generateSecureRandomString } = await import('./secureRandom');
+  return generateSecureRandomString(9, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyz');
 };
 
 /**

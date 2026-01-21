@@ -15,6 +15,7 @@ import { RoomData, Answer } from '../../shared/types/game';
 import { logger } from '../utils/logger';
 import { getStartGameData } from './gameStartCore';
 import { toAppError } from '../../shared/errors';
+import { COLLECTIONS } from '../utils/constants';
 
 const getTurnStartMillis = (turnStartTime?: RoomData['turnStartTime']): number => {
   if (typeof turnStartTime === 'number') {
@@ -40,7 +41,7 @@ export async function awardAnswer(
   
   try {
     const result = await runTransaction(db, async (transaction) => {
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await transaction.get(roomRef);
       
       if (!roomSnap.exists()) {
@@ -130,7 +131,7 @@ export async function hostStartGame(
   
   try {
     const result = await runTransaction(db, async (transaction) => {
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await transaction.get(roomRef);
       
       if (!roomSnap.exists()) {
@@ -201,7 +202,7 @@ export async function startRound(
   
   try {
     const result = await runTransaction(db, async (transaction) => {
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await transaction.get(roomRef);
       
       if (!roomSnap.exists()) {
@@ -270,7 +271,7 @@ export async function advanceTurn(
   
   try {
     const result = await runTransaction(db, async (transaction) => {
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await transaction.get(roomRef);
       
       if (!roomSnap.exists()) {
@@ -372,7 +373,7 @@ export async function forceAdvanceExpiredTurn(
   
   try {
     const result = await runTransaction(db, async (transaction) => {
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await transaction.get(roomRef);
       
       if (!roomSnap.exists()) {
@@ -475,7 +476,7 @@ export async function submitTurnAnswer(
   
   try {
     const result = await runTransaction(db, async (transaction) => {
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await transaction.get(roomRef);
       
       if (!roomSnap.exists()) {
@@ -562,7 +563,7 @@ export async function endRound(
   
   try {
     const result = await runTransaction(db, async (transaction) => {
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await transaction.get(roomRef);
       
       if (!roomSnap.exists()) {
@@ -636,7 +637,7 @@ export async function updatePlayerPresence(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const result = await runTransaction(db, async (transaction) => {
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await transaction.get(roomRef);
       
       if (!roomSnap.exists()) {

@@ -17,6 +17,7 @@ import { pointsForRank } from './scoring';
 import { getStartGameData } from './gameStartCore';
 import { toAppError } from '../../shared/errors';
 import { logger } from '../utils/logger';
+import { COLLECTIONS } from '../utils/constants';
 
 // Server time offset cache
 let serverOffset: number | null = null;
@@ -36,7 +37,7 @@ export async function getServerOffset(): Promise<number> {
   
   try {
     // Write temp doc with serverTimestamp then read it
-    const tempRef = doc(collection(db, 'timeSync'));
+    const tempRef = doc(collection(db, COLLECTIONS.TIME_SYNC_DOCS));
     await setDoc(tempRef, { t: serverTimestamp() });
     const snap = await getDoc(tempRef);
     const serverTs = snap.data()?.t?.toMillis();
@@ -126,7 +127,7 @@ export async function hostStartGame(
   
   try {
     const result = await runTransaction(db, async (transaction) => {
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await transaction.get(roomRef);
       
       if (!roomSnap.exists()) {
@@ -245,7 +246,7 @@ Room: ${roomCode}`);
     logger.log(`🔄 SUBMIT_ANSWER: Starting submission for player ${playerId}`);
     
     const result = await runTransaction(db, async (transaction) => {
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await transaction.get(roomRef);
       
       if (!roomSnap.exists()) {
@@ -543,7 +544,7 @@ Should have updated:
     // Try a simpler fallback approach without transactions
     logger.log(`🔄 FALLBACK: Trying simple update without transaction...`);
     try {
-    const roomRef = doc(db, 'multiplayerGames', roomCode);
+    const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
     const roomSnap = await getDoc(roomRef);
     
     if (!roomSnap.exists()) {
@@ -621,7 +622,7 @@ export async function advanceTurnOnTimeout(
   
   try {
     const result = await runTransaction(db, async (transaction) => {
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await transaction.get(roomRef);
       
       if (!roomSnap.exists()) {
@@ -681,7 +682,7 @@ export async function hostEndGame(
   
   try {
     const result = await runTransaction(db, async (transaction) => {
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await transaction.get(roomRef);
       
       if (!roomSnap.exists()) {
@@ -730,7 +731,7 @@ export async function resetRoomStatus(
   
   try {
     const result = await runTransaction(db, async (transaction) => {
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await transaction.get(roomRef);
       
       if (!roomSnap.exists()) {
@@ -790,7 +791,7 @@ export async function skipTurn(
   
   try {
     const result = await runTransaction(db, async (transaction) => {
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await transaction.get(roomRef);
       
       if (!roomSnap.exists()) {
@@ -869,7 +870,7 @@ export async function migrateHost(
   try {
     logger.log(`🔄 MIGRATE_HOST: Room ${roomCode}, Disconnected Host ${disconnectedHostId}`);
     
-    const roomRef = doc(db, 'multiplayerGames', roomCode);
+    const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
     const roomSnap = await getDoc(roomRef);
     
     if (!roomSnap.exists()) {
@@ -890,7 +891,7 @@ export async function migrateHost(
     
     // Atomic host migration with race condition prevention
     await runTransaction(db, async (transaction) => {
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await transaction.get(roomRef);
       
       if (!roomSnap.exists()) {
@@ -946,7 +947,7 @@ export async function terminateRoom(
   try {
     logger.log(`🏁 TERMINATE_ROOM: Room ${roomCode}, Disconnected Host ${disconnectedHostId}`);
     
-    const roomRef = doc(db, 'multiplayerGames', roomCode);
+    const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
     const roomSnap = await getDoc(roomRef);
     
     if (!roomSnap.exists()) {
@@ -962,7 +963,7 @@ export async function terminateRoom(
     
     // Atomic room termination with system message
     await runTransaction(db, async (transaction) => {
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await transaction.get(roomRef);
       
       if (!roomSnap.exists()) {
@@ -1014,7 +1015,7 @@ export async function handleHostDisconnection(
   logger.log(`🚪 HOST_DISCONNECTION: Room ${roomCode}, Host ${disconnectedHostId}`);
   
   try {
-    const roomRef = doc(db, 'multiplayerGames', roomCode);
+    const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
     const roomSnap = await getDoc(roomRef);
     
     if (!roomSnap.exists()) {
@@ -1070,7 +1071,7 @@ export async function terminateGame(
   try {
     logger.log(`🏁 TERMINATE_GAME: Room ${roomCode}, Disconnected Player ${disconnectedPlayerId}`);
     
-    const roomRef = doc(db, 'multiplayerGames', roomCode);
+    const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
     const roomSnap = await getDoc(roomRef);
     
     if (!roomSnap.exists()) {
@@ -1085,7 +1086,7 @@ export async function terminateGame(
     }
     
     await runTransaction(db, async (transaction) => {
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await transaction.get(roomRef);
       
       if (!roomSnap.exists()) {

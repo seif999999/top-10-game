@@ -8,6 +8,7 @@ import { db } from './firebase';
 import { RoomData } from '../../shared/types/game';
 import { logger } from '../utils/logger';
 import { AppError, toAppError } from '../../shared/errors';
+import { COLLECTIONS } from '../utils/constants';
 
 const getTurnStartMillis = (turnStartTime?: RoomData['turnStartTime']): number => {
   if (typeof turnStartTime === 'number') {
@@ -31,7 +32,7 @@ export async function startGame(
   
   try {
     const result = await runTransaction(db, async (transaction) => {
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await transaction.get(roomRef);
       
       if (!roomSnap.exists()) {
@@ -146,7 +147,7 @@ export async function submitAnswer(
   
   try {
     const result = await runTransaction(db, async (transaction) => {
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await transaction.get(roomRef);
       
       if (!roomSnap.exists()) {
@@ -292,7 +293,7 @@ export async function endGame(
   
   try {
     const result = await runTransaction(db, async (transaction) => {
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await transaction.get(roomRef);
       
       if (!roomSnap.exists()) {
@@ -354,7 +355,7 @@ export async function advanceTurnOnTimeout(
   
   try {
     const result = await runTransaction(db, async (transaction) => {
-      const roomRef = doc(db, 'multiplayerGames', roomCode);
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await transaction.get(roomRef);
       
       if (!roomSnap.exists()) {
