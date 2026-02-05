@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, TextInput, Modal, Switch } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, TextInput, Modal, Switch, Linking, Platform } from 'react-native';
 import ThemedAlert from '../utils/themedAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -107,6 +107,41 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       ThemedAlert.error(
         'Sign-Out Error', 
         appError.userMessage ?? appError.message
+      );
+    }
+  };
+
+  const handleFeedback = async () => {
+    playButtonClick();
+    
+    const email = 'arahman.hazem@gmail.com';
+    const subject = encodeURIComponent('App Feedback');
+    const mailtoUrl = `mailto:${email}?subject=${subject}`;
+    
+    try {
+      // Check if the device can open the mailto URL
+      const canOpen = await Linking.canOpenURL(mailtoUrl);
+      
+      if (canOpen) {
+        await Linking.openURL(mailtoUrl);
+        logger.log('📧 Opened email client for feedback');
+      } else {
+        // Fallback for platforms that don't support mailto
+        if (Platform.OS === 'web') {
+          // On web, try opening in a new window
+          window.open(mailtoUrl, '_blank');
+        } else {
+          ThemedAlert.warning(
+            'Email Not Available',
+            'No email client found. Please send feedback to: arahman.hazem@gmail.com'
+          );
+        }
+      }
+    } catch (error) {
+      logger.error('Error opening email client:', error);
+      ThemedAlert.error(
+        'Error',
+        'Could not open email client. Please send feedback to: arahman.hazem@gmail.com'
       );
     }
   };
@@ -244,6 +279,16 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               />
             </View>
           </View>
+          
+          {/* Feedback Button */}
+          <TouchableOpacity
+            onPress={handleFeedback}
+            style={styles.feedbackButton}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.feedbackIcon}>💬</Text>
+            <Text style={styles.feedbackText}>Send Feedback</Text>
+          </TouchableOpacity>
           
           <TouchableOpacity
             onPress={() => { playButtonClick(); handleSignOut(); }}
@@ -465,6 +510,27 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     fontSize: 12,
     marginTop: 2,
+  },
+  feedbackButton: {
+    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+    borderWidth: 1,
+    borderColor: '#3B82F6',
+    borderRadius: 16,
+    paddingVertical: SPACING.lg,
+    paddingHorizontal: SPACING.xl,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.sm,
+    marginBottom: SPACING.md,
+  },
+  feedbackIcon: {
+    fontSize: 18,
+  },
+  feedbackText: {
+    color: '#3B82F6',
+    fontSize: 18,
+    fontWeight: '600',
   },
   signOutButton: {
     backgroundColor: '#EF4444',

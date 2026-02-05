@@ -1,5 +1,7 @@
 import { saveGameStats, getPlayerStats, saveGameHistory, getGameHistory, GameStats, GameHistory } from './localStorage';
 import { logger } from '../utils/logger';
+import { missionService } from './missionService';
+import { GameEventData, MissionBatchResult } from '../../shared/types/missions';
 
 export interface GamePerformance {
   totalGames: number;
@@ -35,9 +37,15 @@ export const updateGameStats = async (
   category: string, 
   correctAnswers: number,
   totalQuestions: number,
-  timeTaken: number
-): Promise<void> => {
+  timeTaken: number,
+  isMultiplayer: boolean = false,
+  isWinner: boolean = false,
+  finalRank?: number,
+  playerCount?: number
+): Promise<MissionBatchResult | null> => {
   try {
+    const gameId = `game_${Date.now()}`;
+    
     // Create game results object
     const gameResults = {
       finalScores: { [userId]: score },
@@ -54,7 +62,7 @@ export const updateGameStats = async (
 
     // Save game history
     const gameHistory: GameHistory = {
-      gameId: `game_${Date.now()}`,
+      gameId,
       category,
       score,
       correctAnswers,
@@ -64,8 +72,78 @@ export const updateGameStats = async (
     };
 
     await saveGameHistory(userId, gameHistory);
+
+    // Process mission events for game completion
+    const accuracy = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
+    
+    const gameEvent: GameEventData = {
+      userId,
+      gameId,
+      isMultiplayer,
+      gameCompleted: {
+        category,
+        totalScore: score,
+        correctAnswers,
+        totalAnswers: totalQuestions,
+        accuracy,
+        isWinner,
+        finalRank,
+        playerCount,
+      },
+    };
+
+    // Process leaderboard position for multiplayer
+    if (isMultiplayer && finalRank !== undefined) {
+      gameEvent.leaderboardPosition = {
+        position: finalRank,
+        isNewTop1: finalRank === 1,
+      };
+    }
+
+    // Process mission events and return results
+    const missionResult = await missionService.processGameEvent(gameEvent);
+    
+    if (missionResult.newlyCompletedMissions.length > 0) {
+      logger.log(`🎉 Missions completed: ${missionResult.newlyCompletedMissions.join(', ')}`);
+      logger.log(`💰 Total coins earned from missions: ${missionResult.totalCoinsEarned}`);
+    }
+
+    return missionResult;
   } catch (error) {
     logger.error('Error updating game stats:', error);
+    return null;
+  }
+};
+
+/**
+ * Process a correct answer for mission tracking
+ */
+export const processAnswerForMissions = async (
+  userId: string,
+  gameId: string,
+  isCorrect: boolean,
+  rank?: number,
+  points?: number,
+  timeTaken?: number,
+  isMultiplayer: boolean = false
+): Promise<MissionBatchResult | null> => {
+  try {
+    const gameEvent: GameEventData = {
+      userId,
+      gameId,
+      isMultiplayer,
+      answer: {
+        isCorrect,
+        rank,
+        points,
+        timeTaken,
+      },
+    };
+
+    return await missionService.processGameEvent(gameEvent);
+  } catch (error) {
+    logger.error('Error processing answer for missions:', error);
+    return null;
   }
 };
 

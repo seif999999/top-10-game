@@ -3,6 +3,7 @@ import { db } from './firebase';
 import { User } from '../../shared/types';
 import { COLLECTIONS } from '../utils/constants';
 import { logger } from '../utils/logger';
+import { missionService } from './missionService';
 
 export interface DailyRewardResult {
   success: boolean;
@@ -237,6 +238,14 @@ export const claimDailyReward = async (userId: string): Promise<DailyRewardResul
     });
     
     logger.log(`✅ Daily reward claimed: +${reward} coins (Week ${currentWeek}, Day ${currentStreak})`);
+    
+    // Update daily streak mission progress
+    try {
+      await missionService.updateDailyStreak(userId, currentStreak);
+    } catch (missionError) {
+      logger.error('Error updating daily streak mission:', missionError);
+      // Don't fail the reward claim if mission update fails
+    }
     
     return {
       success: true,

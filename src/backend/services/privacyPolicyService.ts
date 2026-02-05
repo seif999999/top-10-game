@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from './firebase';
 import { logger } from '../utils/logger';
+import { AppError } from '../../shared/errors';
 
 export interface PrivacyPolicyAcceptance {
   userId: string;
@@ -103,7 +104,12 @@ class PrivacyPolicyService {
       logger.log('Privacy policy acceptance recorded for user:', userId);
     } catch (error) {
       logger.error('Error recording privacy policy acceptance:', error);
-      throw new Error('Failed to record privacy policy acceptance');
+      throw new AppError({
+        code: 'PRIVACY_POLICY_RECORD_FAILED',
+        message: 'Failed to record privacy policy acceptance',
+        userMessage: 'Unable to save your consent. Please try again.',
+        cause: error instanceof Error ? error : undefined
+      });
     }
   }
 
@@ -137,7 +143,12 @@ class PrivacyPolicyService {
       logger.log('Privacy policy acceptance recorded for anonymous user');
     } catch (error) {
       logger.error('Error recording anonymous privacy policy acceptance:', error);
-      throw new Error('Failed to record privacy policy acceptance');
+      throw new AppError({
+        code: 'PRIVACY_POLICY_RECORD_FAILED',
+        message: 'Failed to record anonymous privacy policy acceptance',
+        userMessage: 'Unable to save your consent. Please try again.',
+        cause: error instanceof Error ? error : undefined
+      });
     }
   }
 
@@ -199,7 +210,12 @@ class PrivacyPolicyService {
       logger.log('Privacy policy acceptance revoked for user:', userId);
     } catch (error) {
       logger.error('Error revoking privacy policy acceptance:', error);
-      throw new Error('Failed to revoke privacy policy acceptance');
+      throw new AppError({
+        code: 'PRIVACY_POLICY_REVOKE_FAILED',
+        message: 'Failed to revoke privacy policy acceptance',
+        userMessage: 'Unable to process your request. Please try again.',
+        cause: error instanceof Error ? error : undefined
+      });
     }
   }
 

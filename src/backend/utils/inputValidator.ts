@@ -1,25 +1,29 @@
 /**
  * Input Validation and Sanitization Service
  * Provides comprehensive input validation and sanitization for security
+ * 
+ * Note: This class delegates to centralized validation schemas where possible.
+ * See validationSchemas.ts for the core validation logic.
  */
 
 import { ContentModerationService } from '../services/contentModerationService';
 import { logger } from './logger';
 import { AppError } from '../../shared/errors';
 import { sanitizeText } from './textSanitizer';
+import {
+  validateEmail as validateEmailSchema,
+  validateDisplayName as validateDisplayNameSchema,
+  validatePassword as validatePasswordSchema,
+  validateRoomCode as validateRoomCodeSchema,
+  validateGameAnswer as validateGameAnswerSchema,
+  VALIDATION_PATTERNS,
+  VALIDATION_LIMITS,
+} from './validationSchemas';
 
 // Basic profanity list - in production, this should be loaded from a secure source
 const PROFANITY_LIST = [
   'badword1', 'badword2', 'inappropriate', 'spam'
   // Add more comprehensive list in production
-];
-
-// Patterns for detecting personal information
-const PERSONAL_INFO_PATTERNS = [
-  /(\d{3}[-.]?\d{3}[-.]?\d{4})/, // Phone numbers
-  /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/, // Email addresses
-  /(\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b)/, // Credit card numbers
-  /(\b\d{3}-\d{2}-\d{4}\b)/, // SSN pattern
 ];
 
 export class InputValidator {
@@ -33,47 +37,24 @@ export class InputValidator {
 
   /**
    * Validate email format
+   * Delegates to centralized validation schema
    */
   static validateEmail(email: string): boolean {
-    if (!email || typeof email !== 'string') {
-      return false;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email) && email.length <= 254;
+    const result = validateEmailSchema(email);
+    return result.valid;
   }
 
   /**
    * Validate display names with comprehensive checks
+   * Delegates to centralized validation schema with profanity check
    */
   static validateDisplayName(name: string): { valid: boolean; errors: string[] } {
-    const errors: string[] = [];
+    const result = validateDisplayNameSchema(name);
+    const errors = [...result.errors];
 
-    if (!name || typeof name !== 'string') {
-      errors.push('Name is required');
-      return { valid: false, errors };
-    }
-
-    if (name.length < 2) {
-      errors.push('Name must be at least 2 characters');
-    }
-
-    if (name.length > 30) {
-      errors.push('Name must be less than 30 characters');
-    }
-
-    if (!/^[a-zA-Z0-9\s._-]+$/.test(name)) {
-      errors.push('Name contains invalid characters. Only letters, numbers, spaces, dots, underscores, and hyphens are allowed');
-    }
-
-    // Check for inappropriate content
-    if (this.containsProfanity(name)) {
+    // Additional profanity check (not in schema)
+    if (name && this.containsProfanity(name)) {
       errors.push('Name contains inappropriate content');
-    }
-
-    // Check for personal information
-    if (this.containsPersonalInfo(name)) {
-      errors.push('Name should not contain personal information');
     }
 
     return { valid: errors.length === 0, errors };
@@ -81,33 +62,16 @@ export class InputValidator {
 
   /**
    * Validate game answers
+   * Delegates to centralized validation schema with profanity check
    */
   static validateGameAnswer(answer: string): { valid: boolean; sanitized: string; errors: string[] } {
-    const errors: string[] = [];
-    
-    if (!answer || typeof answer !== 'string') {
-      errors.push('Answer is required');
-      return { valid: false, sanitized: '', errors };
-    }
+    const sanitized = this.sanitizeText(answer || '', VALIDATION_LIMITS.ANSWER_MAX);
+    const result = validateGameAnswerSchema(sanitized);
+    const errors = [...result.errors];
 
-    const sanitized = this.sanitizeText(answer, 50);
-    
-    if (sanitized.length < 1) {
-      errors.push('Answer must be at least 1 character');
-    }
-
-    if (sanitized.length > 50) {
-      errors.push('Answer must be less than 50 characters');
-    }
-
-    // Check for inappropriate content
-    if (this.containsProfanity(sanitized)) {
+    // Additional profanity check (not in schema)
+    if (sanitized && this.containsProfanity(sanitized)) {
       errors.push('Answer contains inappropriate content');
-    }
-
-    // Check for personal information
-    if (this.containsPersonalInfo(sanitized)) {
-      errors.push('Answer should not contain personal information');
     }
 
     return { 
@@ -119,66 +83,19 @@ export class InputValidator {
 
   /**
    * Validate room codes
+   * Delegates to centralized validation schema
    */
   static validateRoomCode(code: string): boolean {
-    if (!code || typeof code !== 'string') {
-      return false;
-    }
-    return /^[A-Z0-9]{6}$/.test(code);
+    const result = validateRoomCodeSchema(code);
+    return result.valid;
   }
 
   /**
    * Validate password strength - aligned with Firebase requirements
-   * This ensures consistency between app validation and Firebase Auth
+   * Delegates to centralized validation schema
    */
   static validatePassword(password: string): { valid: boolean; errors: string[]; strength: 'weak' | 'medium' | 'strong' } {
-    const errors: string[] = [];
-    let strength: 'weak' | 'medium' | 'strong' = 'weak';
-
-    if (!password || typeof password !== 'string') {
-      errors.push('Password is required');
-      return { valid: false, errors, strength };
-    }
-
-    // Firebase minimum requirement (6 characters) - but we enforce 8 for security
-    if (password.length < 8) {
-      errors.push('Password must be at least 8 characters');
-    }
-
-    // Reasonable maximum length
-    if (password.length > 128) {
-      errors.push('Password must be less than 128 characters');
-    }
-
-    // Character type requirements for security
-    if (!/[A-Z]/.test(password)) {
-      errors.push('Password must contain at least one uppercase letter');
-    }
-
-    if (!/[a-z]/.test(password)) {
-      errors.push('Password must contain at least one lowercase letter');
-    }
-
-    if (!/\d/.test(password)) {
-      errors.push('Password must contain at least one number');
-    }
-
-    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
-      errors.push('Password must contain at least one special character');
-    }
-
-    // Calculate strength
-    if (password.length >= 12 && /[A-Z]/.test(password) && /[a-z]/.test(password) && /\d/.test(password) && /[!@#$%^&*(),.?":{}|<>]/.test(password)) {
-      strength = 'strong';
-    } else if (password.length >= 8 && /[A-Z]/.test(password) && /[a-z]/.test(password) && /\d/.test(password)) {
-      strength = 'medium';
-    }
-
-    return { 
-      valid: errors.length === 0, 
-      errors, 
-      strength 
-    };
+    return validatePasswordSchema(password);
   }
 
   /**
@@ -242,9 +159,15 @@ export class InputValidator {
 
   /**
    * Check if text contains personal information
+   * Uses centralized validation patterns
    */
   private static containsPersonalInfo(text: string): boolean {
-    return PERSONAL_INFO_PATTERNS.some(pattern => pattern.test(text));
+    return (
+      VALIDATION_PATTERNS.PHONE_NUMBER.test(text) ||
+      VALIDATION_PATTERNS.CREDIT_CARD.test(text) ||
+      VALIDATION_PATTERNS.SSN.test(text) ||
+      VALIDATION_PATTERNS.EMAIL.test(text)
+    );
   }
 
   /**

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useReducer, useCallback, useMemo } from 'react';
 import { startNewGame, processAnswer, nextQuestion, generateGameResults, isQuestionComplete as checkQuestionComplete } from '../../backend/services/gameLogic';
 import { GameState, GameResults, PlayerAnswer, GameQuestion } from '../../shared/types';
 import { Team, TeamGameState, TeamSetupConfig, TEAM_COLORS } from '../../shared/types/teams';
@@ -577,6 +577,7 @@ export const GameProvider: React.FC<GameProviderProps> = ({ children }) => {
     return Object.keys(state.teamGameState.answerAssignments).length;
   }, [state.teamGameState]);
 
+  // Memoize context value to prevent unnecessary re-renders
   const contextValue: GameContextType = useMemo(() => ({
     ...state,
     startGame,

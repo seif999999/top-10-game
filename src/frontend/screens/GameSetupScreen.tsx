@@ -17,10 +17,20 @@ import { CategoriesScreenProps } from '../../shared/types/navigation';
 import { getQuestionsByCategory } from '../../backend/services/questionsService';
 import { TeamSetupConfig, ROUND_TIMER_OPTIONS, TEAM_COLORS } from '../../shared/types/teams';
 import CustomQuestionService from '../../backend/services/customQuestionService';
+import { getCategories } from '../../backend/services/questionsService';
 
 const { width } = Dimensions.get('window');
 
 const categories = [
+  {
+    id: 'Random',
+    name: 'Random',
+    icon: '🎲',
+    description: 'Surprise me! Pick a random category and question',
+    gradient: ['#059669', '#10B981'],
+    questionCount: 0,
+    isRandom: true,
+  },
   {
     id: 'Sports',
     name: 'Sports',
@@ -114,6 +124,7 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
   const [teamNames, setTeamNames] = useState(['Team 1', 'Team 2', 'Team 3', 'Team 4']);
   const [roundTimer, setRoundTimer] = useState<number | null>(null);
   const [durationError, setDurationError] = useState<string>('');
+  const [isLoadingRandom, setIsLoadingRandom] = useState(false);
   
   // Refs for scrolling
   const scrollViewRef = useRef<ScrollView>(null);
@@ -133,8 +144,14 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
   useEffect(() => {
     const loadQuestionCounts = async () => {
       const counts: { [key: string]: number } = {};
+      let totalQuestions = 0;
+      
       for (const category of categories) {
         try {
+          // Skip Random category - we'll calculate its total later
+          if (category.id === 'Random') {
+            continue;
+          }
           // Handle Custom category separately
           if (category.id === 'Custom') {
             const customQuestionService = CustomQuestionService.getInstance();
@@ -143,12 +160,19 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
           } else {
             const questions = await getQuestionsByCategory(category.name);
             counts[category.name] = questions.length;
+            totalQuestions += questions.length;
           }
         } catch (error) {
           logger.error(`Error loading questions for ${category.name}:`, error);
           counts[category.name] = category.questionCount; // Fallback to default
+          if (category.id !== 'Custom') {
+            totalQuestions += category.questionCount;
+          }
         }
       }
+      
+      // Set the total for Random category
+      counts['Random'] = totalQuestions;
       setQuestionCounts(counts);
     };
     
@@ -202,7 +226,7 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
     setTeamNames(newTeamNames);
   };
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     const currentCategory = categories[currentIndex];
     logger.log('🎯 Continue pressed with category:', currentCategory.name);
     
@@ -224,6 +248,68 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
     
     // Clear error if validation passes
     setDurationError('');
+    
+    // Handle Random category - pick random category and question, go directly to game
+    if (currentCategory.id === 'Random') {
+      if (isLoadingRandom) return;
+      setIsLoadingRandom(true);
+      
+      try {
+        // Get all categories except 'Custom' and 'Random'
+        const allCategories = getCategories().filter(cat => cat !== 'Custom');
+        
+        if (allCategories.length === 0) {
+          setIsLoadingRandom(false);
+          return;
+        }
+        
+        // Pick a random category
+        const randomCategoryIndex = Math.floor(Math.random() * allCategories.length);
+        const randomCategory = allCategories[randomCategoryIndex];
+        
+        // Get questions from that category
+        const questions = await getQuestionsByCategory(randomCategory);
+        
+        if (questions.length === 0) {
+          setIsLoadingRandom(false);
+          return;
+        }
+        
+        // Pick a random question
+        const randomQuestionIndex = Math.floor(Math.random() * questions.length);
+        const randomQuestion = questions[randomQuestionIndex];
+        
+        // Build team config
+        const teamConfig: TeamSetupConfig = numberOfTeams > 1 ? {
+          numberOfTeams,
+          teamNames: teamNames.slice(0, numberOfTeams).filter(name => name.trim() !== ''),
+          roundTimer: roundTimer!,
+          maxRounds: undefined,
+          isHostedLocal: true,
+        } : {
+          numberOfTeams: 1,
+          teamNames: ['Player'],
+          roundTimer: roundTimer!,
+          maxRounds: undefined,
+          isHostedLocal: true,
+        };
+        
+        // Navigate directly to game screen
+        navigation.navigate('GameScreen', {
+          roomId: 'single-player',
+          categoryId: randomCategory,
+          categoryName: randomCategory,
+          selectedQuestion: randomQuestion,
+          isMultiplayer: false,
+          teamConfig: teamConfig
+        });
+      } catch (error) {
+        logger.error('Error loading random game:', error);
+      } finally {
+        setIsLoadingRandom(false);
+      }
+      return;
+    }
     
     // Use category id for Custom category (questionsService expects 'Custom')
     const categoryNameForNav = currentCategory.id === 'Custom' ? 'Custom' : currentCategory.name;
@@ -503,17 +589,22 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
         <View style={[styles.continueButtonContainer, { paddingBottom: insets.bottom + SPACING.md }]}>
           <TouchableOpacity
             onPress={handleContinue}
-            style={styles.continueButton}
+            style={[styles.continueButton, isLoadingRandom && styles.continueButtonDisabled]}
             activeOpacity={0.9}
+            disabled={isLoadingRandom}
           >
             <LinearGradient
-              colors={['#4F46E5', '#4338CA']}
+              colors={categories[currentIndex].id === 'Random' ? ['#059669', '#047857'] : ['#4F46E5', '#4338CA']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.continueButtonGradient}
             >
-              <Text style={styles.continueButtonText}>Continue</Text>
-              <Text style={styles.continueButtonArrow}>→</Text>
+              <Text style={styles.continueButtonText}>
+                {isLoadingRandom ? 'Loading...' : (categories[currentIndex].id === 'Random' ? 'Start Random Game' : 'Continue')}
+              </Text>
+              <Text style={styles.continueButtonArrow}>
+                {categories[currentIndex].id === 'Random' ? '🎲' : '→'}
+              </Text>
             </LinearGradient>
           </TouchableOpacity>
         </View>
@@ -729,6 +820,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
     marginLeft: SPACING.sm,
+  },
+  continueButtonDisabled: {
+    opacity: 0.7,
   },
   placeholderContent: {
     flex: 1,

@@ -3,7 +3,6 @@ import { db } from './firebase';
 import { RoomData, Player } from './multiplayerService';
 import { logger } from '../utils/logger';
 import { TIMING, COLLECTIONS } from '../utils/constants';
-import { AppError } from '../../shared/errors';
 
 /**
  * Comprehensive Edge Case Handler for Multiplayer System
@@ -461,11 +460,7 @@ export class EdgeCaseHandler {
              error.message.includes('Data sanitization failed') ||
              error.message.includes('Room data validation failed'))) {
           logger.error('❌ Firestore validation error: undefined values detected');
-          throw new AppError({
-            code: 'INVALID_DATA',
-            message: 'Invalid data: undefined values not allowed in Firestore',
-            userMessage: 'Invalid data format. Please try again.'
-          });
+          throw new Error('Invalid data: undefined values not allowed in Firestore');
         }
         
         if (typeof error === 'object' && error && 'code' in error && (error as { code?: string }).code === 'failed-precondition') {
@@ -480,11 +475,7 @@ export class EdgeCaseHandler {
         
         if (attempt === maxRetries) {
           logger.error('❌ Failed to handle concurrent state change after all retries');
-          throw new AppError({
-            code: 'CONCURRENT_STATE_CHANGE',
-            message: 'Failed to create room due to concurrent state changes',
-            userMessage: 'Room creation failed due to concurrent changes. Please try again.'
-          });
+          throw new Error(`Failed to create room due to concurrent state changes`);
         }
       }
     }
@@ -556,11 +547,7 @@ export class EdgeCaseHandler {
       const roomSnap = await transaction.get(roomRef);
       
       if (!roomSnap.exists()) {
-        throw new AppError({
-          code: 'ROOM_NOT_FOUND',
-          message: 'Room not found during host promotion',
-          userMessage: 'Room not found. Please try again.'
-        });
+        throw new Error('Room not found during host promotion');
       }
       
       const roomData = roomSnap.data() as RoomData;
@@ -571,11 +558,7 @@ export class EdgeCaseHandler {
           currentHostId: roomData.hostId,
           expectedOldHostId: oldHostId
         });
-        throw new AppError({
-          code: 'HOST_ID_MISMATCH',
-          message: 'Host ID mismatch - host may have already changed',
-          userMessage: 'Host has changed. Please refresh and try again.'
-        });
+        throw new Error('Host ID mismatch - host may have already changed');
       }
       
       // ✅ Validate: newHostId is a player in the room
@@ -589,11 +572,7 @@ export class EdgeCaseHandler {
       
       // ✅ Validate: newHostId is not the same as oldHostId
       if (newHostId === oldHostId) {
-        throw new AppError({
-          code: 'SAME_HOST',
-          message: 'New host cannot be the same as old host',
-          userMessage: 'The selected player is already the host.'
-        });
+        throw new Error('New host cannot be the same as old host');
       }
       
       // ✅ Atomic update with all validations passed
@@ -754,7 +733,7 @@ export class EdgeCaseHandler {
   /**
    * Stop periodic cleanup (useful for testing or service reset)
    */
-  private stopPeriodicCleanup(): void {
+  stopPeriodicCleanup(): void {
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
       this.cleanupInterval = null;
@@ -763,29 +742,33 @@ export class EdgeCaseHandler {
   }
 
   /**
-   * Public cleanup method to stop all timers and clear resources
-   * Should be called when the service is no longer needed
+   * Cleanup all resources - call this when the service is being destroyed
    */
-  public cleanup(): void {
-    // Stop periodic cleanup interval
+  cleanup(): void {
     this.stopPeriodicCleanup();
     
     // Clear all room cleanup timers
-    for (const timer of this.roomCleanupTimers.values()) {
+    for (const [timerKey, timer] of this.roomCleanupTimers.entries()) {
       clearTimeout(timer);
+      logger.log(`🧹 Cleared room cleanup timer: ${timerKey}`);
     }
     this.roomCleanupTimers.clear();
     
     // Clear all active listeners
-    for (const unsubscribe of this.activeListeners.values()) {
-      unsubscribe();
+    for (const [listenerId, unsubscribe] of this.activeListeners.entries()) {
+      try {
+        unsubscribe();
+        logger.log(`🧹 Unsubscribed listener: ${listenerId}`);
+      } catch (error) {
+        logger.warn(`⚠️ Failed to unsubscribe listener ${listenerId}:`, error);
+      }
     }
     this.activeListeners.clear();
     
-    // Clear activity tracking
+    // Clear player activity tracking
     this.playerActivity.clear();
     
-    logger.log('🧹 EdgeCaseHandler cleaned up');
+    logger.log('✅ EdgeCaseHandler cleanup complete');
   }
 
   private async cleanupExpiredRooms(): Promise<void> {

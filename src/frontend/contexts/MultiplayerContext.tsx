@@ -883,6 +883,7 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
     dispatch({ type: 'RESET_ALL' });
   }, [state.unsubscribe]);
 
+  // Memoize context value to prevent unnecessary re-renders
   const value: MultiplayerContextType = useMemo(() => ({
     // Current State
     currentRoom: state.currentRoom,
@@ -949,6 +950,7 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
     // Subscription Management
     unsubscribe: state.unsubscribe,
   }), [
+    // State dependencies
     state.currentRoom,
     state.isHost,
     state.playerRole,
@@ -964,32 +966,11 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
     state.currentAnswer,
     state.submittedAnswers,
     state.unsubscribe,
-    createRoom,
-    joinRoom,
-    leaveRoom,
-    startGame,
-    endGame,
-    kickPlayer,
-    nextQuestion,
-    revealAnswer,
-    submitAnswers,
-    advanceTurn,
-    skipTurn,
-    handleHostDisconnection,
-    clearHostMigrationNotification,
-    terminateGame,
-    clearSystemMessage,
-    setCategory,
-    setQuestions,
-    setJoinRoomCode,
-    setCurrentAnswer,
-    addSubmittedAnswer,
-    removeSubmittedAnswer,
+    // Function dependencies (useCallback ensures stable references)
     clearError,
-    resetSelections,
     resetAll,
     setNavigationCallback,
-    cleanup,
+    cleanup
   ]);
 
   return (

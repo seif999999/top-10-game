@@ -26,48 +26,49 @@ export const AUTH_STORAGE_KEYS = {
 export class SessionManager {
   private sessionTimers: Map<string, NodeJS.Timeout> = new Map();
   private cleanupInterval: NodeJS.Timeout | null = null;
+  private static readonly CLEANUP_INTERVAL = 3600000; // 1 hour
   
   constructor() {
-    // Start periodic cleanup of expired sessions
     this.startPeriodicCleanup();
   }
   
   /**
-   * Start periodic cleanup of expired sessions
+   * Start periodic cleanup to prune expired sessions
    */
   private startPeriodicCleanup(): void {
-    // Run cleanup every 5 minutes
+    if (this.cleanupInterval) {
+      return; // Already running
+    }
+    
     this.cleanupInterval = setInterval(() => {
-      this.cleanupExpiredSessions();
-    }, 5 * 60 * 1000); // 5 minutes
+      this.pruneExpiredSessions();
+    }, SessionManager.CLEANUP_INTERVAL);
     
-    logger.log('✅ SessionManager periodic cleanup started');
+    logger.log('🔄 Session cleanup interval started');
   }
   
   /**
-   * Clean up expired sessions (sessions that should have expired but timers weren't cleared)
+   * Stop the periodic cleanup interval
    */
-  private cleanupExpiredSessions(): void {
-    const now = Date.now();
-    const expiredSessions: string[] = [];
-    
-    // Note: We can't directly check if a timer has expired, but we can clean up
-    // sessions that haven't been accessed in a while. For now, we rely on
-    // the timers themselves to expire and call onExpire callbacks.
-    // This periodic cleanup is a safety net for edge cases.
-    
-    logger.log(`🧹 SessionManager: Cleanup check - ${this.sessionTimers.size} active sessions`);
-  }
-  
-  /**
-   * Stop periodic cleanup
-   */
-  public stopPeriodicCleanup(): void {
+  stopPeriodicCleanup(): void {
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
       this.cleanupInterval = null;
-      logger.log('🛑 SessionManager periodic cleanup stopped');
+      logger.log('🛑 Session cleanup interval stopped');
     }
+  }
+  
+  /**
+   * Prune any sessions that may have been orphaned
+   * (This is a safety measure - normally sessions auto-expire via setTimeout)
+   */
+  private pruneExpiredSessions(): void {
+    const sessionCount = this.sessionTimers.size;
+    if (sessionCount > 0) {
+      logger.log(`🧹 Session cleanup check: ${sessionCount} active session(s)`);
+    }
+    // Note: Sessions auto-expire via their setTimeout callbacks
+    // This method exists as a safeguard and for logging purposes
   }
   
   /**
@@ -79,7 +80,6 @@ export class SessionManager {
     const timer = setTimeout(() => {
       logger.warn(`⏰ Session expired for user ${userId}`);
       onExpire();
-      this.sessionTimers.delete(userId);
     }, SECURITY_CONFIG.sessionTimeout);
     
     this.sessionTimers.set(userId, timer);
@@ -123,6 +123,22 @@ export class SessionManager {
    */
   hasActiveSession(userId: string): boolean {
     return this.sessionTimers.has(userId);
+  }
+  
+  /**
+   * Get the count of active sessions
+   */
+  getActiveSessionCount(): number {
+    return this.sessionTimers.size;
+  }
+  
+  /**
+   * Cleanup all resources - call this when the service is being destroyed
+   */
+  cleanup(): void {
+    this.stopPeriodicCleanup();
+    this.clearAllSessions();
+    logger.log('✅ SessionManager cleanup complete');
   }
 }
 

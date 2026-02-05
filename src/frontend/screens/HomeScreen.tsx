@@ -9,6 +9,7 @@ import { useAudio } from '../contexts/AudioContext';
 import AvatarIcon from '../components/AvatarIcon';
 import HowToPlayModal from '../components/HowToPlayModal';
 import DailyRewardModal from '../components/DailyRewardModal';
+import { SinglePlayerIcon, MultiplayerIcon, CreateIcon } from '../components/GameIcons';
 import { getStreakInfo, StreakInfo } from '../../backend/services/dailyRewardService';
 
 const { width, height } = Dimensions.get('window');
@@ -304,6 +305,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     setShowDailyReward(true);
   };
 
+  const handleMissions = () => {
+    playButtonClick();
+    navigation.navigate('Missions');
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Simple Background */}
@@ -333,8 +339,16 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           />
         </TouchableOpacity>
         
-        {/* Right side - Coins, Daily Reward & Help */}
+        {/* Right side - Missions, Coins, Daily Reward & Help */}
         <View style={styles.headerRight}>
+          {/* Missions Button */}
+          <TouchableOpacity 
+            onPress={handleMissions} 
+            style={styles.missionsButton}
+          >
+            <Text style={styles.missionsIcon}>🎯</Text>
+          </TouchableOpacity>
+
           {/* Daily Reward Button */}
           <TouchableOpacity 
             onPress={handleDailyRewardOpen} 
@@ -414,7 +428,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               
               <View style={styles.gameModeContent}>
                 <View style={styles.iconContainer}>
-                  <Text style={styles.gameModeIcon}>🎯</Text>
+                  <SinglePlayerIcon size={48} primaryColor="#FFFFFF" secondaryColor="#E9D5FF" accentColor="#60A5FA" />
                 </View>
                 <View style={styles.gameModeText}>
                   <Text style={styles.gameModeTitle}>Single Player</Text>
@@ -441,7 +455,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               
               <View style={styles.gameModeContent}>
                 <View style={styles.iconContainer}>
-                  <Text style={styles.gameModeIcon}>👥</Text>
+                  <MultiplayerIcon size={48} primaryColor="#FFFFFF" secondaryColor="#E9D5FF" accentColor="#60A5FA" />
                 </View>
                 <View style={styles.gameModeText}>
                   <Text style={styles.gameModeTitle}>Multiplayer</Text>
@@ -468,7 +482,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               
               <View style={styles.gameModeContent}>
                 <View style={styles.iconContainer}>
-                  <Text style={styles.gameModeIcon}>✏️</Text>
+                  <CreateIcon size={48} primaryColor="#FFFFFF" secondaryColor="#E9D5FF" accentColor="#FBBF24" />
                 </View>
                 <View style={styles.gameModeText}>
                   <Text style={styles.gameModeTitle}>Create Your Own</Text>
@@ -535,6 +549,25 @@ const styles = StyleSheet.create({
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  missionsButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SPACING.sm,
+    shadowColor: '#F59E0B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  missionsIcon: {
+    fontSize: 22,
   },
   dailyRewardButton: {
     width: 44,

@@ -18,3 +18,19 @@ export {
   isMyTurn,
   getPlayerName,
 } from './gameScreenHelpers';
+
+export {
+  ANIMATION_CONFIG,
+  shakeAnimation,
+  pulseAnimation,
+  bounceAnimation,
+  glowAnimation,
+  flashAnimation,
+  fadeInAnimation,
+  fadeOutAnimation,
+  slideInAnimation,
+  springScaleAnimation,
+  staggeredEntranceAnimation,
+  timerPulseAnimation,
+  celebrationAnimation,
+} from './gameScreenAnimations';

@@ -45,9 +45,9 @@ export class CustomQuestionService {
       // ✅ SECURITY: Enforce limit to prevent DoS attacks
       if (existingQuestions.length >= RATE_LIMITS.MAX_CUSTOM_QUESTIONS_PER_USER) {
         throw new AppError({
-          code: 'CUSTOM_QUESTION_LIMIT_REACHED',
-          message: `Maximum limit of ${RATE_LIMITS.MAX_CUSTOM_QUESTIONS_PER_USER} custom questions reached. Please delete some questions before creating new ones.`,
-          userMessage: `You've reached the maximum limit of ${RATE_LIMITS.MAX_CUSTOM_QUESTIONS_PER_USER} custom questions. Please delete some before creating new ones.`
+          code: 'CUSTOM_QUESTION_LIMIT_EXCEEDED',
+          message: `Maximum limit of ${RATE_LIMITS.MAX_CUSTOM_QUESTIONS_PER_USER} custom questions reached`,
+          userMessage: `Maximum limit of ${RATE_LIMITS.MAX_CUSTOM_QUESTIONS_PER_USER} custom questions reached. Please delete some questions before creating new ones.`
         });
       }
       

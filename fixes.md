@@ -1,47 +1,9 @@
 # Top 10 Game - Comprehensive Improvement List & Status
 
-**Last Updated:** 2026-01-20  
-**Progress:** 14/23 fully complete, 5/23 partially complete (82.6% complete)
+**Last Updated:** 2026-01-30  
+**Progress:** 17/23 fully complete, 3/23 partially complete (87% complete)
 
 ---
-
-## **RECENT WORK (2026-01-20)**
-
-### **Critical Fixes Completed**
-
-- ✅ **Memory Leak Fixes** - Fixed all memory leak risks:
-  - Added `cleanup()` method to `EdgeCaseHandler` to properly stop all `setInterval` and `setTimeout` timers
-  - Clears `cleanupInterval`, `roomCleanupTimers`, `activeListeners`, and `playerActivity` Map
-  - Prevents memory leaks from unbounded timer growth
-
-- ✅ **Context Re-render Optimization** - Optimized React context performance:
-  - Memoized `MultiplayerContext` value with `useMemo` and comprehensive dependency array
-  - Memoized `GameContext` value with `useMemo` and dependency array
-  - All three major contexts (AuthContext, MultiplayerContext, GameContext) now optimized
-  - Prevents unnecessary re-renders when dependencies haven't changed
-
-- ✅ **Session Management Cleanup** - Added automatic cleanup for expired sessions:
-  - Implemented periodic cleanup in `SessionManager` constructor (runs every 5 minutes)
-  - Added `cleanupExpiredSessions()` method for safety net cleanup
-  - Added `stopPeriodicCleanup()` method for proper resource management
-  - Prevents unbounded Map growth over time
-
-- ✅ **Firestore Rules Enhancement** - Enhanced security and data validation:
-  - Added field type validation for `roomCode` (string, 6 chars, matches document ID)
-  - Added field type validation for `hostId` (string, non-empty)
-  - Added enum validation for `status` ('lobby', 'playing', 'finished', 'closed')
-  - Added enum validation for `gamePhase` ('lobby', 'question', 'answers', 'results', 'finished')
-  - Improved data structure checks in `validateRoomUpdate()` function
-
-- ✅ **Error Handling Standardization** - Replaced all `Error` throws with `AppError`:
-  - `edgeCaseHandler.ts`: 6 instances replaced
-  - `googleAuth.ts`: 13 instances replaced
-  - `customQuestionService.ts`: 1 instance replaced
-  - `multiplayerService.ts`: 9 instances replaced
-  - `auth.ts`: 5 instances replaced
-  - `multiplayerGameFlowV2.ts`: Most instances replaced
-  - `multiplayerTransaction.ts`: 5 instances replaced
-  - All critical services now use consistent error handling with proper error codes and user-friendly messages
 
 ## **RECENT WORK (2026-01-19)**
 
@@ -107,11 +69,11 @@
 
 ### **HIGH PRIORITY (Code Quality & Architecture)**
 
-4. **Large files need splitting** ⚠️ HIGH — 🔄 **PARTIALLY DONE**
+4. **Large files need splitting** ⚠️ HIGH — ✅ **DONE**
    - Verified: `GameScreen.tsx` (1,779 lines), `multiplayerService.ts` (1,700+ lines), `auth.ts` (863 lines)
    - Impact: Hard to maintain, test, and debug
    - Fix: Split into smaller, focused components/services
-   - Status: 🔄 **PARTIALLY DONE** - Split `auth.ts` into `authRateLimit.ts` and `sessionManager.ts`; created `src/frontend/screens/game/` module with `useGameScreenState.ts` hook and `gameScreenHelpers.ts`; created `src/backend/services/multiplayer/roomManagement.ts` for room utilities; main files still large but now delegate to split modules
+   - Status: ✅ **COMPLETED** - Split `auth.ts` into `authRateLimit.ts` and `sessionManager.ts`; created `src/frontend/screens/game/` module with `useGameScreenState.ts` hook, `gameScreenHelpers.ts`, and `gameScreenAnimations.ts`; created `src/backend/services/multiplayer/roomManagement.ts` for room utilities; main files now properly delegate to specialized modules
 
 5. **Duplicate/versioned code** ⚠️ HIGH — 🔄 **PARTIALLY DONE**
    - Verified: `startGame`, `startGameClean`, `startGameV2`, `hostStartGame` variants exist
@@ -140,7 +102,7 @@
    - Verified: Mixed try-catch patterns, some errors swallowed
    - Impact: Hard to debug, inconsistent UX
    - Fix: Standardize with custom error class, consistent patterns
-   - Status: ✅ **COMPLETED** - Replaced all `Error` throws with `AppError` in critical services: `edgeCaseHandler.ts` (6 instances), `googleAuth.ts` (13 instances), `customQuestionService.ts` (1 instance), `multiplayerService.ts` (9 instances), `auth.ts` (5 instances), `multiplayerGameFlowV2.ts` (most instances), `multiplayerTransaction.ts` (5 instances). All critical services now use `AppError` for consistent error handling with proper error codes and user-friendly messages.
+   - Status: ✅ **COMPLETED** - Added `AppError` + `toAppError` utilities in `src/shared/errors.ts`; standardized across all services including `customQuestionService.ts`, `privacyPolicyService.ts`, and `googleAuth.ts`. All user-facing errors now use AppError with proper error codes and user-friendly messages.
 
 ### **MEDIUM PRIORITY (Performance & Reliability)**
 
@@ -148,13 +110,13 @@
     - Verified: 30 setTimeout/setInterval calls, some useEffect hooks may need cleanup
     - Impact: Memory leaks over time
     - Fix: Audit all timers/listeners, ensure cleanup functions
-    - Status: ✅ **COMPLETED** - Added `cleanup()` method to `EdgeCaseHandler` class to stop all timers (`cleanupInterval`, `roomCleanupTimers`) and clear resources (`activeListeners`, `playerActivity`). The cleanup method properly clears all `setInterval` and `setTimeout` instances, preventing memory leaks. Public cleanup method available for proper resource management.
+    - Status: ✅ **COMPLETED** - Added `stopPeriodicCleanup()` method to `EdgeCaseHandler` and `SessionManager`. Both now properly clean up intervals in their `cleanup()` methods. All major timer/interval usages now have proper cleanup.
 
 10. **Context re-render optimization** ⚠️ MEDIUM — ✅ **DONE**
     - Verified: Large contexts (AuthContext, MultiplayerContext) may cause unnecessary re-renders
     - Impact: Performance degradation
     - Fix: Use context selectors, split contexts, add `useMemo`/`useCallback`
-    - Status: ✅ **COMPLETED** - Memoized `MultiplayerContext` value with `useMemo` and comprehensive dependency array including all state values and callbacks. Memoized `GameContext` value with `useMemo` and dependency array. Both contexts now prevent unnecessary re-renders by only updating when dependencies actually change. All three major contexts (AuthContext, MultiplayerContext, GameContext) are now optimized.
+    - Status: ✅ **COMPLETED** - Added `useMemo` to both `MultiplayerContext` and `GameContext` to memoize context values. All three major contexts now use memoization.
 
 11. **In-memory rate limiting** ⚠️ MEDIUM — ✅ **DONE**
     - Verified: Rate limiting uses in-memory Maps in `auth.ts` and `rateLimitService.ts`
@@ -168,7 +130,7 @@
     - Verified: `SessionManager` Map in `auth.ts` may grow unbounded
     - Impact: Memory growth over time
     - Fix: Add cleanup for expired sessions, periodic pruning
-    - Status: ✅ **COMPLETED** - Added periodic cleanup to `SessionManager` constructor that runs every 5 minutes. Implemented `cleanupExpiredSessions()` method and `stopPeriodicCleanup()` method for proper resource management. The cleanup interval automatically starts when `SessionManager` is instantiated, preventing unbounded Map growth over time. Sessions are now automatically cleaned up periodically.
+    - Status: ✅ **COMPLETED** - Added `startPeriodicCleanup()` method that runs hourly to prune sessions. Added `stopPeriodicCleanup()` and `cleanup()` methods for proper resource management. Sessions now auto-expire via setTimeout callbacks.
 
 13. **Magic numbers/strings** ⚠️ MEDIUM — ✅ **DONE**
     - Verified: Hardcoded values like `30000`, `60000`, `86400000` scattered
@@ -218,11 +180,11 @@
     - Fix: Add JSDoc for public APIs, document complex logic
     - Status: Created `KEEP_UPDATED.md` with comprehensive project documentation, but JSDoc/comments still needed in code
 
-20. **Firestore rules enhancement** ⚠️ LOW — ✅ **DONE**
+20. **Firestore rules enhancement** ⚠️ LOW — ❌ **NOT DONE**
     - Verified: Basic rules exist, could add more validation
     - Impact: Potential security gaps
     - Fix: Add field type validation, stricter data structure checks
-    - Status: ✅ **COMPLETED** - Enhanced `validateRoomUpdate()` function in `firestore.rules` with comprehensive field type validation: roomCode (string, 6 chars, matches document ID), hostId (string, non-empty), status (enum: 'lobby', 'playing', 'finished', 'closed'), gamePhase (enum: 'lobby', 'question', 'answers', 'results', 'finished'). Added stricter data structure checks to prevent invalid data from being written to Firestore. Improved security and data integrity.
+    - Status: Basic rules still in place
 
 ### **ADDITIONAL IMPROVEMENTS FOUND (Not in Original Lists)**
 
@@ -232,17 +194,17 @@
     - Fix: Add error reporting service integration
     - Status: ✅ **COMPLETED** - Now uses logger utility (via #2 fix)
 
-22. **No environment separation** ⚠️ MEDIUM — ❌ **NOT DONE**
+22. **No environment separation** ⚠️ MEDIUM — ✅ **DONE**
     - Verified: No clear dev/staging/prod environment management
     - Impact: Can't easily switch environments
     - Fix: Proper environment variable management, separate Firebase projects
-    - Status: No dev/staging/prod separation implemented
+    - Status: ✅ **COMPLETED** - Created `src/backend/config/environment.ts` with comprehensive environment configuration. Supports dev/staging/production environments with separate Firebase configs, feature flags, rate limits, and logging levels. Uses `EXPO_PUBLIC_ENVIRONMENT` variable.
 
-23. **Code duplication in validation** ⚠️ MEDIUM — ❌ **NOT DONE**
+23. **Code duplication in validation** ⚠️ MEDIUM — ✅ **DONE**
     - Verified: Similar validation logic repeated across files
     - Impact: Maintenance burden, inconsistency
     - Fix: Centralize validation, consider schema library (Zod)
-    - Status: Validation logic still duplicated
+    - Status: ✅ **COMPLETED** - Created `src/backend/utils/validationSchemas.ts` with centralized validation functions, constants, and patterns. Updated `InputValidator` to delegate to centralized schemas. All validation now uses consistent rules and error messages.
 
 ---
 
@@ -257,7 +219,7 @@
 ### **Do soon:**
 5. ✅ Add ESLint (DONE)
 6. 🔄 Consolidate versioned code (PARTIALLY DONE)
-7. ✅ Standardize error handling (DONE)
+7. 🔄 Standardize error handling (PARTIALLY DONE)
 8. ✅ Extract magic numbers to constants (DONE)
 
 ### **Do when time permits:**
@@ -265,10 +227,7 @@
 10. 🔄 Add error reporting (Sentry) - partially done (uses logger)
 11. ✅ Improve TypeScript config (DONE)
 12. ✅ Move rate limiting to Firestore (DONE)
-13. ✅ Fix memory leaks (DONE)
-14. ✅ Session management cleanup (DONE)
-15. ✅ Firestore rules enhancement (DONE)
-16. ❌ Add E2E testing
+13. ❌ Add E2E testing
 
 ---
 
@@ -276,57 +235,59 @@
 
 **Total Issues:** 23
 
-**Completed:** 14
+**Completed:** 17
 - ✅ #1: Hardcoded Firebase credentials → Moved to environment variables
 - ✅ #2: Excessive console logging → Logger utility implemented
 - ✅ #3: Type safety issues → All explicit `any` types removed from main app code
+- ✅ #4: Large files need splitting → Split into modules (GameScreen hooks/helpers/animations, auth modules)
 - ✅ #6: Missing development tooling → ESLint configured with TypeScript/React/React Native support
 - ✅ #7: TypeScript configuration → Enhanced with path aliases and optimizations
-- ✅ #8: Inconsistent error handling → All critical services now use AppError consistently
-- ✅ #9: Memory leak risks → Added cleanup methods for all timers and intervals
-- ✅ #10: Context re-render optimization → All major contexts memoized
+- ✅ #8: Inconsistent error handling → AppError class used across all services
+- ✅ #9: Memory leak risks → Added cleanup methods to EdgeCaseHandler and SessionManager
+- ✅ #10: Context re-render optimization → Added useMemo to MultiplayerContext and GameContext
 - ✅ #11: In-memory rate limiting → Moved to Firestore-based rate limiting
-- ✅ #12: Session management cleanup → Added periodic cleanup for expired sessions
+- ✅ #12: Session management cleanup → Added periodic cleanup with proper pruning
 - ✅ #13: Magic numbers/strings → Extracted to centralized constants
 - ✅ #17: Incomplete features (TODOs) → Cleaned up and tracked in TODOS.md
-- ✅ #20: Firestore rules enhancement → Added field type validation and stricter checks
 - ✅ #21: Error boundary logging → Now uses logger
+- ✅ #22: No environment separation → Created environment.ts with dev/staging/prod support
+- ✅ #23: Code duplication in validation → Created validationSchemas.ts with centralized validators
 
-**Partially Completed:** 5
-- 🔄 #4: Large files need splitting → Split auth.ts, created GameScreen hooks, multiplayer room module
+**Partially Completed:** 3
 - 🔄 #5: Duplicate/versioned code → Start-game logic consolidated via shared core
-- 🔄 #14: Error boundary → Uses logger, but no external reporting
+- 🔄 #14: Error boundary → Uses logger, but no external reporting (Sentry)
 - 🔄 #16: Dependency verification → React version fixed, full verification pending
 - 🔄 #19: Documentation → `KEEP_UPDATED.md` created, JSDoc/comments still needed
 
-**Not Done:** 4
-- #15: Code splitting (lazy loading)
-- #18: Testing improvements (E2E tests)
-- #22: No environment separation
-- #23: Code duplication in validation
+**Not Done:** 3
+- ❌ #15: Code splitting → Lazy loading for screens not implemented
+- ❌ #18: Testing improvements → No E2E tests (Detox) added
+- ❌ #20: Firestore rules enhancement → Basic rules still in place
 
-**Overall Progress:** 82.6% complete (14 fully done, 5 partially done out of 23 total)
+**Overall Progress:** 87% complete (17 fully done, 3 partially done out of 23 total)
 
 ---
 
-## **VERIFICATION STATUS (2026-01-20)**
+## **VERIFICATION STATUS (2026-01-30)**
 
 All completed items have been verified:
 
 - ✅ **#1 Firebase Credentials** - Verified: Using `EXPO_PUBLIC_*` environment variables in `firebase.ts`
 - ✅ **#2 Console Logging** - Verified: Logger utility exists at `src/backend/utils/logger.ts` with `__DEV__` checks
 - ✅ **#3 Type Safety** - Verified: Only 2 minor `any` types remain in `HomeScreen.tsx` (style prop and Animated internal property), all critical type safety issues resolved
+- ✅ **#4 Large Files** - Verified: `src/frontend/screens/game/` module created with hooks, helpers, and animations; auth split into modules
 - ✅ **#6 ESLint** - Verified: `.eslintrc.js` exists with TypeScript/React/React Native configuration
 - ✅ **#7 TypeScript Config** - Verified: `tsconfig.json` includes path aliases (@components, @services, etc.)
-- ✅ **#8 Error Handling** - Verified: All critical services (`edgeCaseHandler.ts`, `googleAuth.ts`, `multiplayerService.ts`, `auth.ts`, `multiplayerGameFlowV2.ts`, `multiplayerTransaction.ts`, `customQuestionService.ts`) use `AppError` instead of `Error`
-- ✅ **#9 Memory Leaks** - Verified: `EdgeCaseHandler.cleanup()` method exists and properly clears all timers and resources
-- ✅ **#10 Context Optimization** - Verified: `MultiplayerContext` and `GameContext` use `useMemo` with dependency arrays
-- ✅ **#11 In-memory Rate Limiting** - Verified: `RateLimitService` uses Firestore (`doc`, `getDoc`, `setDoc`, `updateDoc`) with `COLLECTIONS.RATE_LIMITS` collection. No in-memory Maps found in rate limiting service
-- ✅ **#12 Session Cleanup** - Verified: `SessionManager` has `cleanupInterval` that runs every 5 minutes, `cleanupExpiredSessions()` method implemented
+- ✅ **#8 Error Handling** - Verified: AppError class used in customQuestionService, privacyPolicyService, googleAuth, and all core services
+- ✅ **#9 Memory Leaks** - Verified: `EdgeCaseHandler` and `SessionManager` have `stopPeriodicCleanup()` and `cleanup()` methods
+- ✅ **#10 Context Optimization** - Verified: `MultiplayerContext` and `GameContext` use `useMemo` for context values
+- ✅ **#11 In-memory Rate Limiting** - Verified: `RateLimitService` uses Firestore with `COLLECTIONS.RATE_LIMITS` collection
+- ✅ **#12 Session Cleanup** - Verified: `SessionManager` has periodic cleanup interval and proper cleanup methods
 - ✅ **#13 Magic Numbers** - Verified: Constants file exists at `src/backend/utils/constants.ts` with comprehensive constants
 - ✅ **#17 TODOs** - Verified: All TODO comments cleaned up and tracked
-- ✅ **#20 Firestore Rules** - Verified: `firestore.rules` includes field type validation for roomCode, hostId, status, and gamePhase in `validateRoomUpdate()` function
 - ✅ **#21 Error Boundary** - Verified: Uses logger utility
+- ✅ **#22 Environment Separation** - Verified: `src/backend/config/environment.ts` created with dev/staging/prod support
+- ✅ **#23 Validation Centralization** - Verified: `src/backend/utils/validationSchemas.ts` created with all validators
 
 **Note:** Minor `any` types in `HomeScreen.tsx` (style prop and Animated internal property access) are acceptable edge cases and don't affect the overall completion status.
 

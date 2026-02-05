@@ -23,6 +23,7 @@ import JoinRoomScreen from '../screens/JoinRoomScreen';
 import RoomLobbyScreen from '../screens/RoomLobbyScreen';
 import AvatarSelectionScreen from '../screens/AvatarSelectionScreen';
 import CustomQuestionScreen from '../screens/CustomQuestionScreen';
+import MissionsScreen from '../screens/MissionsScreen';
 
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -51,6 +52,7 @@ const AppNavigator: React.FC = () => {
           <>
             <Stack.Screen name="Home" component={HomeScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />
+            <Stack.Screen name="Missions" component={MissionsScreen} />
             <Stack.Screen name="Categories" component={GameSetupScreen} />
             <Stack.Screen name="QuestionSelection" component={QuestionSelectionScreen} />
             <Stack.Screen name="GameScreen" component={GameScreen} />

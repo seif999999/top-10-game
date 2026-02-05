@@ -142,4 +142,7 @@ export type AuthContextType = {
   getUserProfileWithAvatar: () => Promise<User | null>;
 };
 
+// Re-export mission types
+export * from './missions';
+
 
