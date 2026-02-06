@@ -11,6 +11,7 @@ import {
   Animated,
   Dimensions,
 } from 'react-native';
+import LoadingPage from '../components/LoadingPage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { logger } from '../../backend/utils/logger';
@@ -248,21 +249,7 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
 
 
   if (!currentRoom) {
-    return (
-      <SafeAreaView style={styles.container}>
-        {/* Dark Purple Background */}
-        <LinearGradient
-          colors={['#1a1a2e', '#16213e', '#0f0f1e']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Loading room...</Text>
-        </View>
-      </SafeAreaView>
-    );
+    return <LoadingPage message="Loading room…" />;
   }
 
   // Debug logging

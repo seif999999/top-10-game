@@ -6,6 +6,7 @@ import { AuthProvider } from './src/frontend/contexts/AuthContext';
 import { GameProvider } from './src/frontend/contexts/GameContext';
 import { MultiplayerProvider } from './src/frontend/contexts/MultiplayerContext';
 import { AudioProvider } from './src/frontend/contexts/AudioContext';
+import { GlobalUIProvider } from './src/frontend/contexts/GlobalUIContext';
 import AppNavigator from './src/frontend/navigation/AppNavigator';
 import { ThemedAlertModal } from './src/frontend/components/CrossPlatformAlert';
 import { View, Text, StyleSheet } from 'react-native';
@@ -63,8 +64,10 @@ export default function App() {
                       },
                     }}
                   >
-                    <StatusBar style="light" />
-                    <AppNavigator />
+                    <GlobalUIProvider>
+                      <StatusBar style="light" />
+                      <AppNavigator />
+                    </GlobalUIProvider>
                   </NavigationContainer>
                 </View>
               </MultiplayerProvider>

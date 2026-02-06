@@ -4,9 +4,8 @@ import { signInWithEmail, signUpWithEmail, signOutUser, subscribeToAuthChanges, 
 import { AuthService } from '../../backend/services/authService';
 import LocalAvatarStorage from '../../backend/services/localAvatarStorage';
 import LocalDisplayNameStorage from '../../backend/services/localDisplayNameStorage';
-import LoadingSpinner from '../components/LoadingSpinner';
+import LoadingPage from '../components/LoadingPage';
 import { RateLimitService } from '../../backend/services/rateLimitService';
-import { View } from 'react-native';
 import { logger } from '../../backend/utils/logger';
 import { AppError, toAppError } from '../../shared/errors';
 import type { AppErrorOptions } from '../../shared/errors';
@@ -535,11 +534,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 
   if (loading) {
-    return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <LoadingSpinner />
-      </View>
-    );
+    return <LoadingPage message="Signing you in…" />;
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

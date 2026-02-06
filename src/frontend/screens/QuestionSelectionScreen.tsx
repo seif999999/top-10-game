@@ -4,9 +4,9 @@ import {
   Text, 
   StyleSheet, 
   TouchableOpacity, 
-  ScrollView, 
-  ActivityIndicator
+  ScrollView
 } from 'react-native';
+import LoadingPage from '../components/LoadingPage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING } from '../design-system';
@@ -114,20 +114,7 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
   const isCustomCategory = categoryName === 'Custom';
 
   if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <LinearGradient
-          colors={['#1a1a2e', '#16213e', '#0f0f1e']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Loading questions...</Text>
-        </View>
-      </SafeAreaView>
-    );
+    return <LoadingPage message="Loading questions…" />;
   }
 
   if (questions.length === 0) {
