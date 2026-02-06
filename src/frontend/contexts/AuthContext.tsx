@@ -34,18 +34,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    logger.log('🔐 AuthContext: Setting up authentication...');
     
     let isInitialized = false;
     
     const initializeAuth = async () => {
       try {
         // Add a small delay to allow Firebase to fully initialize
-        logger.log('🔍 AuthContext: Waiting for Firebase to initialize...');
         await new Promise(resolve => setTimeout(resolve, 1500));
         
         // First, verify authentication persistence is working
-        logger.log('🔍 AuthContext: Verifying authentication persistence...');
         const persistenceWorking = await verifyAuthPersistence();
         
         if (!persistenceWorking) {
@@ -53,16 +50,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         
         // Then, check if user is already authenticated
-        logger.log('🔍 AuthContext: Checking for existing authentication...');
         const currentUser = await getCurrentUser();
         
         if (currentUser) {
-          logger.log('✅ AuthContext: User already authenticated:', currentUser.email);
-          
-          // Load locally stored avatar and display name if available, but only if it matches current user
-          // First, fetch fresh data from Firestore to ensure we have the latest
+          // Load fresh data from Firestore to ensure we have the latest
           try {
-            logger.log('🔄 AuthContext: Fetching fresh user profile from Firestore...');
             const freshUser = await getUserProfileWithAvatar();
             if (freshUser && freshUser.id === currentUser.id) {
               logger.log('✅ AuthContext: Fresh user data loaded, using Firestore data as source of truth');
@@ -98,9 +90,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       // Set up the auth state listener for future changes
-      logger.log('🔐 AuthContext: Setting up authentication listener...');
       const unsub = subscribeToAuthChanges(async (u) => {
-        logger.log('🔄 AuthContext: Auth state changed:', u ? `User: ${u.email}` : 'No user');
         
         // Only update if we haven't already initialized with getCurrentUser
         if (!isInitialized) {
@@ -111,11 +101,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           isInitialized = true;
         } else if (u) {
           // If we already initialized but user changed, update and clear old local storage
-          logger.log('🔄 AuthContext: User changed after initialization');
           
           // If user ID changed, clear local storage to prevent cross-user data contamination
           if (user && user.id !== u.id) {
-            logger.log('🔄 AuthContext: User ID changed, clearing local storage...');
             try {
               const localAvatarStorage = LocalAvatarStorage.getInstance();
               const localDisplayNameStorage = LocalDisplayNameStorage.getInstance();
@@ -131,7 +119,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           syncAuthService(u);
         } else {
           // User signed out
-          logger.log('🔄 AuthContext: User signed out');
           setUser(null);
           syncAuthService(null);
         }
@@ -174,7 +161,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // After successful sign in, explicitly fetch fresh user data from Firestore
       // This ensures we get the latest avatar and display name, not stale local storage data
-      logger.log('🔄 AuthContext: Fetching fresh user profile after sign in...');
       try {
         const freshUser = await getUserProfileWithAvatar();
         if (freshUser) {
@@ -214,8 +200,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     logger.log('🔍 DEBUG: AuthContext setPendingAction(true)');
     try {
       logger.log('🔍 DEBUG: AuthContext calling signUpWithEmail...');
-      await signUpWithEmail(email, password, displayName);
+      const newUser = await signUpWithEmail(email, password, displayName);
       logger.log('✅ DEBUG: AuthContext signUpWithEmail successful');
+      // Set user immediately so display name shows right away on profile/home
+      setUser(newUser);
+      syncAuthService(newUser);
     } catch (error) {
       throw buildAuthError(error, {
         code: 'AUTH_SIGNUP_FAILED',
@@ -250,17 +239,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const resetPassword = async (email: string) => {
     setPendingAction(true);
     try {
-      logger.log('🔐 AuthContext: Starting password reset process for:', email);
-      
       // Check rate limiting for password reset requests
-      logger.log('🔐 AuthContext: Checking rate limits...');
       const rateLimitResult = await RateLimitService.checkRateLimit(
         email, // Use email as identifier for password reset
         'passwordReset',
         { ipAddress: 'unknown', userAgent: 'mobile' }
       );
       
-      logger.log('🔐 AuthContext: Rate limit result:', rateLimitResult);
       
       if (!rateLimitResult.allowed) {
         logger.log('❌ AuthContext: Rate limit exceeded');
@@ -309,7 +294,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const localDisplayNameStorage = LocalDisplayNameStorage.getInstance();
         await localAvatarStorage.clearSelectedAvatar();
         await localDisplayNameStorage.clearDisplayName();
-        logger.log('✅ AuthContext: Local storage cleared');
       } catch (clearError) {
         logger.warn('⚠️ AuthContext: Failed to clear local storage:', clearError);
       }
@@ -329,7 +313,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // Even if there's an error, clear the local user state and storage
       // This ensures the user is redirected to login screen
-      logger.log('🔄 AuthContext: Clearing user state despite error...');
       try {
         const localAvatarStorage = LocalAvatarStorage.getInstance();
         const localDisplayNameStorage = LocalDisplayNameStorage.getInstance();
@@ -356,10 +339,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // If we don't have a user, try to get the current user first
       if (!user) {
-        logger.log('🔄 AuthContext: No user in context, attempting to get current user...');
         const currentUser = await getCurrentUser();
         if (currentUser) {
-          logger.log('✅ AuthContext: Retrieved current user:', currentUser.email);
           setUser(currentUser);
           syncAuthService(currentUser);
         } else {
@@ -412,19 +393,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (updatedUser) {
           setUser(updatedUser);
           syncAuthService(updatedUser);
-          logger.log('✅ AuthContext: Avatar updated locally:', updates.avatarId);
         }
       }
       
       // Try to update server in background (don't block user experience)
       try {
-        logger.log('🔄 AuthContext: Attempting server sync...');
-        logger.log('🔍 AuthContext: Using user ID for server sync:', user.id);
         const updatedUser = await updateUserProfileService(updates);
-        
-        // Update local user state with server data if successful
-        logger.log('✅ AuthContext: Server sync successful');
-        logger.log('🔍 AuthContext: Updated user:', updatedUser ? `ID: ${updatedUser.id}, Email: ${updatedUser.email}, DisplayName: ${updatedUser.displayName}, Avatar: ${updatedUser.selectedAvatar}` : 'None');
         setUser(updatedUser);
         syncAuthService(updatedUser);
       } catch (serverError) {
@@ -432,12 +406,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         // If the error is about invalid session, force re-authentication
         if (serverError instanceof Error && (serverError.message.includes('User session is invalid') || serverError.message.includes('Please sign in again'))) {
-          logger.log('🔄 AuthContext: Invalid session detected, forcing re-authentication...');
+          logger.warn('⚠️ AuthContext: Invalid session, forcing re-authentication...');
           try {
             await forceReAuthentication();
             setUser(null);
             syncAuthService(null);
-            logger.log('✅ AuthContext: Re-authentication completed, user state cleared');
           } catch (reauthError) {
             logger.error('❌ AuthContext: Failed to force re-authentication:', reauthError);
             setUser(null);
@@ -464,7 +437,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateUserAvatar = async (selectedAvatar: string | undefined) => {
     setPendingAction(true);
     try {
-      logger.log('🔄 AuthContext: Updating user avatar...');
       
       // Save avatar locally immediately
       if (selectedAvatar) {
@@ -484,13 +456,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const authService = AuthService.getInstance();
         await authService.updateUserAvatar(selectedAvatar);
-        logger.log('✅ AuthContext: Avatar synced with server');
       } catch (serverError) {
         logger.warn('⚠️ AuthContext: Server sync failed, but local update succeeded:', serverError);
         // Don't throw error - local update already succeeded
       }
       
-      logger.log('✅ AuthContext: Avatar updated successfully');
     } catch (error) {
       throw buildAuthError(error, {
         code: 'AUTH_AVATAR_UPDATE_FAILED',
@@ -516,7 +486,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         syncAuthService(profile);
       }
       
-      logger.log('✅ AuthContext: Profile with avatar retrieved successfully');
       return profile;
     } catch (error) {
       buildAuthError(error, {

@@ -693,5 +693,3 @@ export async function updatePlayerPresence(
   }
 }
 
-// Log transaction system initialization
-logger.log('🔄 Multiplayer transaction system initialized with Firestore transactions');

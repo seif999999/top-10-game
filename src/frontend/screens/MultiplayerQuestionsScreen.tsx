@@ -4,8 +4,10 @@ import {
   Text, 
   StyleSheet, 
   TouchableOpacity, 
-  ScrollView
+  ScrollView,
+  ActivityIndicator
 } from 'react-native';
+import ThemedAlert from '../utils/themedAlert';
 import LoadingPage from '../components/LoadingPage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -16,7 +18,6 @@ import { getQuestionsByCategory } from '../../backend/services/questionsService'
 import { useMultiplayer } from '../contexts/MultiplayerContext';
 import { logger } from '../../backend/utils/logger';
 import CustomQuestionService from '../../backend/services/customQuestionService';
-import ThemedAlert from '../utils/themedAlert';
 import type { GameQuestion } from '../../shared/types';
 import type { LegacyQuestion } from '../../shared/types/game';
 import type { RootStackParamList } from '../../shared/types/navigation';
@@ -38,7 +39,6 @@ const MultiplayerQuestionsScreen: React.FC = () => {
   const [loadingQuestions, setLoadingQuestions] = useState(true);
   const [creatingRoomForQuestion, setCreatingRoomForQuestion] = useState<string | null>(null);
   
-  logger.log('🎯 MultiplayerQuestionsScreen loaded with category:', categoryName);
 
   useEffect(() => {
     loadQuestions();
@@ -74,6 +74,7 @@ const MultiplayerQuestionsScreen: React.FC = () => {
   const handleQuestionSelect = async (question: GameQuestion) => {
     // Prevent multiple simultaneous room creations
     if (creatingRoomForQuestion || loading) {
+      logger.log('⚠️ Room creation already in progress, ignoring tap');
       return;
     }
 
@@ -83,13 +84,28 @@ const MultiplayerQuestionsScreen: React.FC = () => {
 
     try {
       const convertedQuestions: LegacyQuestion[] = [toLegacyQuestion(question)];
+      logger.log('🔄 Creating room with category:', categoryName);
       const roomCode = await createRoom(categoryName, convertedQuestions);
+      logger.log('✅ Room created successfully:', roomCode);
+      
+      // Add a small delay to ensure room is fully initialized in Firestore
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      logger.log('🚀 Navigating to RoomLobby with roomCode:', roomCode);
       navigation.navigate('RoomLobby', { 
         roomCode
       });
     } catch (error) {
+      logger.error('❌ Room creation failed:', error);
       // Error is handled by the context; user can tap another question to retry
       setCreatingRoomForQuestion(null);
+      
+      // Show user-friendly error message
+      ThemedAlert.error(
+        'Room Creation Failed',
+        'Failed to create the game room. Please try again.',
+        [{ text: 'OK', onPress: () => {} }]
+      );
     }
   };
 
@@ -98,25 +114,7 @@ const MultiplayerQuestionsScreen: React.FC = () => {
   };
 
   const handleCreateNewQuestion = () => {
-    navigation.navigate('CreateCustomQuestion');
-  };
-
-  const handleClearAll = () => {
-    ThemedAlert.confirm(
-      'Clear All Questions',
-      'Are you sure you want to delete all your custom questions? This cannot be undone.',
-      async () => {
-        try {
-          const customQuestionService = CustomQuestionService.getInstance();
-          await customQuestionService.clearAllCustomQuestions();
-          setQuestionsState([]);
-          logger.log('✅ All custom questions cleared');
-        } catch (error) {
-          logger.error('Error clearing custom questions:', error);
-          ThemedAlert.error('Error', 'Failed to clear questions. Please try again.');
-        }
-      }
-    );
+    navigation.navigate('CustomQuestionSlots');
   };
 
   // Check if this is the Custom category
@@ -227,14 +225,6 @@ const MultiplayerQuestionsScreen: React.FC = () => {
                 <Text style={styles.createNewButtonIcon}>+</Text>
                 <Text style={styles.createNewButtonText}>Create New</Text>
               </LinearGradient>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.clearAllButton} 
-              onPress={handleClearAll}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.clearAllButtonText}>Clear All</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -445,20 +435,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700' as const,
-  },
-  clearAllButton: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#EF4444',
-    paddingVertical: SPACING.lg,
-    paddingHorizontal: SPACING.lg,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  clearAllButtonText: {
-    color: '#EF4444',
-    fontSize: 16,
-    fontWeight: '600' as const,
   },
   createFirstButton: {
     borderRadius: 12,

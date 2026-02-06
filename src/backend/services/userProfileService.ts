@@ -30,14 +30,8 @@ export class UserProfileService {
    */
   public async getUserProfile(userId: string): Promise<User | null> {
     try {
-      logger.log('🔍 UserProfileService: Getting user profile for userId:', userId);
-      logger.log('🔍 UserProfileService: userId type:', typeof userId);
-      logger.log('🔍 UserProfileService: userId length:', userId ? userId.length : 'undefined');
-      
       if (!userId || typeof userId !== 'string') {
-        logger.error('❌ UserProfileService: Invalid userId provided:', userId);
-        logger.error('❌ UserProfileService: userId type:', typeof userId);
-        logger.error('❌ UserProfileService: userId length:', userId ? userId.length : 'undefined');
+        logger.error('❌ UserProfileService: Invalid userId provided');
         throw new AppError({
           code: 'USER_PROFILE_INVALID_ID',
           message: 'UserId missing from session. Ensure session stores Firebase UID.',

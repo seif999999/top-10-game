@@ -75,10 +75,4 @@ export function getScoringInfo(rank: number): {
   };
 }
 
-// Log scoring system initialization
-logger.log('🎯 Scoring system initialized with pointsForRank function');
-logger.log('🎯 Sample calculations:', {
-  rank1: pointsForRank(1),    // 1
-  rank5: pointsForRank(5),    // 5
-  rank10: pointsForRank(10)   // 10
-});
+// Scoring system initialized: pointsForRank(rank) = rank

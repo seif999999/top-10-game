@@ -69,13 +69,11 @@ export const AudioProvider: React.FC<AudioProviderProps> = ({ children }) => {
             musicVolume: prefs.musicVolume,
           });
           
-          logger.log('Device-local audio preferences loaded');
         } catch (error) {
           logger.error('Error loading device audio preferences:', error);
         }
         
         setIsInitialized(true);
-        logger.log('Audio context initialized');
       } catch (error) {
         logger.error('Error initializing audio context:', error);
       }

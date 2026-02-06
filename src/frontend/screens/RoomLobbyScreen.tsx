@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -60,6 +60,41 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
   const initialTurnDuration = routeParams?.turnDuration || 60;
   const [selectedRoundTime, setSelectedRoundTime] = useState(initialTurnDuration);
 
+  // Track voluntary leave to avoid false kick detection
+  const isLeavingRef = useRef(false);
+
+  // Detect when the current user has been kicked from the room
+  useEffect(() => {
+    if (
+      currentRoom &&
+      user?.id &&
+      !currentRoom.players[user.id] &&
+      !isLeavingRef.current
+    ) {
+      // Player was removed by the host
+      isLeavingRef.current = true; // Prevent re-triggering
+      
+      ThemedAlert.alert(
+        'Removed from Room',
+        'You have been removed from the room by the host.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              // Clean up multiplayer state and navigate back
+              resetAll();
+              cleanup();
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Home' as never }, { name: 'MultiplayerMenu' as never }],
+              });
+            },
+          },
+        ]
+      );
+    }
+  }, [currentRoom, user?.id]);
+
   useEffect(() => {
     if (error) {
       ThemedAlert.error('Error', error, [{ text: 'OK', onPress: clearError }]);
@@ -104,6 +139,7 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
             style: 'destructive',
             onPress: async () => {
               try {
+                isLeavingRef.current = true; // Prevent kick detection from firing
                 await leaveRoom();
                 navigation.goBack();
               } catch (error) {
@@ -131,6 +167,8 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
           style: 'destructive',
           onPress: async () => {
             try {
+              isLeavingRef.current = true; // Prevent kick detection from firing
+              
               // Clean up any existing room session
               await leaveRoom();
               
@@ -198,6 +236,8 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
           style: 'destructive',
           onPress: async () => {
             try {
+              isLeavingRef.current = true; // Prevent kick detection from firing
+              
               // End the game first
               await endGame();
               
@@ -251,17 +291,6 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
   if (!currentRoom) {
     return <LoadingPage message="Loading room…" />;
   }
-
-  // Debug logging
-  logger.log('RoomLobbyScreen - currentRoom:', {
-    roomCode: currentRoom.roomCode,
-    playersCount: Object.keys(currentRoom.players).length,
-    players: Object.values(currentRoom.players).map(p => ({
-      id: p.id,
-      name: p.name,
-      isHost: p.isHost
-    }))
-  });
 
   const players = Object.values(currentRoom.players).filter(player => {
     if (!player || !player.id) {

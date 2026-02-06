@@ -22,8 +22,10 @@ import MultiplayerQuestionsScreen from '../screens/MultiplayerQuestionsScreen';
 import JoinRoomScreen from '../screens/JoinRoomScreen';
 import RoomLobbyScreen from '../screens/RoomLobbyScreen';
 import AvatarSelectionScreen from '../screens/AvatarSelectionScreen';
+import CustomQuestionSlotsScreen from '../screens/CustomQuestionSlotsScreen';
 import CustomQuestionScreen from '../screens/CustomQuestionScreen';
 import MissionsScreen from '../screens/MissionsScreen';
+import CoinsShopScreen from '../screens/CoinsShopScreen';
 
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -31,8 +33,6 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 const AppNavigator: React.FC = () => {
   const { user, loading } = useAuth();
 
-  logger.log('AppNavigator: Current user:', user?.email || 'null');
-  logger.log('AppNavigator: Loading:', loading);
 
   return (
     <>
@@ -53,6 +53,7 @@ const AppNavigator: React.FC = () => {
             <Stack.Screen name="Home" component={HomeScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />
             <Stack.Screen name="Missions" component={MissionsScreen} />
+            <Stack.Screen name="CoinsShop" component={CoinsShopScreen} />
             <Stack.Screen name="Categories" component={GameSetupScreen} />
             <Stack.Screen name="QuestionSelection" component={QuestionSelectionScreen} />
             <Stack.Screen name="GameScreen" component={GameScreen} />
@@ -63,6 +64,7 @@ const AppNavigator: React.FC = () => {
             <Stack.Screen name="JoinRoom" component={JoinRoomScreen} />
             <Stack.Screen name="RoomLobby" component={RoomLobbyScreen} />
             <Stack.Screen name="AvatarSelection" component={AvatarSelectionScreen} />
+            <Stack.Screen name="CustomQuestionSlots" component={CustomQuestionSlotsScreen} />
             <Stack.Screen name="CreateCustomQuestion" component={CustomQuestionScreen} />
           </>
         ) : (

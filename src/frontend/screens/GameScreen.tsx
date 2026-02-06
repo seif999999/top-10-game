@@ -154,12 +154,6 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     if (!isMultiplayerMode || !multiplayerState || !user?.id) return 0;
     // Use the new V2 scores system
     const score = multiplayerState.scores[user.id] || 0;
-    logger.log(`🎯 UI_SCORE_DEBUG: Player ${user.id} score:`, {
-      score,
-      allScores: multiplayerState.scores,
-      isMultiplayerMode,
-      hasMultiplayerState: !!multiplayerState
-    });
     return score;
   };
   
@@ -191,17 +185,6 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   const correctAnswersFound = isMultiplayerMode ? getMultiplayerCorrectAnswers() : getCorrectAnswersFound();
   const questionIsComplete = isMultiplayerMode ? isMultiplayerQuestionComplete() : isQuestionComplete();
   
-  // 🎨 UI RENDER STATE DEBUG LOGGING
-  logger.log('🎨 UI RENDER STATE:', {
-    myScore: multiplayerState?.players?.[user?.id || '']?.score,
-    revealedAnswers: multiplayerState?.revealedAnswers,
-    totalPlayers: Object.keys(multiplayerState?.players || {}).length,
-    currentScore,
-    correctAnswersFound,
-    questionIsComplete
-  });
-  
-  
   // Get submitted answers for the current round
   const getCurrentRoundAnswers = () => {
     if (isMultiplayerMode) {
@@ -219,30 +202,12 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
 
   // Memoize the initialization function to prevent unnecessary re-renders
   const initializeGame = useCallback(async () => {
-    logger.log('🎮 GameScreen useEffect - Debug Info:', {
-      isMultiplayerMode,
-      roomId,
-      categoryId,
-      hasGameState: !!gameState,
-      hasMultiplayerState: !!multiplayerState?.roomCode,
-      currentGameCategory: gameState?.category,
-      multiplayerGamePhase: multiplayerState?.gamePhase,
-      multiplayerStatus: multiplayerState?.status
-    });
-    
     if (isMultiplayerMode) {
       // For multiplayer, we should already be in a room from the lobby
       // Just ensure we're subscribed to the room updates
       if (multiplayerState?.roomCode && multiplayerState.roomCode === roomId) {
-        logger.log('🎮 Already in correct multiplayer room:', multiplayerState.roomCode);
-        logger.log('🎮 Game phase:', multiplayerState.gamePhase);
-        logger.log('🎮 Current question index:', multiplayerState.currentQuestionIndex);
-        logger.log('🎮 Questions count:', multiplayerState.questions?.length);
+        // Already in correct multiplayer room
       } else {
-        logger.log('🎮 Multiplayer room mismatch or not found');
-        logger.log('🎮 Expected room:', roomId);
-        logger.log('🎮 Current room:', multiplayerState?.roomCode);
-        
         // If we're not in the right room, try to join
         if (roomId && roomId !== 'single-player') {
           const playerName = user?.displayName || user?.email || 'Player';
@@ -252,8 +217,22 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
             logger.log('✅ Successfully joined multiplayer room');
           } catch (error) {
             logger.error('❌ Failed to join room:', error);
-            // Show error to user
-            ThemedAlert.error('Connection Error', 'Failed to join the multiplayer room. Please try again.');
+            // Room not found - navigate back to home
+            ThemedAlert.error(
+              'Room Not Found',
+              'This room no longer exists. Please create or join a different room.',
+              [
+                {
+                  text: 'OK',
+                  onPress: () => {
+                    navigation.reset({
+                      index: 0,
+                      routes: [{ name: 'Home' }],
+                    });
+                  }
+                }
+              ]
+            );
           }
         }
       }
@@ -262,12 +241,6 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
       const shouldStartNewGame = !gameState || gameState.category !== categoryId;
       
       if (shouldStartNewGame) {
-        logger.log('🎮 Starting new single-player game...');
-        logger.log('🎮 Previous category:', gameState?.category);
-        logger.log('🎮 New category:', categoryId);
-        logger.log('🎮 Selected question:', selectedQuestion?.title || 'None');
-        logger.log('🎮 Team config:', teamConfig ? 'YES' : 'NO');
-         
          // Reset any existing game first
          if (gameState) {
            resetGame();
@@ -276,7 +249,6 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
 
          // Check if this is a custom question
          if (isCustomQuestion && customQuestion) {
-           logger.log('🎮 Starting custom question game:', customQuestion.question);
            
            // Convert custom question to the format expected by the game
            const convertedQuestion: GameQuestion = {
@@ -325,25 +297,14 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   // Sync multiplayer state changes - simplified dependencies
   useEffect(() => {
     if (isMultiplayerMode && multiplayerState) {
-      logger.log('🎮 Multiplayer state changed:', {
-        gamePhase: multiplayerState.gamePhase,
-        status: multiplayerState.status,
-        currentQuestionIndex: multiplayerState.currentQuestionIndex,
-        questionStartTime: multiplayerState.questionStartTime,
-        revealedAnswers: multiplayerState.revealedAnswers?.length || 0
-      });
-      
       // Handle game phase changes
       if (multiplayerState.gamePhase === 'question' && multiplayerState.turnStartTime) {
-        logger.log('🎮 Question phase started');
         // Game is active, show the question
       } else if (multiplayerState.gamePhase === 'answers') {
-        logger.log('🎮 Answers phase - showing revealed answers');
         setShowAnswers(true);
       } else if (multiplayerState.gamePhase === 'results') {
-        logger.log('🎮 Results phase');
+        // Results phase
       } else if (multiplayerState.gamePhase === 'finished') {
-        logger.log('🎮 Game finished');
         // Check if all 10 answers are revealed before showing leaderboard
         const revealedAnswers = multiplayerState.revealedAnswers;
         const revealedAnswersCount = Array.isArray(revealedAnswers) 
@@ -474,7 +435,6 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     if (isMultiplayerMode && multiplayerState?.currentQuestionIndex !== undefined) {
       setPointsEarned(null);
       setLastAnswerResult(null);
-      logger.log(`🔄 QUESTION_CHANGE: Reset feedback state for question ${multiplayerState.currentQuestionIndex}`);
     }
   }, [isMultiplayerMode, multiplayerState?.currentQuestionIndex]);
 
@@ -643,12 +603,6 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
       
       // If the current player changed, reset submission state
       if (previousCurrentPlayerIdRef.current !== currentPlayerId) {
-        logger.log('🔄 Current player changed, resetting submission state:', {
-          previous: previousCurrentPlayerIdRef.current,
-          current: currentPlayerId,
-          isMyTurn: currentPlayerId === user.id
-        });
-        
         // Reset submission state for all players when turn changes
         setHasSubmittedThisTurn(false);
         
@@ -661,7 +615,6 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   // Reset submission state when question changes
   useEffect(() => {
     if (isMultiplayerMode && multiplayerState) {
-      logger.log('🔄 Question changed, resetting submission state');
       setHasSubmittedThisTurn(false);
     }
   }, [isMultiplayerMode, multiplayerState?.currentQuestionIndex]);
@@ -1283,22 +1236,6 @@ const handleEndGame = () => {
     });
   };
 
-  logger.log('🎮 GameScreen render state:', {
-    isMultiplayerMode,
-    gameState: gameState ? 'exists' : 'null',
-    multiplayerState: multiplayerState ? 'exists' : 'null',
-    currentQuestion: currentQuestion ? 'exists' : 'null',
-    gamePhase: multiplayerState?.gamePhase,
-    currentScore,
-    correctAnswersFound,
-    gameProgress,
-    roomId,
-    categoryId,
-    questionsCount: multiplayerState?.questions?.length,
-    currentQuestionIndex: multiplayerState?.currentQuestionIndex,
-    turnStartTime: multiplayerState?.turnStartTime
-  });
-
   if ((!isMultiplayerMode && (!gameState || !currentQuestion)) || 
       (isMultiplayerMode && (!multiplayerState || !currentQuestion || multiplayerState.gamePhase === 'lobby'))) {
     return (
@@ -1501,16 +1438,6 @@ const handleEndGame = () => {
                  let assignedTeam = null;
                  let assignedPoints = 0;
                  
-                 // 🎨 ANSWER DEBUG LOGGING (only for first few answers to avoid spam)
-                 if (index < 3) {
-                   logger.log(`🎨 ANSWER ${index + 1}:`, {
-                     canonicalName: answerText,
-                     answerIndex: index,
-                     isRevealed: false, // Will be updated below
-                     revealedValue: 'N/A' // Will be updated below
-                   });
-                 }
-                 
                  if (isMultiplayerMode) {
                    // In multiplayer mode, check if answer is revealed
                    // Check if this answer position is revealed in the revealedAnswers array
@@ -1520,45 +1447,12 @@ const handleEndGame = () => {
                                revealedAnswer.answerId !== undefined &&
                                revealedAnswer.answerId !== null;
                    
-                   // Debug logging for answer revelation
-                   if (index === 0) { // Only log for first answer to avoid spam
-                     logger.log('🔍 Answer revelation debug:', {
-                       answerText,
-                       answerIndex: index,
-                       revealedAnswers: multiplayerState?.revealedAnswers,
-                       isRevealed,
-                       currentRevealedAnswer: multiplayerState?.revealedAnswers?.[index]
-                     });
-                   }
-                   
-                   // Additional logging for revealed answers
-                   if (isRevealed) {
-                     logger.log(`🎉 UI_REVELATION_DEBUG: Answer at index ${index} is revealed:`, {
-                       answerText,
-                       answerIndex: index,
-                       revealedAnswer: multiplayerState?.revealedAnswers?.[index],
-                       canonicalAnswer: multiplayerState?.revealedAnswers?.[index]?.answerId,
-                       playerWhoRevealed: multiplayerState?.revealedAnswers?.[index]?.playerId,
-                       pointsAwarded: multiplayerState?.revealedAnswers?.[index]?.points
-                     });
-                   }
-                   
                    // Set the revealed value to the actual answer text
                    let revealedValue = answerText; // Default to original answer text
                    if (isRevealed && revealedAnswer) {
                      revealedValue = revealedAnswer.answerId || answerText;
                    }
                    
-                   // 🎨 ANSWER DEBUG LOGGING - Update with actual values
-                   if (index < 3) {
-                     logger.log(`🎨 ANSWER ${index + 1} - UPDATED:`, {
-                       canonicalName: answerText,
-                       answerIndex: index,
-                       isRevealed: isRevealed,
-                       revealedValue: revealedValue,
-                       shouldShow: isRevealed
-                     });
-                   }
                  } else if (!isMultiplayerMode && isTeamMode) {
                    // In team mode, all answers are always visible to host
                    isRevealed = true;
@@ -1811,20 +1705,6 @@ const handleEndGame = () => {
             ((isMultiplayerMode && multiplayerState?.gamePhase !== 'finished') ||
              (!isMultiplayerMode && gameState?.gamePhase !== 'finished')) && 
             !(!isMultiplayerMode && isTeamMode);
-          
-          logger.log('🎮 Answer input visibility check:', {
-            questionIsComplete,
-            isMultiplayerMode,
-            gamePhase: multiplayerState?.gamePhase,
-            currentPlayerId: multiplayerState?.currentPlayerId,
-            myUserId: user?.id,
-            isMyTurn: multiplayerState?.currentPlayerId === user?.id,
-            shouldShowAnswer,
-            revealedAnswersCount: Array.isArray(multiplayerState?.revealedAnswers) 
-              ? multiplayerState.revealedAnswers.filter(ra => ra !== null).length 
-              : 0,
-            totalAnswers: currentQuestion?.answers?.length || 0
-          });
           
           return shouldShowAnswer;
         })() && (

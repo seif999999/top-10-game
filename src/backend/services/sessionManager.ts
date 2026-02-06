@@ -44,7 +44,6 @@ export class SessionManager {
       this.pruneExpiredSessions();
     }, SessionManager.CLEANUP_INTERVAL);
     
-    logger.log('🔄 Session cleanup interval started');
   }
   
   /**
@@ -216,7 +215,6 @@ export const clearUserData = async (): Promise<void> => {
  */
 export const storeUserSession = async (user: User): Promise<void> => {
   try {
-    logger.log('💾 Storing user session for persistence...');
     
     const sessionData = {
       id: user.id,
@@ -232,7 +230,6 @@ export const storeUserSession = async (user: User): Promise<void> => {
       await AsyncStorage.setItem(AUTH_STORAGE_KEYS.USER_SESSION, JSON.stringify(sessionData));
     }
     
-    logger.log('✅ User session stored');
   } catch (error) {
     logger.error('❌ Error storing user session:', error);
   }

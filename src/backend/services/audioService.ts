@@ -50,9 +50,8 @@ const loadSoundFiles = () => {
       missingSounds.push('backgroundMusic');
     }
     
-    logger.log(`🔊 Sound files loaded: [${loadedSounds.join(', ')}]`);
     if (missingSounds.length > 0) {
-      logger.log(`⚠️ Sound files missing: [${missingSounds.join(', ')}]`);
+      logger.warn(`⚠️ Sound files missing: [${missingSounds.join(', ')}]`);
     }
   } catch (e) {
     logger.log('Error loading sound files:', e);
@@ -99,7 +98,6 @@ class AudioService {
         shouldDuckAndroid: true,
       });
       this.isInitialized = true;
-      logger.log('Audio service initialized');
     } catch (error) {
       logger.error('Error initializing audio:', error);
     }
@@ -234,7 +232,6 @@ class AudioService {
       );
 
       this.backgroundMusic = sound;
-      logger.log('Background music started');
     } catch (error) {
       logger.error('Error playing background music:', error);
     }

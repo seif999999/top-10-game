@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,17 +17,36 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING } from '../../backend/utils/constants';
 import { logger } from '../../backend/utils/logger';
 import { CustomQuestionScreenProps } from '../../shared/types/navigation';
-import CustomQuestionService, { CustomQuestion } from '../../backend/services/customQuestionService';
+import CustomQuestionService from '../../backend/services/customQuestionService';
 import { InputValidator } from '../../backend/utils/inputValidator';
 
 const { width } = Dimensions.get('window');
 
-const CustomQuestionScreen: React.FC<CustomQuestionScreenProps> = ({ navigation }) => {
+const CustomQuestionScreen: React.FC<CustomQuestionScreenProps> = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
+  const slotIndex = route.params.slotIndex;
   const [question, setQuestion] = useState('');
-  const [answers, setAnswers] = useState(['', '', '', '']); // Start with 4 empty answers
+  const [answers, setAnswers] = useState(['', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
-  const [savedQuestion, setSavedQuestion] = useState<CustomQuestion | null>(null);
+  const [slotLoaded, setSlotLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const service = CustomQuestionService.getInstance();
+      const existing = await service.getSlot(slotIndex);
+      if (cancelled) return;
+      if (existing) {
+        setQuestion(existing.question);
+        const ans = existing.answers.slice();
+        while (ans.length < 4) ans.push('');
+        setAnswers(ans);
+      }
+      setSlotLoaded(true);
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [slotIndex]);
 
   const handleAddAnswer = () => {
     if (answers.length < 10) { // Limit to 10 answers
@@ -69,23 +88,12 @@ const CustomQuestionScreen: React.FC<CustomQuestionScreenProps> = ({ navigation 
 
     setIsLoading(true);
     try {
-      logger.log('🔄 Creating custom question...');
-      
-      // Save the custom question
+      logger.log('🔄 Saving custom question to slot...');
       const customQuestionService = CustomQuestionService.getInstance();
-      const savedQuestion = await customQuestionService.saveCustomQuestion(question.trim(), validAnswers);
-      
-      logger.log('✅ Custom question created:', savedQuestion.id);
-      setSavedQuestion(savedQuestion);
-      
-      // Navigate directly to game with custom question
-      navigation.navigate('GameScreen', {
-        roomId: 'single-player',
-        categoryId: 'Custom',
-        customQuestion: savedQuestion,
-        isCustomQuestion: true
-      });
-      
+      await customQuestionService.saveToSlot(slotIndex, question.trim(), validAnswers);
+      logger.log('✅ Custom question saved to slot', slotIndex + 1);
+      ThemedAlert.success('Saved', `Question saved in Slot ${slotIndex + 1}. You can play it from Single Player → Create Your Own.`);
+      navigation.goBack();
     } catch (error) {
       logger.error('❌ Error creating custom question:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to create custom question. Please try again.';
@@ -99,6 +107,35 @@ const CustomQuestionScreen: React.FC<CustomQuestionScreenProps> = ({ navigation 
     navigation.goBack();
   };
 
+  const handleClearSlot = () => {
+    ThemedAlert.alert(
+      'Clear This Slot',
+      `Are you sure you want to delete the question in Slot ${slotIndex + 1}? This cannot be undone.`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: () => {},
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const service = CustomQuestionService.getInstance();
+              await service.clearSlot(slotIndex);
+              logger.log('✅ Slot cleared:', slotIndex + 1);
+              ThemedAlert.success('Success', `Slot ${slotIndex + 1} has been cleared.`);
+              navigation.goBack();
+            } catch (error) {
+              logger.error('Error clearing slot:', error);
+              ThemedAlert.error('Error', 'Failed to clear slot. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -120,7 +157,7 @@ const CustomQuestionScreen: React.FC<CustomQuestionScreenProps> = ({ navigation 
             <Text style={styles.backButtonText}>←</Text>
           </TouchableOpacity>
           <View style={styles.headerContent}>
-            <Text style={styles.headerTitle}>Create Your Own</Text>
+            <Text style={styles.headerTitle}>Slot {slotIndex + 1}</Text>
           </View>
           <View style={styles.placeholder} />
         </View>
@@ -218,10 +255,10 @@ const CustomQuestionScreen: React.FC<CustomQuestionScreenProps> = ({ navigation 
             </View>
           </View>
 
-          {/* Create & Play Button */}
+          {/* Create & Save Button */}
           <TouchableOpacity
             onPress={handleCreateQuestion}
-            disabled={isLoading}
+            disabled={isLoading || !slotLoaded}
             style={styles.createButton}
             activeOpacity={0.9}
           >
@@ -232,9 +269,14 @@ const CustomQuestionScreen: React.FC<CustomQuestionScreenProps> = ({ navigation 
               style={styles.createButtonGradient}
             >
               <Text style={styles.createButtonText}>
-                {isLoading ? 'Creating...' : 'Create & Play'}
+                {!slotLoaded ? 'Loading...' : isLoading ? 'Saving...' : 'Save to slot'}
               </Text>
             </LinearGradient>
+          </TouchableOpacity>
+
+          {/* Clear Slot Button */}
+          <TouchableOpacity onPress={handleClearSlot} style={styles.clearSlotButtonContainer} activeOpacity={0.8}>
+            <Text style={styles.clearSlotButtonText}>Clear This Slot</Text>
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -434,6 +476,27 @@ const styles = StyleSheet.create({
   createButtonText: {
     color: '#FFFFFF',
     fontSize: 18,
+    fontWeight: '700',
+  },
+  clearSlotButtonContainer: {
+    backgroundColor: '#EF4444',
+    borderRadius: 16,
+    paddingVertical: SPACING.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: SPACING.xl,
+    shadowColor: '#EF4444',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  clearSlotButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
     fontWeight: '700',
   },
 });

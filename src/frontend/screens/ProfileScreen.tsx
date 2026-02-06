@@ -4,10 +4,12 @@ import ThemedAlert from '../utils/themedAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import AvatarDisplay from '../components/AvatarDisplay';
+import HowToPlayModal from '../components/HowToPlayModal';
 import { COLORS, SPACING } from '../../backend/utils/constants';
 import { ProfileScreenProps } from '../../shared/types/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import { useAudio } from '../contexts/AudioContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { InputValidator } from '../../backend/utils/inputValidator';
 import { RateLimitService } from '../../backend/services/rateLimitService';
 import { logger } from '../../backend/utils/logger';
@@ -17,11 +19,12 @@ import { toAppError } from '../../shared/errors';
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const { user, signOut, updateUserProfile, updateUserAvatar } = useAuth();
   const { isSFXEnabled, isMusicEnabled, toggleSFX, toggleMusic, playButtonClick } = useAudio();
+  const { language, setLanguage } = useLanguage();
   const insets = useSafeAreaInsets();
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [updatedDisplayName, setUpdatedDisplayName] = useState(user?.displayName || '');
   const [isEditing, setIsEditing] = useState(false);
-
+  const [showHowToPlay, setShowHowToPlay] = useState(false);
 
   // Sync displayName state with user.displayName from AuthContext
   useEffect(() => {
@@ -179,8 +182,20 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Profile</Text>
         </View>
-        <View style={styles.placeholder} />
+        <TouchableOpacity
+          onPress={() => { playButtonClick(); setShowHowToPlay(true); }}
+          style={styles.howToPlayButton}
+          accessibilityLabel="How to Play"
+        >
+          <Text style={styles.howToPlayButtonText}>❓</Text>
+        </TouchableOpacity>
       </View>
+
+      {/* How to Play Modal */}
+      <HowToPlayModal
+        visible={showHowToPlay}
+        onClose={() => setShowHowToPlay(false)}
+      />
 
       <ScrollView 
         style={styles.scrollView}
@@ -277,6 +292,64 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 thumbColor={isMusicEnabled ? '#FFFFFF' : '#9CA3AF'}
                 ios_backgroundColor="#4B5563"
               />
+            </View>
+          </View>
+
+          {/* Language Settings */}
+          <View style={styles.settingsCard}>
+            <Text style={styles.settingsCardTitle}>Language</Text>
+            
+            <View style={styles.settingRow}>
+              <View style={styles.settingInfo}>
+                <Text style={styles.settingIcon}>🌐</Text>
+                <View>
+                  <Text style={styles.settingLabel}>App Language</Text>
+                  <Text style={styles.settingDescription}>Choose your preferred language</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Language Buttons */}
+            <View style={styles.languageButtonsContainer}>
+              <TouchableOpacity
+                onPress={() => {
+                  playButtonClick();
+                  setLanguage('en');
+                }}
+                style={[
+                  styles.languageButton,
+                  language === 'en' && styles.languageButtonActive
+                ]}
+                activeOpacity={0.7}
+              >
+                <Text style={[
+                  styles.languageButtonText,
+                  language === 'en' && styles.languageButtonTextActive
+                ]}>
+                  English
+                </Text>
+                {language === 'en' && <Text style={styles.checkmark}>✓</Text>}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => {
+                  playButtonClick();
+                  setLanguage('ar');
+                }}
+                style={[
+                  styles.languageButton,
+                  language === 'ar' && styles.languageButtonActive
+                ]}
+                activeOpacity={0.7}
+              >
+                <Text style={[
+                  styles.languageButtonText,
+                  language === 'ar' && styles.languageButtonTextActive
+                ]}>
+                  العربية
+                </Text>
+                {language === 'ar' && <Text style={styles.checkmark}>✓</Text>}
+              </TouchableOpacity>
             </View>
           </View>
           
@@ -396,6 +469,24 @@ const styles = StyleSheet.create({
   },
   placeholder: {
     width: 40,
+  },
+  howToPlayButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#000000',
+    borderWidth: 0.5,
+    borderColor: '#8B5CF6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#8B5CF6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  howToPlayButtonText: {
+    fontSize: 20,
   },
   profileSection: {
     alignItems: 'center',
@@ -618,7 +709,43 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
-  }
+  },
+  // Language settings styles
+  languageButtonsContainer: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+    marginTop: SPACING.md,
+  },
+  languageButton: {
+    flex: 1,
+    backgroundColor: '#2D2D3E',
+    borderWidth: 2,
+    borderColor: '#4B5563',
+    borderRadius: 12,
+    paddingVertical: SPACING.lg,
+    paddingHorizontal: SPACING.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: SPACING.sm,
+  },
+  languageButtonActive: {
+    backgroundColor: '#8B5CF6',
+    borderColor: '#8B5CF6',
+  },
+  languageButtonText: {
+    color: '#9CA3AF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  languageButtonTextActive: {
+    color: '#FFFFFF',
+  },
+  checkmark: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+  },
 });
 
 export default ProfileScreen;
