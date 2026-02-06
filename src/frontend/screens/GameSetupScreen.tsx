@@ -64,14 +64,6 @@ const categories = [
     questionCount: 10,
   },
   {
-    id: 'History',
-    name: 'History',
-    icon: '📚',
-    description: 'Historical events, figures, and civilizations',
-    gradient: ['#FFEAA7', '#FDCB6E'],
-    questionCount: 13,
-  },
-  {
     id: 'Geography',
     name: 'Geography',
     icon: '🌍',
