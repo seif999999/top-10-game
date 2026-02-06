@@ -39,6 +39,7 @@ export interface ActionRateLimits {
   skipTurn: RateLimitConfig;
   chatMessage: RateLimitConfig;
   profileUpdate: RateLimitConfig;
+  passwordReset: RateLimitConfig;
 }
 
 /**
@@ -291,7 +292,13 @@ export class RateLimitService {
       
       if (updates.attempts !== undefined) updateData.attempts = updates.attempts;
       if (updates.firstAttempt) updateData.firstAttempt = serverTimestamp();
-      if (updates.blockedUntil) updateData.blockedUntil = serverTimestamp();
+      // Use the actual blockedUntil date (not serverTimestamp) so blocks expire at the correct future time
+      if (updates.blockedUntil) {
+        updateData.blockedUntil = updates.blockedUntil;
+      } else if (updates.blockedUntil === undefined && 'blockedUntil' in updates) {
+        // Explicitly clear blockedUntil when set to undefined
+        updateData.blockedUntil = null;
+      }
       if (updates.metadata) updateData.metadata = updates.metadata;
       
       await updateDoc(docRef, updateData);

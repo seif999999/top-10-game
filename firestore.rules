@@ -43,11 +43,16 @@ service cloud.firestore {
     // Rate limits - allow writes for authentication rate limiting (before user is authenticated)
     // and for authenticated users to track their own rate limits
     match /rateLimits/{documentId} {
-      // Allow read for authenticated users (for their own entries)
-      allow read: if request.auth != null;
-      // Allow write for auth rate limits (unauthenticated) or for authenticated users
-      // Auth rate limits use "auth_" prefix and are for login attempts
-      allow write: if documentId.matches('auth_.*') || request.auth != null;
+      // Allow read for authenticated users or for password reset rate limit checks (unauthenticated)
+      allow read: if request.auth != null || 
+                     documentId.matches('.*_passwordReset') ||
+                     documentId.matches('auth_.*');
+      // Allow write for auth rate limits and password reset rate limits (unauthenticated) 
+      // or for authenticated users
+      // Auth rate limits use "auth_" prefix, password reset uses "_passwordReset" suffix
+      allow write: if documentId.matches('auth_.*') || 
+                      documentId.matches('.*_passwordReset') || 
+                      request.auth != null;
     }
     
     // Security events - write-only for logging, no read access (admin-only via backend)

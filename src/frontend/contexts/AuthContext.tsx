@@ -276,6 +276,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       logger.log('✅ AuthContext: Rate limit check passed, calling resetPasswordService...');
       await resetPasswordService(email);
       logger.log('✅ AuthContext: Password reset service completed successfully');
+      
+      // Record the action so rate limiting actually tracks attempts
+      await RateLimitService.recordAction(
+        email,
+        'passwordReset',
+        { ipAddress: 'unknown', userAgent: 'mobile' }
+      );
     } catch (error) {
       throw buildAuthError(error, {
         code: 'AUTH_RESET_FAILED',

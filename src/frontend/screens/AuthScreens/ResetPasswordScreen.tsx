@@ -28,10 +28,12 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ navigation, r
     isValid: boolean;
     errors: string[];
     strength: 'weak' | 'medium' | 'strong';
+    isTouched: boolean;
   }>({
     isValid: false,
     errors: [],
-    strength: 'weak'
+    strength: 'weak',
+    isTouched: false
   });
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
 
@@ -42,12 +44,18 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ navigation, r
   useEffect(() => {
     if (password.trim()) {
       const validation = InputValidator.validatePassword(password.trim());
-      setPasswordValidation(validation);
+      setPasswordValidation({
+        isValid: validation.valid,
+        errors: validation.errors,
+        strength: validation.strength,
+        isTouched: true
+      });
     } else {
       setPasswordValidation({
         isValid: false,
         errors: [],
-        strength: 'weak'
+        strength: 'weak',
+        isTouched: false
       });
     }
   }, [password]);
