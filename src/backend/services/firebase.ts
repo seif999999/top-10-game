@@ -40,11 +40,6 @@ if (missingKeys.length > 0) {
   });
 }
 
-// Debug logging to see what's actually loaded
-logger.log('🔍 Firebase Config Debug:');
-logger.log('Using environment-based Firebase config');
-logger.log('Project ID:', firebaseConfig.projectId);
-
 export const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
 // Initialize Auth with proper persistence
@@ -53,7 +48,6 @@ let auth: Auth;
 if (Platform.OS === 'web') {
   // For web, use getAuth which has localStorage persistence by default
   auth = getAuth(app);
-  logger.log('✅ Firebase Auth initialized for web with localStorage persistence');
 } else {
   // For React Native, ALWAYS use initializeAuth with AsyncStorage persistence
   // This ensures authentication state persists across app restarts
@@ -63,7 +57,6 @@ if (Platform.OS === 'web') {
     auth = initializeAuth(app, {
       persistence: getReactNativePersistence(AsyncStorage)
     });
-    logger.log('✅ Firebase Auth initialized for React Native with AsyncStorage persistence');
   } catch (persistenceError: any) {
     // If auth already exists, try to get it
     if (persistenceError.code === 'auth/already-initialized') {
@@ -75,7 +68,6 @@ if (Platform.OS === 'web') {
       logger.log('⚠️ Could not import getReactNativePersistence, trying initializeAuth without explicit persistence...');
       try {
         auth = initializeAuth(app);
-        logger.log('✅ Firebase Auth initialized for React Native (default persistence)');
       } catch (initError: any) {
         if (initError.code === 'auth/already-initialized') {
           logger.log('⚠️ Auth already initialized, using existing instance...');
@@ -164,12 +156,6 @@ export const isRealtimeDB = false;
 // Helper functions for database operations
 export const getServerTimestamp = () => serverTimestamp();
 
-// Log database configuration
-logger.log('🔥 Firebase configuration complete:');
-logger.log(`   Database: ${DATABASE_TYPE.toUpperCase()}`);
-logger.log(`   Project: ${firebaseConfig.projectId}`);
-logger.log(`   Auth: ${auth ? 'Initialized' : 'Failed'}`);
-logger.log(`   Firestore: ${db ? 'Initialized' : 'Failed'}`);
 
 
 

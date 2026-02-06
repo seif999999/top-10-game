@@ -26,7 +26,9 @@ export type MainStackParamList = {
   JoinRoom: undefined;
   RoomLobby: { roomCode: string; turnDuration?: number };
   AvatarSelection: undefined;
-  CreateCustomQuestion: undefined;
+  CustomQuestionSlots: undefined;
+  CreateCustomQuestion: { slotIndex: number };
+  CoinsShop: undefined;
 };
 
 // Combined Root Stack Types
@@ -50,4 +52,5 @@ export type MultiplayerCategoryScreenProps = NativeStackScreenProps<RootStackPar
 export type MultiplayerQuestionsScreenProps = NativeStackScreenProps<RootStackParamList, 'MultiplayerQuestions'>;
 export type JoinRoomScreenProps = NativeStackScreenProps<RootStackParamList, 'JoinRoom'>;
 export type RoomLobbyScreenProps = NativeStackScreenProps<RootStackParamList, 'RoomLobby'>;
+export type CustomQuestionSlotsScreenProps = NativeStackScreenProps<RootStackParamList, 'CustomQuestionSlots'>;
 export type CustomQuestionScreenProps = NativeStackScreenProps<RootStackParamList, 'CreateCustomQuestion'>;

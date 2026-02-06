@@ -268,9 +268,6 @@ const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () =
   const handleCategorySelect = async () => {
     const currentCategory = categories[currentIndex];
     
-    logger.log('🎯 Category selected:', currentCategory.name);
-    logger.log('🎯 Game mode: multiplayer');
-    
     // Handle Random category - pick random category and question
     if (currentCategory.id === 'Random') {
       if (isLoadingRandom) return;
@@ -289,31 +286,12 @@ const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () =
         const randomCategoryIndex = Math.floor(Math.random() * allCategories.length);
         const randomCategory = allCategories[randomCategoryIndex];
         
-        // Get questions from that category
-        const questions = await getQuestionsByCategory(randomCategory);
-        
-        if (questions.length === 0) {
-          setIsLoadingRandom(false);
-          return;
-        }
-        
-        // Pick a random question
-        const randomQuestionIndex = Math.floor(Math.random() * questions.length);
-        const randomQuestion = questions[randomQuestionIndex];
-        
         // Set the random category in multiplayer context
         setCategory(randomCategory);
         
-        // Generate secure room ID and navigate to GameScreen for multiplayer
-        const { generateSecureId } = await import('../../backend/utils/secureRandom');
-        const roomId = await generateSecureId('room');
-        
-        navigation.navigate('GameScreen', {
-          roomId,
-          categoryId: randomCategory,
-          categoryName: randomCategory,
-          selectedQuestion: randomQuestion,
-          isMultiplayer: true
+        // Navigate to MultiplayerQuestions with the random category
+        navigation.navigate('MultiplayerQuestions', { 
+          categoryName: randomCategory 
         });
       } catch (error) {
         logger.error('Error loading random game:', error);

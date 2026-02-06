@@ -54,7 +54,6 @@ const AvatarDisplay: React.FC<AvatarDisplayProps> = ({
 
   const renderAvatar = () => {
     if (avatarUrl) {
-      logger.log('Rendering DiceBear avatar:', avatarUrl);
       return (
         <Image
           source={{ uri: avatarUrl }}
@@ -67,9 +66,7 @@ const AvatarDisplay: React.FC<AvatarDisplayProps> = ({
             }
           ]}
           resizeMode="contain"
-          onLoad={() => {
-            logger.log('DiceBear avatar loaded successfully:', avatarUrl);
-          }}
+          onLoad={() => {}}
           onError={(error) => {
             logger.log('DiceBear avatar error:', error.nativeEvent.error, 'URL:', avatarUrl);
           }}

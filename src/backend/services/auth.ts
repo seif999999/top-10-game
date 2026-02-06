@@ -39,40 +39,29 @@ export const signUpWithEmail = async (
   password: string,
   displayName?: string
 ): Promise<User> => {
-  logger.log('🔍 DEBUG: signUpWithEmail called with:', { email, displayName, password: password ? '***' : '' });
   try {
-    logger.log('🔍 DEBUG: Calling createUserWithEmailAndPassword...');
     const cred = await createUserWithEmailAndPassword(auth, email, password);
-    logger.log('✅ DEBUG: createUserWithEmailAndPassword successful');
     
     if (displayName) {
-      logger.log('🔍 DEBUG: Updating profile with displayName...');
       await updateProfile(cred.user, { displayName });
-      logger.log('✅ DEBUG: Profile updated with displayName');
     }
     
-    logger.log('🔍 DEBUG: Mapping Firebase user...');
     const user = mapFirebaseUser(cred.user);
-    logger.log('✅ DEBUG: User mapped successfully:', user);
     return user;
   } catch (error) {
-    logger.error('❌ DEBUG: signUpWithEmail error:', error);
+    logger.error('❌ signUpWithEmail error:', error);
     const err = error as AuthError | Error;
     const friendlyMessage = getFriendlyAuthMessage(err);
-    logger.error('❌ DEBUG: Friendly error message:', friendlyMessage);
     throw new Error(friendlyMessage);
   }
 };
 
 export const signInWithEmail = async (email: string, password: string): Promise<User> => {
-  logger.log('🔍 DEBUG: signInWithEmail called with:', { email, password: password ? '***' : '' });
-  
   // Check rate limiting
   const isBlocked = await authRateLimit.isBlocked(email);
   if (isBlocked) {
     const remainingTime = await authRateLimit.getRemainingTime(email);
     const remainingMinutes = Math.ceil(remainingTime / 1000 / 60);
-    logger.log('❌ DEBUG: Rate limit exceeded for email:', email);
     throw new AppError({
       code: 'RATE_LIMIT_EXCEEDED',
       message: `Too many login attempts. Please try again in ${remainingMinutes} minutes.`,
@@ -81,35 +70,27 @@ export const signInWithEmail = async (email: string, password: string): Promise<
   }
 
   try {
-    logger.log('🔍 DEBUG: Calling signInWithEmailAndPassword...');
     const cred = await signInWithEmailAndPassword(auth, email, password);
-    logger.log('✅ DEBUG: signInWithEmailAndPassword successful');
     
     // Reset rate limiting on successful login
     await authRateLimit.reset(email);
-    logger.log('🔍 DEBUG: Rate limit reset for email');
     
     // Start session management
     sessionManager.startSession(cred.user.uid, () => {
       logger.log('Session expired, signing out user');
       signOutUser();
     });
-    logger.log('🔍 DEBUG: Session management started');
     
-    logger.log('🔍 DEBUG: Mapping Firebase user...');
     const user = mapFirebaseUser(cred.user);
-    logger.log('✅ DEBUG: User mapped successfully:', user);
     
     // Store session for persistence
     await storeUserSession(user);
-    logger.log('✅ DEBUG: User session stored for persistence');
     
     return user;
   } catch (error) {
-    logger.error('❌ DEBUG: signInWithEmail error:', error);
+    logger.error('❌ signInWithEmail error:', error);
     // Record failed attempt
     await authRateLimit.recordAttempt(email);
-    logger.log('🔍 DEBUG: Failed attempt recorded for email');
     
     // Log security event
     try {
@@ -224,13 +205,7 @@ export const signOutUser = async (): Promise<void> => {
 
 export const getCurrentUser = async (): Promise<User | null> => {
   try {
-    logger.log('🔍 Checking current authentication state...');
-    logger.log('🔍 Auth instance:', auth ? 'Available' : 'Not available');
-    logger.log('🔍 Platform:', Platform.OS);
-    
     const fbUser = auth.currentUser;
-    // ✅ SECURITY: Log user ID only, email only in dev mode for debugging
-    logger.log('🔍 Current Firebase user:', fbUser ? `ID: ${fbUser.uid}${__DEV__ ? `, Email: ${fbUser.email}` : ''}` : 'None');
     
     if (fbUser) {
       // ✅ SECURITY: Email only logged in dev mode
@@ -246,14 +221,11 @@ export const getCurrentUser = async (): Promise<User | null> => {
           // ✅ SECURITY: Email only logged in dev mode
           const displayInfo = userProfile.displayName || (__DEV__ ? userProfile.email : 'User');
           logger.log('✅ User profile loaded from Firestore:', displayInfo);
-          logger.log('🔍 User profile selectedAvatar:', userProfile.selectedAvatar);
           const user = {
             ...userProfile,
             email: fbUser.email || userProfile.email || '',
             displayName: userProfile.displayName || fbUser.displayName || undefined
           };
-          
-          logger.log('🔍 Final user object selectedAvatar:', user.selectedAvatar);
           
           // Store session for persistence
           await storeUserSession(user);
@@ -474,7 +446,6 @@ export const verifyAuthPersistence = async (): Promise<boolean> => {
     
     // Check if we can access current user
     const currentUser = auth.currentUser;
-    logger.log('🔍 Current user check:', currentUser ? 'User found' : 'No user');
     
     // For mobile platforms, check if AsyncStorage is working
     if (Platform.OS !== 'web') {
@@ -486,7 +457,6 @@ export const verifyAuthPersistence = async (): Promise<boolean> => {
         const retrievedValue = await AsyncStorage.getItem(testKey);
         
         if (retrievedValue === testValue) {
-          logger.log('✅ AsyncStorage is working correctly');
           await AsyncStorage.removeItem(testKey);
         } else {
           logger.error('❌ AsyncStorage test failed');
@@ -507,14 +477,9 @@ export const verifyAuthPersistence = async (): Promise<boolean> => {
 };
 
 export const subscribeToAuthChanges = (cb: (user: User | null) => void): AuthListenerUnsubscribe => {
-  logger.log('🔐 subscribeToAuthChanges: Setting up Firebase auth state listener...');
   
   const unsub = onAuthStateChanged(auth, async (fbUser) => {
-    // ✅ SECURITY: Email only logged in dev mode
-    logger.log('🔄 Firebase auth state changed:', fbUser ? `User ID: ${fbUser.uid}${__DEV__ ? `, Email: ${fbUser.email}` : ''}` : 'No user');
-    
     if (fbUser) {
-      logger.log('👤 Loading user profile for:', fbUser.uid);
       
       // Load user profile with avatar data from Firestore
       try {
@@ -551,7 +516,6 @@ export const subscribeToAuthChanges = (cb: (user: User | null) => void): AuthLis
     }
   });
   
-  logger.log('✅ Firebase auth state listener set up successfully');
   return unsub;
 };
 

@@ -32,11 +32,8 @@ export interface UserQuestionData {
  * Get questions by category - SIMPLE AND DIRECT
  */
 export const getQuestionsByCategory = async (category: string): Promise<GameQuestion[]> => {
-  logger.log(`🔍 getQuestionsByCategory("${category}") called`);
-  
   // Handle Custom category - load from custom questions service
   if (category === 'Custom') {
-    logger.log(`🔍 Loading custom questions...`);
     try {
       const customQuestionService = CustomQuestionService.getInstance();
       const customQuestions = await customQuestionService.getAllCustomQuestions();
@@ -56,7 +53,6 @@ export const getQuestionsByCategory = async (category: string): Promise<GameQues
         }))
       }));
       
-      logger.log(`🔍 Found ${gameQuestions.length} custom questions`);
       return gameQuestions;
     } catch (error) {
       logger.error(`❌ Error loading custom questions:`, error);
@@ -65,29 +61,12 @@ export const getQuestionsByCategory = async (category: string): Promise<GameQues
   }
   
   // Handle regular categories
-  // Add safety check for sampleQuestions
   if (!sampleQuestions || !Array.isArray(sampleQuestions)) {
     logger.error(`❌ sampleQuestions is not available or not an array`);
     return [];
   }
   
-  logger.log(`🔍 Total questions in data: ${sampleQuestions.length}`);
-  logger.log(`🔍 Available categories:`, [...new Set(sampleQuestions.map(q => q.category))]);
-  
   const filteredQuestions = sampleQuestions.filter(question => question.category === category);
-  
-  logger.log(`🔍 Found ${filteredQuestions.length} questions for "${category}":`);
-  filteredQuestions.forEach((q, index) => {
-    logger.log(`   ${index + 1}. ${q.title}`);
-  });
-  
-  logger.log(`🔍 DEBUG: Category filtering details:`, {
-    requestedCategory: category,
-    totalQuestions: sampleQuestions.length,
-    filteredCount: filteredQuestions.length,
-    allCategories: [...new Set(sampleQuestions.map(q => q.category))],
-    firstFilteredQuestion: filteredQuestions[0]?.title || 'none'
-  });
   
   return filteredQuestions;
 };
@@ -314,15 +293,12 @@ export const shuffleQuestions = (questions: GameQuestion[]): GameQuestion[] => {
  * This is the key migration function for data structure unification
  */
 export const normalizeQuestion = (legacyQuestion: LegacyQuestion | GameQuestion | Question): Question => {
-  logger.log(`🔄 NORMALIZE_QUESTION: Converting question "${'text' in legacyQuestion ? legacyQuestion.text : ('title' in legacyQuestion ? legacyQuestion.title : 'Unknown')}"`);
-  
   // Handle GameQuestion format (already has QuestionAnswer[])
   if ('answers' in legacyQuestion && Array.isArray(legacyQuestion.answers) && legacyQuestion.answers.length > 0) {
     const firstAnswer = legacyQuestion.answers[0];
     
     // Check if it's already in Answer format
     if (typeof firstAnswer === 'object' && 'text' in firstAnswer && 'rank' in firstAnswer) {
-      logger.log(`✅ NORMALIZE_QUESTION: Already in Answer format`);
       return {
         id: legacyQuestion.id,
         text: 'text' in legacyQuestion ? legacyQuestion.text : ('title' in legacyQuestion ? legacyQuestion.title : 'Unknown'),
@@ -339,7 +315,6 @@ export const normalizeQuestion = (legacyQuestion: LegacyQuestion | GameQuestion 
     
     // Check if it's QuestionAnswer format (needs conversion)
     if (typeof firstAnswer === 'object' && 'text' in firstAnswer && 'points' in firstAnswer) {
-      logger.log(`🔄 NORMALIZE_QUESTION: Converting from QuestionAnswer format`);
       const answers: Answer[] = (legacyQuestion.answers as QuestionAnswer[]).map((qa, index) => ({
         id: `${legacyQuestion.id}_answer_${index}`,
         text: qa.text,
@@ -359,7 +334,6 @@ export const normalizeQuestion = (legacyQuestion: LegacyQuestion | GameQuestion 
   
   // Handle string[] format (legacy)
   if (Array.isArray(legacyQuestion.answers) && typeof legacyQuestion.answers[0] === 'string') {
-    logger.log(`🔄 NORMALIZE_QUESTION: Converting from string[] format`);
     const answers: Answer[] = (legacyQuestion.answers as string[]).map((answerText, index) => ({
       id: `${legacyQuestion.id}_answer_${index}`,
       text: answerText,
@@ -474,5 +448,3 @@ export const assertQuestionShape = (question: unknown): Question => {
   return normalizedQuestion as Question;
 };
 
-// Log normalization system initialization
-logger.log('🔄 Question normalization system initialized');

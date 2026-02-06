@@ -7,6 +7,7 @@ import { GameProvider } from './src/frontend/contexts/GameContext';
 import { MultiplayerProvider } from './src/frontend/contexts/MultiplayerContext';
 import { AudioProvider } from './src/frontend/contexts/AudioContext';
 import { GlobalUIProvider } from './src/frontend/contexts/GlobalUIContext';
+import { LanguageProvider } from './src/frontend/contexts/LanguageContext';
 import AppNavigator from './src/frontend/navigation/AppNavigator';
 import { ThemedAlertModal } from './src/frontend/components/CrossPlatformAlert';
 import { View, Text, StyleSheet } from 'react-native';
@@ -44,12 +45,13 @@ export default function App() {
   return (
     <SafeAreaProvider style={styles.safeAreaProvider}>
       <ErrorBoundary>
-        <AuthProvider>
-          <AudioProvider>
-            <GameProvider>
-              <MultiplayerProvider>
-                <ThemedAlertModal />
-                <View style={styles.navigationWrapper}>
+        <LanguageProvider>
+          <AuthProvider>
+            <AudioProvider>
+              <GameProvider>
+                <MultiplayerProvider>
+                  <ThemedAlertModal />
+                  <View style={styles.navigationWrapper}>
                   <NavigationContainer
                     theme={{
                       ...DarkTheme,
@@ -74,6 +76,7 @@ export default function App() {
             </GameProvider>
           </AudioProvider>
         </AuthProvider>
+        </LanguageProvider>
       </ErrorBoundary>
     </SafeAreaProvider>
   );

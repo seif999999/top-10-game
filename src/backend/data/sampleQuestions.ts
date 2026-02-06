@@ -2553,6 +2553,24 @@ export const sampleQuestions: GameQuestion[] = [
     ]
   },
   {
+    id: 'masry-7',
+    category: 'Masry',
+    title: 'Top 10 mo8aneyen rap masry (Egyptian rap artists)',
+    difficulty: 'easy',
+    answers: [
+      { text: 'Wegz', rank: 1, points: 1, normalized: 'wegz' },
+      { text: 'Marwan Pablo', rank: 2, points: 2, normalized: 'marwan pablo', aliases: ['marwan pablo'] },
+      { text: 'Abyusif', rank: 3, points: 3, normalized: 'abyusif', aliases: ['abi osif'] },
+      { text: 'Afroto', rank: 4, points: 4, normalized: 'afroto' },
+      { text: 'Wingii', rank: 5, points: 5, normalized: 'wingii' },
+      { text: 'El Sawareekh', rank: 6, points: 6, normalized: 'el sawareekh', aliases: ['sawareekh'] },
+      { text: 'Marwan Moussa', rank: 7, points: 7, normalized: 'marwan moussa', aliases: ['marwan mousa'] },
+      { text: 'Lil Baba', rank: 8, points: 8, normalized: 'lil baba' },
+      { text: 'Salah', rank: 9, points: 9, normalized: 'salah', aliases: ['salah rap'] },
+      { text: 'Shabjdeed', rank: 10, points: 10, normalized: 'shabjdeed' }
+    ]
+  },
+  {
     id: 'masry-8',
     category: 'Masry',
     title: 'Top 10 football players in Egypt',
@@ -2694,24 +2712,6 @@ export const sampleQuestions: GameQuestion[] = [
       { text: 'Manaret Heliopolis', rank: 8, points: 8, normalized: 'manaret heliopolis', aliases: ['manara heliopolis'] },
       { text: 'Futures Language School', rank: 9, points: 9, normalized: 'futures language school', aliases: ['futures'] },
       { text: 'Nefertari International School', rank: 10, points: 10, normalized: 'nefertari international school', aliases: ['nefertari'] }
-    ]
-  },
-  {
-    id: 'masry-19',
-    category: 'Masry',
-    title: 'Top 10 mobile apps used in Egypt',
-    difficulty: 'easy',
-    answers: [
-      { text: 'WhatsApp', rank: 1, points: 1, normalized: 'whatsapp' },
-      { text: 'Facebook', rank: 2, points: 2, normalized: 'facebook', aliases: ['fb'] },
-      { text: 'Instagram', rank: 3, points: 3, normalized: 'instagram', aliases: ['insta', 'ig'] },
-      { text: 'TikTok', rank: 4, points: 4, normalized: 'tiktok' },
-      { text: 'YouTube', rank: 5, points: 5, normalized: 'youtube', aliases: ['yt'] },
-      { text: 'Messenger', rank: 6, points: 6, normalized: 'messenger', aliases: ['fb messenger'] },
-      { text: 'Uber', rank: 7, points: 7, normalized: 'uber' },
-      { text: 'Careem', rank: 8, points: 8, normalized: 'careem' },
-      { text: 'Vodafone Cash', rank: 9, points: 9, normalized: 'vodafone cash', aliases: ['vf cash'] },
-      { text: 'Google Maps', rank: 10, points: 10, normalized: 'google maps', aliases: ['maps'] }
     ]
   },
   {

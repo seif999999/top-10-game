@@ -68,15 +68,35 @@ const JoinRoomScreen: React.FC<JoinRoomScreenProps> = () => {
     }
 
     try {
+      logger.log('🎯 Attempting to join room:', roomCode);
+      
       // Ensure user is authenticated before joining room
       await authService.ensureAuthenticated();
       
+      logger.log('✅ User authenticated, calling joinRoom...');
       const success = await joinRoom(roomCode);
+      
       if (success) {
+        logger.log('✅ Successfully joined room, navigating to RoomLobby');
+        
+        // Add a small delay to ensure room subscription is established
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
         navigation.navigate('RoomLobby', { roomCode });
+      } else {
+        logger.log('❌ Failed to join room - joinRoom returned false');
+        ThemedAlert.error(
+          'Join Failed',
+          'Could not join the room. Please check the room code and try again.'
+        );
       }
     } catch (error) {
-      // Error is handled by the context
+      logger.error('❌ Error in handleJoinRoom:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      ThemedAlert.error(
+        'Join Failed',
+        `Failed to join room: ${errorMessage}`
+      );
     }
   };
 

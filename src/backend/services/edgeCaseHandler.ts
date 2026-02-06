@@ -727,7 +727,6 @@ export class EdgeCaseHandler {
       this.cleanupExpiredRooms();
     }, 300000);
     
-    logger.log('✅ Periodic cleanup started');
   }
 
   /**

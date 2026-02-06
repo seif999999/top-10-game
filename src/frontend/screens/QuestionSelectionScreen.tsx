@@ -23,10 +23,6 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
   const insets = useSafeAreaInsets();
   const [questions, setQuestions] = useState<GameQuestion[]>([]);
   const [loading, setLoading] = useState(true);
-  
-  logger.log('🎯 QuestionSelectionScreen loaded with params:', route.params);
-  logger.log('🎯 Category name:', categoryName);
-  logger.log('🎯 Team config passed:', passedTeamConfig);
 
   useEffect(() => {
     loadQuestions();
@@ -45,19 +41,12 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
   };
 
   const handleQuestionSelect = async (question: GameQuestion) => {
-    logger.log('🎯 Question selected:', question.title);
     
     if (gameMode === 'multiplayer') {
-      // ✅ SECURITY: For multiplayer, generate secure room ID and navigate to GameScreen
-      const { generateSecureId } = await import('../../backend/utils/secureRandom');
-      const roomId = await generateSecureId('room');
-      navigation.navigate('GameScreen', {
-        roomId,
-        categoryId: categoryName,
-        categoryName: categoryName,
-        selectedQuestion: question,
-        isMultiplayer: true
-      });
+      // For multiplayer, this should not happen - users come from MultiplayerQuestions
+      // But if it does, just navigate back
+      logger.warn('⚠️ QuestionSelectionScreen called in multiplayer mode - should use MultiplayerQuestions');
+      navigation.goBack();
     } else {
       // For single player - check if teamConfig was passed from category screen
       if (passedTeamConfig && passedTeamConfig.numberOfTeams > 1) {
@@ -89,25 +78,7 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
   };
 
   const handleCreateNewQuestion = () => {
-    navigation.navigate('CreateCustomQuestion');
-  };
-
-  const handleClearAll = () => {
-    ThemedAlert.confirm(
-      'Clear All Questions',
-      'Are you sure you want to delete all your custom questions? This cannot be undone.',
-      async () => {
-        try {
-          const customQuestionService = CustomQuestionService.getInstance();
-          await customQuestionService.clearAllCustomQuestions();
-          setQuestions([]);
-          logger.log('✅ All custom questions cleared');
-        } catch (error) {
-          logger.error('Error clearing custom questions:', error);
-          ThemedAlert.error('Error', 'Failed to clear questions. Please try again.');
-        }
-      }
-    );
+    navigation.navigate('CustomQuestionSlots');
   };
 
   // Check if this is the Custom category
@@ -219,14 +190,6 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
                 <Text style={styles.createNewButtonIcon}>+</Text>
                 <Text style={styles.createNewButtonText}>Create New</Text>
               </LinearGradient>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.clearAllButton} 
-              onPress={handleClearAll}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.clearAllButtonText}>Clear All</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -430,20 +393,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700' as const,
-  },
-  clearAllButton: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#EF4444',
-    paddingVertical: SPACING.lg,
-    paddingHorizontal: SPACING.lg,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  clearAllButtonText: {
-    color: '#EF4444',
-    fontSize: 16,
-    fontWeight: '600' as const,
   },
   createFirstButton: {
     borderRadius: 12,

@@ -9,6 +9,7 @@ import {
   serverTimestamp,
   arrayUnion,
   arrayRemove,
+  deleteField,
   query,
   where,
   getDocs,
@@ -133,20 +134,15 @@ class MultiplayerService {
    */
   async createRoom(hostId: string, category: string, questions: Array<Question | LegacyQuestion>, hostName?: string, selectedAvatar?: string): Promise<string> {
     try {
-      logger.log('🔍 DEBUG: Starting room creation...');
-      logger.log('🔍 DEBUG: HostId parameter:', hostId);
-      
       // Check current auth state
       const currentUser = this.authService.getCurrentUserId();
-      logger.log('🔍 DEBUG: Current user before auth:', currentUser);
       
       // Ensure authentication with edge case handling
       const userId = await this.ensureAuthenticated();
-      logger.log('🔍 DEBUG: User ID after auth:', userId);
       
       // Validate that the authenticated user matches the hostId parameter
       if (userId !== hostId) {
-        logger.warn('⚠️ DEBUG: Authenticated user ID does not match hostId parameter:', { userId, hostId });
+        logger.warn('⚠️ Authenticated user ID does not match hostId parameter:', { userId, hostId });
         // Use the authenticated user ID instead of the parameter
         hostId = userId;
       }
@@ -193,7 +189,6 @@ class MultiplayerService {
       
       // Generate unique room code with collision handling
       // ✅ SECURITY: Uses cryptographically secure random generation
-      logger.log('🔍 DEBUG: Generating room code...');
       let roomCode: string;
       let attempts = 0;
       do {
@@ -205,13 +200,11 @@ class MultiplayerService {
           break;
         }
       } while (!(await this.isRoomCodeAvailable(roomCode)));
-      logger.log('🔍 DEBUG: Room code generated:', roomCode);
 
       const now = Date.now();
       
       // Normalize questions to unified format
       const preparedQuestions = (questions || []).map(q => normalizeQuestion(q));
-      logger.log('🔍 DEBUG: Normalized questions:', preparedQuestions);
       
       const roomData: RoomData = {
         roomCode,
@@ -282,22 +275,10 @@ class MultiplayerService {
       
       // Apply additional Firestore compatibility validation
       const validatedRoomData = this.validateRoomDataForFirestore(sanitizedRoomData);
-      logger.log('🔍 DEBUG: Final validated room data:', JSON.stringify(validatedRoomData, null, 2));
       
-      // Write with concurrent state change handling
-      logger.log('🔍 DEBUG: Writing to Firestore collection: multiplayerGames, doc:', roomCode);
-      const success = await this.edgeCaseHandler.handleConcurrentStateChange(roomCode, async () => {
-        const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
-        await setDoc(roomRef, validatedRoomData);
-      });
-
-      if (!success) {
-        throw new AppError({
-          code: 'CONCURRENT_STATE_CHANGE',
-          message: 'Failed to create room due to concurrent state changes',
-          userMessage: 'Room creation failed due to concurrent changes. Please try again.'
-        });
-      }
+      // Write to Firestore directly - no need for concurrent state change handling on creation
+      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
+      await setDoc(roomRef, validatedRoomData);
 
       // Verify room was created successfully
       const verifyRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
@@ -309,18 +290,16 @@ class MultiplayerService {
           userMessage: 'Room creation failed. Please try again.'
         });
       }
-      logger.log('✅ DEBUG: Room creation verified successfully');
 
       // Start connection monitoring for the host
       this.startConnectionMonitoring(roomCode, userId, true);
 
-      logger.log('✅ DEBUG: Room created successfully:', roomCode);
+      logger.log('✅ Room created successfully:', roomCode);
       return roomCode;
     } catch (error) {
-      logger.error('❌ DEBUG: Error in createRoom:', {
+      logger.error('❌ Error in createRoom:', {
         message: error instanceof Error ? error.message : 'Unknown error',
-        code: (error as { code?: string })?.code,
-        stack: error instanceof Error ? error.stack : undefined
+        code: (error as { code?: string })?.code
       });
       
       // Handle authentication failures
@@ -359,8 +338,6 @@ class MultiplayerService {
         status: 'lobby'
       };
       
-      logger.log('🔍 DEBUG: Simple room data:', roomData);
-      
       // Try to write
       const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       await setDoc(roomRef, roomData);
@@ -379,8 +356,6 @@ class MultiplayerService {
    */
   async joinRoom(roomCode: string, playerId: string, playerName: string, selectedAvatar?: string): Promise<boolean> {
     try {
-      logger.log(`🔍 DEBUG: Attempting to join room ${roomCode} with player ${playerId}`);
-      
       await this.ensureAuthenticated();
       
       // Check rate limiting for room joining
@@ -421,11 +396,13 @@ class MultiplayerService {
       const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await getDoc(roomRef);
       
-      logger.log(`🔍 DEBUG: Room exists check: ${roomSnap.exists()}`);
-      
       if (!roomSnap.exists()) {
         logger.log(`❌ Room ${roomCode} not found in Firestore`);
-        throw new Error('Room not found');
+        throw new AppError({
+          code: 'ROOM_NOT_FOUND',
+          message: `Room ${roomCode} not found`,
+          userMessage: 'Room not found. Please check the room code and try again.'
+        });
       }
 
       const roomData = roomSnap.data() as RoomData;
@@ -442,13 +419,23 @@ class MultiplayerService {
       }
       
       // Check if room is full
-      if (Object.keys(roomData.players).length >= roomData.maxPlayers) {
-        throw new Error('Room is full');
+      const currentPlayerCount = Object.keys(roomData.players || {}).length;
+      
+      if (currentPlayerCount >= roomData.maxPlayers) {
+        throw new AppError({
+          code: 'ROOM_FULL',
+          message: 'Room is full',
+          userMessage: 'This room is full. Please try joining a different room.'
+        });
       }
 
       // Check if room is still in lobby
       if (roomData.status !== 'lobby') {
-        throw new Error('Game has already started');
+        throw new AppError({
+          code: 'GAME_ALREADY_STARTED',
+          message: 'Game has already started',
+          userMessage: 'This game has already started. You cannot join now.'
+        });
       }
 
       // Add player to room with concurrent state change handling
@@ -464,16 +451,11 @@ class MultiplayerService {
         selectedAvatar: selectedAvatar
       };
 
-      const success = await this.edgeCaseHandler.handleConcurrentStateChange(roomCode, async () => {
-        await updateDoc(roomRef, {
-          [`players.${playerId}`]: newPlayer,
-          lastActivity: serverTimestamp()
-        });
+      // Update room with new player directly
+      await updateDoc(roomRef, {
+        [`players.${playerId}`]: newPlayer,
+        lastActivity: serverTimestamp()
       });
-
-      if (!success) {
-        throw new Error('Failed to join room due to concurrent state changes');
-      }
 
       // Start connection monitoring for the player
       this.startConnectionMonitoring(roomCode, playerId, false);
@@ -712,8 +694,9 @@ class MultiplayerService {
         throw new Error('Host cannot kick themselves');
       }
 
+      // Remove player from the players map using deleteField (players is an object, not an array)
       await updateDoc(roomRef, {
-        [`players.${targetPlayerId}`]: arrayRemove(),
+        [`players.${targetPlayerId}`]: deleteField(),
         lastActivity: Date.now()
       });
 
@@ -1358,19 +1341,6 @@ class MultiplayerService {
         // Validate and sanitize room data before passing to callback
         const validatedRoomData = this.validateRoomDataForFirestore(roomData);
         
-        logger.log('Room data received from Firestore:', {
-          roomCode: validatedRoomData.roomCode,
-          playersCount: Object.keys(validatedRoomData.players).length,
-          players: Object.values(validatedRoomData.players).map(p => {
-            const player = p as Player;
-            return {
-              id: player.id,
-              name: player.name,
-              isHost: player.isHost
-            };
-          })
-        });
-        
         callback(validatedRoomData);
       } else {
         callback(null);
@@ -1596,21 +1566,13 @@ class MultiplayerService {
    * Debug log object and detect undefined values
    */
   private debugLogObject(obj: unknown, name: string): void {
-    logger.log(`🔍 DEBUG: ${name}:`, JSON.stringify(obj, (key, value) => {
-      if (value === undefined) {
-        logger.warn(`⚠️ UNDEFINED VALUE found at key: ${key}`);
-        return '<<UNDEFINED>>';
-      }
-      return value;
-    }, 2));
+    // Debug logging disabled for production
   }
 
   /**
    * Prepare questions for room creation with proper structure
    */
   private prepareQuestionsForRoom(questions: Question[]): Question[] {
-    logger.log('🔍 DEBUG: Preparing questions for room:', questions);
-    
     if (!questions || questions.length === 0) {
       throw new Error('No questions provided for room creation.');
     }
@@ -1660,8 +1622,6 @@ class MultiplayerService {
           difficulty: question.difficulty || 'medium'
         };
       });
-    
-    logger.log('🔍 DEBUG: Prepared questions result:', preparedQuestions);
     
     if (preparedQuestions.length === 0) {
       throw new Error('No valid questions found after processing. Please check your question data.');

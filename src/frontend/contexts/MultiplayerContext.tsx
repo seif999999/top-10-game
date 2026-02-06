@@ -130,38 +130,6 @@ const multiplayerReducer = (state: MultiplayerState, action: MultiplayerAction):
     
     case 'SET_ROOM':
       const { roomData, userId } = action.payload;
-      logger.log('🎮 MultiplayerContext - Room data updated:', {
-        roomCode: roomData?.roomCode,
-        gamePhase: roomData?.gamePhase,
-        status: roomData?.status,
-        questionsCount: roomData?.questions?.length,
-        currentQuestionIndex: roomData?.currentQuestionIndex,
-        playersCount: Object.keys(roomData?.players || {}).length,
-        hostId: roomData?.hostId,
-        currentUserId: userId,
-        isHost: roomData ? roomData.hostId === userId : false,
-        currentPlayerId: roomData?.currentPlayerId,
-        turnStartTime: roomData?.turnStartTime,
-        answersSubmittedCount: roomData?.answersSubmittedCount
-      });
-      
-        // Additional debugging for scores and revealed answers
-        if (roomData) {
-          logger.log('🎯 CONTEXT_SCORE_DEBUG:', {
-            scores: roomData.scores,
-            revealedAnswers: roomData.revealedAnswers
-          });
-        
-        // 📡 FIRESTORE LISTENER UPDATE DEBUG LOGGING
-        logger.log('📡 FIRESTORE LISTENER UPDATE:', {
-          timestamp: new Date().toISOString(),
-          playersData: roomData.players,
-          revealedAnswers: roomData.revealedAnswers,
-          myPlayerId: userId,
-          myScore: userId ? roomData.players?.[userId]?.score : 'N/A',
-          totalPlayers: Object.keys(roomData.players || {}).length
-        });
-      }
       // Ensure revealedAnswers is always an array to prevent crashes
       if (roomData && (!Array.isArray(roomData.revealedAnswers))) {
         logger.warn('⚠️ CONTEXT: revealedAnswers is not an array, initializing:', roomData.revealedAnswers);
@@ -362,16 +330,7 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
 
   // Auto-navigate to GameScreen when game starts - simplified dependencies
   useEffect(() => {
-    logger.log('🎮 NAVIGATION_CHECK:', {
-      hasRoom: !!state.currentRoom,
-      status: state.currentRoom?.status,
-      gamePhase: state.currentRoom?.gamePhase,
-      hasCallback: !!state.navigationCallback,
-      roomCode: state.currentRoom?.roomCode
-    });
-    
     if (state.currentRoom && state.currentRoom.status === 'playing' && state.currentRoom.gamePhase === 'question' && state.navigationCallback) {
-      logger.log('🎮 CLIENT_NAVIGATE: Auto-navigating to GameScreen...');
       state.navigationCallback({
         roomId: state.currentRoom.roomCode,
         categoryId: state.currentRoom.category,

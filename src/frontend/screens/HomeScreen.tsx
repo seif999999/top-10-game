@@ -7,7 +7,6 @@ import { HomeScreenProps } from '../../shared/types/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import { useAudio } from '../contexts/AudioContext';
 import AvatarIcon from '../components/AvatarIcon';
-import HowToPlayModal from '../components/HowToPlayModal';
 import DailyRewardModal from '../components/DailyRewardModal';
 import { SinglePlayerIcon, MultiplayerIcon, CreateIcon } from '../components/GameIcons';
 import { getStreakInfo, StreakInfo } from '../../backend/services/dailyRewardService';
@@ -224,7 +223,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const { user, getUserProfileWithAvatar } = useAuth();
   const { playButtonClick, isMusicEnabled, playBackgroundMusic, stopBackgroundMusic } = useAudio();
   const insets = useSafeAreaInsets();
-  const [showHowToPlay, setShowHowToPlay] = useState(false);
   const [showDailyReward, setShowDailyReward] = useState(false);
   const [streakInfo, setStreakInfo] = useState<StreakInfo | null>(null);
   const [displayedCoins, setDisplayedCoins] = useState(user?.coins ?? 0);
@@ -290,14 +288,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     navigation.navigate('MultiplayerMenu');
   };
 
-  const handleHowToPlay = () => {
-    playButtonClick();
-    setShowHowToPlay(true);
-  };
-
   const handleCreateYourOwn = () => {
     playButtonClick();
-    navigation.navigate('CreateCustomQuestion');
+    navigation.navigate('CustomQuestionSlots');
   };
   
   const handleDailyRewardOpen = () => {
@@ -362,8 +355,15 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             )}
           </TouchableOpacity>
 
-          {/* Coin Display */}
-          <View style={styles.coinDisplay}>
+          {/* Coin Display with Plus Button */}
+          <TouchableOpacity 
+            onPress={() => {
+              playButtonClick();
+              navigation.navigate('CoinsShop');
+            }} 
+            style={styles.coinDisplay}
+            activeOpacity={0.7}
+          >
             {/* Coin Icon */}
             <View style={styles.coinIconContainer}>
               {coinImageSource ? (
@@ -383,11 +383,10 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             <Text style={styles.coinBalance}>
               {displayedCoins.toLocaleString()}
             </Text>
-          </View>
-
-          {/* Help Button */}
-          <TouchableOpacity onPress={handleHowToPlay} style={styles.rulesButton}>
-            <Text style={styles.rulesButtonText}>❓</Text>
+            {/* Plus Button */}
+            <View style={styles.plusButton}>
+              <Text style={styles.plusButtonText}>+</Text>
+            </View>
           </TouchableOpacity>
         </View>
       </View>
@@ -494,12 +493,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           </SwipeableCard>
         </View>
       </ScrollView>
-
-      {/* How to Play Modal */}
-      <HowToPlayModal
-        visible={showHowToPlay}
-        onClose={() => setShowHowToPlay(false)}
-      />
 
       {/* Daily Reward Modal */}
       {user?.id && (
@@ -644,31 +637,28 @@ const styles = StyleSheet.create({
   coinBalance: {
     color: '#FFFFFF',
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '700' as const,
     minWidth: 30,
   },
-  rulesButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#000000',
-    borderWidth: 0.5,
-    borderColor: '#8B5CF6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#8B5CF6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+  plusButton: {
+    marginLeft: 0,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#10B981',
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
   },
-  rulesButtonText: {
-    fontSize: 20,
+  plusButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700' as const,
+    lineHeight: 16,
   },
   heroSection: {
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.xl,
-    alignItems: 'center',
+    alignItems: 'center' as const,
     marginBottom: SPACING.lg,
   },
   logoContainer: {
