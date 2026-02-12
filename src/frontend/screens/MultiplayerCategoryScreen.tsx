@@ -14,7 +14,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useMultiplayer } from '../contexts/MultiplayerContext';
 import { COLORS, SPACING, ANIMATIONS } from '../design-system';
-import useAppTranslation from '../../hooks/useTranslation';
+import useAppTranslation, { useTranslationHelpers } from '../../hooks/useTranslation';
+import i18n from '../../config/i18n';
 import { logger } from '../../backend/utils/logger';
 import { getQuestionsByCategory } from '../../backend/services/questionsService';
 import { ROUND_TIMER_OPTIONS } from '../../shared/types/teams';
@@ -112,7 +113,8 @@ interface MultiplayerCategoryScreenProps {}
 
 const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { isRTL } = useAppTranslation();
+  const { t, isRTL } = useAppTranslation('screens');
+  const { translateCategory } = useTranslationHelpers();
   const insets = useSafeAreaInsets();
   const { 
     setCategory, 
@@ -338,7 +340,7 @@ const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () =
           </TouchableOpacity>
         </Animated.View>
         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Game Setup</Text>
+          <Text style={styles.headerTitle}>{t('gameSetup.title')}</Text>
         </View>
         <View style={styles.headerPlaceholder} />
       </View>
@@ -350,7 +352,7 @@ const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () =
       >
         {/* Category Label */}
         <View style={styles.categoryLabelContainer}>
-          <Text style={styles.settingLabel}>Category</Text>
+          <Text style={styles.settingLabel}>{t('gameSetup.category')}</Text>
         </View>
 
         {/* Carousel Container */}
@@ -388,12 +390,16 @@ const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () =
               <View style={styles.cardContent}>
                 <View style={styles.cardContentInner}>
                   <Text style={styles.categoryIcon}>{currentCategory.icon}</Text>
-                  <Text style={styles.categoryName}>{currentCategory.name}</Text>
-                  <Text style={styles.categoryDescription}>{currentCategory.description}</Text>
+                  <Text style={styles.categoryName}>
+                    {translateCategory(currentCategory.id.toLowerCase())}
+                  </Text>
+                  <Text style={styles.categoryDescription}>
+                    {i18n.t(`descriptions.${currentCategory.id.toLowerCase()}`, { ns: 'categories' })}
+                  </Text>
                 </View>
                 <View style={styles.questionCountBadge}>
                   <Text style={styles.questionCountText}>
-                    {questionCounts[currentCategory.name] || currentCategory.questionCount} Questions
+                    {t('gameSetup.questionsCount', { count: questionCounts[currentCategory.name] ?? currentCategory.questionCount })}
                   </Text>
                 </View>
               </View>
@@ -420,7 +426,7 @@ const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () =
         <View style={styles.settingsSection}>
           {/* Turn Duration */}
           <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>Turn Duration</Text>
+            <Text style={styles.settingLabel}>{t('gameSetup.turnDuration')}</Text>
             <View style={styles.timerContainer}>
               {ROUND_TIMER_OPTIONS.map((timer) => (
                 <TouchableOpacity
@@ -459,7 +465,7 @@ const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () =
             style={styles.continueButtonGradient}
           >
             <Text style={styles.continueButtonText}>
-              {isLoadingRandom ? 'Loading...' : (categories[currentIndex].id === 'Random' ? 'Start Random Game' : 'Continue')}
+              {isLoadingRandom ? t('gameSetup.loading') : (categories[currentIndex].id === 'Random' ? t('gameSetup.startRandomGame') : t('gameSetup.continue'))}
             </Text>
             <Text style={styles.continueButtonArrow}>
               {categories[currentIndex].id === 'Random' ? '🎲' : (isRTL ? '←' : '→')}

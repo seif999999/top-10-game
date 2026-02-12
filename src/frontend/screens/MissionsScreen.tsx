@@ -58,12 +58,15 @@ interface MissionCardProps {
 }
 
 const MissionCard: React.FC<MissionCardProps> = ({ mission, progress, index }) => {
+  const { t } = useAppTranslation('screens');
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
   const colors = DIFFICULTY_COLORS[mission.difficulty];
   
   const progressPercent = Math.min(100, (progress.currentValue / mission.targetValue) * 100);
   const isCompleted = progress.isCompleted;
+  const missionName = (t as (k: string) => string)(`missions.list.${mission.id}.name`) || mission.name;
+  const missionDescription = (t as (k: string) => string)(`missions.list.${mission.id}.description`) || mission.description;
 
   useEffect(() => {
     // Staggered entrance animation
@@ -119,12 +122,12 @@ const MissionCard: React.FC<MissionCardProps> = ({ mission, progress, index }) =
           </View>
           <View style={styles.missionTitleContainer}>
             <Text style={[styles.missionName, isCompleted && { color: colors.text }]}>
-              {mission.name}
+              {missionName}
             </Text>
             <View style={styles.missionMeta}>
               <View style={[styles.difficultyBadge, { backgroundColor: colors.bg, borderColor: colors.border }]}>
                 <Text style={[styles.difficultyText, { color: colors.text }]}>
-                  {mission.difficulty.toUpperCase()}
+                  {(t as (k: string) => string)(`missions.${mission.difficulty}`) || mission.difficulty.toUpperCase()}
                 </Text>
               </View>
               <Text style={styles.categoryIcon}>{CATEGORY_ICONS[mission.category]}</Text>
@@ -141,7 +144,7 @@ const MissionCard: React.FC<MissionCardProps> = ({ mission, progress, index }) =
       </View>
 
       {/* Description */}
-      <Text style={styles.missionDescription}>{mission.description}</Text>
+      <Text style={styles.missionDescription}>{missionDescription}</Text>
 
       {/* Progress Bar */}
       <View style={styles.progressContainer}>
@@ -186,7 +189,7 @@ const MissionCard: React.FC<MissionCardProps> = ({ mission, progress, index }) =
 type FilterType = 'all' | 'in_progress' | 'completed' | MissionDifficulty;
 
 const MissionsScreen: React.FC<MissionsScreenProps> = ({ navigation }) => {
-  const { isRTL } = useAppTranslation();
+  const { t: tScreens, isRTL } = useAppTranslation('screens');
   const { user } = useAuth();
   const { playButtonClick } = useAudio();
   const insets = useSafeAreaInsets();
@@ -249,13 +252,13 @@ const MissionsScreen: React.FC<MissionsScreenProps> = ({ navigation }) => {
   const completionPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
   const filters: { key: FilterType; label: string; color: string }[] = [
-    { key: 'all', label: 'All', color: '#6B7280' },
-    { key: 'in_progress', label: 'In Progress', color: '#3B82F6' },
-    { key: 'completed', label: 'Completed', color: '#10B981' },
-    { key: 'easy', label: 'Easy', color: '#10B981' },
-    { key: 'medium', label: 'Medium', color: '#3B82F6' },
-    { key: 'hard', label: 'Hard', color: '#A855F7' },
-    { key: 'legendary', label: 'Legendary', color: '#F59E0B' },
+    { key: 'all', label: tScreens('missions.all'), color: '#6B7280' },
+    { key: 'in_progress', label: tScreens('missions.inProgress'), color: '#3B82F6' },
+    { key: 'completed', label: tScreens('missions.completed'), color: '#10B981' },
+    { key: 'easy', label: tScreens('missions.easy'), color: '#10B981' },
+    { key: 'medium', label: tScreens('missions.medium'), color: '#3B82F6' },
+    { key: 'hard', label: tScreens('missions.hard'), color: '#A855F7' },
+    { key: 'legendary', label: tScreens('missions.legendary'), color: '#F59E0B' },
   ];
 
   return (
@@ -291,17 +294,13 @@ const MissionsScreen: React.FC<MissionsScreenProps> = ({ navigation }) => {
         <TouchableOpacity 
           onPress={() => { playButtonClick(); navigation.goBack(); }} 
           style={styles.backButton}
+          activeOpacity={0.8}
         >
-          <LinearGradient
-            colors={['#374151', '#1F2937']}
-            style={styles.backButtonGradient}
-          >
-            <Text style={styles.backButtonText}>{isRTL ? '→' : '←'}</Text>
-          </LinearGradient>
+          <Text style={styles.backButtonText}>{isRTL ? '→' : '←'}</Text>
         </TouchableOpacity>
         
         <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>🎯 Missions</Text>
+          <Text style={styles.headerTitle}>🎯 {tScreens('missions.title', { defaultValue: 'Missions' })}</Text>
         </View>
         
         <View style={styles.placeholder} />
@@ -330,12 +329,12 @@ const MissionsScreen: React.FC<MissionsScreenProps> = ({ navigation }) => {
         >
           <View style={styles.statItem}>
             <Text style={styles.statValue}>{completedCount}/{totalCount}</Text>
-            <Text style={styles.statLabel}>Completed</Text>
+            <Text style={styles.statLabel}>{tScreens('missions.completedLabel')}</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
             <Text style={styles.statValue}>{completionPercent}%</Text>
-            <Text style={styles.statLabel}>Progress</Text>
+            <Text style={styles.statLabel}>{tScreens('missions.progress')}</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
@@ -346,9 +345,9 @@ const MissionsScreen: React.FC<MissionsScreenProps> = ({ navigation }) => {
                 <Text style={styles.coinIcon}>🪙</Text>
               )}
               <Text style={styles.statValue}>{totalCoins}</Text>
-              <Text style={styles.top10CoinLabel}>Top 10</Text>
+              <Text style={styles.top10CoinLabel}>{tScreens('missions.top10Coin')}</Text>
             </View>
-            <Text style={styles.statLabel}>Earned</Text>
+            <Text style={styles.statLabel}>{tScreens('missions.earned')}</Text>
           </View>
         </LinearGradient>
       </Animated.View>
@@ -388,13 +387,13 @@ const MissionsScreen: React.FC<MissionsScreenProps> = ({ navigation }) => {
       >
         {loading ? (
           <View style={styles.loadingContainer}>
-            <Text style={styles.loadingText}>Loading missions...</Text>
+            <Text style={styles.loadingText}>{tScreens('missions.loading')}</Text>
           </View>
         ) : filteredMissions.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyIcon}>🔍</Text>
-            <Text style={styles.emptyText}>No missions found</Text>
-            <Text style={styles.emptySubtext}>Try a different filter</Text>
+            <Text style={styles.emptyText}>{tScreens('missions.noMissions')}</Text>
+            <Text style={styles.emptySubtext}>{tScreens('missions.tryFilter')}</Text>
           </View>
         ) : (
           filteredMissions.map((mission, index) => (
@@ -444,20 +443,19 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.md,
   },
   backButton: {
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  backButtonGradient: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
+    width: 40,
+    height: 40,
     justifyContent: 'center',
-    borderRadius: 12,
+    alignItems: 'center',
   },
   backButtonText: {
     color: '#FFFFFF',
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '600',
+    textShadowColor: 'rgba(173, 216, 230, 0.6)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 8,
+    includeFontPadding: false,
   },
   headerTitleContainer: {
     flex: 1,
@@ -470,7 +468,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   placeholder: {
-    width: 44,
+    width: 40,
   },
   statsCard: {
     marginHorizontal: SPACING.lg,

@@ -15,21 +15,26 @@ import { CustomQuestionSlotsScreenProps } from '../../shared/types/navigation';
 import CustomQuestionService from '../../backend/services/customQuestionService';
 import type { CustomQuestion } from '../../shared/types';
 import { useAudio } from '../contexts/AudioContext';
+import { useAuth } from '../contexts/AuthContext';
 import ThemedAlert from '../utils/themedAlert';
 import { logger } from '../../backend/utils/logger';
 import useAppTranslation from '../../hooks/useTranslation';
+import { getUnlockedSlots, unlockSlot, isSlotUsable, SLOT_UNLOCK_COINS } from '../../backend/services/customSlotUnlockService';
 
 const NUM_SLOTS = CustomQuestionService.NUM_SLOTS;
 
 const CustomQuestionSlotsScreen: React.FC<CustomQuestionSlotsScreenProps> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const { playButtonClick } = useAudio();
+  const { user } = useAuth();
   const { t: tScreens } = useAppTranslation('screens');
   const { t: tCommon } = useAppTranslation('common');
   const { isRTL } = useAppTranslation();
   const [slots, setSlots] = useState<(CustomQuestion | null)[]>(Array(NUM_SLOTS).fill(null));
+  const [unlockedSlots, setUnlockedSlots] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [unlockingSlot, setUnlockingSlot] = useState<number | null>(null);
 
   const loadSlots = useCallback(async () => {
     try {
@@ -44,20 +49,72 @@ const CustomQuestionSlotsScreen: React.FC<CustomQuestionSlotsScreenProps> = ({ n
     }
   }, []);
 
+  const loadUnlockedSlots = useCallback(async () => {
+    if (!user?.id) {
+      setUnlockedSlots([]);
+      return;
+    }
+    try {
+      const list = await getUnlockedSlots(user.id);
+      setUnlockedSlots(list);
+    } catch {
+      setUnlockedSlots([]);
+    }
+  }, [user?.id]);
+
   useFocusEffect(
     useCallback(() => {
       loadSlots();
-    }, [loadSlots])
+      loadUnlockedSlots();
+    }, [loadSlots, loadUnlockedSlots])
   );
 
   const onRefresh = () => {
     setRefreshing(true);
     loadSlots();
+    loadUnlockedSlots();
   };
 
-  const handleSlotPress = (slotIndex: number) => {
+  const handleSlotPress = async (slotIndex: number) => {
     playButtonClick();
-    navigation.navigate('CreateCustomQuestion', { slotIndex });
+    const usable = isSlotUsable(slotIndex, unlockedSlots, slots[slotIndex] != null);
+    if (usable) {
+      navigation.navigate('CreateCustomQuestion', { slotIndex });
+      return;
+    }
+    // Locked paid slot
+    if (!user?.id) {
+      ThemedAlert.info(tScreens('customQuestionSlots.signInToUnlock'), '');
+      return;
+    }
+    ThemedAlert.alert(
+      tScreens('customQuestionSlots.unlockSlotTitle', { number: slotIndex + 1 }),
+      tScreens('customQuestionSlots.unlockSlotMessage', { cost: SLOT_UNLOCK_COINS }),
+      [
+        { text: tCommon('cancel'), style: 'cancel', onPress: () => {} },
+        {
+          text: tCommon('confirm'),
+          onPress: async () => {
+            setUnlockingSlot(slotIndex);
+            try {
+              const success = await unlockSlot(user.id, slotIndex);
+              if (success) {
+                setUnlockedSlots((prev) => [...prev, slotIndex].sort((a, b) => a - b));
+                ThemedAlert.success(tCommon('success'), tScreens('customQuestionSlots.unlockSuccess', { number: slotIndex + 1 }));
+                navigation.navigate('CreateCustomQuestion', { slotIndex });
+              } else {
+                ThemedAlert.warning(tCommon('error'), tScreens('customQuestionSlots.unlockInsufficientCoins', { cost: SLOT_UNLOCK_COINS }));
+              }
+            } catch (e) {
+              logger.error('Unlock slot failed', e);
+              ThemedAlert.error(tCommon('error'), tScreens('customQuestionSlots.unlockInsufficientCoins', { cost: SLOT_UNLOCK_COINS }));
+            } finally {
+              setUnlockingSlot(null);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleClearAll = () => {
@@ -124,26 +181,37 @@ const CustomQuestionSlotsScreen: React.FC<CustomQuestionSlotsScreenProps> = ({ n
             const question = slots[i];
             const label = question ? question.question : tScreens('customQuestionSlots.slotEmpty', { number: i + 1 });
             const isFilled = question != null;
+            const isLocked = !isSlotUsable(i, unlockedSlots, question != null);
+            const isUnlocking = unlockingSlot === i;
             return (
               <TouchableOpacity
                 key={i}
-                onPress={() => handleSlotPress(i)}
-                style={styles.slotTouch}
+                onPress={() => !isUnlocking && handleSlotPress(i)}
+                disabled={isUnlocking}
+                style={[styles.slotTouch, isLocked && styles.slotTouchLocked]}
                 activeOpacity={0.8}
               >
                 <LinearGradient
-                  colors={isFilled ? ['#6D28D9', '#8B5CF6'] : ['#374151', '#4B5563']}
+                  colors={isLocked ? ['#1F2937', '#374151'] : isFilled ? ['#6D28D9', '#8B5CF6'] : ['#374151', '#4B5563']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={[styles.slotGradient, isRTL && styles.rtlRow]}
                 >
                   <View style={[styles.slotNumberBadge, isRTL && { marginRight: 0, marginLeft: SPACING.md }]}>
-                    <Text style={styles.slotNumberText}>{i + 1}</Text>
+                    <Text style={styles.slotNumberText}>{isLocked ? '🔒' : i + 1}</Text>
                   </View>
-                  <Text style={[styles.slotLabel, isRTL && styles.rtlText]} numberOfLines={2}>
-                    {isFilled ? label : tScreens('customQuestionSlots.slotLabel', { number: i + 1 })}
-                  </Text>
-                  <Text style={[styles.slotHint, isRTL && styles.rtlText]}>{isFilled ? tScreens('customQuestionSlots.tapToEdit') : tScreens('customQuestionSlots.tapToAdd')}</Text>
+                  <View style={styles.slotLabelContainer}>
+                    <Text style={[styles.slotLabel, isRTL && styles.rtlText]} numberOfLines={2}>
+                      {isFilled ? label : tScreens('customQuestionSlots.slotLabel', { number: i + 1 })}
+                    </Text>
+                    <Text style={[styles.slotHint, isRTL && styles.rtlText]}>
+                      {isLocked
+                        ? tScreens('customQuestionSlots.unlockForCoins', { cost: SLOT_UNLOCK_COINS })
+                        : isFilled
+                          ? tScreens('customQuestionSlots.tapToEdit')
+                          : tScreens('customQuestionSlots.tapToAdd')}
+                    </Text>
+                  </View>
                 </LinearGradient>
               </TouchableOpacity>
             );
@@ -222,6 +290,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(139, 92, 246, 0.3)',
   },
+  slotTouchLocked: {
+    borderColor: 'rgba(107, 114, 128, 0.5)',
+    opacity: 0.9,
+  },
   slotGradient: {
     padding: SPACING.lg,
     flexDirection: 'row',
@@ -242,8 +314,10 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
   },
-  slotLabel: {
+  slotLabelContainer: {
     flex: 1,
+  },
+  slotLabel: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',

@@ -156,6 +156,11 @@ class AudioService {
         });
       }
     } catch (error) {
+      // Suppress AudioFocusNotAcquiredException when app is in background - not a real error
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes('AudioFocusNotAcquiredException') || msg.includes('in the background')) {
+        return;
+      }
       logger.error(`Error playing sound effect ${name}:`, error);
     }
   }

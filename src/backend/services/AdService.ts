@@ -133,9 +133,18 @@ export class AdService {
       logger.log('AdService: skipped (module not available)');
       return this.initPromise;
     }
-    this.initPromise = mod
-      .default()
-      .initialize()
+    const initResult = mod.default().initialize();
+    if (initResult == null || typeof initResult?.then !== 'function') {
+      this.initPromise = Promise.resolve();
+      this.initialized = true;
+      logger.log('AdService: SDK initialized (native already ready)');
+      this.createRewardedAd();
+      this.createInterstitialAd();
+      this.loadRewardedAd();
+      this.loadInterstitialAd();
+      return this.initPromise;
+    }
+    this.initPromise = initResult
       .then(() => {
         this.initialized = true;
         logger.log('AdService: SDK initialized');
@@ -244,12 +253,16 @@ export class AdService {
       return Promise.resolve();
     }
     this.rewardedLoadState = 'loading';
-    return this.rewardedAd.load().then(
+    const loadResult = this.rewardedAd.load();
+    const promise = loadResult != null && typeof loadResult?.then === 'function'
+      ? loadResult
+      : Promise.resolve();
+    return promise.then(
       () => {
         this.rewardedLoadState = 'loaded';
         logger.log('AdService: rewarded ad preloaded');
       },
-      (e) => {
+      (e: unknown) => {
         this.rewardedLoadState = 'failed';
         this.errorCount.rewarded += 1;
         logger.error('AdService: rewarded ad load error', e);
@@ -264,12 +277,16 @@ export class AdService {
       return Promise.resolve();
     }
     this.interstitialLoadState = 'loading';
-    return this.interstitialAd.load().then(
+    const loadResult = this.interstitialAd.load();
+    const promise = loadResult != null && typeof loadResult?.then === 'function'
+      ? loadResult
+      : Promise.resolve();
+    return promise.then(
       () => {
         this.interstitialLoadState = 'loaded';
         logger.log('AdService: interstitial ad preloaded');
       },
-      (e) => {
+      (e: unknown) => {
         this.interstitialLoadState = 'failed';
         this.errorCount.interstitial += 1;
         logger.error('AdService: interstitial ad load error', e);

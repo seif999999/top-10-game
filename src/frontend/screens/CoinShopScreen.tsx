@@ -20,6 +20,7 @@ import { useAd } from '../contexts/AdContext';
 import useAppTranslation from '../../hooks/useTranslation';
 import CoinDisplay from '../components/CoinDisplay';
 import { CoinService } from '../../backend/services/CoinService';
+import { logger } from '../../backend/utils/logger';
 import CoinShopOnboarding, { hasSeenCoinShopOnboarding } from '../components/CoinShopOnboarding';
 import ToastNotification from '../components/ToastNotification';
 
@@ -116,7 +117,7 @@ const CoinShopScreen: React.FC<CoinShopScreenProps> = ({ navigation }) => {
         refreshCooldown25();
         setTimeout(() => setSuccessAmount(null), 2000);
       } catch (e) {
-        console.error('CoinShopScreen: addCoins failed', e);
+        logger.error('CoinShopScreen: addCoins failed', e);
       }
     },
     [user?.id, recordCoinAdClaim, tCoin, refreshCooldown25]
@@ -204,11 +205,7 @@ const CoinShopScreen: React.FC<CoinShopScreenProps> = ({ navigation }) => {
         {/* Balance */}
         <View style={styles.balanceSection}>
           <LinearGradient
-            colors={[
-              COLORS.primaryAlpha(0.35),
-              COLORS.primaryAlpha(0.2),
-              COLORS.primaryAlpha(0.25),
-            ]}
+            colors={['#1E1B4B', '#2D2640', '#312E81']}
             style={styles.balanceCard}
           >
             <CoinDisplay size="large" showShopButton={false} />
@@ -238,11 +235,7 @@ const CoinShopScreen: React.FC<CoinShopScreenProps> = ({ navigation }) => {
               }}
             >
               <LinearGradient
-                colors={[
-                  COLORS.primaryAlpha(0.35),
-                  COLORS.primaryAlpha(0.2),
-                  COLORS.primaryAlpha(0.25),
-                ]}
+                colors={['#1E1B4B', '#2D2640', '#312E81']}
                 style={styles.purchaseCardGradient}
               >
                 <Text style={styles.purchaseCoinsAmount}>{pkg.coins} COINS</Text>
@@ -254,14 +247,9 @@ const CoinShopScreen: React.FC<CoinShopScreenProps> = ({ navigation }) => {
                   )}
                 </View>
                 <View style={styles.purchaseButtonWrap}>
-                  <LinearGradient
-                    colors={[COLORS.warning, COLORS.warningDark]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.purchaseButton}
-                  >
+                <View style={[styles.purchaseButton, styles.purchaseButtonSolid]}>
                     <Text style={styles.purchaseButtonText}>{pkg.egp} EGP</Text>
-                  </LinearGradient>
+                </View>
                 </View>
               </LinearGradient>
             </TouchableOpacity>
@@ -272,11 +260,7 @@ const CoinShopScreen: React.FC<CoinShopScreenProps> = ({ navigation }) => {
         <View style={styles.watchVideoSection}>
           <View style={styles.watchVideoCard}>
             <LinearGradient
-              colors={[
-                COLORS.successAlpha(0.2),
-                COLORS.successAlpha(0.08),
-                COLORS.successAlpha(0.15),
-              ]}
+              colors={['#064E3B', '#065F46', '#047857']}
               style={styles.watchVideoCardGradient}
             >
               <Text style={styles.watchVideoLabel}>+25 COINS</Text>
@@ -299,17 +283,13 @@ const CoinShopScreen: React.FC<CoinShopScreenProps> = ({ navigation }) => {
                 disabled={adDisabled && !adErrorState}
                 activeOpacity={0.85}
               >
-                <LinearGradient
-                  colors={
-                    adErrorState
-                      ? [COLORS.warning, COLORS.warningDark]
-                      : adDisabled
-                        ? [COLORS.gray[600], COLORS.gray[700]]
-                        : [COLORS.success, COLORS.successDark]
-                  }
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.watchVideoButtonGradient}
+                <View
+                  style={[
+                    styles.watchVideoButtonGradient,
+                    adErrorState && styles.watchVideoButtonRetry,
+                    adDisabled && !adErrorState && styles.watchVideoButtonDisabledBg,
+                    !adErrorState && !adDisabled && styles.watchVideoButtonSuccess,
+                  ]}
                 >
                   {adLoading ? (
                     <View style={styles.watchVideoButtonContent}>
@@ -341,7 +321,7 @@ const CoinShopScreen: React.FC<CoinShopScreenProps> = ({ navigation }) => {
                       </Text>
                     </View>
                   )}
-                </LinearGradient>
+                </View>
               </TouchableOpacity>
             </LinearGradient>
           </View>
@@ -540,6 +520,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  purchaseButtonSolid: {
+    backgroundColor: COLORS.warning,
+  },
   purchaseButtonText: {
     color: COLORS.white,
     fontSize: TYPOGRAPHY.fontSize.base,
@@ -601,6 +584,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xl,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  watchVideoButtonSuccess: {
+    backgroundColor: COLORS.success,
+  },
+  watchVideoButtonRetry: {
+    backgroundColor: COLORS.warning,
+  },
+  watchVideoButtonDisabledBg: {
+    backgroundColor: COLORS.gray[600],
   },
   watchVideoButtonContent: {
     flexDirection: 'row',

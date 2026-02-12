@@ -319,7 +319,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 ]}>
                   {tScreens('profile.english')}
                 </Text>
-                {language === 'en' && <Text style={styles.checkmark}>✓</Text>}
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -342,7 +341,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 ]}>
                   {tScreens('profile.arabic')}
                 </Text>
-                {language === 'ar' && <Text style={styles.checkmark}>✓</Text>}
               </TouchableOpacity>
             </View>
             {isRTLRestartRequired && (
@@ -736,11 +734,6 @@ const styles = StyleSheet.create({
   },
   languageButtonTextActive: {
     color: '#FFFFFF',
-  },
-  checkmark: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '700',
   },
   restartHint: {
     marginTop: SPACING.sm,
