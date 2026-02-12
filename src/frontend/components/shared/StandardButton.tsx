@@ -7,7 +7,8 @@
 import React from 'react';
 import { TouchableOpacity, Text, ActivityIndicator, StyleSheet, ViewStyle, TextStyle } from 'react-native';
 import { COLORS, SPACING, TYPOGRAPHY, COMPONENT_STYLES } from '../../design-system';
-import { RESPONSIVE } from '../../utils/responsive';
+import { RESPONSIVE, COMPONENT_RESPONSIVE } from '../../utils/responsive';
+import useAppTranslation from '../../../hooks/useTranslation';
 
 export interface StandardButtonProps {
   title: string;
@@ -38,6 +39,7 @@ const StandardButton: React.FC<StandardButtonProps> = ({
   accessibilityHint,
   testID,
 }) => {
+  const { isRTL } = useAppTranslation();
   const isDisabled = disabled || loading;
 
   const getButtonStyle = (): ViewStyle => {
@@ -57,7 +59,7 @@ const StandardButton: React.FC<StandardButtonProps> = ({
     const baseTextStyle = {
       fontSize: RESPONSIVE.fontSize.responsive.base,
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
-      textAlign: 'center' as const,
+      textAlign: (isRTL ? 'right' : 'center') as const,
     };
 
     return {

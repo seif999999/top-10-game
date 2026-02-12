@@ -18,6 +18,7 @@ import { getQuestionsByCategory } from '../../backend/services/questionsService'
 import { TeamSetupConfig, ROUND_TIMER_OPTIONS, TEAM_COLORS } from '../../shared/types/teams';
 import CustomQuestionService from '../../backend/services/customQuestionService';
 import { getCategories } from '../../backend/services/questionsService';
+import useAppTranslation from '../../hooks/useTranslation';
 
 const { width } = Dimensions.get('window');
 
@@ -26,7 +27,7 @@ const categories = [
     id: 'Random',
     name: 'Random',
     icon: '🎲',
-    description: 'Surprise me! Pick a random category and question',
+    translationKey: 'random',
     gradient: ['#059669', '#10B981'],
     questionCount: 0,
     isRandom: true,
@@ -35,7 +36,7 @@ const categories = [
     id: 'Sports',
     name: 'Sports',
     icon: '⚽',
-    description: 'Popular games, athletes, and sporting events',
+    translationKey: 'sports',
     gradient: ['#FF6B6B', '#FF8787'],
     questionCount: 12,
   },
@@ -43,7 +44,7 @@ const categories = [
     id: 'Movies',
     name: 'Movies',
     icon: '🎬',
-    description: 'Films, actors, directors, and cinema history',
+    translationKey: 'movies',
     gradient: ['#4ECDC4', '#44A8A0'],
     questionCount: 15,
   },
@@ -51,7 +52,7 @@ const categories = [
     id: 'Music',
     name: 'Music',
     icon: '🎵',
-    description: 'Artists, songs, albums, and music trivia',
+    translationKey: 'music',
     gradient: ['#45B7D1', '#3498DB'],
     questionCount: 14,
   },
@@ -59,7 +60,7 @@ const categories = [
     id: 'Science',
     name: 'Science',
     icon: '🔬',
-    description: 'Scientific discoveries, concepts, and innovations',
+    translationKey: 'science',
     gradient: ['#DDA0DD', '#BA68C8'],
     questionCount: 10,
   },
@@ -67,7 +68,7 @@ const categories = [
     id: 'Geography',
     name: 'Geography',
     icon: '🌍',
-    description: 'Countries, cities, landmarks, and capitals',
+    translationKey: 'geography',
     gradient: ['#96CEB4', '#74B396'],
     questionCount: 16,
   },
@@ -75,7 +76,7 @@ const categories = [
     id: 'Food',
     name: 'Food & Drink',
     icon: '🍕',
-    description: 'Cuisine, restaurants, recipes, and beverages',
+    translationKey: 'food',
     gradient: ['#FFB347', '#FF9F00'],
     questionCount: 11,
   },
@@ -83,7 +84,7 @@ const categories = [
     id: 'Technology',
     name: 'Technology',
     icon: '💻',
-    description: 'Tech companies, innovations, and digital trends',
+    translationKey: 'technology',
     gradient: ['#87CEEB', '#5DADE2'],
     questionCount: 14,
   },
@@ -91,7 +92,7 @@ const categories = [
     id: 'Masry',
     name: 'Masry',
     icon: '🇪🇬',
-    description: 'Egyptian culture, food, movies, music, and more',
+    translationKey: 'masry',
     gradient: ['#C41E3A', '#000000'],
     questionCount: 20,
   },
@@ -99,7 +100,7 @@ const categories = [
     id: 'Custom',
     name: 'Create Your Own',
     icon: '✏️',
-    description: 'Play your saved custom questions',
+    translationKey: 'custom',
     gradient: ['#5B21B6', '#7C3AED'],
     questionCount: 0,
   },
@@ -110,10 +111,12 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
   const [currentIndex, setCurrentIndex] = useState(0);
   const [questionCounts, setQuestionCounts] = useState<{ [key: string]: number }>({});
   const insets = useSafeAreaInsets();
+  const { t: tScreens, isRTL } = useAppTranslation('screens');
+  const { t: tCategories } = useAppTranslation('categories');
   
   // Team and timer settings
   const [numberOfTeams, setNumberOfTeams] = useState(2);
-  const [teamNames, setTeamNames] = useState(['Team 1', 'Team 2', 'Team 3', 'Team 4']);
+  const [teamNames, setTeamNames] = useState(['', '', '', '']); // Empty so "Team 1", "Team 2" show as placeholder (background hint); typed text is actual value
   const [roundTimer, setRoundTimer] = useState<number | null>(null);
   const [durationError, setDurationError] = useState<string>('');
   const [isLoadingRandom, setIsLoadingRandom] = useState(false);
@@ -204,10 +207,10 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
   const handleNumberOfTeamsChange = (value: number) => {
     const clampedValue = Math.max(1, Math.min(4, value));
     setNumberOfTeams(clampedValue);
-    // Ensure we have enough team names
+    // Ensure we have enough slots; new slots start empty so placeholder shows
     const newTeamNames = [...teamNames];
     for (let i = teamNames.length; i < clampedValue; i++) {
-      newTeamNames.push(`Team ${i + 1}`);
+      newTeamNames.push('');
     }
     setTeamNames(newTeamNames);
   };
@@ -224,7 +227,7 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
     
     // Validate turn duration is selected
     if (roundTimer === null) {
-      setDurationError('Please select a turn duration');
+      setDurationError(tScreens('screens:gameSetup.selectDuration'));
       // Scroll to timer section - scroll lower to show the buttons themselves
       setTimeout(() => {
         if (timerSectionY > 0) {
@@ -271,10 +274,13 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
         const randomQuestionIndex = Math.floor(Math.random() * questions.length);
         const randomQuestion = questions[randomQuestionIndex];
         
-        // Build team config
+        // Build team config; use placeholder as display name when user left field empty
+        const resolvedNames = teamNames.slice(0, numberOfTeams).map((name, i) =>
+          name.trim() || tScreens('screens:gameSetup.teamPlaceholder', { number: i + 1 })
+        );
         const teamConfig: TeamSetupConfig = numberOfTeams > 1 ? {
           numberOfTeams,
-          teamNames: teamNames.slice(0, numberOfTeams).filter(name => name.trim() !== ''),
+          teamNames: resolvedNames,
           roundTimer: roundTimer!,
           maxRounds: undefined,
           isHostedLocal: true,
@@ -308,11 +314,10 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
     
     // If teams mode is enabled (numberOfTeams > 1), create team config
     if (numberOfTeams > 1) {
-      const validTeamNames = teamNames.slice(0, numberOfTeams).filter(name => name.trim() !== '');
-      if (validTeamNames.length !== numberOfTeams) {
-        logger.error('❌ Invalid team names');
-        return;
-      }
+      // Use placeholder text when user left a field empty
+      const validTeamNames = teamNames.slice(0, numberOfTeams).map((name, i) =>
+        name.trim() || tScreens('screens:gameSetup.teamPlaceholder', { number: i + 1 })
+      );
 
       const teamConfig: TeamSetupConfig = {
         numberOfTeams,
@@ -401,14 +406,14 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
         />
         
         {/* Header */}
-        <View style={[styles.header, { paddingTop: insets.top * 0.5 }]}>
+        <View style={[styles.header, { paddingTop: Math.max(SPACING.xs, insets.top * 0.5) }, isRTL && styles.rtlRow]}>
           <Animated.View style={{ transform: [{ scale: backButtonScale }] }}>
             <TouchableOpacity onPress={handleBackToHome} style={styles.backButton}>
-              <Text style={styles.backButtonArrow}>←</Text>
+              <Text style={styles.backButtonArrow}>{isRTL ? '→' : '←'}</Text>
             </TouchableOpacity>
           </Animated.View>
           <View style={styles.headerContent}>
-            <Text style={styles.headerTitle}>Game Setup</Text>
+            <Text style={styles.headerTitle}>{tScreens('screens:gameSetup.title')}</Text>
           </View>
           <View style={styles.headerPlaceholder} />
         </View>
@@ -421,7 +426,7 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
         >
           {/* Category Label */}
           <View style={styles.categoryLabelContainer}>
-            <Text style={styles.settingLabel}>Category</Text>
+            <Text style={[styles.settingLabel, isRTL && styles.rtlText]}>{tScreens('screens:gameSetup.category')}</Text>
           </View>
 
           {/* Carousel Container */}
@@ -459,12 +464,12 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
                 <View style={styles.cardContent}>
                   <View style={styles.cardContentInner}>
                     <Text style={styles.categoryIcon}>{currentCategory.icon}</Text>
-                    <Text style={styles.categoryName}>{currentCategory.name}</Text>
-                    <Text style={styles.categoryDescription}>{currentCategory.description}</Text>
+                    <Text style={styles.categoryName}>{(tCategories as (key: string) => string)(currentCategory.translationKey)}</Text>
+                    <Text style={styles.categoryDescription}>{(tCategories as (key: string) => string)(`descriptions.${currentCategory.translationKey}`)}</Text>
                   </View>
                   <View style={styles.questionCountBadge}>
                     <Text style={styles.questionCountText}>
-                      {questionCounts[currentCategory.name] || currentCategory.questionCount} Questions
+                      {tScreens('screens:gameSetup.questionsCount', { count: questionCounts[currentCategory.name] || currentCategory.questionCount })}
                     </Text>
                   </View>
                 </View>
@@ -491,7 +496,7 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
           <View style={styles.settingsSection}>
             {/* Number of Teams */}
             <View style={styles.settingRow}>
-              <Text style={styles.settingLabel}>Number of Teams</Text>
+              <Text style={[styles.settingLabel, isRTL && styles.rtlText]}>{tScreens('screens:gameSetup.numberOfTeams')}</Text>
               <View style={styles.teamCountContainer}>
                 {[2, 3, 4].map((count) => (
                   <TouchableOpacity
@@ -515,7 +520,7 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
 
             {/* Team Names (show for all teams, including single team) */}
             <View style={styles.settingRow}>
-              <Text style={styles.settingLabel}>Team Names</Text>
+              <Text style={[styles.settingLabel, isRTL && styles.rtlText]}>{tScreens('screens:gameSetup.teamNames')}</Text>
               <View style={styles.teamNamesContainer}>
                 {teamNames.slice(0, numberOfTeams).map((name, index) => (
                   <View key={index} style={styles.teamNameRow}>
@@ -526,11 +531,12 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
                       ]}
                     />
                     <TextInput
-                      style={styles.teamNameInput}
+                      style={[styles.teamNameInput, isRTL && styles.rtlText]}
                       value={name}
                       onChangeText={(text) => handleTeamNameChange(index, text)}
-                      placeholder={`Team ${index + 1}`}
+                      placeholder={tScreens('screens:gameSetup.teamPlaceholder', { number: index + 1 })}
                       placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                      textAlign={isRTL ? 'right' : 'left'}
                     />
                   </View>
                 ))}
@@ -546,7 +552,7 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
                 setTimerSectionY(y);
               }}
             >
-              <Text style={styles.settingLabel}>Turn Duration</Text>
+              <Text style={[styles.settingLabel, isRTL && styles.rtlText]}>{tScreens('screens:gameSetup.turnDuration')}</Text>
               {durationError ? (
                 <Text style={styles.errorText}>{durationError}</Text>
               ) : null}
@@ -592,10 +598,10 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
               style={styles.continueButtonGradient}
             >
               <Text style={styles.continueButtonText}>
-                {isLoadingRandom ? 'Loading...' : (categories[currentIndex].id === 'Random' ? 'Start Random Game' : 'Continue')}
+                {isLoadingRandom ? tScreens('screens:gameSetup.loading') : (categories[currentIndex].id === 'Random' ? tScreens('screens:gameSetup.startRandomGame') : tScreens('screens:gameSetup.continue'))}
               </Text>
               <Text style={styles.continueButtonArrow}>
-                {categories[currentIndex].id === 'Random' ? '🎲' : '→'}
+                {categories[currentIndex].id === 'Random' ? '🎲' : (isRTL ? '←' : '→')}
               </Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -613,19 +619,19 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
-      <View style={[styles.header, { paddingTop: insets.top + SPACING.lg }]}>
+      <View style={[styles.header, { paddingTop: Math.max(SPACING.xs, insets.top * 0.5) }, isRTL && styles.rtlRow]}>
         <Animated.View style={{ transform: [{ scale: backButtonScale }] }}>
           <TouchableOpacity onPress={handleBackToHome} style={styles.backButton}>
-            <Text style={styles.backButtonArrow}>←</Text>
+            <Text style={styles.backButtonArrow}>{isRTL ? '→' : '←'}</Text>
           </TouchableOpacity>
         </Animated.View>
         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Categories</Text>
+          <Text style={styles.headerTitle}>{tScreens('screens:gameSetup.categoriesTitle')}</Text>
         </View>
         <View style={styles.headerPlaceholder} />
       </View>
       <View style={styles.placeholderContent}>
-        <Text style={styles.placeholderText}>Multiplayer category selection</Text>
+        <Text style={styles.placeholderText}>{tScreens('screens:gameSetup.multiplayerCategorySelection')}</Text>
       </View>
     </SafeAreaView>
   );
@@ -935,6 +941,12 @@ const styles = StyleSheet.create({
     color: '#EF4444',
     marginBottom: SPACING.sm,
     fontWeight: '500',
+  },
+  rtlRow: {
+    flexDirection: 'row-reverse',
+  },
+  rtlText: {
+    textAlign: 'right',
   },
 });
 

@@ -8,11 +8,11 @@ import {
   StyleSheet,
   Dimensions,
   Image,
-  Alert,
 } from 'react-native';
-import type { ImageStyle, TextStyle } from 'react-native';
+import type { TextStyle } from 'react-native';
 import { COLORS, SPACING, TYPOGRAPHY } from '../design-system';
 import { Avatar } from '../../shared/types';
+import useAppTranslation from '../../hooks/useTranslation';
 import { 
   AVAILABLE_AVATARS, 
   NO_AVATAR_OPTION, 
@@ -40,6 +40,7 @@ const AvatarSelectionModal: React.FC<AvatarSelectionModalProps> = ({
   onAvatarSelect,
   currentAvatarId,
 }) => {
+  const { t, isRTL } = useAppTranslation('components');
   const [selectedAvatarId, setSelectedAvatarId] = useState<string | undefined>(currentAvatarId);
 
   // Get all avatars (no filtering needed)
@@ -143,14 +144,14 @@ const AvatarSelectionModal: React.FC<AvatarSelectionModalProps> = ({
     >
       <View style={styles.container}>
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, isRTL && styles.rtlRow]}>
           <TouchableOpacity
             style={styles.closeButton}
             onPress={onClose}
           >
-            <Text style={styles.closeButtonText}>Cancel</Text>
+            <Text style={[styles.closeButtonText, isRTL && styles.rtlText]}>{t('avatarSelection.cancel')}</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>Choose Avatar</Text>
+          <Text style={[styles.title, isRTL && styles.rtlText]}>{t('avatarSelection.title')}</Text>
           <TouchableOpacity
             style={[
               styles.confirmButton,
@@ -162,8 +163,9 @@ const AvatarSelectionModal: React.FC<AvatarSelectionModalProps> = ({
             <Text style={[
               styles.confirmButtonText,
               !selectedAvatarId && styles.disabledButtonText,
+              isRTL && styles.rtlText,
             ]}>
-              Done
+              {t('avatarSelection.done')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -197,6 +199,12 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
+  },
+  rtlRow: {
+    flexDirection: 'row-reverse',
+  },
+  rtlText: {
+    textAlign: 'right',
   },
   closeButton: {
     paddingVertical: SPACING.sm,

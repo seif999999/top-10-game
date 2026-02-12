@@ -7,6 +7,7 @@ import {
   Modal,
 } from 'react-native';
 import { COLORS, SPACING, TYPOGRAPHY } from '../../backend/utils/constants';
+import useAppTranslation from '../../hooks/useTranslation';
 
 interface RoundTimeSelectorProps {
   visible: boolean;
@@ -16,10 +17,10 @@ interface RoundTimeSelectorProps {
 }
 
 const ROUND_TIME_OPTIONS = [
-  { label: '10 seconds', value: 10, description: 'Quick rounds' },
-  { label: '20 seconds', value: 20, description: 'Fast paced' },
-  { label: '40 seconds', value: 40, description: 'Balanced' },
-  { label: '1 minute', value: 60, description: 'Default' },
+  { value: 10, labelKey: 'option10', descKey: 'quickRounds' },
+  { value: 20, labelKey: 'option20', descKey: 'fastPaced' },
+  { value: 40, labelKey: 'option40', descKey: 'balanced' },
+  { value: 60, labelKey: 'option60', descKey: 'default' },
 ];
 
 const RoundTimeSelector: React.FC<RoundTimeSelectorProps> = ({
@@ -28,6 +29,9 @@ const RoundTimeSelector: React.FC<RoundTimeSelectorProps> = ({
   onSelect,
   currentTime,
 }) => {
+  const { t } = useAppTranslation('screens');
+  const { t: tCommon } = useAppTranslation('common');
+  const { isRTL } = useAppTranslation();
   const [selectedTime, setSelectedTime] = useState(currentTime);
 
   const handleSelect = () => {
@@ -207,6 +211,12 @@ const styles = StyleSheet.create({
     color: COLORS.background,
     fontSize: 16,
     fontWeight: '600',
+  },
+  rtlRow: {
+    flexDirection: 'row-reverse',
+  },
+  rtlText: {
+    textAlign: 'right',
   },
 });
 

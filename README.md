@@ -114,6 +114,12 @@ Naming favors descriptive nouns for data and verbs for actions. Services encapsu
 - Customizable Parameters: Limits and thresholds in `edgeCaseHandler.ts` (timeouts, limits, max players), feature flags in `src/config/features.ts` and `src/config/featureFlags.ts` if present.
 - Defaults: Safe development defaults; production should tighten security rules and disable mock moderation providers.
 
+#### Language & localization
+- **Languages:** English (en) and Arabic (ar). Users can switch language in **Profile**; the choice is persisted (AsyncStorage / localStorage).
+- **RTL:** Arabic uses right-to-left layout. On native, switching to/from Arabic may require an app restart for layout direction to apply; the Profile screen shows a restart hint when needed.
+- **Implementation:** i18next + react-i18next; translations live in `src/locales/en/` and `src/locales/ar/` with namespaces (common, screens, game, errors, categories, components). Use `useAppTranslation(ns)` and typed `t(key)` from `src/hooks/useTranslation.ts`. Keys are generated from English JSON for type safety.
+- **Docs:** See `docs/TRANSLATION_WORKFLOW.md` for adding keys, scripts (`i18n:generate-types`, `i18n:validate`, etc.), and `KEEP_UPDATED.md` for the full i18n overview.
+
 ## 7. Installation & Setup
 - Prerequisites: Node 18+, npm, Git, Expo CLI (`npm i -g @expo/cli`), Firebase project.
 - Steps:

@@ -31,6 +31,17 @@ service cloud.firestore {
                       ]);
     }
     
+    // User mission progress (subcollection under userProfiles)
+    // Explicit rule for the single document used by missionService
+    match /userProfiles/{userId}/missions/progress {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Coin transaction history (subcollection under userProfiles)
+    match /userProfiles/{userId}/coinTransactions/{txId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
     // Multiplayer games - authenticated users only with proper validation
     match /multiplayerGames/{roomCode} {
       // Allow read if:

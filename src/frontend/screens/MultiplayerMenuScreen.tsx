@@ -4,14 +4,15 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   Dimensions,
   ScrollView,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING } from '../../backend/utils/constants';
+import useAppTranslation from '../../hooks/useTranslation';
+import BannerAd from '../components/ads/BannerAd';
 
 const { width, height } = Dimensions.get('window');
 
@@ -20,6 +21,9 @@ interface MultiplayerMenuScreenProps {}
 const MultiplayerMenuScreen: React.FC<MultiplayerMenuScreenProps> = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const { t } = useAppTranslation('screens');
+  const { t: tCommon } = useAppTranslation('common');
+  const { isRTL } = useAppTranslation();
 
   const handleCreateRoom = () => {
     navigation.navigate('MultiplayerCategory' as never);
@@ -44,34 +48,35 @@ const MultiplayerMenuScreen: React.FC<MultiplayerMenuScreenProps> = () => {
       />
 
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + SPACING.md }]}>
+      <View style={[styles.header, { paddingTop: Math.max(SPACING.xs, insets.top * 0.5) }, isRTL && styles.rtlRow]}>
         <TouchableOpacity 
           style={styles.backButton}
           onPress={handleBack}
-          accessibilityLabel="Go back"
+          accessibilityLabel={tCommon('back')}
           accessibilityHint="Returns to main menu"
         >
           <View style={styles.backButtonContent}>
-            <Text style={styles.backButtonArrow}>←</Text>
+            <Text style={styles.backButtonArrow}>{isRTL ? '→' : '←'}</Text>
             <View style={styles.backButtonDash} />
           </View>
         </TouchableOpacity>
         <View style={styles.headerContent}>
-          <Text style={styles.title}>Multiplayer</Text>
+          <Text style={styles.title}>{t('multiplayer.title')}</Text>
         </View>
         <View style={styles.placeholder} />
       </View>
 
       {/* Content */}
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={styles.mainContent}>
+        <ScrollView 
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
         {/* Description */}
         <View style={styles.descriptionSection}>
-          <Text style={styles.descriptionText}>
-            Create or join a room to play with friends online
+          <Text style={[styles.descriptionText, isRTL && styles.rtlText]}>
+            {t('multiplayer.menu.description')}
           </Text>
         </View>
 
@@ -81,8 +86,8 @@ const MultiplayerMenuScreen: React.FC<MultiplayerMenuScreenProps> = () => {
             style={styles.actionCard}
             onPress={handleCreateRoom}
             activeOpacity={0.9}
-            accessibilityLabel="Create a new room"
-            accessibilityHint="Opens room creation screen where you can select category and questions"
+            accessibilityLabel={t('multiplayer.menu.createRoomTitle')}
+            accessibilityHint="Opens room creation screen"
           >
             <LinearGradient
               colors={['#8B5CF6', '#A78BFA']}
@@ -90,13 +95,11 @@ const MultiplayerMenuScreen: React.FC<MultiplayerMenuScreenProps> = () => {
               end={{ x: 1, y: 1 }}
               style={styles.cardGradient}
             >
-              <View style={styles.cardContent}>
-                <Text style={styles.cardIcon}>🏡</Text>
+              <View style={[styles.cardContent, isRTL && styles.rtlRow]}>
+                <Text style={[styles.cardIcon, isRTL && { marginRight: 0, marginLeft: SPACING.lg }]}>🏡</Text>
                 <View style={styles.cardTextContainer}>
-                  <Text style={styles.cardTitle}>Create Room</Text>
-                  <Text style={styles.cardSubtitle}>
-                    Host a new game and invite friends
-                  </Text>
+                  <Text style={[styles.cardTitle, isRTL && styles.rtlText]}>{t('multiplayer.menu.createRoomTitle')}</Text>
+                  <Text style={[styles.cardSubtitle, isRTL && styles.rtlText]}>{t('multiplayer.menu.createRoomSubtitle')}</Text>
                 </View>
               </View>
             </LinearGradient>
@@ -106,8 +109,8 @@ const MultiplayerMenuScreen: React.FC<MultiplayerMenuScreenProps> = () => {
             style={styles.actionCard}
             onPress={handleJoinRoom}
             activeOpacity={0.9}
-            accessibilityLabel="Join an existing room"
-            accessibilityHint="Opens room joining screen where you can enter a room code"
+            accessibilityLabel={t('multiplayer.menu.joinRoomTitle')}
+            accessibilityHint="Opens room joining screen"
           >
             <LinearGradient
               colors={['#7C3AED', '#8B5CF6']}
@@ -115,13 +118,11 @@ const MultiplayerMenuScreen: React.FC<MultiplayerMenuScreenProps> = () => {
               end={{ x: 1, y: 1 }}
               style={styles.cardGradient}
             >
-              <View style={styles.cardContent}>
-                <Text style={styles.cardIcon}>🚪</Text>
+              <View style={[styles.cardContent, isRTL && styles.rtlRow]}>
+                <Text style={[styles.cardIcon, isRTL && { marginRight: 0, marginLeft: SPACING.lg }]}>🚪</Text>
                 <View style={styles.cardTextContainer}>
-                  <Text style={styles.cardTitle}>Join Room</Text>
-                  <Text style={styles.cardSubtitle}>
-                    Enter a room code to join a game
-                  </Text>
+                  <Text style={[styles.cardTitle, isRTL && styles.rtlText]}>{t('multiplayer.menu.joinRoomTitle')}</Text>
+                  <Text style={[styles.cardSubtitle, isRTL && styles.rtlText]}>{t('multiplayer.menu.joinRoomSubtitle')}</Text>
                 </View>
               </View>
             </LinearGradient>
@@ -130,35 +131,29 @@ const MultiplayerMenuScreen: React.FC<MultiplayerMenuScreenProps> = () => {
 
         {/* How it works Section */}
         <View style={styles.infoSection}>
-          <Text style={styles.infoTitle}>How it works:</Text>
+          <Text style={[styles.infoTitle, isRTL && styles.rtlText]}>{t('multiplayer.menu.howItWorks')}</Text>
           <View style={styles.infoList}>
-            <View style={styles.infoItem}>
-              <View style={styles.infoBulletDot} />
-              <Text style={styles.infoText}>
-                Create a room for up to 8 players
-              </Text>
+            <View style={[styles.infoItem, isRTL && styles.rtlRow]}>
+              <View style={[styles.infoBulletDot, isRTL && { marginRight: 0, marginLeft: SPACING.md }]} />
+              <Text style={[styles.infoText, isRTL && styles.rtlText]}>{t('multiplayer.menu.bullet1')}</Text>
             </View>
-            <View style={styles.infoItem}>
-              <View style={styles.infoBulletDot} />
-              <Text style={styles.infoText}>
-                Share the room code with your friends
-              </Text>
+            <View style={[styles.infoItem, isRTL && styles.rtlRow]}>
+              <View style={[styles.infoBulletDot, isRTL && { marginRight: 0, marginLeft: SPACING.md }]} />
+              <Text style={[styles.infoText, isRTL && styles.rtlText]}>{t('multiplayer.menu.bullet2')}</Text>
             </View>
-            <View style={styles.infoItem}>
-              <View style={styles.infoBulletDot} />
-              <Text style={styles.infoText}>
-                Host controls the game and questions
-              </Text>
+            <View style={[styles.infoItem, isRTL && styles.rtlRow]}>
+              <View style={[styles.infoBulletDot, isRTL && { marginRight: 0, marginLeft: SPACING.md }]} />
+              <Text style={[styles.infoText, isRTL && styles.rtlText]}>{t('multiplayer.menu.bullet3')}</Text>
             </View>
-            <View style={styles.infoItem}>
-              <View style={styles.infoBulletDot} />
-              <Text style={styles.infoText}>
-                Players compete for the top score
-              </Text>
+            <View style={[styles.infoItem, isRTL && styles.rtlRow]}>
+              <View style={[styles.infoBulletDot, isRTL && { marginRight: 0, marginLeft: SPACING.md }]} />
+              <Text style={[styles.infoText, isRTL && styles.rtlText]}>{t('multiplayer.menu.bullet4')}</Text>
             </View>
           </View>
         </View>
-      </ScrollView>
+        </ScrollView>
+        <BannerAd position="bottom" />
+      </View>
     </SafeAreaView>
   );
 };
@@ -167,6 +162,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#1a1a2e',
+  },
+  mainContent: {
+    flex: 1,
   },
   scrollView: {
     flex: 1,
@@ -321,6 +319,12 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     flex: 1,
     lineHeight: 24,
+  },
+  rtlRow: {
+    flexDirection: 'row-reverse',
+  },
+  rtlText: {
+    textAlign: 'right',
   },
 });
 

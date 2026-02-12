@@ -1,0 +1,85 @@
+{
+  "title": "Guess the Top 10",
+  "enterYourAnswer": "Enter your answer...",
+  "rank": "Rank",
+  "points": "points",
+  "answersFound": "{{count}} / 10 answers found",
+  "score": {
+    "label": "Score",
+    "final": "Final Score"
+  },
+  "round": {
+    "label": "Round"
+  },
+  "timer": {
+    "label": "Time Left",
+    "timeRemaining": "Time Remaining"
+  },
+  "actions": {
+    "start": "Start Game",
+    "hint": "Hint",
+    "skip": "Skip",
+    "submit": "Submit",
+    "answer": "Answer",
+    "playAgain": "Play Again",
+    "submitAnswer": "Submit Answer",
+    "submitted": "Submitted ✓",
+    "skipTurn": "Skip Turn",
+    "endGame": "End Game",
+    "endTurn": "End Turn",
+    "nextQuestion": "Next Question",
+    "exit": "Exit"
+  },
+  "feedback": {
+    "correct": "Correct!",
+    "wrong": "Wrong!"
+  },
+  "results": {
+    "gameOver": "Game Over"
+  },
+  "multiplayer": {
+    "indicator": "Multiplayer",
+    "waitingForPlayers": "Waiting for players... ({{count}} joined)",
+    "revealingAnswers": "🎯 Revealing answers...",
+    "questionComplete": "🏆 Question complete! Moving to next question...",
+    "yourTurn": "Your Turn",
+    "waiting": "Waiting",
+    "unknownPlayer": "Unknown Player",
+    "hostChanged": "Host Changed",
+    "roomClosed": "Room Closed",
+    "gameEnded": "Game Ended",
+    "roomNotFound": "Room Not Found",
+    "roomNotFoundMessage": "This room no longer exists. Please create or join a different room.",
+    "gameLoadingTimeout": "Game Loading Timeout",
+    "gameLoadingTimeoutMessage": "The game is taking too long to start. Please try again.",
+    "alreadySubmittedTitle": "Already Submitted",
+    "alreadySubmittedMessage": "You have already submitted an answer this turn. Wait for your next turn.",
+    "notYourTurnTitle": "Not Your Turn",
+    "notYourTurnMessage": "Wait for your turn to submit answers."
+  },
+  "exit": {
+    "title": "Exit Game",
+    "exitMultiplayerMessage": "Are you sure you want to leave the game? This will disconnect you from the room.",
+    "exitSingleMessage": "Are you sure you want to exit? Your progress will be lost.",
+    "endGameTitle": "End Game",
+    "endGameMessage": "Are you sure you want to end the game? You'll see your final results."
+  },
+  "questionCard": {
+    "questionNumber": "Question {{number}}",
+    "category": "Category"
+  },
+  "answers": {
+    "title": "Answers",
+    "noAnswers": "No answers available",
+    "yourAnswers": "Your Answers:"
+  },
+  "questionComplete": {
+    "title": "Question Complete!",
+    "message": "You found all 10 correct answers for this question!"
+  },
+  "teams": {
+    "teamScores": "Team Scores",
+    "currentTurn": "Current Turn:",
+    "player": "Player"
+  }
+}

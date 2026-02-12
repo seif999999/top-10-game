@@ -12,6 +12,7 @@ import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { COLORS, SPACING, TYPOGRAPHY } from '../../backend/utils/constants';
 import { logger } from '../../backend/utils/logger';
 import ThemedAlert from '../utils/themedAlert';
+import useAppTranslation from '../../hooks/useTranslation';
 
 interface PrivacyPolicyModalProps {
   visible: boolean;
@@ -26,6 +27,9 @@ const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({
   onDecline,
   onClose,
 }) => {
+  const { t } = useAppTranslation('components');
+  const { t: tCommon } = useAppTranslation('common');
+  const { isRTL } = useAppTranslation();
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
   const [isAccepting, setIsAccepting] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
@@ -56,7 +60,7 @@ const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({
       onAccept();
     } catch (error) {
       logger.error('Error accepting privacy policy:', error);
-      ThemedAlert.error('Error', 'Failed to accept privacy policy. Please try again.');
+      ThemedAlert.error(tCommon('error'), t('errors.acceptFailed'));
     } finally {
       setIsAccepting(false);
     }
@@ -85,11 +89,9 @@ const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({
       onRequestClose={onClose}
     >
       <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Privacy Policy</Text>
-          <Text style={styles.subtitle}>
-            Please read and accept our privacy policy to continue
-          </Text>
+        <View style={[styles.header, isRTL && styles.rtlText]}>
+          <Text style={[styles.title, isRTL && styles.rtlText]}>{t('privacyPolicy.title')}</Text>
+          <Text style={[styles.subtitle, isRTL && styles.rtlText]}>{t('privacyPolicy.subtitle')}</Text>
         </View>
 
         <ScrollView
@@ -263,26 +265,26 @@ const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({
               Phone: [Your Contact Number]
             </Text>
 
-            <View style={styles.scrollIndicator}>
-              <Text style={styles.scrollText}>
-                {hasScrolledToBottom ? '✓ You have read the entire policy' : 'Please scroll to the bottom to continue'}
+            <View style={[styles.scrollIndicator, isRTL && styles.rtlText]}>
+              <Text style={[styles.scrollText, isRTL && styles.rtlText]}>
+                {hasScrolledToBottom ? `✓ ${t('privacyPolicy.readEntirePolicy')}` : t('privacyPolicy.scrollToContinue')}
               </Text>
               {!hasScrolledToBottom && (
                 <TouchableOpacity style={styles.scrollButton} onPress={scrollToBottom}>
-                  <Text style={styles.scrollButtonText}>Scroll to Bottom</Text>
+                  <Text style={[styles.scrollButtonText, isRTL && styles.rtlText]}>{t('privacyPolicy.scrollToBottom')}</Text>
                 </TouchableOpacity>
               )}
             </View>
           </View>
         </ScrollView>
 
-        <View style={styles.footer}>
+        <View style={[styles.footer, isRTL && styles.rtlRow]}>
           <TouchableOpacity
             style={[styles.button, styles.declineButton]}
             onPress={handleDecline}
             disabled={isAccepting}
           >
-            <Text style={styles.declineButtonText}>Decline & Exit</Text>
+            <Text style={[styles.declineButtonText, isRTL && styles.rtlText]}>{t('privacyPolicy.declineExit')}</Text>
           </TouchableOpacity>
           
           <TouchableOpacity
@@ -294,8 +296,8 @@ const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({
             onPress={handleAccept}
             disabled={!hasScrolledToBottom || isAccepting}
           >
-            <Text style={styles.acceptButtonText}>
-              {isAccepting ? 'Accepting...' : 'Accept & Continue'}
+            <Text style={[styles.acceptButtonText, isRTL && styles.rtlText]}>
+              {isAccepting ? t('privacyPolicy.accepting') : t('privacyPolicy.acceptContinue')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -326,6 +328,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.muted,
     textAlign: 'center',
+  },
+  rtlRow: {
+    flexDirection: 'row-reverse',
+  },
+  rtlText: {
+    textAlign: 'right',
   },
   scrollView: {
     flex: 1,

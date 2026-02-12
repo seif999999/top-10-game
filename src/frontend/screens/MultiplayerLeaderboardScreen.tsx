@@ -3,14 +3,15 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   FlatList,
   TouchableOpacity,
   Animated,
   Dimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, TYPOGRAPHY } from '../../backend/utils/constants';
 import AvatarIcon from '../components/AvatarIcon';
+import useAppTranslation from '../../hooks/useTranslation';
 
 interface Player {
   playerId: string;
@@ -33,6 +34,8 @@ const MultiplayerLeaderboardScreen: React.FC<MultiplayerLeaderboardScreenProps> 
   onCountdownComplete,
   countdownSeconds = 15,
 }) => {
+  const { t } = useAppTranslation('screens');
+  const { isRTL } = useAppTranslation();
   const [timeRemaining, setTimeRemaining] = useState(countdownSeconds);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
@@ -117,6 +120,7 @@ const MultiplayerLeaderboardScreen: React.FC<MultiplayerLeaderboardScreenProps> 
         style={[
           styles.playerRow,
           isWinner && styles.winnerRow,
+          isRTL && styles.rtlRow,
           { opacity: fadeAnim }
         ]}
       >
@@ -147,7 +151,7 @@ const MultiplayerLeaderboardScreen: React.FC<MultiplayerLeaderboardScreenProps> 
           <Text style={[styles.scoreText, isWinner && styles.winnerScore]}>
             {item.score}
           </Text>
-          <Text style={styles.scoreLabel}>pts</Text>
+          <Text style={[styles.scoreLabel, isRTL && styles.rtlText]}>{t('multiplayer.leaderboard.pts')}</Text>
         </View>
       </Animated.View>
     );
@@ -166,7 +170,7 @@ const MultiplayerLeaderboardScreen: React.FC<MultiplayerLeaderboardScreenProps> 
       >
         {/* Title */}
         <View style={styles.titleContainer}>
-          <Text style={styles.title}>LEADERBOARD</Text>
+          <Text style={[styles.title, isRTL && styles.rtlText]}>{t('multiplayer.leaderboard.title')}</Text>
           <View style={styles.titleUnderline} />
         </View>
 
@@ -189,14 +193,14 @@ const MultiplayerLeaderboardScreen: React.FC<MultiplayerLeaderboardScreenProps> 
               ]}
             />
           </View>
-          <Text style={styles.countdownText}>
-            Returning in {timeRemaining}s
+          <Text style={[styles.countdownText, isRTL && styles.rtlText]}>
+            {t('multiplayer.leaderboard.returningIn', { seconds: timeRemaining })}
           </Text>
         </View>
 
         {/* Quit Button */}
         <TouchableOpacity style={styles.quitButton} onPress={onQuit}>
-          <Text style={styles.quitButtonText}>Quit Game</Text>
+          <Text style={styles.quitButtonText}>{t('multiplayer.leaderboard.quitGame')}</Text>
         </TouchableOpacity>
       </Animated.View>
     </SafeAreaView>
@@ -365,6 +369,12 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
+  },
+  rtlText: {
+    textAlign: 'right',
+  },
+  rtlRow: {
+    flexDirection: 'row-reverse',
   },
 });
 

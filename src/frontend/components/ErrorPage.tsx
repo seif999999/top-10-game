@@ -3,43 +3,20 @@ import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing } from 'reac
 import { useNavigation, CommonActions } from '@react-navigation/native';
 import { COLORS, SPACING, TYPOGRAPHY, COMPONENT_STYLES } from '../design-system';
 import { logger } from '../../backend/utils/logger';
+import useAppTranslation from '../../hooks/useTranslation';
 import type { ErrorType } from '../contexts/GlobalUIContext';
 
 // ============================================================================
-// Error config — maps error type → user-friendly copy + icon
+// Error config — maps error type → icon (text is now translated)
 // ============================================================================
 
-const ERROR_CONFIG: Record<ErrorType, { icon: string; title: string; message: string }> = {
-  network: {
-    icon: '📡',
-    title: 'No Connection',
-    message: "You're offline. Check your connection and try again.",
-  },
-  '401': {
-    icon: '🔒',
-    title: 'Not Authorized',
-    message: "You're not authorized. Please sign in again.",
-  },
-  '403': {
-    icon: '🚫',
-    title: 'Access Denied',
-    message: "You're not authorized. Please sign in again.",
-  },
-  '404': {
-    icon: '🔍',
-    title: 'Not Found',
-    message: "We couldn't find what you're looking for.",
-  },
-  '5xx': {
-    icon: '🛠️',
-    title: 'Server Error',
-    message: 'Our servers are having issues. Please try again later.',
-  },
-  unknown: {
-    icon: '⚠️',
-    title: 'Oops!',
-    message: 'Something went wrong. Please try again.',
-  },
+const ERROR_ICONS: Record<ErrorType, string> = {
+  network: '📡',
+  '401': '🔒',
+  '403': '🚫',
+  '404': '🔍',
+  '5xx': '🛠️',
+  unknown: '⚠️',
 };
 
 // ============================================================================
@@ -64,7 +41,7 @@ interface ErrorPageProps {
 /**
  * ErrorPage — full-screen, user-friendly error state.
  *
- * - Displays a simple message based on the error category.
+ * - Displays a translated message based on the error category.
  * - Never shows technical details to users.
  * - Logs the real error via the app logger.
  * - Provides "Retry" (primary) and "Go Home" (secondary) actions.
@@ -77,9 +54,15 @@ const ErrorPage: React.FC<ErrorPageProps> = ({
   rawError,
 }) => {
   const navigation = useNavigation();
+  const { t } = useAppTranslation('errors');
+  const { t: tCommon } = useAppTranslation('common');
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const shakeAnim = useRef(new Animated.Value(0)).current;
-  const config = ERROR_CONFIG[errorType] ?? ERROR_CONFIG.unknown;
+
+  const icon = ERROR_ICONS[errorType] ?? ERROR_ICONS.unknown;
+  const tDynamic = t as (key: string, options?: { defaultValue?: string }) => string;
+  const title = tDynamic(`page.${errorType}.title`, { defaultValue: t('page.unknown.title') });
+  const message = tDynamic(`page.${errorType}.message`, { defaultValue: t('page.unknown.message') });
 
   // Log the real error on mount (never shown to user)
   useEffect(() => {
@@ -130,25 +113,28 @@ const ErrorPage: React.FC<ErrorPageProps> = ({
     }
   };
 
+  const retryLabel = tCommon('retry');
+  const goHomeLabel = tCommon('goHome');
+
   return (
     <Animated.View
       style={[styles.container, { opacity: fadeAnim }]}
       accessibilityRole="alert"
-      accessibilityLabel={`${config.title}. ${config.message}`}
+      accessibilityLabel={`${title}. ${message}`}
       accessibilityLiveRegion="assertive"
     >
       {/* Icon */}
       <Animated.Text
         style={[styles.icon, { transform: [{ translateX: shakeAnim }] }]}
       >
-        {config.icon}
+        {icon}
       </Animated.Text>
 
       {/* Title */}
-      <Text style={styles.title}>{config.title}</Text>
+      <Text style={styles.title}>{title}</Text>
 
       {/* Message */}
-      <Text style={styles.message}>{config.message}</Text>
+      <Text style={styles.message}>{message}</Text>
 
       {/* Action Buttons */}
       <View style={styles.actions}>
@@ -158,10 +144,10 @@ const ErrorPage: React.FC<ErrorPageProps> = ({
             onPress={onRetry}
             activeOpacity={0.8}
             accessibilityRole="button"
-            accessibilityLabel="Retry"
-            accessibilityHint="Retry the failed action"
+            accessibilityLabel={retryLabel}
+            accessibilityHint={retryLabel}
           >
-            <Text style={styles.primaryButtonText}>🔄  Retry</Text>
+            <Text style={styles.primaryButtonText}>🔄  {retryLabel}</Text>
           </TouchableOpacity>
         )}
 
@@ -170,10 +156,10 @@ const ErrorPage: React.FC<ErrorPageProps> = ({
           onPress={handleGoHome}
           activeOpacity={0.8}
           accessibilityRole="button"
-          accessibilityLabel="Go Home"
-          accessibilityHint="Navigate back to the home screen"
+          accessibilityLabel={goHomeLabel}
+          accessibilityHint={goHomeLabel}
         >
-          <Text style={styles.secondaryButtonText}>🏠  Go Home</Text>
+          <Text style={styles.secondaryButtonText}>🏠  {goHomeLabel}</Text>
         </TouchableOpacity>
       </View>
     </Animated.View>

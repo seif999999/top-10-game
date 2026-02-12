@@ -1,0 +1,132 @@
+{
+  "ads": {
+    "watchVideo": "شاهد الفيديو",
+    "watchAdForCoins": "شاهد إعلاناً لربح {{amount}} عملة",
+    "availableIn": "متاح خلال {{time}}",
+    "coinsEarned": "+{{amount}} عملة!",
+    "loading": "جاري تحميل الإعلان…",
+    "loadFailed": "فشل تحميل الإعلان",
+    "unavailable": "الإعلان غير متاح",
+    "premiumNoAds": "لا إعلانات لمستخدمي البريميوم"
+  },
+  "dailyReward": {
+    "title": "مكافأة يومية",
+    "week": "الأسبوع {{n}}",
+    "loading": "جارٍ التحميل...",
+    "dayN": "يوم {{n}}",
+    "coins": "عملات",
+    "weekBonus": "مضاعفة الأسبوع {{multiplier}}!",
+    "streakBroken": "انقطع تسلسلك! نبدأ من جديد من الأسبوع ١.",
+    "claimReward": "استلام المكافأة",
+    "alreadyClaimed": "تم الاستلام اليوم",
+    "infoText": "سجّل الدخول يومياً لبناء تسلسلك! أكمل ٧ أيام للانتقال للأسبوع التالي بمكافآت مضاعفة."
+  },
+  "resultsModal": {
+    "gameComplete": "انتهت اللعبة!",
+    "winner": "الفائز",
+    "points": "نقاط",
+    "finalScores": "النتيجة النهائية",
+    "performanceStats": "إحصائيات الأداء",
+    "totalTime": "الوقت الكلي",
+    "questionsAnswered": "أسئلة تمت الإجابة عليها",
+    "correctAnswers": "إجابات صحيحة",
+    "accuracy": "الدقة",
+    "averageScore": "متوسط النقاط",
+    "bestAnswer": "أفضل إجابة",
+    "pointsLabel": "نقاط",
+    "amazingPerformance": "أداء رائع!",
+    "onFire": "أنت على قدم وساق!",
+    "playAgain": "العب مرة أخرى",
+    "backToCategories": "العودة للفئات"
+  },
+  "hostAssign": {
+    "title": "تعيين الإجابة",
+    "answerRank": "الإجابة #{{rank}}:",
+    "worthPoints": "قيمتها {{points}} نقطة",
+    "selectTeam": "اختر الفريق",
+    "pointsToAward": "النقاط الممنوحة",
+    "pointsHint": "تُحسب النقاط تلقائياً حسب ترتيب الإجابة",
+    "assign": "تعيين"
+  },
+  "howToPlay": {
+    "title": "كيفية اللعب",
+    "gameRules": "قواعد اللعبة",
+    "chooseCategory": "اختر فئة",
+    "guessTop10": "خمّن أفضل ١٠ إجابات",
+    "rank1Point": "الإجابة الأولى = ١ نقطة",
+    "rank10Points": "الإجابة العاشرة = ١٠ نقاط",
+    "mostPointsWins": "من يجمع أكثر النقاط يفوز!",
+    "strategicAdvantage": "الإجابات الأقل وضوحاً في المراتب الدنيا تعطيك ميزة استراتيجية",
+    "gameModes": "أوضاع اللعبة",
+    "singlePlayer": "لاعب واحد",
+    "singlePlayerDesc": "استضف لعبة محلية مع الأصدقاء",
+    "multiplayer": "متعدد اللاعبين",
+    "multiplayerDesc": "أنشئ/انضم لغرف عبر الرمز",
+    "custom": "مخصص",
+    "customDesc": "اصنع أسئلتك وإجاباتك",
+    "gotIt": "فهمت!"
+  },
+  "avatarSelection": {
+    "title": "اختر الصورة الرمزية",
+    "cancel": "إلغاء",
+    "done": "تم"
+  },
+  "rankingOverlay": {
+    "finalRankings": "الترتيب النهائي",
+    "currentRankings": "الترتيب الحالي",
+    "gameComplete": "انتهت اللعبة!",
+    "foundAnswers": "تم العثور على: {{count}}/١٠ إجابات",
+    "tapToContinue": "المس للمتابعة"
+  },
+  "googleSignIn": {
+    "signInWithGoogle": "تسجيل الدخول بـ Google"
+  },
+  "signOut": {
+    "signOut": "تسجيل الخروج",
+    "confirmSignOut": "هل أنت متأكد أنك تريد تسجيل الخروج؟"
+  },
+  "privacyPolicy": {
+    "title": "سياسة الخصوصية",
+    "subtitle": "يرجى قراءة سياسة الخصوصية والموافقة عليها للمتابعة",
+    "lastUpdated": "آخر تحديث: {{date}}",
+    "scrollToContinue": "يرجى التمرير للأسفل للمتابعة",
+    "readEntirePolicy": "لقد قرأت السياسة كاملة",
+    "scrollToBottom": "التمرير للأسفل",
+    "declineExit": "رفض والخروج",
+    "acceptContinue": "قبول ومتابعة",
+    "accepting": "جاري القبول...",
+    "pleaseReadTitle": "يرجى قراءة سياسة الخصوصية",
+    "pleaseReadMessage": "يجب التمرير لأسفل سياسة الخصوصية قبل القبول.",
+    "requiredTitle": "سياسة الخصوصية مطلوبة",
+    "requiredMessage": "يجب الموافقة على سياسة الخصوصية لاستخدام التطبيق. هل تريد قراءتها مرة أخرى؟",
+    "readAgain": "قراءة مرة أخرى",
+    "exitApp": "خروج من التطبيق"
+  },
+  "errors": {
+    "selectTeam": "يرجى اختيار فريق",
+    "assignFailed": "فشل تعيين الإجابة. يرجى المحاولة مرة أخرى.",
+    "signOutFailed": "فشل تسجيل الخروج. يرجى المحاولة مرة أخرى.",
+    "acceptFailed": "فشل قبول سياسة الخصوصية. يرجى المحاولة مرة أخرى."
+  },
+  "coins": {
+    "label": "العملات",
+    "shopButton": "المزيد"
+  },
+  "coinDisplay": {
+    "openShop": "المزيد من العملات"
+  },
+  "coinShopOnboarding": {
+    "title": "ما هي العملات؟",
+    "bullet1": "العملات هي عملة اللعبة لفتح المميزات والمكافآت.",
+    "bullet2": "اربح عملات بمشاهدة فيديوهات قصيرة من متجر العملات.",
+    "bullet3": "يمكنك أيضاً ربح عملات من مكافآت الدخول اليومي والمهام.",
+    "gotIt": "فهمت!"
+  },
+  "coinOnboarding": {
+    "title": "مرحباً بك في متجر العملات!",
+    "bullet1": "اربح عملات بمشاهدة إعلانات قصيرة",
+    "bullet2": "استخدم العملات لفتح مميزات خاصة (قريباً!)",
+    "bullet3": "عد يومياً لأفضل عروض العملات",
+    "gotIt": "فهمت!"
+  }
+}

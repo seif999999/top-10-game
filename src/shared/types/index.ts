@@ -5,6 +5,14 @@ export type GameStats = {
   averageScore: number;
 };
 
+/** Single coin transaction for history (stored in userProfiles/{userId}/coinTransactions). */
+export interface CoinTransaction {
+  amount: number;
+  type: 'earned' | 'spent';
+  reason: string;
+  timestamp: Date;
+}
+
 export type User = {
   id: string;
   email: string;
@@ -14,6 +22,8 @@ export type User = {
   selectedAvatar?: string; // Avatar ID or undefined for no avatar
   avatarUrl?: string; // Cached avatar URL
   coins?: number; // Coin balance (defaults to 0)
+  /** Populated when explicitly loading transaction history (e.g. CoinService.getCoinTransactions). */
+  coinTransactions?: CoinTransaction[];
   // Daily streak fields
   lastLoginDate?: Date; // Last time user claimed daily reward
   currentStreak?: number; // Consecutive days logged in (1-7, resets each week)
@@ -132,6 +142,9 @@ export type AuthContextType = {
   user: User | null;
   loading: boolean;
   pendingAction: boolean;
+  /** One-time message after receiving welcome coins (e.g. "Welcome! You've received 100 coins to get started!"). Clear after showing. */
+  welcomeCoinsMessage: string | null;
+  clearWelcomeCoinsMessage: () => void;
   signIn: (email: string, password: string) => Promise<void>;
   signInWithGoogle: (idToken: string) => Promise<void>;
   signUp: (email: string, password: string, displayName?: string) => Promise<void>;
@@ -144,5 +157,8 @@ export type AuthContextType = {
 
 // Re-export mission types
 export * from './missions';
+
+// Re-export ad types
+export * from './ads';
 
 

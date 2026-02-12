@@ -1,0 +1,24 @@
+{
+  "random": "Random",
+  "sports": "Sports",
+  "movies": "Movies",
+  "music": "Music",
+  "science": "Science",
+  "geography": "Geography",
+  "food": "Food & Drink",
+  "technology": "Technology",
+  "masry": "Masry",
+  "custom": "Create Your Own",
+  "descriptions": {
+    "random": "Surprise me! Pick a random category and question",
+    "sports": "Popular games, athletes, and sporting events",
+    "movies": "Films, actors, directors, and cinema history",
+    "music": "Artists, songs, albums, and music trivia",
+    "science": "Scientific discoveries, concepts, and innovations",
+    "geography": "Countries, cities, landmarks, and capitals",
+    "food": "Cuisine, restaurants, recipes, and beverages",
+    "technology": "Tech companies, innovations, and digital trends",
+    "masry": "Egyptian culture, food, movies, music, and more",
+    "custom": "Play your saved custom questions"
+  }
+}

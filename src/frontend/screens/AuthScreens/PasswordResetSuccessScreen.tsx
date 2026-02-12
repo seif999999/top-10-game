@@ -1,49 +1,44 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from '../../components/Button';
 import { COLORS, SPACING } from '../../../backend/utils/constants';
 import { PasswordResetSuccessScreenProps } from '../../../shared/types/navigation';
+import useAppTranslation from '../../../hooks/useTranslation';
 
-/**
- * PasswordResetSuccessScreen Component
- * 
- * Displays success message after password reset email is sent
- * Provides clear instructions about password requirements
- * 
- * @param navigation - React Navigation object for screen transitions
- */
 const PasswordResetSuccessScreen: React.FC<PasswordResetSuccessScreenProps> = ({ navigation }) => {
+  const { t: tScreens } = useAppTranslation('screens');
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.title}>Check Your Email</Text>
+        <Text style={styles.title}>{tScreens('auth.passwordResetSuccess.title')}</Text>
         <Text style={styles.subtitle}>
-          We've sent you a password reset link. Please check your email and follow the instructions.
+          {tScreens('auth.passwordResetSuccess.subtitle')}
         </Text>
 
         <View style={styles.instructionsContainer}>
-          <Text style={styles.instructionsTitle}>Password Requirements:</Text>
+          <Text style={styles.instructionsTitle}>{tScreens('auth.passwordResetSuccess.requirementsTitle')}</Text>
           <View style={styles.requirementsList}>
-            <Text style={styles.requirement}>• At least 8 characters long</Text>
-            <Text style={styles.requirement}>• At least one uppercase letter (A-Z)</Text>
-            <Text style={styles.requirement}>• At least one lowercase letter (a-z)</Text>
-            <Text style={styles.requirement}>• At least one number (0-9)</Text>
-            <Text style={styles.requirement}>• At least one special character (!@#$%^&*)</Text>
+            <Text style={styles.requirement}>• {tScreens('auth.passwordResetSuccess.requirements.length')}</Text>
+            <Text style={styles.requirement}>• {tScreens('auth.passwordResetSuccess.requirements.uppercase')}</Text>
+            <Text style={styles.requirement}>• {tScreens('auth.passwordResetSuccess.requirements.lowercase')}</Text>
+            <Text style={styles.requirement}>• {tScreens('auth.passwordResetSuccess.requirements.number')}</Text>
+            <Text style={styles.requirement}>• {tScreens('auth.passwordResetSuccess.requirements.special')}</Text>
           </View>
         </View>
 
         <View style={styles.tipsContainer}>
-          <Text style={styles.tipsTitle}>💡 Tips:</Text>
-          <Text style={styles.tip}>• Check your spam folder if you don't see the email</Text>
-          <Text style={styles.tip}>• The reset link expires in 1 hour</Text>
-          <Text style={styles.tip}>• Use a strong, unique password</Text>
-          <Text style={styles.tip}>• The reset page will validate your password in real-time</Text>
+          <Text style={styles.tipsTitle}>💡 {tScreens('auth.passwordResetSuccess.tipsTitle')}</Text>
+          <Text style={styles.tip}>• {tScreens('auth.passwordResetSuccess.tips.spam')}</Text>
+          <Text style={styles.tip}>• {tScreens('auth.passwordResetSuccess.tips.expiry')}</Text>
+          <Text style={styles.tip}>• {tScreens('auth.passwordResetSuccess.tips.strong')}</Text>
+          <Text style={styles.tip}>• {tScreens('auth.passwordResetSuccess.tips.realtime')}</Text>
         </View>
 
         <View style={styles.buttonContainer}>
           <Button
-            title="Back to Sign In"
+            title={tScreens('auth.passwordResetSuccess.backToSignIn')}
             onPress={() => navigation.navigate('Login')}
             style={styles.button}
           />

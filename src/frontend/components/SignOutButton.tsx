@@ -5,6 +5,7 @@ import type { StyleProp, TextStyle, ViewStyle } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { COLORS, SPACING } from '../../backend/utils/constants';
 import { logger } from '../../backend/utils/logger';
+import useAppTranslation from '../../hooks/useTranslation';
 
 interface SignOutButtonProps {
   style?: StyleProp<ViewStyle>;
@@ -19,6 +20,8 @@ const SignOutButton: React.FC<SignOutButtonProps> = ({
   size = 'medium',
   variant = 'icon'
 }) => {
+  const { t } = useAppTranslation('components');
+  const { t: tCommon } = useAppTranslation('common');
   const { signOut } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -26,12 +29,12 @@ const SignOutButton: React.FC<SignOutButtonProps> = ({
     if (isLoading) return;
     
     ThemedAlert.warning(
-      'Sign Out',
-      'Are you sure you want to sign out?',
+      t('signOut.signOut'),
+      t('signOut.confirmSignOut'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: tCommon('cancel'), style: 'cancel' },
         { 
-          text: 'Sign Out', 
+          text: t('signOut.signOut'), 
           style: 'destructive', 
           onPress: async () => {
             setIsLoading(true);
@@ -39,7 +42,7 @@ const SignOutButton: React.FC<SignOutButtonProps> = ({
               await signOut();
             } catch (error) {
               logger.error('Sign out error:', error);
-              ThemedAlert.error('Error', 'Failed to sign out. Please try again.');
+              ThemedAlert.error(tCommon('error'), t('errors.signOutFailed'));
             } finally {
               setIsLoading(false);
             }
@@ -77,7 +80,7 @@ const SignOutButton: React.FC<SignOutButtonProps> = ({
         {isLoading ? (
           <ActivityIndicator size="small" color="#dc2626" />
         ) : (
-          <Text style={[styles.textButtonText, iconStyle]}>Sign Out</Text>
+          <Text style={[styles.textButtonText, iconStyle]}>{t('signOut.signOut')}</Text>
         )}
       </TouchableOpacity>
     );
@@ -89,7 +92,7 @@ const SignOutButton: React.FC<SignOutButtonProps> = ({
         {isLoading ? (
           <ActivityIndicator size="small" color={COLORS.background} />
         ) : (
-          <Text style={[styles.fullButtonText, iconStyle]}>Sign Out</Text>
+          <Text style={[styles.fullButtonText, iconStyle]}>{t('signOut.signOut')}</Text>
         )}
       </TouchableOpacity>
     );

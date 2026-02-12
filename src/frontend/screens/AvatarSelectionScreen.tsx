@@ -4,17 +4,17 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   Image,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING, TYPOGRAPHY } from '../design-system';
 import { useAuth } from '../contexts/AuthContext';
 import { logger } from '../../backend/utils/logger';
 import ThemedAlert from '../utils/themedAlert';
+import useAppTranslation from '../../hooks/useTranslation';
 
 interface AvatarOption {
   id: string;
@@ -78,6 +78,7 @@ const AVATAR_OPTIONS: AvatarOption[] = [
 const AvatarSelectionScreen: React.FC = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const { isRTL } = useAppTranslation();
   const { user, updateUserAvatar } = useAuth();
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(user?.selectedAvatar || null);
   const [isLoading, setIsLoading] = useState(false);
@@ -162,9 +163,9 @@ const AvatarSelectionScreen: React.FC = () => {
         style={StyleSheet.absoluteFill}
       />
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + SPACING.md }]}>
+      <View style={[styles.header, { paddingTop: Math.max(SPACING.xs, insets.top * 0.5) }]}>
         <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-          <Text style={styles.backButtonText}>←</Text>
+          <Text style={styles.backButtonText}>{isRTL ? '→' : '←'}</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Choose Avatar</Text>
         <View style={styles.placeholder} />

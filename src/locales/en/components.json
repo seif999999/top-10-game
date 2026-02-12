@@ -1,0 +1,132 @@
+{
+  "ads": {
+    "watchVideo": "Watch video",
+    "watchAdForCoins": "Watch ad for {{amount}} coins",
+    "availableIn": "Available in {{time}}",
+    "coinsEarned": "+{{amount}} coins!",
+    "loading": "Loading ad…",
+    "loadFailed": "Ad failed to load",
+    "unavailable": "Ad not available",
+    "premiumNoAds": "No ads for premium users"
+  },
+  "dailyReward": {
+    "title": "Daily Reward",
+    "week": "Week {{n}}",
+    "loading": "Loading...",
+    "dayN": "Day {{n}}",
+    "coins": "Coins",
+    "weekBonus": "{{multiplier}}x Week Bonus!",
+    "streakBroken": "Your streak was broken! Starting fresh from Week 1.",
+    "claimReward": "Claim Reward",
+    "alreadyClaimed": "Already Claimed Today",
+    "infoText": "Login daily to build your streak! Complete 7 days to advance to the next week with doubled rewards."
+  },
+  "resultsModal": {
+    "gameComplete": "Game Complete!",
+    "winner": "Winner",
+    "points": "points",
+    "finalScores": "Final Scores",
+    "performanceStats": "Performance Stats",
+    "totalTime": "Total Time",
+    "questionsAnswered": "Questions Answered",
+    "correctAnswers": "Correct Answers",
+    "accuracy": "Accuracy",
+    "averageScore": "Average Score",
+    "bestAnswer": "Best Answer",
+    "pointsLabel": "points",
+    "amazingPerformance": "Amazing Performance!",
+    "onFire": "You're on fire!",
+    "playAgain": "Play Again",
+    "backToCategories": "Back to Categories"
+  },
+  "hostAssign": {
+    "title": "Assign Answer",
+    "answerRank": "Answer #{{rank}}:",
+    "worthPoints": "Worth {{points}} points",
+    "selectTeam": "Select Team",
+    "pointsToAward": "Points to Award",
+    "pointsHint": "Points are automatically calculated based on answer rank",
+    "assign": "Assign"
+  },
+  "howToPlay": {
+    "title": "How to Play",
+    "gameRules": "Game Rules",
+    "chooseCategory": "Choose a category",
+    "guessTop10": "Guess top 10 answers",
+    "rank1Point": "#1 answer = 1 point",
+    "rank10Points": "#10 answer = 10 points",
+    "mostPointsWins": "Most points wins!",
+    "strategicAdvantage": "Find less obvious answers in lower ranks for strategic advantage",
+    "gameModes": "Game Modes",
+    "singlePlayer": "Single Player",
+    "singlePlayerDesc": "Host a local game with friends",
+    "multiplayer": "Multiplayer",
+    "multiplayerDesc": "Create/join online rooms with code",
+    "custom": "Custom",
+    "customDesc": "Make your own questions and answers",
+    "gotIt": "Got it!"
+  },
+  "avatarSelection": {
+    "title": "Choose Avatar",
+    "cancel": "Cancel",
+    "done": "Done"
+  },
+  "rankingOverlay": {
+    "finalRankings": "Final Rankings",
+    "currentRankings": "Current Rankings",
+    "gameComplete": "Game Complete!",
+    "foundAnswers": "Found: {{count}}/10 answers",
+    "tapToContinue": "Tap anywhere to continue"
+  },
+  "googleSignIn": {
+    "signInWithGoogle": "Sign in with Google"
+  },
+  "signOut": {
+    "signOut": "Sign Out",
+    "confirmSignOut": "Are you sure you want to sign out?"
+  },
+  "privacyPolicy": {
+    "title": "Privacy Policy",
+    "subtitle": "Please read and accept our privacy policy to continue",
+    "lastUpdated": "Last Updated: {{date}}",
+    "scrollToContinue": "Please scroll to the bottom to continue",
+    "readEntirePolicy": "You have read the entire policy",
+    "scrollToBottom": "Scroll to Bottom",
+    "declineExit": "Decline & Exit",
+    "acceptContinue": "Accept & Continue",
+    "accepting": "Accepting...",
+    "pleaseReadTitle": "Please Read the Privacy Policy",
+    "pleaseReadMessage": "You must scroll to the bottom of the privacy policy before accepting.",
+    "requiredTitle": "Privacy Policy Required",
+    "requiredMessage": "You must accept the privacy policy to use this app. Would you like to read it again?",
+    "readAgain": "Read Again",
+    "exitApp": "Exit App"
+  },
+  "errors": {
+    "selectTeam": "Please select a team",
+    "assignFailed": "Failed to assign answer. Please try again.",
+    "signOutFailed": "Failed to sign out. Please try again.",
+    "acceptFailed": "Failed to accept privacy policy. Please try again."
+  },
+  "coins": {
+    "label": "Coins",
+    "shopButton": "Get More"
+  },
+  "coinDisplay": {
+    "openShop": "Get more coins"
+  },
+  "coinShopOnboarding": {
+    "title": "What are Coins?",
+    "bullet1": "Coins are the in-game currency you use to unlock features and rewards.",
+    "bullet2": "Earn coins by watching short videos in the Coins Shop.",
+    "bullet3": "You can also earn coins from daily login rewards and missions.",
+    "gotIt": "Got it!"
+  },
+  "coinOnboarding": {
+    "title": "Welcome to the Coin Shop!",
+    "bullet1": "Earn coins by watching short ads",
+    "bullet2": "Use coins to unlock special features (coming soon!)",
+    "bullet3": "Check back daily for the best coin deals",
+    "gotIt": "Got it!"
+  }
+}

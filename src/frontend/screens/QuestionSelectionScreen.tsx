@@ -17,12 +17,14 @@ import { getQuestionsByCategory } from '../../backend/services/questionsService'
 import { TeamSetupConfig } from '../../shared/types/teams';
 import CustomQuestionService from '../../backend/services/customQuestionService';
 import ThemedAlert from '../utils/themedAlert';
+import useAppTranslation from '../../hooks/useTranslation';
 
 const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navigation, route }) => {
   const { categoryName, gameMode, teamConfig: passedTeamConfig } = route.params;
   const insets = useSafeAreaInsets();
   const [questions, setQuestions] = useState<GameQuestion[]>([]);
   const [loading, setLoading] = useState(true);
+  const { t: tScreens, isRTL } = useAppTranslation('screens');
 
   useEffect(() => {
     loadQuestions();
@@ -85,7 +87,7 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
   const isCustomCategory = categoryName === 'Custom';
 
   if (loading) {
-    return <LoadingPage message="Loading questions…" />;
+    return <LoadingPage message={tScreens('questionSelection.loadingQuestions')} />;
   }
 
   if (questions.length === 0) {
@@ -97,12 +99,12 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
           end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFill}
         />
-        <View style={[styles.header, { paddingTop: insets.top * 0.5 }]}>
+        <View style={[styles.header, { paddingTop: Math.max(SPACING.xs, insets.top * 0.5) }, isRTL && styles.rtlRow]}>
           <TouchableOpacity onPress={handleBackToCategories} style={styles.backButton}>
-            <Text style={styles.backButtonArrow}>←</Text>
+            <Text style={styles.backButtonArrow}>{isRTL ? '→' : '←'}</Text>
           </TouchableOpacity>
           <View style={styles.headerContent}>
-            <Text style={styles.title}>{isCustomCategory ? 'Create Your Own' : categoryName}</Text>
+            <Text style={styles.title}>{isCustomCategory ? tScreens('questionSelection.createYourOwn') : categoryName}</Text>
           </View>
           <View style={styles.placeholder} />
         </View>
@@ -111,9 +113,9 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
           <View style={styles.noQuestionsContainer}>
             {isCustomCategory ? (
               <>
-                <Text style={styles.noQuestionsTitle}>No Custom Questions Yet</Text>
+                <Text style={styles.noQuestionsTitle}>{tScreens('questionSelection.noCustomQuestionsTitle')}</Text>
                 <Text style={styles.noQuestionsText}>
-                  Create your first custom question to play with friends or solo!
+                  {tScreens('questionSelection.noCustomQuestionsDesc')}
                 </Text>
                 <TouchableOpacity 
                   style={styles.createFirstButton} 
@@ -125,21 +127,21 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
                     end={{ x: 1, y: 0 }}
                     style={styles.createFirstButtonGradient}
                   >
-                    <Text style={styles.createFirstButtonText}>Create First Question</Text>
+                    <Text style={styles.createFirstButtonText}>{tScreens('questionSelection.createFirstQuestion')}</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               </>
             ) : (
               <>
-                <Text style={styles.noQuestionsTitle}>No Questions Available</Text>
+                <Text style={styles.noQuestionsTitle}>{tScreens('questionSelection.noQuestionsTitle')}</Text>
                 <Text style={styles.noQuestionsText}>
-                  No questions are available for the "{categoryName}" category.
+                  {tScreens('questionSelection.noQuestionsDesc', { category: categoryName })}
                 </Text>
                 <TouchableOpacity 
                   style={styles.backToCategoriesButton} 
                   onPress={handleBackToCategories}
                 >
-                  <Text style={styles.backToCategoriesButtonText}>Back to Categories</Text>
+                  <Text style={styles.backToCategoriesButtonText}>{tScreens('questionSelection.backToCategories')}</Text>
                 </TouchableOpacity>
               </>
             )}
@@ -158,12 +160,12 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
-      <View style={[styles.header, { paddingTop: insets.top * 0.5 }]}>
+      <View style={[styles.header, { paddingTop: Math.max(SPACING.xs, insets.top * 0.5) }, isRTL && styles.rtlRow]}>
         <TouchableOpacity onPress={handleBackToCategories} style={styles.backButton}>
-          <Text style={styles.backButtonArrow}>←</Text>
+          <Text style={styles.backButtonArrow}>{isRTL ? '→' : '←'}</Text>
         </TouchableOpacity>
         <View style={styles.headerContent}>
-          <Text style={styles.title}>{isCustomCategory ? 'Create Your Own' : categoryName}</Text>
+          <Text style={styles.title}>{isCustomCategory ? tScreens('questionSelection.createYourOwn') : categoryName}</Text>
         </View>
         <View style={styles.placeholder} />
       </View>
@@ -188,7 +190,7 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
                 style={styles.createNewButtonGradient}
               >
                 <Text style={styles.createNewButtonIcon}>+</Text>
-                <Text style={styles.createNewButtonText}>Create New</Text>
+                <Text style={styles.createNewButtonText}>{tScreens('questionSelection.createNew')}</Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>
@@ -199,15 +201,15 @@ const QuestionSelectionScreen: React.FC<QuestionSelectionScreenProps> = ({ navig
           {questions.map((item, index) => (
             <TouchableOpacity 
               key={item.id || item.title}
-              style={styles.questionCard} 
+              style={[styles.questionCard, isRTL && styles.rtlRow]} 
               onPress={() => handleQuestionSelect(item)}
               activeOpacity={0.8}
             >
               <View style={styles.questionCardContent}>
-                <Text style={styles.questionNumber}>Question {index + 1}</Text>
-                <Text style={styles.questionText}>{item.title}</Text>
+                <Text style={[styles.questionNumber, isRTL && styles.rtlText]}>{tScreens('questionSelection.questionNumber', { number: index + 1 })}</Text>
+                <Text style={[styles.questionText, isRTL && styles.rtlText]}>{item.title}</Text>
               </View>
-              <Text style={styles.questionArrow}>→</Text>
+              <Text style={styles.questionArrow}>{isRTL ? '←' : '→'}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -412,6 +414,12 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '700' as const,
+  },
+  rtlRow: {
+    flexDirection: 'row-reverse',
+  },
+  rtlText: {
+    textAlign: 'right',
   },
 });
 

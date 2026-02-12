@@ -4,13 +4,12 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   TextInput,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -20,6 +19,7 @@ import ThemedAlert from '../utils/themedAlert';
 import { COLORS, SPACING, TYPOGRAPHY, ACCESSIBILITY } from '../../backend/utils/constants';
 import { AuthService } from '../../backend/services/authService';
 import { logger } from '../../backend/utils/logger';
+import useAppTranslation from '../../hooks/useTranslation';
 
 interface JoinRoomScreenProps {}
 
@@ -38,15 +38,18 @@ const JoinRoomScreen: React.FC<JoinRoomScreenProps> = () => {
     cleanup
   } = useMultiplayer();
   const authService = AuthService.getInstance();
+  const { t } = useAppTranslation('screens');
+  const { t: tCommon } = useAppTranslation('common');
+  const { isRTL } = useAppTranslation();
 
   const [roomCode, setRoomCode] = useState(joinRoomCode);
   const [isValidCode, setIsValidCode] = useState(false);
 
   useEffect(() => {
     if (error) {
-      ThemedAlert.error('Error', error, [{ text: 'OK', onPress: clearError }]);
+      ThemedAlert.error(tCommon('error'), error, [{ text: tCommon('ok'), onPress: clearError }]);
     }
-  }, [error, clearError]);
+  }, [error, clearError, tCommon]);
 
   useEffect(() => {
     // Validate room code format (6 characters, alphanumeric)
@@ -63,7 +66,7 @@ const JoinRoomScreen: React.FC<JoinRoomScreenProps> = () => {
 
   const handleJoinRoom = async () => {
     if (!isValidCode) {
-      ThemedAlert.warning('Invalid Code', 'Please enter a valid 6-character room code');
+      ThemedAlert.warning(t('multiplayer.joinRoomScreen.invalidCodeTitle'), t('multiplayer.joinRoomScreen.invalidCodeMessage'));
       return;
     }
 
@@ -86,16 +89,16 @@ const JoinRoomScreen: React.FC<JoinRoomScreenProps> = () => {
       } else {
         logger.log('❌ Failed to join room - joinRoom returned false');
         ThemedAlert.error(
-          'Join Failed',
-          'Could not join the room. Please check the room code and try again.'
+          t('multiplayer.joinRoomScreen.joinFailedTitle'),
+          t('multiplayer.joinRoomScreen.joinFailedMessage')
         );
       }
     } catch (error) {
       logger.error('❌ Error in handleJoinRoom:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorMessage = error instanceof Error ? error.message : '';
       ThemedAlert.error(
-        'Join Failed',
-        `Failed to join room: ${errorMessage}`
+        t('multiplayer.joinRoomScreen.joinFailedTitle'),
+        errorMessage ? t('multiplayer.joinRoomScreen.joinFailedWithError', { message: errorMessage }) : t('multiplayer.joinRoomScreen.joinFailedMessage')
       );
     }
   };
@@ -133,15 +136,15 @@ const JoinRoomScreen: React.FC<JoinRoomScreenProps> = () => {
         style={StyleSheet.absoluteFill}
       />
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + SPACING.md }]}>
+      <View style={[styles.header, { paddingTop: Math.max(SPACING.xs, insets.top * 0.5) }, isRTL && styles.rtlRow]}>
         <TouchableOpacity 
-          style={[styles.leaveButton, { position: 'absolute', left: SPACING.lg }]}
+          style={[styles.leaveButton, { position: 'absolute', [isRTL ? 'right' : 'left']: SPACING.lg }]}
           onPress={handleLeaveRoom}
-          accessibilityLabel="Leave room and end session"
+          accessibilityLabel={t('multiplayer.leaveRoom')}
         >
-          <Text style={styles.leaveButtonText}>Exit</Text>
+          <Text style={styles.leaveButtonText}>{t('multiplayer.joinRoomScreen.exit')}</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Join Room</Text>
+        <Text style={styles.title}>{t('multiplayer.joinRoom')}</Text>
         <View style={styles.placeholder} />
       </View>
 
@@ -151,45 +154,43 @@ const JoinRoomScreen: React.FC<JoinRoomScreenProps> = () => {
       >
         {/* Instructions */}
         <View style={styles.instructionsSection}>
-          <Text style={styles.instructionsTitle}>Enter Room Code</Text>
-          <Text style={styles.instructionsSubtitle}>
-            Ask the host for the 6-character room code to join their game
+          <Text style={[styles.instructionsTitle, isRTL && styles.rtlText]}>{t('multiplayer.joinRoomScreen.enterRoomCodeTitle')}</Text>
+          <Text style={[styles.instructionsSubtitle, isRTL && styles.rtlText]}>
+            {t('multiplayer.joinRoomScreen.enterRoomCodeSubtitle')}
           </Text>
         </View>
 
         {/* Room Code Input */}
         <View style={styles.inputSection}>
-          <Text style={styles.inputLabel}>Room Code</Text>
-          <View style={styles.inputContainer}>
+          <Text style={[styles.inputLabel, isRTL && styles.rtlText]}>{t('multiplayer.joinRoomScreen.roomCodeLabel')}</Text>
+          <View style={[styles.inputContainer, isRTL && styles.rtlRow]}>
             <TextInput
               style={[
                 styles.roomCodeInput,
                 isValidCode && styles.roomCodeInputValid,
-                roomCode.length === 6 && !isValidCode && styles.roomCodeInputInvalid
+                roomCode.length === 6 && !isValidCode && styles.roomCodeInputInvalid,
+                isRTL && styles.rtlText
               ]}
               value={roomCode}
               onChangeText={handleRoomCodeChange}
-              placeholder="ABC123"
+              placeholder={t('multiplayer.joinRoomScreen.roomCodePlaceholder')}
               placeholderTextColor={COLORS.muted}
               maxLength={6}
               autoCapitalize="characters"
               autoCorrect={false}
               autoFocus
-              accessibilityLabel="Room code input"
-              accessibilityHint="Enter the 6-character room code"
+              accessibilityLabel={t('multiplayer.joinRoomScreen.roomCodeLabel')}
+              accessibilityHint={t('multiplayer.joinRoomScreen.enterRoomCodeSubtitle')}
+              textAlign={isRTL ? 'right' : 'center'}
             />
           </View>
           
           {/* Validation Messages */}
           {roomCode.length > 0 && !isValidCode && (
-            <Text style={styles.validationError}>
-              Room code must be 6 characters (letters and numbers only)
-            </Text>
+            <Text style={[styles.validationError, isRTL && styles.rtlText]}>{t('multiplayer.joinRoomScreen.validationError')}</Text>
           )}
           {isValidCode && (
-            <Text style={styles.validationSuccess}>
-              ✓ Valid room code format
-            </Text>
+            <Text style={[styles.validationSuccess, isRTL && styles.rtlText]}>{t('multiplayer.joinRoomScreen.validationSuccess')}</Text>
           )}
         </View>
 
@@ -202,43 +203,35 @@ const JoinRoomScreen: React.FC<JoinRoomScreenProps> = () => {
             ]}
             onPress={handleJoinRoom}
             disabled={!isValidCode || loading}
-            accessibilityLabel="Join room with entered code"
+            accessibilityLabel={t('multiplayer.joinRoomScreen.joinRoomButton')}
           >
             {loading ? (
               <ActivityIndicator color={COLORS.white} />
             ) : (
-              <Text style={styles.joinButtonText}>Join Room</Text>
+              <Text style={styles.joinButtonText}>{t('multiplayer.joinRoomScreen.joinRoomButton')}</Text>
             )}
           </TouchableOpacity>
         </View>
 
         {/* Help Section */}
         <View style={styles.helpSection}>
-          <Text style={styles.helpTitle}>Need help?</Text>
+          <Text style={[styles.helpTitle, isRTL && styles.rtlText]}>{t('multiplayer.joinRoomScreen.needHelp')}</Text>
           <View style={styles.helpList}>
-            <View style={styles.helpItem}>
+            <View style={[styles.helpItem, isRTL && styles.rtlRow]}>
               <Text style={styles.helpBullet}>•</Text>
-              <Text style={styles.helpText}>
-                Room codes are 6 characters long (like ABC123)
-              </Text>
+              <Text style={[styles.helpText, isRTL && styles.rtlText]}>{t('multiplayer.joinRoomScreen.help1')}</Text>
             </View>
-            <View style={styles.helpItem}>
+            <View style={[styles.helpItem, isRTL && styles.rtlRow]}>
               <Text style={styles.helpBullet}>•</Text>
-              <Text style={styles.helpText}>
-                Ask the host to share their room code
-              </Text>
+              <Text style={[styles.helpText, isRTL && styles.rtlText]}>{t('multiplayer.joinRoomScreen.help2')}</Text>
             </View>
-            <View style={styles.helpItem}>
+            <View style={[styles.helpItem, isRTL && styles.rtlRow]}>
               <Text style={styles.helpBullet}>•</Text>
-              <Text style={styles.helpText}>
-                Make sure you're connected to the internet
-              </Text>
+              <Text style={[styles.helpText, isRTL && styles.rtlText]}>{t('multiplayer.joinRoomScreen.help3')}</Text>
             </View>
-            <View style={styles.helpItem}>
+            <View style={[styles.helpItem, isRTL && styles.rtlRow]}>
               <Text style={styles.helpBullet}>•</Text>
-              <Text style={styles.helpText}>
-                Room codes are case-insensitive
-              </Text>
+              <Text style={[styles.helpText, isRTL && styles.rtlText]}>{t('multiplayer.joinRoomScreen.help4')}</Text>
             </View>
           </View>
         </View>
@@ -397,6 +390,12 @@ const styles = StyleSheet.create({
     color: COLORS.muted,
     flex: 1,
     lineHeight: 20,
+  },
+  rtlRow: {
+    flexDirection: 'row-reverse',
+  },
+  rtlText: {
+    textAlign: 'right',
   },
 });
 

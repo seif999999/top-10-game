@@ -60,6 +60,9 @@ module.exports = {
     'react-native/no-inline-styles': 'off', // Allow inline styles
     'react-native/no-color-literals': 'off', // Allow color literals
     
+    // i18n: use t() from useAppTranslation for user-visible strings; keys are typed (TranslationKey).
+    // For dynamic keys use: (t as (key: string) => string)(key).
+    
     // General rules
     'no-console': 'off', // Using custom logger
     'no-debugger': 'warn',
