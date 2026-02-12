@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -44,32 +44,7 @@ const EdgeCaseMonitor: React.FC<EdgeCaseMonitorProps> = ({
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
 
-  useEffect(() => {
-    if (isVisible && isMonitoring) {
-      startMonitoring();
-    }
-    return () => {
-      stopMonitoring();
-    };
-  }, [isVisible, isMonitoring]);
-
-  const startMonitoring = () => {
-    // Start monitoring edge cases
-    logger.log('🔍 Starting edge case monitoring...');
-    
-    // Simulate monitoring (in real app, this would connect to actual monitoring)
-    const interval = setInterval(() => {
-      updateStats();
-    }, 5000);
-
-    return () => clearInterval(interval);
-  };
-
-  const stopMonitoring = () => {
-    logger.log('🛑 Stopping edge case monitoring...');
-  };
-
-  const updateStats = () => {
+  const updateStats = useCallback(() => {
     // Simulate stats update (in real app, this would come from actual monitoring)
     setStats(prev => ({
       ...prev,
@@ -87,7 +62,18 @@ const EdgeCaseMonitor: React.FC<EdgeCaseMonitorProps> = ({
       ...prev.slice(-9), // Keep last 10 logs
       `${new Date().toLocaleTimeString()}: Edge case detected`
     ]);
-  };
+  }, []);
+
+  useEffect(() => {
+    if (isVisible && isMonitoring) {
+      logger.log('🔍 Starting edge case monitoring...');
+      const interval = setInterval(updateStats, 5000);
+      return () => {
+        logger.log('🛑 Stopping edge case monitoring...');
+        clearInterval(interval);
+      };
+    }
+  }, [isVisible, isMonitoring, updateStats]);
 
   const handleTestEdgeCase = async (edgeCase: string) => {
     try {

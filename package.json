@@ -24,7 +24,9 @@
     "i18n:missing": "node scripts/find-missing-translations.js",
     "i18n:missing-reverse": "node scripts/find-missing-translations.js --reverse",
     "i18n:unused": "node scripts/find-unused-i18n-keys.js",
-    "i18n:check": "npm run i18n:generate-types && npm run i18n:validate && npm run typecheck"
+    "i18n:check": "npm run i18n:generate-types && npm run i18n:validate && npm run typecheck",
+    "build:dev:android": "eas build --profile development --platform android",
+    "build:preview:android": "eas build --profile preview --platform android"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
@@ -38,6 +40,7 @@
     "expo-build-properties": "~1.0.10",
     "expo-constants": "~18.0.8",
     "expo-crypto": "~15.0.7",
+    "expo-dev-client": "~6.0.20",
     "expo-linear-gradient": "~15.0.8",
     "expo-localization": "~17.0.8",
     "expo-status-bar": "~3.0.8",

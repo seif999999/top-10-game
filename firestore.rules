@@ -27,7 +27,8 @@ service cloud.firestore {
                       request.resource.data.keys().hasOnly([
                         'email', 'displayName', 'createdAt', 'stats', 
                         'selectedAvatar', 'avatarUrl', 'coins', 'lastUpdated', 'isPublic',
-                        'lastLoginDate', 'currentStreak', 'currentWeek'
+                        'lastLoginDate', 'currentStreak', 'currentWeek',
+                        'unlockedCustomSlots'
                       ]);
     }
     

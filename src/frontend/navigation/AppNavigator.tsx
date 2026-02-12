@@ -1,32 +1,44 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../contexts/AuthContext';
 import { RootStackParamList } from '../../shared/types/navigation';
 import useAppTranslation from '../../hooks/useTranslation';
 
-// Import screens
+// Eager-load first-paint screens
 import LoginScreen from '../screens/AuthScreens/LoginScreen';
 import RegisterScreen from '../screens/AuthScreens/RegisterScreen';
 import HomeScreen from '../screens/HomeScreen';
 import ProfileScreen from '../screens/ProfileScreen';
-import QuestionSelectionScreen from '../screens/QuestionSelectionScreen';
-import GameSetupScreen from '../screens/GameSetupScreen';
-import GameScreen from '../screens/GameScreen';
 import ForgotPasswordScreen from '../screens/AuthScreens/ForgotPasswordScreen';
 import PasswordResetSuccessScreen from '../screens/AuthScreens/PasswordResetSuccessScreen';
 import ResetPasswordScreen from '../screens/AuthScreens/ResetPasswordScreen';
-import MultiplayerMenuScreen from '../screens/MultiplayerMenuScreen';
-import CreateRoomScreen from '../screens/CreateRoomScreen';
-import MultiplayerCategoryScreen from '../screens/MultiplayerCategoryScreen';
-import MultiplayerQuestionsScreen from '../screens/MultiplayerQuestionsScreen';
-import JoinRoomScreen from '../screens/JoinRoomScreen';
-import RoomLobbyScreen from '../screens/RoomLobbyScreen';
-import AvatarSelectionScreen from '../screens/AvatarSelectionScreen';
-import CustomQuestionSlotsScreen from '../screens/CustomQuestionSlotsScreen';
-import CustomQuestionScreen from '../screens/CustomQuestionScreen';
-import MissionsScreen from '../screens/MissionsScreen';
-import CoinShopScreen from '../screens/CoinShopScreen';
-import CoinHistoryScreen from '../screens/CoinHistoryScreen';
+
+// Lazy-load secondary screens for faster initial bundle
+const QuestionSelectionScreen = lazy(() => import('../screens/QuestionSelectionScreen'));
+const GameSetupScreen = lazy(() => import('../screens/GameSetupScreen'));
+const GameScreen = lazy(() => import('../screens/GameScreen'));
+const MultiplayerMenuScreen = lazy(() => import('../screens/MultiplayerMenuScreen'));
+const CreateRoomScreen = lazy(() => import('../screens/CreateRoomScreen'));
+const MultiplayerCategoryScreen = lazy(() => import('../screens/MultiplayerCategoryScreen'));
+const MultiplayerQuestionsScreen = lazy(() => import('../screens/MultiplayerQuestionsScreen'));
+const JoinRoomScreen = lazy(() => import('../screens/JoinRoomScreen'));
+const RoomLobbyScreen = lazy(() => import('../screens/RoomLobbyScreen'));
+const AvatarSelectionScreen = lazy(() => import('../screens/AvatarSelectionScreen'));
+const CustomQuestionSlotsScreen = lazy(() => import('../screens/CustomQuestionSlotsScreen'));
+const CustomQuestionScreen = lazy(() => import('../screens/CustomQuestionScreen'));
+const MissionsScreen = lazy(() => import('../screens/MissionsScreen'));
+const CoinShopScreen = lazy(() => import('../screens/CoinShopScreen'));
+const CoinHistoryScreen = lazy(() => import('../screens/CoinHistoryScreen'));
+
+const ScreenFallback = () => (
+  <View style={screenFallbackStyles.container}>
+    <ActivityIndicator size="large" color="#8B5CF6" />
+  </View>
+);
+const screenFallbackStyles = StyleSheet.create({
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1a1a2e' },
+});
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -35,6 +47,7 @@ const AppNavigator: React.FC = () => {
   const { isRTL } = useAppTranslation();
 
   return (
+    <Suspense fallback={<ScreenFallback />}>
     <Stack.Navigator
       screenOptions={{
         headerShown: false,
@@ -79,6 +92,7 @@ const AppNavigator: React.FC = () => {
         </>
       )}
     </Stack.Navigator>
+    </Suspense>
   );
 };
 

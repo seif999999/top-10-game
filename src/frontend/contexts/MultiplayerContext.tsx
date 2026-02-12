@@ -9,6 +9,7 @@ import { useAuth } from './AuthContext';
 import { updatePlayerPresence } from '../../backend/services/multiplayerTransaction';
 import { AuthService } from '../../backend/services/authService';
 import { logger } from '../../backend/utils/logger';
+import i18n from '../../config/i18n';
 
 // Enhanced multiplayer state interface
 interface MultiplayerState {
@@ -694,7 +695,7 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
           type: 'SET_SYSTEM_MESSAGE',
           payload: {
             type: 'host_migrated',
-            message: result.newHostName ? `${result.newHostName} is now the host.` : 'A new host has been assigned.',
+            message: result.newHostName ? i18n.t('multiplayer.hostChangedMessage', { ns: 'game', name: result.newHostName }) : i18n.t('multiplayer.newHostAssigned', { ns: 'game' }),
             newHostId: result.newHostId,
             newHostName: result.newHostName
           }
@@ -706,7 +707,7 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
           type: 'SET_SYSTEM_MESSAGE',
           payload: {
             type: 'room_terminated',
-            message: 'The host left the game, so the room has been closed.'
+            message: i18n.t('multiplayer.roomClosedHostLeft', { ns: 'game' })
           }
         });
         

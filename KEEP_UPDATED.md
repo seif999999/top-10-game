@@ -17,6 +17,8 @@
 7. [Security](#security)
 8. [File Structure](#file-structure)
 9. [Development](#development)
+10. [Recent Updates](#recent-updates)
+11. [Coin System (Complete Reference)](#coin-system-complete-reference)
 
 ---
 
@@ -29,7 +31,7 @@ Top 10 Game is a cross-platform trivia game where players guess the top 10 answe
 - **Multiplayer**: Real-time rooms with turn-based gameplay
 - **Scoring**: Rank-based (Rank 1 = 1 point, Rank 10 = 10 points)
 - **Validation**: Fuzzy matching with alias/nickname support
-- **Categories**: Sports, Movies, Music, Food, Countries, Masry, Custom Questions (10 slots)
+- **Categories**: Sports, Movies, Music, Food, Countries, Masry, Custom Questions (1 free + 9 paid slots)
 
 ### Key Features
 - ✅ Firebase Authentication (Email/Password)
@@ -42,6 +44,7 @@ Top 10 Game is a cross-platform trivia game where players guess the top 10 answe
 - ✅ Rate limiting and abuse prevention
 - ✅ Cross-platform (iOS, Android, Web)
 - ✅ Missions and rewards (progress stored in Firestore under user profile)
+- ✅ Coin system (earn via ads, missions, daily rewards; spend to unlock custom slots)
 
 ---
 
@@ -339,6 +342,7 @@ Required in `.env`:
 - `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`
 - `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`
 - `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID`
+- **AdMob (coin ads)**: `EXPO_PUBLIC_ADMOB_ANDROID_APP_ID`, `EXPO_PUBLIC_ADMOB_IOS_APP_ID`, `EXPO_PUBLIC_ADMOB_*_REWARDED_ID`, `EXPO_PUBLIC_ADMOB_*_BANNER_ID`, `EXPO_PUBLIC_ADMOB_*_INTERSTITIAL_ID`; see `ADMOB_BUILD_GUIDE.md`
 
 ### Code Style
 - TypeScript strict mode
@@ -367,10 +371,89 @@ Required in `.env`:
 
 ### Custom Questions System (Feb 2026)
 - Switched from unlimited list to 10-slot system
+- **1 free + 9 paid slots**: Slot 0 is free; slots 1–9 cost 100 coins each (one-time unlock via `customSlotUnlockService.ts`)
+- Unlocked slots stored in `userProfiles/{userId}.unlockedCustomSlots` (array of slot indices)
 - Each slot can store one custom question
-- Slot-based UI with slot selection screen
+- Slot-based UI with slot selection screen; locked slots show 🔒 and "Unlock for 100 coins"
+- Grandfather rule: slots with existing content remain accessible without unlock
 - Clear individual slots or all slots
 - Persistent storage with migration from old format
+
+---
+
+## Coin System (Complete Reference)
+
+### Overview
+Coins are the in-app currency stored in Firestore. Users earn coins through rewarded ads, missions, and daily rewards. Coins can be spent to unlock custom question slots (1–9). Auth required; balance and transactions in `userProfiles/{userId}`.
+
+### Earning Coins
+
+| Source | Amount | Notes |
+|--------|--------|------|
+| **Welcome bonus** | 100 | New users only; idempotent; reason "Welcome bonus" |
+| **Migration bonus** | 50 | Existing users with 0 balance, once; reason "Account upgrade bonus" |
+| **Rewarded ads (Coin Shop)** | 25 | Watch video; no cooldown; reason "Watched ad" / "Rewarded ad (25 coins)" |
+| **Missions** | 5–250 | Per mission completion; repeatable missions give reduced reward (multiplier) |
+| **Daily rewards** | 1, 2, 4, 8… | Exponential by week (2^(week-1)); streak-based; once per day |
+
+### Spending Coins
+
+| Item | Cost | Notes |
+|------|------|-------|
+| **Custom slot unlock** | 100 per slot | Slots 1–9; one-time purchase; stored in `unlockedCustomSlots` |
+| **Premium (EGP)** | TBD | 50/100/150/200 coin packages shown in Coin Shop; "Coming soon" |
+
+### Key Services & Files
+
+| Component | Path | Purpose |
+|-----------|------|---------|
+| **CoinService** | `src/backend/services/CoinService.ts` | `addCoins`, `deductCoins`, `getCoinBalance`, `getCoinTransactions`, `initializeCoins`, `grantMigrationBonusIfNeeded` |
+| **CustomSlotUnlockService** | `src/backend/services/customSlotUnlockService.ts` | `getUnlockedSlots`, `unlockSlot`, `isSlotUsable`; uses `SLOT_UNLOCK_COINS` (100) |
+| **coinAdCooldown** | `src/backend/utils/coinAdCooldown.ts` | Cooldowns for ad packages: 25 (0), 50 (0), 100 (2h), 200 (24h); storage keys `coin_ad_cooldown_*` |
+| **missionService** | `src/backend/services/missionService.ts` | Awards coins via `addCoins` when missions complete |
+| **dailyRewardService** | `src/backend/services/dailyRewardService.ts` | Awards coins on streak claim |
+| **AdContext** | `src/frontend/contexts/AdContext.tsx` | `showRewardedAdForCoins`, `recordCoinAdClaim`, `isCoinAdAvailable`, `getCoinAdCooldownRemaining` |
+
+### Firestore Structure
+
+- **`userProfiles/{userId}`**
+  - `coins` (number): Current balance
+  - `unlockedCustomSlots` (array of numbers): Slot indices 1–9 that are unlocked
+- **`userProfiles/{userId}/coinTransactions`** (subcollection)
+  - `amount` (number): positive = earned, negative = spent
+  - `type`: `"earned"` | `"spent"`
+  - `reason` (string): e.g. "Welcome bonus", "Custom slot 2 unlock"
+  - `timestamp`: serverTimestamp
+  - Last 100 kept per user (pruned by CoinService)
+
+### UI Components & Screens
+
+| Component | Path | Purpose |
+|-----------|------|---------|
+| **CoinDisplay** | `src/frontend/components/CoinDisplay.tsx` | Balance display; sizes small/medium/large; optional "Get more" → Coin Shop |
+| **CoinShopScreen** | `src/frontend/screens/CoinShopScreen.tsx` | Balance card; premium packages (EGP); watch video for 25 coins |
+| **CoinHistoryScreen** | `src/frontend/screens/CoinHistoryScreen.tsx` | Transaction history (earned/spent) |
+| **CoinShopOnboarding** | `src/frontend/components/CoinShopOnboarding.tsx` | First-time modal; shown once (AsyncStorage) |
+| **CustomQuestionSlotsScreen** | `src/frontend/screens/CustomQuestionSlotsScreen.tsx` | Lock/unlock UI for paid slots |
+
+### Ad Integration
+
+- **Rewarded ads**: Coin Shop "Watch Video" grants 25 coins; AdService + AdContext
+- **Interstitial**: After every 3 single-player games; 5‑min frequency cap
+- **Banner**: Home, Multiplayer Menu only
+- **Premium users**: No interstitials/banners; rewarded ads still available
+
+### Environment & Config
+
+- Ad unit IDs in `.env`: `EXPO_PUBLIC_ADMOB_*` (rewarded, interstitial, banner)
+- `app.config.js`: AdMob plugin; fallback test IDs when env empty
+- Firestore rules: `userProfiles` write allows `unlockedCustomSlots`; `coinTransactions` read/write for owner
+
+### Related Docs
+
+- **COIN_SYSTEM_ROADMAP.md** – Planned spending (avatars, power-ups, premium rooms)
+- **COIN_TESTING_CHECKLIST.md** – Test cases for coin system and ads
+- **PROJECT_DOCS.md** – High-level coin implementation overview
 
 ### Security Improvements (Jan 2026)
 - All Firebase config moved to environment variables

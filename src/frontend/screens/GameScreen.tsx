@@ -581,8 +581,8 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
         const newHostName = multiplayerState.players[currentHostId]?.name || tGame('multiplayer.unknownPlayer');
         showToast(
           'success',
-          'Host Changed',
-          `${newHostName} is now the new host!`
+          tGame('multiplayer.hostChanged'),
+          tGame('multiplayer.hostChangedMessage', { name: newHostName })
         );
       }
       
@@ -1262,18 +1262,18 @@ const handleEndGame = () => {
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>
-            {isMultiplayerMode ? 'Waiting for game to start...' : 'Loading game...'}
+            {isMultiplayerMode ? tGame('multiplayer.waitingForGameStart') : tGame('multiplayer.loadingGame')}
           </Text>
           {isMultiplayerMode && (
             <>
               <Text style={styles.connectionStatus}>
-                Status: {multiplayerConnectionStatus || 'disconnected'}
+                {tGame('multiplayer.statusLabel')}: {multiplayerConnectionStatus || tGame('multiplayer.disconnected')}
               </Text>
               <Text style={styles.connectionStatus}>
-                Game Phase: {multiplayerState?.gamePhase || 'unknown'}
+                {tGame('multiplayer.gamePhaseLabel')}: {multiplayerState?.gamePhase || tGame('multiplayer.unknown')}
               </Text>
               <Text style={styles.connectionStatus}>
-                Questions: {multiplayerState?.questions?.length || 0}
+                {tGame('multiplayer.questionsLabel')}: {multiplayerState?.questions?.length || 0}
               </Text>
             </>
           )}
