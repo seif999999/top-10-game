@@ -11,11 +11,15 @@ import { InputValidator } from '../../../backend/utils/inputValidator';
 import PrivacyPolicyService from '../../../backend/services/privacyPolicyService';
 import { logger } from '../../../backend/utils/logger';
 import { toAppError } from '../../../shared/errors';
+import useAppTranslation from '../../../hooks/useTranslation';
 
 type Props = RegisterScreenProps;
 
 const RegisterScreen: React.FC<Props> = ({ navigation }) => {
   const { signUp, loading } = useAuth();
+  const { t: tScreens } = useAppTranslation('screens');
+  const { t: tErrors } = useAppTranslation('errors');
+  const { isRTL } = useAppTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -30,41 +34,41 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
   const validate = () => {
     const next: { displayName?: string; email?: string; password?: string; confirmPassword?: string } = {};
     
-    // Validate display name using InputValidator
     if (!displayName.trim()) {
-      next.displayName = 'Display name is required';
+      next.displayName = tErrors('validation.displayNameRequired');
     } else {
       const nameValidation = InputValidator.validateDisplayName(displayName.trim());
       if (!nameValidation.valid) {
-        next.displayName = nameValidation.errors[0]; // Show first error
+        next.displayName = nameValidation.errors[0];
       }
     }
     
-    // Validate email using InputValidator
     if (!email.trim()) {
-      next.email = 'Email is required';
+      next.email = tErrors('validation.emailRequired');
     } else if (!InputValidator.validateEmail(email.trim())) {
-      next.email = 'Enter a valid email address';
+      next.email = tErrors('validation.emailInvalid');
     }
     
-    // Validate password using InputValidator
     if (!password) {
-      next.password = 'Password is required';
+      next.password = tErrors('validation.passwordRequired');
     } else {
       const passwordValidation = InputValidator.validatePassword(password);
       if (!passwordValidation.valid) {
-        next.password = passwordValidation.errors[0]; // Show first error
+        next.password = passwordValidation.errors[0];
       }
     }
     
     if (!confirmPassword) {
-      next.confirmPassword = 'Confirm your password';
+      next.confirmPassword = tErrors('validation.confirmPasswordRequired');
     } else if (password !== confirmPassword) {
-      next.confirmPassword = 'Passwords do not match';
+      next.confirmPassword = tErrors('validation.passwordsDoNotMatch');
     }
     
     if (!privacyPolicyAccepted) {
-      ThemedAlert.warning('Privacy Policy Required', 'You must accept the privacy policy to create an account.');
+      ThemedAlert.warning(
+        tScreens('auth.register.privacyPolicyRequired'),
+        tScreens('auth.register.privacyPolicyMessage')
+      );
       return false;
     }
     
@@ -77,7 +81,6 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
       setPrivacyPolicyAccepted(true);
       setShowPrivacyPolicy(false);
       
-      // Record privacy policy acceptance for the user being created
       await PrivacyPolicyService.recordAnonymousAcceptance({
         ipAddress: 'unknown',
         userAgent: 'mobile',
@@ -90,129 +93,94 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
       logger.log('Privacy policy accepted');
     } catch (error) {
       logger.error('Error recording privacy policy acceptance:', error);
-      // Still allow the user to proceed
     }
   };
 
   const handlePrivacyPolicyDecline = () => {
     ThemedAlert.warning(
-      'Privacy Policy Required',
-      'You must accept the privacy policy to create an account.',
-      [{ text: 'OK' }]
+      tScreens('auth.register.privacyPolicyRequired'),
+      tScreens('auth.register.privacyPolicyMessage'),
+      [{ text: tErrors('general') === 'Error' ? 'OK' : 'OK' }]
     );
   };
 
   const handleSignUp = async () => {
-    logger.log('🔍 DEBUG: handleSignUp called');
-    logger.log('🔍 DEBUG: Form data:', { displayName, email, password: password ? '***' : '', confirmPassword: confirmPassword ? '***' : '' });
-    
-    // Check if privacy policy is accepted first
     if (!privacyPolicyAccepted) {
       setShowPrivacyPolicy(true);
       return;
     }
     
     const isValid = validate();
-    logger.log('🔍 DEBUG: Validation result:', isValid);
-    logger.log('🔍 DEBUG: Errors:', errors);
+    if (!isValid) return;
     
-    if (!isValid) {
-      logger.log('❌ DEBUG: Validation failed, not proceeding');
-      return;
-    }
-    
-    logger.log('✅ DEBUG: Validation passed, proceeding with signup');
-    
-    // Sanitize inputs
-    logger.log('🔍 DEBUG: Starting input sanitization...');
     let sanitizedEmail, sanitizedPassword, sanitizedDisplayName;
     
     try {
       sanitizedEmail = InputValidator.sanitizeText(email.trim(), 254);
-      logger.log('🔍 DEBUG: Email sanitized');
       sanitizedPassword = InputValidator.sanitizeText(password, 128);
-      logger.log('🔍 DEBUG: Password sanitized');
       sanitizedDisplayName = InputValidator.sanitizeText(displayName.trim(), 30);
-      logger.log('🔍 DEBUG: Display name sanitized');
     } catch (error) {
-      logger.error('❌ DEBUG: Sanitization error:', error);
-      // Fallback to basic sanitization
+      logger.error('Sanitization error:', error);
       sanitizedEmail = email.trim();
       sanitizedPassword = password;
       sanitizedDisplayName = displayName.trim();
-      logger.log('🔍 DEBUG: Using fallback sanitization');
     }
     
-    logger.log('🔍 DEBUG: Sanitized inputs:', { 
-      sanitizedEmail, 
-      sanitizedPassword: sanitizedPassword ? '***' : '', 
-      sanitizedDisplayName 
-    });
-    
-    logger.log('🔍 DEBUG: Setting local loading to true...');
     setLocalLoading(true);
-    logger.log('🔍 DEBUG: Local loading set to true');
-    
     try {
-      logger.log('🔍 DEBUG: About to call signUp function...');
-      logger.log('🔍 DEBUG: signUp function exists:', typeof signUp);
       await signUp(sanitizedEmail, sanitizedPassword, sanitizedDisplayName);
-      logger.log('✅ DEBUG: SignUp successful');
     } catch (error) {
       const appError = toAppError(error, {
         code: 'AUTH_REGISTER_FAILED',
         message: 'Registration failed',
-        userMessage: 'Registration failed. Please try again.'
+        userMessage: tErrors('auth.registrationFailed')
       });
-      logger.error('❌ DEBUG: SignUp error:', appError);
-      ThemedAlert.error('Registration Failed', appError.userMessage ?? appError.message);
+      logger.error('SignUp error:', appError);
+      ThemedAlert.error(tErrors('auth.registrationFailedTitle'), appError.userMessage ?? appError.message);
     } finally {
-      logger.log('🔍 DEBUG: Setting local loading to false...');
       setLocalLoading(false);
-      logger.log('🔍 DEBUG: Local loading set to false');
     }
   };
-
 
   const isLoading = loading || localLoading;
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Create account</Text>
-      <Text style={styles.subtitle}>Join the Top 10 game community</Text>
+      <Text style={styles.title}>{tScreens('auth.register.title')}</Text>
+      <Text style={styles.subtitle}>{tScreens('auth.register.subtitle')}</Text>
       
       <TextInput 
-        placeholder="Display Name" 
+        placeholder={tScreens('auth.displayName')}
         placeholderTextColor={COLORS.muted}
         value={displayName} 
         onChangeText={setDisplayName}
         editable={!isLoading}
-        style={styles.input}
+        style={[styles.input, isRTL && styles.rtlText]}
       />
       {errors.displayName ? <Text style={styles.error}>{errors.displayName}</Text> : null}
       <TextInput 
-        placeholder="Email" 
+        placeholder={tScreens('auth.email')}
         placeholderTextColor={COLORS.muted}
         autoCapitalize="none" 
         keyboardType="email-address"
         value={email} 
         onChangeText={setEmail}
         editable={!isLoading}
-        style={styles.input}
+        style={[styles.input, isRTL && styles.rtlText]}
       />
       {errors.email ? <Text style={styles.error}>{errors.email}</Text> : null}
-      <View style={styles.passwordContainer}>
+      <View style={[styles.passwordContainer, isRTL && styles.rtlRow]}>
         <TextInput 
-          placeholder="Password" 
+          placeholder={tScreens('auth.password')}
           placeholderTextColor={COLORS.muted}
           secureTextEntry={!showPassword}
           value={password} 
           onChangeText={setPassword}
           editable={!isLoading}
-          style={styles.passwordInput}
+          style={[styles.passwordInput, isRTL && styles.rtlPasswordInput]}
         />
         <TouchableOpacity 
-          style={styles.eyeButton}
+          style={[styles.eyeButton, isRTL && styles.rtlEyeButton]}
           onPress={() => setShowPassword(!showPassword)}
           disabled={isLoading}
         >
@@ -222,18 +190,18 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
         </TouchableOpacity>
       </View>
       {errors.password ? <Text style={styles.error}>{errors.password}</Text> : null}
-      <View style={styles.passwordContainer}>
+      <View style={[styles.passwordContainer, isRTL && styles.rtlRow]}>
         <TextInput 
-          placeholder="Confirm Password" 
+          placeholder={tScreens('auth.confirmPassword')}
           placeholderTextColor={COLORS.muted}
           secureTextEntry={!showConfirmPassword}
           value={confirmPassword} 
           onChangeText={setConfirmPassword}
           editable={!isLoading}
-          style={styles.passwordInput}
+          style={[styles.passwordInput, isRTL && styles.rtlPasswordInput]}
         />
         <TouchableOpacity 
-          style={styles.eyeButton}
+          style={[styles.eyeButton, isRTL && styles.rtlEyeButton]}
           onPress={() => setShowConfirmPassword(!showConfirmPassword)}
           disabled={isLoading}
         >
@@ -246,34 +214,34 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
       
       <View style={styles.privacyPolicyContainer}>
         <TouchableOpacity 
-          style={styles.checkboxContainer}
+          style={[styles.checkboxContainer, isRTL && styles.rtlRow]}
           onPress={() => setPrivacyPolicyAccepted(!privacyPolicyAccepted)}
         >
-          <View style={[styles.checkbox, privacyPolicyAccepted && styles.checkboxChecked]}>
+          <View style={[styles.checkbox, privacyPolicyAccepted && styles.checkboxChecked, isRTL && styles.rtlCheckbox]}>
             {privacyPolicyAccepted && <Text style={styles.checkmark}>✓</Text>}
           </View>
           <Text style={styles.checkboxLabel}>
-            I accept the{' '}
+            {tScreens('auth.register.acceptPrivacy')}{' '}
             <Text 
               style={styles.privacyPolicyLink}
               onPress={() => setShowPrivacyPolicy(true)}
             >
-              Privacy Policy
+              {tScreens('auth.register.privacyPolicy')}
             </Text>
           </Text>
         </TouchableOpacity>
       </View>
       
       <Button 
-        title={isLoading ? 'Creating account…' : 'Create Account'} 
+        title={isLoading ? tScreens('auth.register.creatingAccount') : tScreens('auth.createAccount')} 
         onPress={handleSignUp}
         disabled={isLoading}
       />
       
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>Already have an account? </Text>
+      <View style={[styles.footer, isRTL && styles.rtlRow]}>
+        <Text style={styles.footerText}>{tScreens('auth.alreadyHaveAccount')} </Text>
         <TouchableOpacity onPress={() => navigation.navigate('Login')} disabled={isLoading}>
-          <Text style={[styles.linkText, isLoading && styles.disabledText]}>Sign in</Text>
+          <Text style={[styles.linkText, isLoading && styles.disabledText]}>{tScreens('auth.signIn')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -408,8 +376,26 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     textDecorationLine: 'underline',
   },
+  // RTL styles
+  rtlText: {
+    textAlign: 'right',
+  },
+  rtlRow: {
+    flexDirection: 'row-reverse',
+  },
+  rtlPasswordInput: {
+    paddingRight: SPACING.lg,
+    paddingLeft: 50,
+    textAlign: 'right',
+  },
+  rtlEyeButton: {
+    right: undefined,
+    left: SPACING.md,
+  },
+  rtlCheckbox: {
+    marginRight: 0,
+    marginLeft: SPACING.sm,
+  },
 });
 
 export default RegisterScreen;
-
-

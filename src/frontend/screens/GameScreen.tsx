@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, TextInput, Platform, Animated, BackHandler } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Platform, Animated, BackHandler } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import ThemedAlert from '../utils/themedAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, CommonActions } from '@react-navigation/native';
@@ -25,6 +26,9 @@ import { InputValidator } from '../../backend/utils/inputValidator';
 import { RateLimitService } from '../../backend/services/rateLimitService';
 import { findMatchingAnswer } from '../../backend/services/multiplayerGameFlowV2';
 import { logger } from '../../backend/utils/logger';
+import { incrementGameCompletionCount } from '../../backend/utils/gameCompletionStorage';
+import InterstitialAdLoader from '../components/ads/InterstitialAdLoader';
+import useAppTranslation from '../../hooks/useTranslation';
 
 
 type AnswerLike = string | QuestionAnswer | Answer;
@@ -32,6 +36,8 @@ type AnswerLike = string | QuestionAnswer | Answer;
 const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   const { roomId, categoryId, isMultiplayer, selectedQuestion, teamConfig, customQuestion, isCustomQuestion } = route.params;
   const insets = useSafeAreaInsets();
+  const { t: tGame, isRTL } = useAppTranslation('game');
+  const { t: tCommon } = useAppTranslation('common');
   const { 
     gameState, 
     currentAnswer, 
@@ -90,6 +96,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   } = useMultiplayer();
 
   const [showResults, setShowResults] = useState(false);
+  const [triggerInterstitial, setTriggerInterstitial] = useState(false);
   const [isAnswerSubmitted, setIsAnswerSubmitted] = useState(false);
   const [submittedAnswers, setSubmittedAnswers] = useState<string[]>([]);
   const [showQuestionComplete, setShowQuestionComplete] = useState(false);
@@ -210,7 +217,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
       } else {
         // If we're not in the right room, try to join
         if (roomId && roomId !== 'single-player') {
-          const playerName = user?.displayName || user?.email || 'Player';
+          const playerName = user?.displayName || user?.email || tCommon('player');
           const playerId = user?.id || user?.email || `player_${Date.now()}`;
           try {
             await multiplayerService.joinRoom(roomId, playerId, playerName);
@@ -219,11 +226,11 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
             logger.error('❌ Failed to join room:', error);
             // Room not found - navigate back to home
             ThemedAlert.error(
-              'Room Not Found',
-              'This room no longer exists. Please create or join a different room.',
+              tGame('multiplayer.roomNotFound'),
+              tGame('multiplayer.roomNotFoundMessage'),
               [
                 {
-                  text: 'OK',
+                  text: tCommon('ok'),
                   onPress: () => {
                     navigation.reset({
                       index: 0,
@@ -326,10 +333,10 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
       const timeout = setTimeout(() => {
         logger.log('⏰ Multiplayer game loading timeout - showing error');
         ThemedAlert.warning(
-          'Game Loading Timeout',
-          'The game is taking too long to start. Please try again.',
+          tGame('multiplayer.gameLoadingTimeout'),
+          tGame('multiplayer.gameLoadingTimeoutMessage'),
           [
-            { text: 'OK', onPress: () => navigation.goBack() }
+            { text: tCommon('ok'), onPress: () => navigation.goBack() }
           ]
         );
       }, 10000); // 10 second timeout
@@ -464,9 +471,15 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
         setShowGameEndRanking(true);
         setShowResults(true);
       } else {
-        // For single player games, automatically navigate back to categories
+        // For single player games: track completion and show interstitial every 3 games
         setShowGameEndRanking(true);
-        // Don't show results modal, just navigate away after a brief delay
+        incrementGameCompletionCount().then((newCount) => {
+          logger.log('Interstitial ad frequency: game_completion_count', newCount);
+          if (newCount % 3 === 0) {
+            setTriggerInterstitial(true);
+          }
+        });
+        // Navigate away after a brief delay (interstitial may show during or after)
         setTimeout(() => {
           resetGame();
           navigation.dispatch(
@@ -483,6 +496,13 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     }
   }, [gameState?.gamePhase, showResults, isMultiplayerMode]);
 
+  // Reset interstitial trigger after ad closed or fallback (e.g. ad not loaded)
+  useEffect(() => {
+    if (!triggerInterstitial) return;
+    const fallback = setTimeout(() => setTriggerInterstitial(false), 6000);
+    return () => clearTimeout(fallback);
+  }, [triggerInterstitial]);
+
   // Handle system messages (Sporcle-style notifications)
   useEffect(() => {
     if (isMultiplayerMode && systemMessage.type) {
@@ -491,7 +511,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
         // Show seamless host migration notification (Sporcle-style)
         showToast(
           'success',
-          'Host Changed',
+          tGame('multiplayer.hostChanged'),
           systemMessage.message
         );
         
@@ -502,11 +522,11 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
       } else if (systemMessage.type === 'room_terminated') {
         // Room terminated - show cross-platform alert and redirect
         showCrossPlatformAlert({
-          title: 'Room Closed',
+          title: tGame('multiplayer.roomClosed'),
           message: systemMessage.message,
           buttons: [
             { 
-              text: 'OK', 
+              text: tCommon('ok'), 
               onPress: () => {
                 clearSystemMessage();
                 forceDisconnect();
@@ -519,11 +539,11 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
         // Game terminated due to insufficient players
         logger.log('🔔 GAME_TERMINATED: Showing termination alert');
         showCrossPlatformAlert({
-          title: 'Game Ended',
+          title: tGame('multiplayer.gameEnded'),
           message: systemMessage.message,
           buttons: [
             { 
-              text: 'OK', 
+              text: tCommon('ok'), 
               onPress: () => {
                 logger.log('🔔 GAME_TERMINATED: User acknowledged, redirecting to MultiplayerMenu');
                 clearSystemMessage();
@@ -558,7 +578,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
         });
         
         // The host migration was already handled by the server, just show notification
-        const newHostName = multiplayerState.players[currentHostId]?.name || 'Unknown Player';
+        const newHostName = multiplayerState.players[currentHostId]?.name || tGame('multiplayer.unknownPlayer');
         showToast(
           'success',
           'Host Changed',
@@ -624,12 +644,12 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     if (isMultiplayerMode) {
       const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
         showCrossPlatformAlert({
-          title: 'Exit Game',
-          message: 'Are you sure you want to leave the game? This will disconnect you from the room.',
+          title: tGame('exit.title'),
+          message: tGame('exit.exitMultiplayerMessage'),
           buttons: [
-            { text: 'Cancel', style: 'cancel' },
+            { text: tCommon('cancel'), style: 'cancel' },
             { 
-              text: 'Exit', 
+              text: tGame('actions.exit'), 
               style: 'destructive', 
               onPress: () => {
                 leaveRoom();
@@ -650,12 +670,12 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     if (!isMultiplayerMode) {
       const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
         ThemedAlert.warning(
-          'Exit Game',
-          'Are you sure you want to exit? Your progress will be lost.',
+          tGame('exit.title'),
+          tGame('exit.exitSingleMessage'),
           [
-            { text: 'Cancel', style: 'cancel' },
+            { text: tCommon('cancel'), style: 'cancel' },
             { 
-              text: 'Exit', 
+              text: tGame('actions.exit'), 
               style: 'destructive', 
               onPress: () => {
                 resetGame();
@@ -691,12 +711,12 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
 
   const handleExitGame = () => {
     ThemedAlert.warning(
-      'Exit Game',
-      'Are you sure you want to exit? Your progress will be lost.',
+      tGame('exit.title'),
+      tGame('exit.exitSingleMessage'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: tCommon('cancel'), style: 'cancel' },
         { 
-          text: 'Exit', 
+          text: tGame('actions.exit'), 
           style: 'destructive', 
                                           onPress: () => {
             if (isMultiplayerMode) {
@@ -731,8 +751,8 @@ const handleEndGame = () => {
   if (Platform.OS === 'web') {
     // Web version
     const message = isMultiplayerMode 
-      ? 'Are you sure you want to exit? Your progress will be lost.'
-      : "Are you sure you want to end the game? You'll see your final results.";
+      ? tGame('exit.exitMultiplayerMessage')
+      : tGame('exit.endGameMessage');
     const confirmed = window.confirm(message);
     if (confirmed) {
       if (isMultiplayerMode) {
@@ -757,10 +777,10 @@ const handleEndGame = () => {
   } else {
     // Mobile version
     const message = isMultiplayerMode 
-      ? 'Are you sure you want to exit? Your progress will be lost.'
-      : "Are you sure you want to end the game? You'll see your final results.";
-    const title = isMultiplayerMode ? 'Exit Game' : 'End Game';
-    const buttonText = isMultiplayerMode ? 'Exit' : 'End Game';
+      ? tGame('exit.exitMultiplayerMessage')
+      : tGame('exit.endGameMessage');
+    const title = isMultiplayerMode ? tGame('exit.title') : tGame('exit.endGameTitle');
+    const buttonText = isMultiplayerMode ? tGame('actions.exit') : tGame('actions.endGame');
     
     // Use error style (red outline) for single player, warning style (yellow outline) for multiplayer
     if (isMultiplayerMode) {
@@ -768,7 +788,7 @@ const handleEndGame = () => {
         title,
         message,
         [
-          { text: 'Cancel', style: 'cancel' },
+          { text: tCommon('cancel'), style: 'cancel' },
           { 
             text: buttonText, 
             style: 'destructive', 
@@ -785,7 +805,7 @@ const handleEndGame = () => {
         title,
         message,
         [
-          { text: 'Cancel', style: 'cancel' },
+          { text: tCommon('cancel'), style: 'cancel' },
           { 
             text: buttonText, 
             style: 'destructive', 
@@ -854,7 +874,7 @@ const handleEndGame = () => {
 
     return Object.entries(multiplayerState.players).map(([playerId, player]) => ({
       playerId,
-      playerName: player.name || 'Unknown Player',
+      playerName: player.name || tGame('multiplayer.unknownPlayer'),
       score: multiplayerState.scores?.[playerId] || 0,
       rank: 0, // Will be calculated by the leaderboard component
     }));
@@ -878,12 +898,12 @@ const handleEndGame = () => {
     if (!isMultiplayerMode) {
       // Single player mode - show warning
       ThemedAlert.warning(
-        'Exit Game',
-        'Are you sure you want to exit? Your progress will be lost.',
+        tGame('exit.title'),
+        tGame('exit.exitSingleMessage'),
         [
-          { text: 'Cancel', style: 'cancel' },
+          { text: tCommon('cancel'), style: 'cancel' },
           { 
-            text: 'Exit', 
+            text: tGame('actions.exit'), 
             style: 'destructive', 
             onPress: () => {
               resetGame();
@@ -1035,7 +1055,7 @@ const handleEndGame = () => {
         // Check if player has already submitted this turn
         if (hasSubmittedThisTurn) {
           logger.log('❌ Already submitted this turn');
-          ThemedAlert.warning('Already Submitted', 'You have already submitted an answer this turn. Wait for your next turn.');
+          ThemedAlert.warning(tGame('multiplayer.alreadySubmittedTitle'), tGame('multiplayer.alreadySubmittedMessage'));
           return;
         }
         
@@ -1044,7 +1064,7 @@ const handleEndGame = () => {
           const validation = multiplayerService.isAllowedToSubmitV2(user?.id || '', multiplayerState);
           if (!validation.allowed) {
             logger.log('❌ Cannot submit:', validation.reason || 'Wait for your turn to submit answers.');
-            ThemedAlert.warning('Not Your Turn', validation.reason || 'Wait for your turn to submit answers.');
+            ThemedAlert.warning(tGame('multiplayer.notYourTurnTitle'), validation.reason || tGame('multiplayer.notYourTurnMessage'));
             return;
           }
         }
@@ -1266,10 +1286,10 @@ const handleEndGame = () => {
     <SafeAreaView style={styles.container}>
       
              {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + SPACING.xs }]}>
+      <View style={[styles.header, { paddingTop: Math.max(SPACING.xs, insets.top * 0.5) }]}>
         {isMultiplayerMode ? (
           <TouchableOpacity onPress={handleBackButton} style={styles.backButton}>
-            <Text style={styles.backButtonArrow}>←</Text>
+            <Text style={styles.backButtonArrow}>{isRTL ? '→' : '←'}</Text>
           </TouchableOpacity>
         ) : (
           <View style={styles.headerLeft} />
@@ -1278,14 +1298,14 @@ const handleEndGame = () => {
         <View style={styles.headerCenter}>
           {isMultiplayerMode && (
             <Text style={styles.multiplayerIndicator}>
-              Multiplayer
+              {tGame('multiplayer.indicator')}
             </Text>
           )}
         </View>
         <View style={styles.headerRight}>
           {isMultiplayerMode && (
             <TouchableOpacity onPress={handleExitGame} style={styles.exitButton}>
-              <Text style={styles.exitButtonText}>Exit</Text>
+              <Text style={styles.exitButtonText}>{tGame('actions.exit')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -1302,7 +1322,7 @@ const handleEndGame = () => {
             <MultiplayerLeaderboard
               leaderboard={Object.entries(multiplayerState.players || {}).map(([playerId, player]) => ({
                 playerId,
-                playerName: player.name || 'Unknown Player',
+                playerName: player.name || tGame('multiplayer.unknownPlayer'),
                 score: multiplayerState.scores?.[playerId] || 0
               })).sort((a, b) => b.score - a.score)} // Sort by score descending
               currentPlayerId={user?.id || ''}
@@ -1313,10 +1333,10 @@ const handleEndGame = () => {
             {multiplayerState?.gamePhase === 'lobby' && isMultiplayerHost && (
               <View style={styles.startGameSection}>
                 <Text style={styles.startGameTitle}>
-                  Waiting for players... ({Object.keys(multiplayerState?.players || {}).length} joined)
+                  {tGame('multiplayer.waitingForPlayers', { count: Object.keys(multiplayerState?.players || {}).length })}
                 </Text>
                 <Button 
-                  title="Start Game" 
+                  title={tGame('actions.start')} 
                   onPress={() => {
                     logger.log('🎮 Manual start game pressed');
                     startMultiplayerGame();
@@ -1331,7 +1351,7 @@ const handleEndGame = () => {
             {multiplayerState?.gamePhase === 'answers' && (
               <View style={styles.gameStatusSection}>
                 <Text style={styles.gameStatusText}>
-                  🎯 Revealing answers...
+                  {tGame('multiplayer.revealingAnswers')}
                 </Text>
               </View>
             )}
@@ -1339,7 +1359,7 @@ const handleEndGame = () => {
             {multiplayerState?.gamePhase === 'results' && (
               <View style={styles.gameStatusSection}>
                 <Text style={styles.gameStatusText}>
-                  🏆 Question complete! Moving to next question...
+                  {tGame('multiplayer.questionComplete')}
                 </Text>
               </View>
             )}
@@ -1353,7 +1373,7 @@ const handleEndGame = () => {
           <View style={styles.questionCard}>
             <View style={styles.questionHeader}>
               <Text style={styles.questionNumber}>
-                Question {multiplayerState?.currentQuestionIndex ? multiplayerState.currentQuestionIndex + 1 : 1}
+                {tGame('questionCard.questionNumber', { number: multiplayerState?.currentQuestionIndex ? multiplayerState.currentQuestionIndex + 1 : 1 })}
             </Text>
               <Text style={styles.questionCategory}>
                 {currentQuestion.category}
@@ -1370,7 +1390,7 @@ const handleEndGame = () => {
           <View style={styles.enhancedTurnIndicator}>
             <View style={styles.turnContent}>
               <Text style={styles.enhancedTurnText}>
-                {multiplayerState.currentPlayerId === user?.id ? 'Your Turn' : 'Waiting'}
+                {multiplayerState.currentPlayerId === user?.id ? tGame('multiplayer.yourTurn') : tGame('multiplayer.waiting')}
               </Text>
             </View>
           </View>
@@ -1408,7 +1428,7 @@ const handleEndGame = () => {
                 ]}
                 accessibilityRole="text"
               >
-                Time Remaining
+                {tGame('timer.timeRemaining')}
               </Text>
               <Text 
                 style={[
@@ -1427,7 +1447,7 @@ const handleEndGame = () => {
                 }
               </Text>
             </Animated.View>
-            <Text style={styles.answerGridTitle}>Answers</Text>
+            <Text style={styles.answerGridTitle}>{tGame('answers.title')}</Text>
             <View style={styles.answerGrid}>
                              {Array.isArray(currentQuestion.answers) ? currentQuestion.answers.map((answer: AnswerLike, index: number) => {
                  // Get answer text
@@ -1535,7 +1555,7 @@ const handleEndGame = () => {
                    </TouchableOpacity>
                  );
                }) : (
-                 <Text style={styles.noAnswersText}>No answers available</Text>
+                 <Text style={styles.noAnswersText}>{tGame('answers.noAnswers')}</Text>
                )}
             </View>
 
@@ -1545,7 +1565,7 @@ const handleEndGame = () => {
                 style={styles.endGameButton} 
                 onPress={handleEndGame}
               >
-                <Text style={styles.endGameButtonText}>End Game</Text>
+                <Text style={styles.endGameButtonText}>{tGame('actions.endGame')}</Text>
               </TouchableOpacity>
             )}
 
@@ -1558,12 +1578,12 @@ const handleEndGame = () => {
         {/* Question Complete Success Message */}
         {showQuestionComplete && (
           <View style={styles.successSection}>
-            <Text style={styles.successTitle}>Question Complete!</Text>
+            <Text style={styles.successTitle}>{tGame('questionComplete.title')}</Text>
             <Text style={styles.successMessage}>
-              You found all 10 correct answers for this question!
+              {tGame('questionComplete.message')}
             </Text>
             <Button 
-              title="Next Question"
+              title={tGame('actions.nextQuestion')}
               onPress={handleNextQuestion}
               style={styles.nextButton}
             />
@@ -1574,7 +1594,7 @@ const handleEndGame = () => {
         {/* Submitted Answers Section */}
         {(isMultiplayerMode ? multiplayerSubmittedAnswers : submittedAnswers).length > 0 && (
           <View style={styles.submittedAnswersSection}>
-            <Text style={styles.submittedAnswersTitle}>Your Answers:</Text>
+            <Text style={styles.submittedAnswersTitle}>{tGame('answers.yourAnswers')}</Text>
             {(isMultiplayerMode ? multiplayerSubmittedAnswers : submittedAnswers).map((answer, index) => (
               <Text key={index} style={styles.submittedAnswer}>
                 • {answer}
@@ -1621,7 +1641,7 @@ const handleEndGame = () => {
           <>
             {/* Team Leaderboard */}
             <View style={styles.teamLeaderboard}>
-              <Text style={styles.leaderboardTitle}>Team Scores</Text>
+              <Text style={styles.leaderboardTitle}>{tGame('teams.teamScores')}</Text>
               <View style={styles.teamsContainer}>
                 {teamGameState.teams.map((team, index) => (
                   <View 
@@ -1652,12 +1672,12 @@ const handleEndGame = () => {
             {/* Current Team Indicator */}
             <View style={styles.teamIndicator}>
               <View style={styles.teamIndicatorLeft}>
-                <Text style={styles.currentTeamLabel}>Current Turn:</Text>
+                <Text style={styles.currentTeamLabel}>{tGame('teams.currentTurn')}</Text>
                 <View style={[styles.teamColorIndicator, { backgroundColor: getCurrentTeam()?.color }]} />
                 <Text style={styles.teamName}>{getCurrentTeam()?.name}</Text>
               </View>
               <TouchableOpacity style={styles.endTurnButton} onPress={endTeamTurn}>
-                <Text style={styles.endTurnButtonText}>End Turn</Text>
+                <Text style={styles.endTurnButtonText}>{tGame('actions.endTurn')}</Text>
               </TouchableOpacity>
             </View>
          </>
@@ -1727,7 +1747,7 @@ const handleEndGame = () => {
                }
              ]}>
               <TextInput 
-                placeholder="Enter your answer..." 
+                placeholder={tGame('enterYourAnswer')} 
                 placeholderTextColor={COLORS.textMuted}
                  value={isMultiplayerMode ? (multiplayerCurrentAnswer || '') : currentAnswer} 
                  onChangeText={isMultiplayerMode ? setMultiplayerAnswer : setAnswer}
@@ -1764,7 +1784,7 @@ const handleEndGame = () => {
                    (isMultiplayerMode && multiplayerState?.currentPlayerId !== user?.id) && styles.modernSubmitButtonTextNotMyTurn,
                    (isMultiplayerMode && hasSubmittedThisTurn) && styles.modernSubmitButtonTextSubmitted
                  ]}>
-                   {isMultiplayerMode && hasSubmittedThisTurn ? 'Submitted ✓' : 'Submit Answer'}
+                   {isMultiplayerMode && hasSubmittedThisTurn ? tGame('actions.submitted') : tGame('actions.submitAnswer')}
               </Text>
                </TouchableOpacity>
              </Animated.View>
@@ -1782,7 +1802,7 @@ const handleEndGame = () => {
                    styles.modernSkipButtonText,
                    (multiplayerState?.currentPlayerId !== user?.id) && styles.modernSkipButtonTextNotMyTurn
                  ]}>
-                   Skip Turn
+                   {tGame('actions.skipTurn')}
                  </Text>
                </TouchableOpacity>
              )}
@@ -1822,6 +1842,13 @@ const handleEndGame = () => {
           title={toastNotification.title}
           message={toastNotification.message}
           onHide={hideToast}
+        />
+
+        {/* Interstitial: every 3 single-player completions, 5 min cap; never in multiplayer */}
+        <InterstitialAdLoader
+          trigger={triggerInterstitial}
+          onAdClosed={() => setTriggerInterstitial(false)}
+          gameplayActive={false}
         />
      </SafeAreaView>
   );

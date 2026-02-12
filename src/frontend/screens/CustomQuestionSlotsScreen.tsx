@@ -3,12 +3,11 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   ScrollView,
   RefreshControl,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
 import { COLORS, SPACING } from '../../backend/utils/constants';
@@ -18,12 +17,16 @@ import type { CustomQuestion } from '../../shared/types';
 import { useAudio } from '../contexts/AudioContext';
 import ThemedAlert from '../utils/themedAlert';
 import { logger } from '../../backend/utils/logger';
+import useAppTranslation from '../../hooks/useTranslation';
 
 const NUM_SLOTS = CustomQuestionService.NUM_SLOTS;
 
 const CustomQuestionSlotsScreen: React.FC<CustomQuestionSlotsScreenProps> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const { playButtonClick } = useAudio();
+  const { t: tScreens } = useAppTranslation('screens');
+  const { t: tCommon } = useAppTranslation('common');
+  const { isRTL } = useAppTranslation();
   const [slots, setSlots] = useState<(CustomQuestion | null)[]>(Array(NUM_SLOTS).fill(null));
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -60,16 +63,16 @@ const CustomQuestionSlotsScreen: React.FC<CustomQuestionSlotsScreenProps> = ({ n
   const handleClearAll = () => {
     playButtonClick();
     ThemedAlert.alert(
-      'Clear All Slots',
-      'Are you sure you want to delete all your custom questions? This cannot be undone.',
+      tScreens('customQuestionSlots.clearAllTitle'),
+      tScreens('customQuestionSlots.clearAllMessage'),
       [
         {
-          text: 'Cancel',
+          text: tCommon('cancel'),
           style: 'cancel',
           onPress: () => {},
         },
         {
-          text: 'Delete All',
+          text: tScreens('customQuestionSlots.deleteAll'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -77,10 +80,10 @@ const CustomQuestionSlotsScreen: React.FC<CustomQuestionSlotsScreenProps> = ({ n
               await service.clearAllCustomQuestions();
               setSlots(Array(NUM_SLOTS).fill(null));
               logger.log('✅ All custom question slots cleared');
-              ThemedAlert.success('Success', 'All slots have been cleared.');
+              ThemedAlert.success(tCommon('success'), tScreens('customQuestionSlots.allCleared'));
             } catch (error) {
               logger.error('Error clearing custom questions:', error);
-              ThemedAlert.error('Error', 'Failed to clear slots. Please try again.');
+              ThemedAlert.error(tCommon('error'), tScreens('customQuestionSlots.clearError'));
             }
           },
         },
@@ -97,17 +100,17 @@ const CustomQuestionSlotsScreen: React.FC<CustomQuestionSlotsScreenProps> = ({ n
         style={StyleSheet.absoluteFill}
       />
 
-      <View style={[styles.header, { paddingTop: insets.top + SPACING.md }]}>
+      <View style={[styles.header, { paddingTop: Math.max(SPACING.xs, insets.top * 0.5) }, isRTL && styles.rtlRow]}>
         <TouchableOpacity onPress={() => { playButtonClick(); navigation.goBack(); }} style={styles.backButton}>
-          <Text style={styles.backButtonText}>←</Text>
+          <Text style={styles.backButtonText}>{isRTL ? '→' : '←'}</Text>
         </TouchableOpacity>
         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Create Your Own</Text>
+          <Text style={styles.headerTitle}>{tScreens('customQuestionSlots.title')}</Text>
         </View>
         <View style={styles.placeholder} />
       </View>
 
-      <Text style={styles.subtitle}>Choose a slot to create or edit your question</Text>
+      <Text style={[styles.subtitle, isRTL && styles.rtlText]}>{tScreens('customQuestionSlots.subtitle')}</Text>
 
       <ScrollView
         style={styles.scroll}
@@ -115,11 +118,11 @@ const CustomQuestionSlotsScreen: React.FC<CustomQuestionSlotsScreenProps> = ({ n
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#A78BFA" />}
       >
         {loading ? (
-          <Text style={styles.loadingText}>Loading slots...</Text>
+          <Text style={styles.loadingText}>{tScreens('customQuestionSlots.loadingSlots')}</Text>
         ) : (
           Array.from({ length: NUM_SLOTS }, (_, i) => {
             const question = slots[i];
-            const label = question ? question.question : `Slot ${i + 1} (empty)`;
+            const label = question ? question.question : tScreens('customQuestionSlots.slotEmpty', { number: i + 1 });
             const isFilled = question != null;
             return (
               <TouchableOpacity
@@ -132,15 +135,15 @@ const CustomQuestionSlotsScreen: React.FC<CustomQuestionSlotsScreenProps> = ({ n
                   colors={isFilled ? ['#6D28D9', '#8B5CF6'] : ['#374151', '#4B5563']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
-                  style={styles.slotGradient}
+                  style={[styles.slotGradient, isRTL && styles.rtlRow]}
                 >
-                  <View style={styles.slotNumberBadge}>
+                  <View style={[styles.slotNumberBadge, isRTL && { marginRight: 0, marginLeft: SPACING.md }]}>
                     <Text style={styles.slotNumberText}>{i + 1}</Text>
                   </View>
-                  <Text style={styles.slotLabel} numberOfLines={2}>
-                    {isFilled ? label : `Slot ${i + 1}`}
+                  <Text style={[styles.slotLabel, isRTL && styles.rtlText]} numberOfLines={2}>
+                    {isFilled ? label : tScreens('customQuestionSlots.slotLabel', { number: i + 1 })}
                   </Text>
-                  <Text style={styles.slotHint}>{isFilled ? 'Tap to edit or play' : 'Tap to add question'}</Text>
+                  <Text style={[styles.slotHint, isRTL && styles.rtlText]}>{isFilled ? tScreens('customQuestionSlots.tapToEdit') : tScreens('customQuestionSlots.tapToAdd')}</Text>
                 </LinearGradient>
               </TouchableOpacity>
             );
@@ -150,7 +153,7 @@ const CustomQuestionSlotsScreen: React.FC<CustomQuestionSlotsScreenProps> = ({ n
 
       <View style={styles.bottomButtonContainer}>
         <TouchableOpacity onPress={handleClearAll} style={styles.clearAllButton} activeOpacity={0.8}>
-          <Text style={styles.clearAllButtonText}>Clear All Slots</Text>
+          <Text style={styles.clearAllButtonText}>{tScreens('customQuestionSlots.clearAllSlots')}</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -277,6 +280,12 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
+  },
+  rtlRow: {
+    flexDirection: 'row-reverse',
+  },
+  rtlText: {
+    textAlign: 'right',
   },
 });
 

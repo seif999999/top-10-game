@@ -1,0 +1,67 @@
+{
+  "general": "Error",
+  "somethingWentWrong": "Something went wrong",
+  "network": "Network error. Please check your connection.",
+  "timeout": "Request timed out. Please try again.",
+  "auth": {
+    "invalidCredentials": "Invalid email or password",
+    "emailInUse": "This email is already in use",
+    "weakPassword": "Password is too weak",
+    "userNotFound": "User not found",
+    "loginFailed": "Login failed. Please try again.",
+    "registrationFailed": "Registration failed. Please try again.",
+    "registrationFailedTitle": "Registration Failed"
+  },
+  "validation": {
+    "emailRequired": "Email is required",
+    "emailInvalid": "Enter a valid email address",
+    "passwordRequired": "Password is required",
+    "confirmPasswordRequired": "Confirm your password",
+    "passwordsDoNotMatch": "Passwords do not match",
+    "displayNameRequired": "Display name is required",
+    "passwordDoesNotMeetRequirements": "Password does not meet requirements",
+    "pleaseConfirmPassword": "Please confirm your password",
+    "validationError": "Validation Error",
+    "contentNotApproved": "Content Not Approved"
+  },
+  "profile": {
+    "updateFailed": "Failed to update profile. Please try again.",
+    "signOutFailed": "Failed to sign out. Please try again."
+  },
+  "room": {
+    "full": "Room is full",
+    "notFound": "Room not found",
+    "expired": "Room has expired",
+    "connectionLost": "Connection to room lost"
+  },
+  "game": {
+    "loadFailed": "Failed to load game data",
+    "submitFailed": "Failed to submit answer"
+  },
+  "page": {
+    "network": {
+      "title": "No Connection",
+      "message": "You're offline. Check your connection and try again."
+    },
+    "401": {
+      "title": "Not Authorized",
+      "message": "You're not authorized. Please sign in again."
+    },
+    "403": {
+      "title": "Access Denied",
+      "message": "You're not authorized. Please sign in again."
+    },
+    "404": {
+      "title": "Not Found",
+      "message": "We couldn't find what you're looking for."
+    },
+    "5xx": {
+      "title": "Server Error",
+      "message": "Our servers are having issues. Please try again later."
+    },
+    "unknown": {
+      "title": "Oops!",
+      "message": "Something went wrong. Please try again."
+    }
+  }
+}

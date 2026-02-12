@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, TextInput, Modal, Switch, Linking, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Modal, Switch, Linking, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import ThemedAlert from '../utils/themedAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -14,19 +15,22 @@ import { InputValidator } from '../../backend/utils/inputValidator';
 import { RateLimitService } from '../../backend/services/rateLimitService';
 import { logger } from '../../backend/utils/logger';
 import { toAppError } from '../../shared/errors';
+import useAppTranslation from '../../hooks/useTranslation';
 
 
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const { user, signOut, updateUserProfile, updateUserAvatar } = useAuth();
   const { isSFXEnabled, isMusicEnabled, toggleSFX, toggleMusic, playButtonClick } = useAudio();
   const { language, setLanguage } = useLanguage();
+  const { t: tScreens } = useAppTranslation('screens');
+  const { t: tErrors } = useAppTranslation('errors');
+  const { t: tCommon, isRTL, isRTLRestartRequired } = useAppTranslation();
   const insets = useSafeAreaInsets();
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [updatedDisplayName, setUpdatedDisplayName] = useState(user?.displayName || '');
   const [isEditing, setIsEditing] = useState(false);
   const [showHowToPlay, setShowHowToPlay] = useState(false);
 
-  // Sync displayName state with user.displayName from AuthContext
   useEffect(() => {
     if (user?.displayName) {
       setDisplayName(user.displayName);
@@ -36,7 +40,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
 
   const handleSaveProfile = async () => {
-    // Check rate limiting for profile updates
     if (user?.id) {
       const rateLimitResult = await RateLimitService.checkRateLimit(
         user.id,
@@ -45,125 +48,114 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       );
       
       if (!rateLimitResult.allowed) {
-        ThemedAlert.warning('Rate Limit Exceeded', rateLimitResult.error || 'Too many profile updates. Please wait before trying again.');
+        ThemedAlert.warning(
+          tScreens('profile.rateLimitExceeded'),
+          rateLimitResult.error || tScreens('profile.rateLimitMessage')
+        );
         return;
       }
     }
     
-    // Validate input using InputValidator
     const validation = InputValidator.validateDisplayName(displayName);
     
     if (!validation.valid) {
-      ThemedAlert.error('Validation Error', validation.errors.join('\n'));
+      ThemedAlert.error(tErrors('validation.validationError'), validation.errors.join('\n'));
       return;
     }
     
-    // Additional content moderation for display names
     if (user?.id) {
       const moderationResult = await InputValidator.moderateContent(
         displayName.trim(),
         'displayName',
         user.id,
-        { ipAddress: 'unknown', userAgent: 'mobile' } // In production, get real metadata
+        { ipAddress: 'unknown', userAgent: 'mobile' }
       );
       
       if (!moderationResult.approved) {
-        ThemedAlert.warning('Content Not Approved', moderationResult.errors.join('\n'));
+        ThemedAlert.warning(tErrors('validation.contentNotApproved'), moderationResult.errors.join('\n'));
         return;
       }
     }
     
-    // Sanitize the input
     const sanitizedDisplayName = InputValidator.sanitizeText(displayName.trim(), 30);
     
     try {
-      // Call the updateUserProfile function from AuthContext with proper object format
       await updateUserProfile({ displayName: sanitizedDisplayName });
-      
-      // Update the local state to show the change
       setUpdatedDisplayName(sanitizedDisplayName);
-      ThemedAlert.success('Success', 'Profile updated successfully!');
+      ThemedAlert.success(tCommon('success'), tScreens('profile.profileUpdateSuccess'));
       setIsEditing(false);
     } catch (error) {
       const appError = toAppError(error, {
         code: 'PROFILE_UPDATE_FAILED',
         message: 'Failed to update profile',
-        userMessage: 'Failed to update profile. Please try again.'
+        userMessage: tErrors('profile.updateFailed')
       });
       logger.error('Profile update error:', appError);
-      ThemedAlert.error('Error', appError.userMessage ?? appError.message);
+      ThemedAlert.error(tErrors('general'), appError.userMessage ?? appError.message);
     }
   };
 
   const handleSignOut = async () => {
     try {
-      logger.log('🚪 ProfileScreen: Starting sign-out...');
+      logger.log('ProfileScreen: Starting sign-out...');
       await signOut();
-      logger.log('✅ ProfileScreen: Sign-out completed successfully');
+      logger.log('ProfileScreen: Sign-out completed successfully');
     } catch (error) {
       const appError = toAppError(error, {
         code: 'PROFILE_SIGNOUT_FAILED',
         message: 'Failed to sign out',
-        userMessage: 'Failed to sign out. Please try again.'
+        userMessage: tErrors('profile.signOutFailed')
       });
-      logger.error('💥 ProfileScreen: Sign-out error:', appError);
+      logger.error('ProfileScreen: Sign-out error:', appError);
       ThemedAlert.error(
-        'Sign-Out Error', 
+        tScreens('profile.signOutError'),
         appError.userMessage ?? appError.message
       );
     }
   };
 
+  const feedbackEmail = 'arahman.hazem@gmail.com';
+
   const handleFeedback = async () => {
     playButtonClick();
     
-    const email = 'arahman.hazem@gmail.com';
-    const subject = encodeURIComponent('App Feedback');
-    const mailtoUrl = `mailto:${email}?subject=${subject}`;
+    const subject = encodeURIComponent(tScreens('profile.appFeedback'));
+    const mailtoUrl = `mailto:${feedbackEmail}?subject=${subject}`;
     
     try {
-      // Check if the device can open the mailto URL
       const canOpen = await Linking.canOpenURL(mailtoUrl);
       
       if (canOpen) {
         await Linking.openURL(mailtoUrl);
-        logger.log('📧 Opened email client for feedback');
+        logger.log('Opened email client for feedback');
       } else {
-        // Fallback for platforms that don't support mailto
         if (Platform.OS === 'web') {
-          // On web, try opening in a new window
           window.open(mailtoUrl, '_blank');
         } else {
           ThemedAlert.warning(
-            'Email Not Available',
-            'No email client found. Please send feedback to: arahman.hazem@gmail.com'
+            tScreens('profile.emailNotAvailable'),
+            tScreens('profile.emailNotAvailableMessage', { email: feedbackEmail })
           );
         }
       }
     } catch (error) {
       logger.error('Error opening email client:', error);
       ThemedAlert.error(
-        'Error',
-        'Could not open email client. Please send feedback to: arahman.hazem@gmail.com'
+        tErrors('general'),
+        tScreens('profile.emailOpenError', { email: feedbackEmail })
       );
     }
   };
 
-
-
-
-  // Format member since date
   const getMemberSinceText = () => {
     if (!user?.createdAt) return '';
     const date = new Date(user.createdAt);
-    const month = date.getMonth() + 1; // getMonth() returns 0-11, so add 1
-    const year = date.getFullYear();
-    return `Member since ${month}/${year}`;
+    const formatted = `${date.getMonth() + 1}/${date.getFullYear()}`;
+    return tScreens('profile.memberSince', { date: formatted });
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Dark Purple Background */}
       <LinearGradient
         colors={['#1a1a2e', '#16213e', '#0f0f1e']}
         start={{ x: 0, y: 0 }}
@@ -171,27 +163,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         style={StyleSheet.absoluteFill}
       />
 
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + SPACING.md }]}>
-        <TouchableOpacity onPress={() => { playButtonClick(); navigation.goBack(); }} style={styles.backButton}>
-          <View style={styles.backButtonContent}>
-            <Text style={styles.backButtonText}>←</Text>
-            <View style={styles.backButtonDash} />
-          </View>
-        </TouchableOpacity>
-        <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Profile</Text>
-        </View>
-        <TouchableOpacity
-          onPress={() => { playButtonClick(); setShowHowToPlay(true); }}
-          style={styles.howToPlayButton}
-          accessibilityLabel="How to Play"
-        >
-          <Text style={styles.howToPlayButtonText}>❓</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* How to Play Modal */}
       <HowToPlayModal
         visible={showHowToPlay}
         onClose={() => setShowHowToPlay(false)}
@@ -202,6 +173,26 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Header (scrolls away with content) - reduced top inset so title sits higher */}
+        <View style={[styles.header, { paddingTop: Math.max(SPACING.xs, insets.top * 0.5), paddingBottom: SPACING.xs }, isRTL && styles.rtlRow]}>
+          <TouchableOpacity onPress={() => { playButtonClick(); navigation.goBack(); }} style={styles.backButton}>
+            <View style={styles.backButtonContent}>
+              <Text style={styles.backButtonText}>{isRTL ? '→' : '←'}</Text>
+              <View style={styles.backButtonDash} />
+            </View>
+          </TouchableOpacity>
+          <View style={styles.headerContent}>
+            <Text style={styles.headerTitle}>{tScreens('profile.title')}</Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => { playButtonClick(); setShowHowToPlay(true); }}
+            style={styles.howToPlayButton}
+            accessibilityLabel={tScreens('profile.howToPlay')}
+          >
+            <Text style={styles.howToPlayButtonText}>❓</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* User Information Section */}
         <View style={styles.profileSection}>
           <TouchableOpacity 
@@ -213,10 +204,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 avatarId={user?.selectedAvatar}
                 size={120}
                 showBorder={false}
-                fallbackText={user?.displayName?.charAt(0)?.toUpperCase() || 'U'}
+                fallbackText={user?.displayName?.charAt(0)?.toUpperCase() || tScreens('profile.user').charAt(0)}
               />
             </View>
-            {/* Edit Icon Overlay */}
             <View style={styles.editIconOverlay}>
               <View style={styles.editIconCircle}>
                 <Text style={styles.editIconText}>✏️</Text>
@@ -226,11 +216,11 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           
           <TouchableOpacity 
             onPress={() => { playButtonClick(); setIsEditing(true); }} 
-            style={styles.userNameContainer}
+            style={[styles.userNameContainer, isRTL && styles.rtlRow]}
             activeOpacity={0.7}
           >
             <Text style={styles.userName}>
-              {updatedDisplayName || user?.displayName || 'User'}
+              {updatedDisplayName || user?.displayName || tScreens('profile.user')}
             </Text>
             <Text style={styles.nameEditIcon}>✏️</Text>
           </TouchableOpacity>
@@ -246,19 +236,18 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
         {/* Settings Section */}
         <View style={styles.settingsSection}>
-          <Text style={styles.sectionTitle}>SETTINGS</Text>
+          <Text style={styles.sectionTitle}>{tScreens('profile.settings')}</Text>
           
           {/* Sound Settings */}
           <View style={styles.settingsCard}>
-            <Text style={styles.settingsCardTitle}>Sound</Text>
+            <Text style={styles.settingsCardTitle}>{tScreens('profile.sound')}</Text>
             
-            {/* Sound Effects Toggle */}
-            <View style={styles.settingRow}>
-              <View style={styles.settingInfo}>
+            <View style={[styles.settingRow, isRTL && styles.rtlRow]}>
+              <View style={[styles.settingInfo, isRTL && styles.rtlRow]}>
                 <Text style={styles.settingIcon}>🔊</Text>
                 <View>
-                  <Text style={styles.settingLabel}>Sound Effects</Text>
-                  <Text style={styles.settingDescription}>Button clicks and game sounds</Text>
+                  <Text style={styles.settingLabel}>{tScreens('profile.soundEffects')}</Text>
+                  <Text style={styles.settingDescription}>{tScreens('profile.soundEffectsDesc')}</Text>
                 </View>
               </View>
               <Switch
@@ -273,13 +262,12 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               />
             </View>
             
-            {/* Background Music Toggle */}
-            <View style={styles.settingRow}>
-              <View style={styles.settingInfo}>
+            <View style={[styles.settingRow, isRTL && styles.rtlRow]}>
+              <View style={[styles.settingInfo, isRTL && styles.rtlRow]}>
                 <Text style={styles.settingIcon}>🎵</Text>
                 <View>
-                  <Text style={styles.settingLabel}>Background Music</Text>
-                  <Text style={styles.settingDescription}>Ambient music during gameplay</Text>
+                  <Text style={styles.settingLabel}>{tScreens('profile.backgroundMusic')}</Text>
+                  <Text style={styles.settingDescription}>{tScreens('profile.backgroundMusicDesc')}</Text>
                 </View>
               </View>
               <Switch
@@ -297,25 +285,28 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
           {/* Language Settings */}
           <View style={styles.settingsCard}>
-            <Text style={styles.settingsCardTitle}>Language</Text>
+            <Text style={styles.settingsCardTitle}>{tScreens('profile.language')}</Text>
             
-            <View style={styles.settingRow}>
-              <View style={styles.settingInfo}>
+            <View style={[styles.settingRow, isRTL && styles.rtlRow]}>
+              <View style={[styles.settingInfo, isRTL && styles.rtlRow]}>
                 <Text style={styles.settingIcon}>🌐</Text>
                 <View>
-                  <Text style={styles.settingLabel}>App Language</Text>
-                  <Text style={styles.settingDescription}>Choose your preferred language</Text>
+                  <Text style={styles.settingLabel}>{tScreens('profile.appLanguage')}</Text>
+                  <Text style={styles.settingDescription}>{tScreens('profile.chooseLanguage')}</Text>
                 </View>
               </View>
             </View>
 
-            {/* Language Buttons */}
+            {/* Keep LTR order so English is always first (left); avoids RTL flipping and makes switching back reliable */}
             <View style={styles.languageButtonsContainer}>
               <TouchableOpacity
                 onPress={() => {
                   playButtonClick();
                   setLanguage('en');
                 }}
+                accessibilityRole="button"
+                accessibilityLabel={tScreens('profile.english')}
+                accessibilityState={{ selected: language === 'en' }}
                 style={[
                   styles.languageButton,
                   language === 'en' && styles.languageButtonActive
@@ -326,7 +317,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                   styles.languageButtonText,
                   language === 'en' && styles.languageButtonTextActive
                 ]}>
-                  English
+                  {tScreens('profile.english')}
                 </Text>
                 {language === 'en' && <Text style={styles.checkmark}>✓</Text>}
               </TouchableOpacity>
@@ -336,6 +327,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                   playButtonClick();
                   setLanguage('ar');
                 }}
+                accessibilityRole="button"
+                accessibilityLabel={tScreens('profile.arabic')}
+                accessibilityState={{ selected: language === 'ar' }}
                 style={[
                   styles.languageButton,
                   language === 'ar' && styles.languageButtonActive
@@ -346,34 +340,36 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                   styles.languageButtonText,
                   language === 'ar' && styles.languageButtonTextActive
                 ]}>
-                  العربية
+                  {tScreens('profile.arabic')}
                 </Text>
                 {language === 'ar' && <Text style={styles.checkmark}>✓</Text>}
               </TouchableOpacity>
             </View>
+            {isRTLRestartRequired && (
+              <Text style={[styles.restartHint, isRTL && styles.rtlText]}>{tCommon('restartForRTL')}</Text>
+            )}
           </View>
-          
+
           {/* Feedback Button */}
           <TouchableOpacity
             onPress={handleFeedback}
-            style={styles.feedbackButton}
+            style={[styles.feedbackButton, isRTL && styles.rtlRow]}
             activeOpacity={0.8}
           >
             <Text style={styles.feedbackIcon}>💬</Text>
-            <Text style={styles.feedbackText}>Send Feedback</Text>
+            <Text style={styles.feedbackText}>{tScreens('profile.sendFeedback')}</Text>
           </TouchableOpacity>
           
           <TouchableOpacity
             onPress={() => { playButtonClick(); handleSignOut(); }}
-            style={styles.signOutButton}
+            style={[styles.signOutButton, isRTL && styles.rtlRow]}
             activeOpacity={0.8}
           >
-            <Text style={styles.signOutIcon}>[→</Text>
-            <Text style={styles.signOutText}>Sign Out</Text>
+            <Text style={styles.signOutIcon}>{isRTL ? '[←' : '[→'}</Text>
+            <Text style={styles.signOutText}>{tScreens('profile.signOut')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
-
 
       {/* Edit Name Modal */}
       <Modal
@@ -384,18 +380,18 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
-            <Text style={styles.modalTitle}>Edit Display Name</Text>
+            <Text style={styles.modalTitle}>{tScreens('profile.editDisplayName')}</Text>
             
             <TextInput
-              placeholder="Display Name"
+              placeholder={tScreens('auth.displayName')}
               placeholderTextColor="#9CA3AF"
               value={displayName}
               onChangeText={setDisplayName}
-              style={styles.modalInput}
+              style={[styles.modalInput, isRTL && styles.rtlText]}
               autoFocus={true}
             />
             
-            <View style={styles.modalButtons}>
+            <View style={[styles.modalButtons, isRTL && styles.rtlRow]}>
               <TouchableOpacity 
                 onPress={() => {
                   setDisplayName(user?.displayName || '');
@@ -404,14 +400,14 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 style={styles.modalCancelButton}
                 activeOpacity={0.8}
               >
-                <Text style={styles.modalButtonText}>Cancel</Text>
+                <Text style={styles.modalButtonText}>{tCommon('cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity 
                 onPress={handleSaveProfile}
                 style={styles.modalSaveButton}
                 activeOpacity={0.8}
               >
-                <Text style={styles.modalButtonText}>Save</Text>
+                <Text style={styles.modalButtonText}>{tCommon('save')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -438,13 +434,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,
-    paddingBottom: SPACING.xl,
     zIndex: 10,
   },
   backButton: {
     width: 40,
     height: 40,
     justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backButtonContent: {
     alignItems: 'center',
   },
   backButtonText: {
@@ -456,6 +454,7 @@ const styles = StyleSheet.create({
     textShadowRadius: 8,
     includeFontPadding: false,
   },
+  backButtonDash: {},
   headerContent: {
     flex: 1,
     alignItems: 'center',
@@ -466,9 +465,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
     textAlign: 'center',
-  },
-  placeholder: {
-    width: 40,
   },
   howToPlayButton: {
     width: 44,
@@ -491,7 +487,7 @@ const styles = StyleSheet.create({
   profileSection: {
     alignItems: 'center',
     marginBottom: SPACING.xxl,
-    marginTop: SPACING.xl,
+    marginTop: SPACING.md,
   },
   avatarContainer: {
     alignItems: 'center',
@@ -745,6 +741,18 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '700',
+  },
+  restartHint: {
+    marginTop: SPACING.sm,
+    fontSize: 13,
+    color: COLORS.textMuted,
+  },
+  // RTL styles
+  rtlRow: {
+    flexDirection: 'row-reverse',
+  },
+  rtlText: {
+    textAlign: 'right',
   },
 });
 

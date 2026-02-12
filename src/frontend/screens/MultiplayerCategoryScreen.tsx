@@ -14,6 +14,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useMultiplayer } from '../contexts/MultiplayerContext';
 import { COLORS, SPACING, ANIMATIONS } from '../design-system';
+import useAppTranslation from '../../hooks/useTranslation';
 import { logger } from '../../backend/utils/logger';
 import { getQuestionsByCategory } from '../../backend/services/questionsService';
 import { ROUND_TIMER_OPTIONS } from '../../shared/types/teams';
@@ -111,6 +112,7 @@ interface MultiplayerCategoryScreenProps {}
 
 const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { isRTL } = useAppTranslation();
   const insets = useSafeAreaInsets();
   const { 
     setCategory, 
@@ -329,10 +331,10 @@ const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () =
       />
       
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top * 0.5 }]}>
+      <View style={[styles.header, { paddingTop: Math.max(SPACING.xs, insets.top * 0.5) }]}>
         <Animated.View style={{ transform: [{ scale: backButtonScale }] }}>
           <TouchableOpacity onPress={handleBackToMenu} style={styles.backButton}>
-            <Text style={styles.backButtonArrow}>←</Text>
+            <Text style={styles.backButtonArrow}>{isRTL ? '→' : '←'}</Text>
           </TouchableOpacity>
         </Animated.View>
         <View style={styles.headerContent}>
@@ -460,7 +462,7 @@ const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () =
               {isLoadingRandom ? 'Loading...' : (categories[currentIndex].id === 'Random' ? 'Start Random Game' : 'Continue')}
             </Text>
             <Text style={styles.continueButtonArrow}>
-              {categories[currentIndex].id === 'Random' ? '🎲' : '→'}
+              {categories[currentIndex].id === 'Random' ? '🎲' : (isRTL ? '←' : '→')}
             </Text>
           </LinearGradient>
         </TouchableOpacity>

@@ -4,6 +4,7 @@ import Button from './Button';
 import { COLORS, SPACING } from '../../backend/utils/constants';
 import { formatScore, formatTimeReadable, calculatePercentage, getPlayerRanking } from '../../backend/utils/gameHelpers';
 import type { GameResults, PlayerAnswer } from '../../shared/types';
+import useAppTranslation from '../../hooks/useTranslation';
 
 interface ResultsModalProps {
   visible: boolean;
@@ -22,6 +23,8 @@ const ResultsModal: React.FC<ResultsModalProps> = ({
   onPlayAgain,
   onBackToCategories
 }) => {
+  const { t } = useAppTranslation('components');
+  const { isRTL } = useAppTranslation();
   const [showCelebration, setShowCelebration] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
@@ -105,25 +108,25 @@ const ResultsModal: React.FC<ResultsModalProps> = ({
           <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
             {/* Header */}
             <View style={styles.header}>
-              <Text style={styles.title}>Game Complete!</Text>
-              <Text style={styles.subtitle}>{gameResults.category}</Text>
+              <Text style={[styles.title, isRTL && styles.rtlText]}>{t('resultsModal.gameComplete')}</Text>
+              <Text style={[styles.subtitle, isRTL && styles.rtlText]}>{gameResults.category}</Text>
             </View>
 
             {/* Winner Section */}
-            <View style={styles.winnerSection}>
-              <Text style={styles.winnerLabel}>🏆 Winner</Text>
-              <Text style={styles.winnerName}>{gameResults.winner}</Text>
-              <Text style={styles.winnerScore}>
-                {formatScore(gameResults.finalScores[gameResults.winner])} points
+            <View style={[styles.winnerSection, isRTL && styles.rtlText]}>
+              <Text style={[styles.winnerLabel, isRTL && styles.rtlText]}>🏆 {t('resultsModal.winner')}</Text>
+              <Text style={[styles.winnerName, isRTL && styles.rtlText]}>{gameResults.winner}</Text>
+              <Text style={[styles.winnerScore, isRTL && styles.rtlText]}>
+                {formatScore(gameResults.finalScores[gameResults.winner])} {t('resultsModal.points')}
               </Text>
             </View>
 
             {/* Final Scores */}
             <View style={styles.scoresSection}>
-              <Text style={styles.sectionTitle}>Final Scores</Text>
+              <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>{t('resultsModal.finalScores')}</Text>
               {playerRanking.map((player, index) => (
-                <View key={player.playerId} style={styles.scoreRow}>
-                  <View style={styles.rankContainer}>
+                <View key={player.playerId} style={[styles.scoreRow, isRTL && styles.rtlRow]}>
+                  <View style={[styles.rankContainer, isRTL && styles.rankContainerRTL]}>
                     <Text style={styles.rankText}>{player.rank}</Text>
                   </View>
                   <Text style={styles.playerName}>{player.playerId}</Text>
@@ -133,45 +136,45 @@ const ResultsModal: React.FC<ResultsModalProps> = ({
             </View>
 
             {/* Performance Stats */}
-            <View style={styles.statsSection}>
-              <Text style={styles.sectionTitle}>Performance Stats</Text>
+            <View style={[styles.statsSection, isRTL && styles.rtlRow]}>
+              <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>{t('resultsModal.performanceStats')}</Text>
               
-              <View style={styles.statRow}>
-                <Text style={styles.statLabel}>Total Time</Text>
-                <Text style={styles.statValue}>{formatTimeReadable(gameResults.totalTime)}</Text>
+              <View style={[styles.statRow, isRTL && styles.rtlRow]}>
+                <Text style={[styles.statLabel, isRTL && styles.rtlText]}>{t('resultsModal.totalTime')}</Text>
+                <Text style={[styles.statValue, isRTL && styles.rtlText]}>{formatTimeReadable(gameResults.totalTime)}</Text>
               </View>
               
-              <View style={styles.statRow}>
-                <Text style={styles.statLabel}>Questions Answered</Text>
-                <Text style={styles.statValue}>{totalQuestions}</Text>
+              <View style={[styles.statRow, isRTL && styles.rtlRow]}>
+                <Text style={[styles.statLabel, isRTL && styles.rtlText]}>{t('resultsModal.questionsAnswered')}</Text>
+                <Text style={[styles.statValue, isRTL && styles.rtlText]}>{totalQuestions}</Text>
               </View>
               
-              <View style={styles.statRow}>
-                <Text style={styles.statLabel}>Correct Answers</Text>
-                <Text style={styles.statValue}>{correctAnswers}/{totalAnswers}</Text>
+              <View style={[styles.statRow, isRTL && styles.rtlRow]}>
+                <Text style={[styles.statLabel, isRTL && styles.rtlText]}>{t('resultsModal.correctAnswers')}</Text>
+                <Text style={[styles.statValue, isRTL && styles.rtlText]}>{correctAnswers}/{totalAnswers}</Text>
               </View>
               
-              <View style={styles.statRow}>
-                <Text style={styles.statLabel}>Accuracy</Text>
-                <Text style={styles.statValue}>{accuracy.toFixed(1)}%</Text>
+              <View style={[styles.statRow, isRTL && styles.rtlRow]}>
+                <Text style={[styles.statLabel, isRTL && styles.rtlText]}>{t('resultsModal.accuracy')}</Text>
+                <Text style={[styles.statValue, isRTL && styles.rtlText]}>{accuracy.toFixed(1)}%</Text>
               </View>
               
-              <View style={styles.statRow}>
-                <Text style={styles.statLabel}>Average Score</Text>
-                <Text style={styles.statValue}>{formatScore(Math.round(gameResults.averageScore))}</Text>
+              <View style={[styles.statRow, isRTL && styles.rtlRow]}>
+                <Text style={[styles.statLabel, isRTL && styles.rtlText]}>{t('resultsModal.averageScore')}</Text>
+                <Text style={[styles.statValue, isRTL && styles.rtlText]}>{formatScore(Math.round(gameResults.averageScore))}</Text>
               </View>
             </View>
 
             {/* Best Answer */}
             {gameResults.bestAnswer && (
               <View style={styles.bestAnswerSection}>
-                <Text style={styles.sectionTitle}>Best Answer</Text>
-                <View style={styles.bestAnswerCard}>
-                  <Text style={styles.bestAnswerText}>
+                <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>{t('resultsModal.bestAnswer')}</Text>
+                <View style={[styles.bestAnswerCard, isRTL && styles.rtlText]}>
+                  <Text style={[styles.bestAnswerText, isRTL && styles.rtlText]}>
                     "{gameResults.bestAnswer.answer}"
                   </Text>
-                  <Text style={styles.bestAnswerDetails}>
-                    {gameResults.bestAnswer.points} points • {formatTimeReadable(gameResults.bestAnswer.timeTaken)}
+                  <Text style={[styles.bestAnswerDetails, isRTL && styles.rtlText]}>
+                    {gameResults.bestAnswer.points} {t('resultsModal.pointsLabel')} • {formatTimeReadable(gameResults.bestAnswer.timeTaken)}
                   </Text>
                 </View>
               </View>
@@ -195,21 +198,21 @@ const ResultsModal: React.FC<ResultsModalProps> = ({
                   }
                 ]}
               >
-                <Text style={styles.celebrationText}>🎉 Amazing Performance! 🎉</Text>
-                <Text style={styles.celebrationSubtext}>You're on fire! 🔥</Text>
+                <Text style={[styles.celebrationText, isRTL && styles.rtlText]}>🎉 {t('resultsModal.amazingPerformance')} 🎉</Text>
+                <Text style={[styles.celebrationSubtext, isRTL && styles.rtlText]}>{t('resultsModal.onFire')} 🔥</Text>
               </Animated.View>
             )}
           </ScrollView>
 
           {/* Action Buttons */}
-          <View style={styles.buttonContainer}>
+          <View style={[styles.buttonContainer, isRTL && styles.rtlRow]}>
             <Button
-              title="Play Again"
+              title={t('resultsModal.playAgain')}
               onPress={onPlayAgain}
               style={styles.playAgainButton}
             />
             <Button
-              title="Back to Categories"
+              title={t('resultsModal.backToCategories')}
               onPress={onBackToCategories}
               style={styles.backButton}
             />
@@ -303,6 +306,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.background,
   },
+  rtlRow: {
+    flexDirection: 'row-reverse',
+  },
+  rtlText: {
+    textAlign: 'right',
+  },
   rankContainer: {
     width: 30,
     height: 30,
@@ -311,6 +320,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: SPACING.md,
+  },
+  rankContainerRTL: {
+    marginRight: 0,
+    marginLeft: SPACING.md,
   },
   rankText: {
     fontSize: 14,

@@ -1,0 +1,55 @@
+{
+  "useTranslation hook (default common)": {
+    "prefix": "useT",
+    "body": [
+      "const { t, isRTL } = useAppTranslation();",
+      "$0"
+    ],
+    "description": "Add useAppTranslation() for default namespace (common)"
+  },
+  "useTranslation with namespace": {
+    "prefix": "useTns",
+    "body": [
+      "const { t } = useAppTranslation('${1:common}');",
+      "$0"
+    ],
+    "description": "Add useAppTranslation with namespace (common|screens|game|errors|categories|components)"
+  },
+  "useTranslation two namespaces": {
+    "prefix": "useT2",
+    "body": [
+      "const { t: t${2:Common} } = useAppTranslation('${1:common}');",
+      "const { t: t${4:Screens} } = useAppTranslation('${3:screens}');",
+      "$0"
+    ],
+    "description": "Two namespaces (e.g. common + screens)"
+  },
+  "Translation call t('key')": {
+    "prefix": "tkey",
+    "body": [
+      "t('$1')$0"
+    ],
+    "description": "Type-safe translation call (autocomplete for key)"
+  },
+  "Translation call with interpolation": {
+    "prefix": "tkeyopt",
+    "body": [
+      "t('$1', { ${2:key}: ${3:value} })$0"
+    ],
+    "description": "t('key', { interpolation })"
+  },
+  "JSX with translation": {
+    "prefix": "txt",
+    "body": [
+      "<Text style={$2}>{t('$1')}</Text>$0"
+    ],
+    "description": "Text component with translated string"
+  },
+  "Dynamic key cast (when key is built at runtime)": {
+    "prefix": "tdynamic",
+    "body": [
+      "(t as (key: string, options?: Record<string, unknown>) => string)(${1:dynamicKey}, ${2:options})$0"
+    ],
+    "description": "Use when key is dynamic (e.g. template literal)"
+  }
+}

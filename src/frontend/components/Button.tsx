@@ -2,6 +2,7 @@ import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, GestureResponderEvent, ViewStyle, TextStyle } from 'react-native';
 import { COLORS, SPACING } from '../../backend/utils/constants';
 import { logger } from '../../backend/utils/logger';
+import useAppTranslation from '../../hooks/useTranslation';
 
 type ButtonProps = {
   title: string;
@@ -12,6 +13,7 @@ type ButtonProps = {
 };
 
 const Button: React.FC<ButtonProps> = ({ title, onPress, disabled, style, textStyle }) => {
+  const { isRTL } = useAppTranslation();
   const handlePress = (event: GestureResponderEvent) => {
     logger.log('🔍 DEBUG: Button pressed:', title);
     logger.log('🔍 DEBUG: Button disabled:', disabled);
@@ -33,7 +35,7 @@ const Button: React.FC<ButtonProps> = ({ title, onPress, disabled, style, textSt
       disabled={disabled}
       style={[styles.button, disabled && styles.disabled, style]}
     >
-      <Text style={[styles.text, textStyle]}>{title}</Text>
+      <Text style={[styles.text, isRTL && styles.rtlText, textStyle]}>{title}</Text>
     </TouchableOpacity>
   );
 };
@@ -54,6 +56,9 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontSize: 16,
     fontWeight: '600'
+  },
+  rtlText: {
+    textAlign: 'right',
   }
 });
 

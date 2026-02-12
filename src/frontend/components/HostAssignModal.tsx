@@ -5,13 +5,14 @@ import {
   Modal,
   StyleSheet,
   TouchableOpacity,
-  TextInput,
 } from 'react-native';
-import { COLORS, SPACING, TYPOGRAPHY } from '../../backend/utils/constants';
+import { COLORS, SPACING } from '../../backend/utils/constants';
 import { Team } from '../../shared/types/teams';
 import { QuestionAnswer } from '../../shared/types';
 import Button from './Button';
 import { logger } from '../../backend/utils/logger';
+import ThemedAlert from '../utils/themedAlert';
+import useAppTranslation from '../../hooks/useTranslation';
 
 interface HostAssignModalProps {
   visible: boolean;
@@ -32,6 +33,9 @@ const HostAssignModal: React.FC<HostAssignModalProps> = ({
   teams,
   currentTeamIndex,
 }) => {
+  const { t } = useAppTranslation('components');
+  const { t: tCommon } = useAppTranslation('common');
+  const { isRTL } = useAppTranslation();
   const [selectedTeamId, setSelectedTeamId] = useState(teams[currentTeamIndex]?.id || '');
 
   useEffect(() => {
@@ -50,7 +54,7 @@ const HostAssignModal: React.FC<HostAssignModalProps> = ({
       });
 
       if (!selectedTeamId) {
-        ThemedAlert.warning('Error', 'Please select a team');
+        ThemedAlert.warning(tCommon('error'), t('errors.selectTeam'));
         return;
       }
 
@@ -59,7 +63,7 @@ const HostAssignModal: React.FC<HostAssignModalProps> = ({
       onClose();
     } catch (error) {
       logger.error('❌ HostAssignModal: Error assigning answer:', error);
-      ThemedAlert.error('Error', 'Failed to assign answer. Please try again.');
+      ThemedAlert.error(tCommon('error'), t('errors.assignFailed'));
     }
   };
 
@@ -72,24 +76,25 @@ const HostAssignModal: React.FC<HostAssignModalProps> = ({
     >
       <View style={styles.overlay}>
         <View style={styles.container}>
-          <Text style={styles.title}>🎯 Assign Answer</Text>
+          <Text style={[styles.title, isRTL && styles.rtlText]}>🎯 {t('hostAssign.title')}</Text>
           
           {/* Answer Display */}
-          <View style={styles.answerSection}>
-            <Text style={styles.answerLabel}>Answer #{answer.rank}:</Text>
-            <Text style={styles.answerText}>{answer.text}</Text>
-            <Text style={styles.answerPoints}>Worth {answer.points} points</Text>
+          <View style={[styles.answerSection, isRTL && styles.rtlText]}>
+            <Text style={[styles.answerLabel, isRTL && styles.rtlText]}>{t('hostAssign.answerRank', { rank: answer.rank })}</Text>
+            <Text style={[styles.answerText, isRTL && styles.rtlText]}>{answer.text}</Text>
+            <Text style={[styles.answerPoints, isRTL && styles.rtlText]}>{t('hostAssign.worthPoints', { points: answer.points })}</Text>
           </View>
 
           {/* Team Selection */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Select Team</Text>
+            <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>{t('hostAssign.selectTeam')}</Text>
             <View style={styles.teamSelector}>
               {teams.map((team) => (
                 <TouchableOpacity
                   key={team.id}
                   style={[
                     styles.teamButton,
+                    isRTL && styles.rtlRow,
                     selectedTeamId === team.id && styles.selectedTeamButton,
                   ]}
                   onPress={() => setSelectedTeamId(team.id)}
@@ -98,6 +103,7 @@ const HostAssignModal: React.FC<HostAssignModalProps> = ({
                     style={[
                       styles.teamColorIndicator,
                       { backgroundColor: team.color },
+                      isRTL && styles.teamColorIndicatorRTL,
                     ]}
                   />
                   <Text
@@ -123,21 +129,21 @@ const HostAssignModal: React.FC<HostAssignModalProps> = ({
 
           {/* Points Display - Read Only */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Points to Award</Text>
+            <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>{t('hostAssign.pointsToAward')}</Text>
             <View style={styles.pointsDisplay}>
-              <Text style={styles.pointsDisplayText}>
-                {answer.points} points
+              <Text style={[styles.pointsDisplayText, isRTL && styles.rtlText]}>
+                {answer.points} {t('resultsModal.pointsLabel')}
               </Text>
             </View>
-            <Text style={styles.pointsHint}>
-              Points are automatically calculated based on answer rank
+            <Text style={[styles.pointsHint, isRTL && styles.rtlText]}>
+              {t('hostAssign.pointsHint')}
             </Text>
           </View>
 
           {/* Action Buttons */}
-          <View style={styles.actions}>
-            <Button title="Cancel" onPress={onClose} style={styles.cancelButton} />
-            <Button title="Assign" onPress={handleAssign} style={styles.assignButton} />
+          <View style={[styles.actions, isRTL && styles.rtlRow]}>
+            <Button title={tCommon('cancel')} onPress={onClose} style={styles.cancelButton} />
+            <Button title={t('hostAssign.assign')} onPress={handleAssign} style={styles.assignButton} />
           </View>
         </View>
       </View>
@@ -261,6 +267,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: SPACING.lg,
+  },
+  rtlRow: {
+    flexDirection: 'row-reverse',
+  },
+  rtlText: {
+    textAlign: 'right',
+  },
+  teamColorIndicatorRTL: {
+    marginRight: 0,
+    marginLeft: SPACING.sm,
   },
   cancelButton: {
     flex: 1,

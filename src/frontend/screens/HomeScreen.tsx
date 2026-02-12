@@ -1,26 +1,21 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Dimensions, ScrollView, Animated, PanResponder, Easing, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ScrollView, Animated, PanResponder, Easing, Image, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING } from '../../backend/utils/constants';
 import { HomeScreenProps } from '../../shared/types/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import { useAudio } from '../contexts/AudioContext';
+import useAppTranslation from '../../hooks/useTranslation';
 import AvatarIcon from '../components/AvatarIcon';
+import CoinDisplay from '../components/CoinDisplay';
+import BannerAd from '../components/ads/BannerAd';
 import DailyRewardModal from '../components/DailyRewardModal';
 import { SinglePlayerIcon, MultiplayerIcon, CreateIcon } from '../components/GameIcons';
 import { getStreakInfo, StreakInfo } from '../../backend/services/dailyRewardService';
 
 const { width, height } = Dimensions.get('window');
-
-// Safely load coin image with fallback
-let coinImageSource: any = null;
-try {
-  coinImageSource = require('../assets/avatars/coin.png');
-} catch (e) {
-  // Image not found, will use emoji fallback
-  coinImageSource = null;
-}
 
 // Swipeable Card Component
 interface SwipeableCardProps {
@@ -220,12 +215,14 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({ onSwipeComplete, onPress,
 };
 
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
-  const { user, getUserProfileWithAvatar } = useAuth();
+  const { user, getUserProfileWithAvatar, welcomeCoinsMessage, clearWelcomeCoinsMessage } = useAuth();
   const { playButtonClick, isMusicEnabled, playBackgroundMusic, stopBackgroundMusic } = useAudio();
+  const { t, isRTL } = useAppTranslation('screens');
+  /** Screens namespace t with string keys (keys exist in locales/en/screens.json; generated types may be stale). */
+  const tScreens = t as (key: string, options?: Record<string, unknown>) => string;
   const insets = useSafeAreaInsets();
   const [showDailyReward, setShowDailyReward] = useState(false);
   const [streakInfo, setStreakInfo] = useState<StreakInfo | null>(null);
-  const [displayedCoins, setDisplayedCoins] = useState(user?.coins ?? 0);
 
   // Start background music when on home screen (if enabled)
   useEffect(() => {
@@ -254,15 +251,17 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     loadStreakInfo();
   }, [user?.id]);
 
-  // Update displayed coins when user changes
+  // Show one-time welcome coins message after sign-up
   useEffect(() => {
-    setDisplayedCoins(user?.coins ?? 0);
-  }, [user?.coins]);
+    if (!welcomeCoinsMessage || !clearWelcomeCoinsMessage) return;
+    Alert.alert(
+      'Welcome!',
+      welcomeCoinsMessage,
+      [{ text: 'OK', onPress: clearWelcomeCoinsMessage }]
+    );
+  }, [welcomeCoinsMessage, clearWelcomeCoinsMessage]);
 
   const handleRewardClaimed = async (reward: number) => {
-    // Update displayed coins immediately for smooth UX
-    setDisplayedCoins(prev => prev + reward);
-    // Refresh user profile to get updated coins from server
     if (getUserProfileWithAvatar) {
       await getUserProfileWithAvatar();
     }
@@ -313,15 +312,24 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         style={StyleSheet.absoluteFill}
       />
 
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        scrollEnabled={true}
-        directionalLockEnabled={true}
-      >
+      <View style={styles.mainContent}>
+        <ScrollView 
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          scrollEnabled={true}
+          directionalLockEnabled={true}
+        >
         {/* Header with Profile, Coins, and Rules Buttons */}
-        <View style={[styles.header, { paddingTop: insets.top + SPACING.xs }]}>
+        <View style={[
+          styles.header,
+          {
+            paddingTop: Math.max(SPACING.xs, insets.top * 0.5),
+            paddingRight: isRTL ? SPACING.lg : Math.max(SPACING.lg, insets.right + SPACING.xs),
+            paddingLeft: isRTL ? Math.max(SPACING.lg, insets.left + SPACING.xs) : SPACING.lg,
+          },
+          isRTL && styles.rtlRow
+        ]}>
         <TouchableOpacity onPress={handleProfileNavigation} style={styles.profileButton}>
           <AvatarIcon 
             user={user} 
@@ -332,17 +340,14 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           />
         </TouchableOpacity>
         
-        {/* Right side - Missions, Coins, Daily Reward & Help */}
+        {/* Missions & Daily Reward directly left of Coins; coins top-right */}
         <View style={styles.headerRight}>
-          {/* Missions Button */}
           <TouchableOpacity 
             onPress={handleMissions} 
             style={styles.missionsButton}
           >
             <Text style={styles.missionsIcon}>🎯</Text>
           </TouchableOpacity>
-
-          {/* Daily Reward Button */}
           <TouchableOpacity 
             onPress={handleDailyRewardOpen} 
             style={[styles.dailyRewardButton, streakInfo?.canClaim && styles.dailyRewardButtonActive]}
@@ -354,40 +359,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               </View>
             )}
           </TouchableOpacity>
-
-          {/* Coin Display with Plus Button */}
-          <TouchableOpacity 
-            onPress={() => {
-              playButtonClick();
-              navigation.navigate('CoinsShop');
-            }} 
-            style={styles.coinDisplay}
-            activeOpacity={0.7}
-          >
-            {/* Coin Icon */}
-            <View style={styles.coinIconContainer}>
-              {coinImageSource ? (
-                <Image
-                  source={coinImageSource}
-                  style={styles.coinImage}
-                  resizeMode="contain"
-                  onError={() => {
-                    // Silently fallback - error already handled
-                  }}
-                />
-              ) : (
-                <Text style={styles.coinIcon}>🪙</Text>
-              )}
-            </View>
-            {/* Coin Balance */}
-            <Text style={styles.coinBalance}>
-              {displayedCoins.toLocaleString()}
-            </Text>
-            {/* Plus Button */}
-            <View style={styles.plusButton}>
-              <Text style={styles.plusButtonText}>+</Text>
-            </View>
-          </TouchableOpacity>
+          <View style={styles.coinDisplayInHeader} pointerEvents="box-none">
+            <CoinDisplay size="small" showShopButton style={styles.coinDisplay} />
+          </View>
         </View>
       </View>
 
@@ -403,9 +377,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             </View>
           </View>
           <Text style={styles.welcomeText}>
-            Welcome back, {user?.displayName || 'Player'} 👋
+            {tScreens('home.welcomeBack', { name: user?.displayName || tScreens('profile.user') })}
           </Text>
-          <Text style={styles.heroSubtitle}>Choose your game mode to start playing</Text>
+          <Text style={styles.heroSubtitle}>{tScreens('home.chooseGameMode')}</Text>
         </View>
 
         {/* Game Mode Cards */}
@@ -425,15 +399,15 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               {/* Glassmorphism overlay */}
               <View style={styles.cardGlassOverlay} />
               
-              <View style={styles.gameModeContent}>
-                <View style={styles.iconContainer}>
+              <View style={[styles.gameModeContent, isRTL && styles.rtlRow]}>
+                <View style={[styles.iconContainer, isRTL && { marginRight: 0, marginLeft: SPACING.lg }]}>
                   <SinglePlayerIcon size={48} primaryColor="#FFFFFF" secondaryColor="#E9D5FF" accentColor="#60A5FA" />
                 </View>
                 <View style={styles.gameModeText}>
-                  <Text style={styles.gameModeTitle}>Single Player</Text>
-                  <Text style={styles.gameModeSubtitle}>Play with friends offline and be the host</Text>
+                  <Text style={[styles.gameModeTitle, isRTL && styles.rtlText]}>{tScreens('home.singlePlayer')}</Text>
+                  <Text style={[styles.gameModeSubtitle, isRTL && styles.rtlText]}>{tScreens('home.singlePlayerDesc')}</Text>
                 </View>
-                <Text style={styles.arrow}>→</Text>
+                <Text style={styles.arrow}>{isRTL ? '←' : '→'}</Text>
               </View>
             </LinearGradient>
           </SwipeableCard>
@@ -452,15 +426,15 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             >
               <View style={styles.cardGlassOverlay} />
               
-              <View style={styles.gameModeContent}>
-                <View style={styles.iconContainer}>
+              <View style={[styles.gameModeContent, isRTL && styles.rtlRow]}>
+                <View style={[styles.iconContainer, isRTL && { marginRight: 0, marginLeft: SPACING.lg }]}>
                   <MultiplayerIcon size={48} primaryColor="#FFFFFF" secondaryColor="#E9D5FF" accentColor="#60A5FA" />
                 </View>
                 <View style={styles.gameModeText}>
-                  <Text style={styles.gameModeTitle}>Multiplayer</Text>
-                  <Text style={styles.gameModeSubtitle}>Create and join rooms using the code</Text>
+                  <Text style={[styles.gameModeTitle, isRTL && styles.rtlText]}>{tScreens('home.multiplayer')}</Text>
+                  <Text style={[styles.gameModeSubtitle, isRTL && styles.rtlText]}>{tScreens('home.multiplayerDesc')}</Text>
                 </View>
-                <Text style={styles.arrow}>→</Text>
+                <Text style={styles.arrow}>{isRTL ? '←' : '→'}</Text>
               </View>
             </LinearGradient>
           </SwipeableCard>
@@ -479,20 +453,22 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             >
               <View style={styles.cardGlassOverlay} />
               
-              <View style={styles.gameModeContent}>
-                <View style={styles.iconContainer}>
+              <View style={[styles.gameModeContent, isRTL && styles.rtlRow]}>
+                <View style={[styles.iconContainer, isRTL && { marginRight: 0, marginLeft: SPACING.lg }]}>
                   <CreateIcon size={48} primaryColor="#FFFFFF" secondaryColor="#E9D5FF" accentColor="#FBBF24" />
                 </View>
                 <View style={styles.gameModeText}>
-                  <Text style={styles.gameModeTitle}>Create Your Own</Text>
-                  <Text style={styles.gameModeSubtitle}>Create your own questions with your own answers</Text>
+                  <Text style={[styles.gameModeTitle, isRTL && styles.rtlText]}>{tScreens('home.createYourOwn')}</Text>
+                  <Text style={[styles.gameModeSubtitle, isRTL && styles.rtlText]}>{tScreens('home.createYourOwnDesc')}</Text>
                 </View>
-                <Text style={styles.arrow}>→</Text>
+                <Text style={styles.arrow}>{isRTL ? '←' : '→'}</Text>
               </View>
             </LinearGradient>
           </SwipeableCard>
         </View>
-      </ScrollView>
+        </ScrollView>
+        <BannerAd position="bottom" />
+      </View>
 
       {/* Daily Reward Modal */}
       {user?.id && (
@@ -511,6 +487,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#1a1a2e',
+  },
+  mainContent: {
+    flex: 1,
   },
   scrollView: {
     flex: 1,
@@ -542,6 +521,10 @@ const styles = StyleSheet.create({
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  coinDisplayInHeader: {
+    marginLeft: SPACING.sm,
   },
   missionsButton: {
     width: 44,
@@ -552,7 +535,6 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(245, 158, 11, 0.4)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: SPACING.sm,
     shadowColor: '#F59E0B',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
@@ -571,7 +553,6 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(139, 92, 246, 0.3)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: SPACING.sm,
     position: 'relative',
   },
   dailyRewardButtonActive: {
@@ -610,7 +591,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.sm,
     borderRadius: 20,
-    backgroundColor: 'rgba(245, 158, 11, 0.2)', // Gold with transparency
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
     shadowColor: '#F59E0B',
@@ -618,42 +599,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 4,
-    marginRight: SPACING.sm,
-  },
-  coinIconContainer: {
-    width: 24,
-    height: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: SPACING.xs,
-  },
-  coinImage: {
-    width: 24,
-    height: 24,
-  },
-  coinIcon: {
-    fontSize: 20,
-  },
-  coinBalance: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700' as const,
-    minWidth: 30,
-  },
-  plusButton: {
-    marginLeft: 0,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#10B981',
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
-  },
-  plusButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700' as const,
-    lineHeight: 16,
   },
   heroSection: {
     paddingHorizontal: SPACING.lg,
@@ -750,6 +695,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'relative',
     zIndex: 1,
+  },
+  rtlRow: {
+    flexDirection: 'row-reverse',
+  },
+  rtlText: {
+    textAlign: 'right',
   },
   iconContainer: {
     width: 72,

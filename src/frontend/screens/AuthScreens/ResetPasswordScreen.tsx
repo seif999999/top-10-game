@@ -10,17 +10,12 @@ import type { FirebaseError } from 'firebase/app';
 import { auth } from '../../../backend/services/firebase';
 import { logger } from '../../../backend/utils/logger';
 import type { ResetPasswordScreenProps } from '../../../shared/types/navigation';
+import useAppTranslation from '../../../hooks/useTranslation';
 
-/**
- * ResetPasswordScreen Component
- * 
- * Custom password reset screen that enforces app password validation rules
- * This ensures consistency between signup and password reset flows
- * 
- * @param navigation - React Navigation object for screen transitions
- * @param route - Route parameters containing the reset code
- */
 const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ navigation, route }) => {
+  const { t: tScreens } = useAppTranslation('screens');
+  const { t: tErrors } = useAppTranslation('errors');
+  const { t: tCommon } = useAppTranslation('common');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -37,10 +32,8 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ navigation, r
   });
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
 
-  // Get the reset code from route params or URL
   const { oobCode } = route?.params || {};
 
-  // Real-time password validation
   useEffect(() => {
     if (password.trim()) {
       const validation = InputValidator.validatePassword(password.trim());
@@ -60,48 +53,44 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ navigation, r
     }
   }, [password]);
 
-  // Validate password confirmation
   useEffect(() => {
     if (confirmPassword.trim() && password.trim()) {
       if (confirmPassword !== password) {
-        setConfirmPasswordError('Passwords do not match');
+        setConfirmPasswordError(tErrors('validation.passwordsDoNotMatch'));
       } else {
         setConfirmPasswordError('');
       }
     } else {
       setConfirmPasswordError('');
     }
-  }, [confirmPassword, password]);
+  }, [confirmPassword, password, tErrors]);
 
   const handleResetPassword = async () => {
-    // Clear previous errors
     setConfirmPasswordError('');
 
-    // Validate password
     if (!password.trim()) {
-      ThemedAlert.error('Error', 'Password is required');
+      ThemedAlert.error(tErrors('general'), tErrors('validation.passwordRequired'));
       return;
     }
 
     if (!passwordValidation.isValid) {
-      ThemedAlert.error('Error', passwordValidation.errors[0] || 'Password does not meet requirements');
+      ThemedAlert.error(tErrors('general'), passwordValidation.errors[0] || tErrors('validation.passwordDoesNotMeetRequirements'));
       return;
     }
 
-    // Validate password confirmation
     if (!confirmPassword.trim()) {
-      ThemedAlert.error('Error', 'Please confirm your password');
+      ThemedAlert.error(tErrors('general'), tErrors('validation.pleaseConfirmPassword'));
       return;
     }
 
     if (confirmPassword !== password) {
-      setConfirmPasswordError('Passwords do not match');
-      ThemedAlert.error('Error', 'Passwords do not match');
+      setConfirmPasswordError(tErrors('validation.passwordsDoNotMatch'));
+      ThemedAlert.error(tErrors('general'), tErrors('validation.passwordsDoNotMatch'));
       return;
     }
 
     if (!oobCode) {
-      ThemedAlert.error('Error', 'Invalid reset link. Please request a new password reset.');
+      ThemedAlert.error(tErrors('general'), tScreens('auth.resetPasswordScreen.invalidResetLink'));
       navigation.navigate('ForgotPassword');
       return;
     }
@@ -109,18 +98,15 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ navigation, r
     setLoading(true);
 
     try {
-      // Verify the reset code first
       await verifyPasswordResetCode(auth, oobCode);
-      
-      // Reset the password
       await confirmPasswordReset(auth, oobCode, password);
       
       ThemedAlert.success(
-        'Success!', 
-        'Your password has been reset successfully. You can now sign in with your new password.',
+        tScreens('auth.resetPasswordScreen.successTitle'), 
+        tScreens('auth.resetPasswordScreen.successMessage'),
         [
           {
-            text: 'Sign In',
+            text: tScreens('auth.signIn'),
             onPress: () => navigation.navigate('Login')
           }
         ]
@@ -129,18 +115,18 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ navigation, r
       logger.error('Password reset error:', error);
 
       const firebaseError = error as FirebaseError | null;
-      let errorMessage = 'Failed to reset password. Please try again.';
+      let errorMessage = tScreens('auth.resetPasswordScreen.resetFailed');
       const errorCode = firebaseError?.code;
 
       if (errorCode === 'auth/invalid-action-code') {
-        errorMessage = 'This reset link has expired or is invalid. Please request a new password reset.';
+        errorMessage = tScreens('auth.resetPasswordScreen.expiredResetLink');
       } else if (errorCode === 'auth/expired-action-code') {
-        errorMessage = 'This reset link has expired. Please request a new password reset.';
+        errorMessage = tScreens('auth.resetPasswordScreen.expiredCode');
       } else if (errorCode === 'auth/weak-password') {
-        errorMessage = 'Password is too weak. Please choose a stronger password.';
+        errorMessage = tScreens('auth.resetPasswordScreen.weakPassword');
       }
       
-      ThemedAlert.error('Error', errorMessage);
+      ThemedAlert.error(tErrors('general'), errorMessage);
     } finally {
       setLoading(false);
     }
@@ -153,21 +139,21 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ navigation, r
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.title}>Reset Your Password</Text>
+        <Text style={styles.title}>{tScreens('auth.resetPasswordScreen.title')}</Text>
         <Text style={styles.subtitle}>
-          Enter your new password below. Make sure it meets all the requirements.
+          {tScreens('auth.resetPasswordScreen.subtitle')}
         </Text>
 
         <View style={styles.form}>
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>New Password</Text>
+            <Text style={styles.label}>{tScreens('auth.resetPasswordScreen.newPassword')}</Text>
             <TextInput
               style={[
                 styles.input,
                 passwordValidation.isTouched && !passwordValidation.isValid && styles.inputError,
                 passwordValidation.isTouched && passwordValidation.isValid && styles.inputSuccess
               ]}
-              placeholder="Enter new password"
+              placeholder={tScreens('auth.resetPasswordScreen.enterNewPassword')}
               placeholderTextColor={COLORS.muted}
               value={password}
               onChangeText={setPassword}
@@ -180,14 +166,14 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ navigation, r
           </View>
 
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Confirm Password</Text>
+            <Text style={styles.label}>{tScreens('auth.confirmPassword')}</Text>
             <TextInput
               style={[
                 styles.input,
                 confirmPasswordError && styles.inputError,
                 confirmPassword.trim() === password.trim() && confirmPassword.trim() !== '' && styles.inputSuccess
               ]}
-              placeholder="Confirm new password"
+              placeholder={tScreens('auth.resetPasswordScreen.confirmNewPassword')}
               placeholderTextColor={COLORS.muted}
               value={confirmPassword}
               onChangeText={setConfirmPassword}
@@ -200,43 +186,43 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ navigation, r
           </View>
 
           <View style={styles.requirementsContainer}>
-            <Text style={styles.requirementsTitle}>Password Requirements:</Text>
+            <Text style={styles.requirementsTitle}>{tScreens('auth.passwordResetSuccess.requirementsTitle')}</Text>
             <View style={styles.requirementsList}>
               <Text style={[
                 styles.requirement,
                 password.length >= 8 && styles.requirementMet
               ]}>
-                • At least 8 characters long
+                • {tScreens('auth.passwordResetSuccess.requirements.length')}
               </Text>
               <Text style={[
                 styles.requirement,
                 /[A-Z]/.test(password) && styles.requirementMet
               ]}>
-                • At least one uppercase letter (A-Z)
+                • {tScreens('auth.passwordResetSuccess.requirements.uppercase')}
               </Text>
               <Text style={[
                 styles.requirement,
                 /[a-z]/.test(password) && styles.requirementMet
               ]}>
-                • At least one lowercase letter (a-z)
+                • {tScreens('auth.passwordResetSuccess.requirements.lowercase')}
               </Text>
               <Text style={[
                 styles.requirement,
                 /\d/.test(password) && styles.requirementMet
               ]}>
-                • At least one number (0-9)
+                • {tScreens('auth.passwordResetSuccess.requirements.number')}
               </Text>
               <Text style={[
                 styles.requirement,
                 /[!@#$%^&*(),.?":{}|<>]/.test(password) && styles.requirementMet
               ]}>
-                • At least one special character (!@#$%^&*)
+                • {tScreens('auth.passwordResetSuccess.requirements.special')}
               </Text>
             </View>
           </View>
 
           <Button
-            title={loading ? 'Resetting Password...' : 'Reset Password'}
+            title={loading ? tScreens('auth.resetPasswordScreen.resettingPassword') : tScreens('auth.resetPassword')}
             onPress={handleResetPassword}
             disabled={!isFormValid || loading}
             style={[
@@ -246,7 +232,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ navigation, r
           />
 
           <Button
-            title="Back to Sign In"
+            title={tScreens('auth.resetPasswordScreen.backToSignIn')}
             onPress={() => navigation.navigate('Login')}
             style={styles.secondaryButton}
             disabled={loading}

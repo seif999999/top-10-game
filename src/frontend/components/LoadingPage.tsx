@@ -1,9 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet, Animated, Easing } from 'react-native';
 import { COLORS, SPACING, TYPOGRAPHY } from '../design-system';
+import useAppTranslation from '../../hooks/useTranslation';
 
 interface LoadingPageProps {
-  /** Message displayed below the spinner */
+  /** Message displayed below the spinner. Falls back to translated default. */
   message?: string;
 }
 
@@ -15,7 +16,9 @@ interface LoadingPageProps {
  * - Accessible: announces itself as busy to screen readers.
  * - Subtle fade-in animation so it doesn't flash on fast loads.
  */
-const LoadingPage: React.FC<LoadingPageProps> = ({ message = 'Loading… Please wait.' }) => {
+const LoadingPage: React.FC<LoadingPageProps> = ({ message }) => {
+  const { t } = useAppTranslation();
+  const displayMessage = message ?? t('loadingMessage');
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
@@ -51,7 +54,7 @@ const LoadingPage: React.FC<LoadingPageProps> = ({ message = 'Loading… Please 
     <Animated.View
       style={[styles.overlay, { opacity: fadeAnim }]}
       accessibilityRole="alert"
-      accessibilityLabel={message}
+      accessibilityLabel={displayMessage}
       accessibilityLiveRegion="assertive"
       // @ts-ignore — React Native supports aria-busy on Views
       aria-busy={true}
@@ -65,7 +68,7 @@ const LoadingPage: React.FC<LoadingPageProps> = ({ message = 'Loading… Please 
 
         <ActivityIndicator size="large" color={COLORS.primary} style={styles.spinner} />
 
-        <Text style={styles.message}>{message}</Text>
+        <Text style={styles.message}>{displayMessage}</Text>
       </View>
     </Animated.View>
   );

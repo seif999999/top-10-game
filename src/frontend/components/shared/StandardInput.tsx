@@ -7,7 +7,8 @@
 import React, { useState } from 'react';
 import { TextInput, View, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
 import { COLORS, SPACING, TYPOGRAPHY, COMPONENT_STYLES } from '../../design-system';
-import { RESPONSIVE } from '../../utils/responsive';
+import { RESPONSIVE, COMPONENT_RESPONSIVE } from '../../utils/responsive';
+import useAppTranslation from '../../../hooks/useTranslation';
 
 export interface StandardInputProps {
   value: string;
@@ -54,6 +55,7 @@ const StandardInput: React.FC<StandardInputProps> = ({
   accessibilityHint,
   testID,
 }) => {
+  const { isRTL } = useAppTranslation();
   const [isFocused, setIsFocused] = useState(false);
 
   const getInputVariant = (): 'default' | 'focused' | 'error' | 'success' => {
@@ -81,6 +83,7 @@ const StandardInput: React.FC<StandardInputProps> = ({
         textAlignVertical: 'top' as const,
         minHeight: numberOfLines * 20 + 32, // Approximate height for multiline
       }),
+      ...(isRTL && { textAlign: 'right' as const }),
       ...inputStyle,
     };
   };
@@ -99,6 +102,7 @@ const StandardInput: React.FC<StandardInputProps> = ({
       fontWeight: TYPOGRAPHY.fontWeight.medium,
       color: COLORS.text,
       marginBottom: SPACING.xs,
+      ...(isRTL && { textAlign: 'right' as const }),
     };
   };
 

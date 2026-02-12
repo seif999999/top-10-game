@@ -14,6 +14,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING } from '../design-system';
+import useAppTranslation from '../../hooks/useTranslation';
 import { getQuestionsByCategory } from '../../backend/services/questionsService';
 import { useMultiplayer } from '../contexts/MultiplayerContext';
 import { logger } from '../../backend/utils/logger';
@@ -26,6 +27,7 @@ const MultiplayerQuestionsScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute();
   const insets = useSafeAreaInsets();
+  const { isRTL } = useAppTranslation();
   const { 
     setQuestions, 
     createRoom, 
@@ -133,9 +135,9 @@ const MultiplayerQuestionsScreen: React.FC = () => {
           end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFill}
         />
-        <View style={[styles.header, { paddingTop: insets.top * 0.5 }]}>
+        <View style={[styles.header, { paddingTop: Math.max(SPACING.xs, insets.top * 0.5) }]}>
           <TouchableOpacity onPress={handleBackToCategories} style={styles.backButton}>
-            <Text style={styles.backButtonArrow}>←</Text>
+            <Text style={styles.backButtonArrow}>{isRTL ? '→' : '←'}</Text>
           </TouchableOpacity>
           <View style={styles.headerContent}>
             <Text style={styles.title}>{isCustomCategory ? 'Create Your Own' : categoryName}</Text>
@@ -193,9 +195,9 @@ const MultiplayerQuestionsScreen: React.FC = () => {
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
-      <View style={[styles.header, { paddingTop: insets.top * 0.5 }]}>
+      <View style={[styles.header, { paddingTop: Math.max(SPACING.xs, insets.top * 0.5) }]}>
         <TouchableOpacity onPress={handleBackToCategories} style={styles.backButton}>
-          <Text style={styles.backButtonArrow}>←</Text>
+          <Text style={styles.backButtonArrow}>{isRTL ? '→' : '←'}</Text>
         </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.title}>{isCustomCategory ? 'Create Your Own' : categoryName}</Text>
@@ -257,7 +259,7 @@ const MultiplayerQuestionsScreen: React.FC = () => {
                 {isCreating ? (
                   <ActivityIndicator size="small" color={COLORS.primary} />
                 ) : (
-                  <Text style={styles.questionArrow}>→</Text>
+                  <Text style={styles.questionArrow}>{isRTL ? '←' : '→'}</Text>
                 )}
               </TouchableOpacity>
             );

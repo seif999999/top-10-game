@@ -1,0 +1,85 @@
+{
+  "title": "خمّن أفضل ١٠",
+  "enterYourAnswer": "أدخل إجابتك...",
+  "rank": "الترتيب",
+  "points": "نقاط",
+  "answersFound": "{{count}} / ١٠ إجابات تم العثور عليها",
+  "score": {
+    "label": "النتيجة",
+    "final": "النتيجة النهائية"
+  },
+  "round": {
+    "label": "الجولة"
+  },
+  "timer": {
+    "label": "الوقت المتبقي",
+    "timeRemaining": "الوقت المتبقي"
+  },
+  "actions": {
+    "start": "ابدأ اللعبة",
+    "hint": "تلميح",
+    "skip": "تخطي",
+    "submit": "إرسال",
+    "answer": "الإجابة",
+    "playAgain": "العب مرة أخرى",
+    "submitAnswer": "إرسال الإجابة",
+    "submitted": "تم الإرسال ✓",
+    "skipTurn": "تخطي الدور",
+    "endGame": "إنهاء اللعبة",
+    "endTurn": "إنهاء الدور",
+    "nextQuestion": "السؤال التالي",
+    "exit": "خروج"
+  },
+  "feedback": {
+    "correct": "!صحيح",
+    "wrong": "!خطأ"
+  },
+  "results": {
+    "gameOver": "انتهت اللعبة"
+  },
+  "multiplayer": {
+    "indicator": "متعدد اللاعبين",
+    "waitingForPlayers": "في انتظار اللاعبين... ({{count}} انضموا)",
+    "revealingAnswers": "🎯 جارٍ كشف الإجابات...",
+    "questionComplete": "🏆 اكتمل السؤال! الانتقال إلى السؤال التالي...",
+    "yourTurn": "دورك",
+    "waiting": "انتظار",
+    "unknownPlayer": "لاعب مجهول",
+    "hostChanged": "تغيير المضيف",
+    "roomClosed": "الغرفة مغلقة",
+    "gameEnded": "انتهت اللعبة",
+    "roomNotFound": "الغرفة غير موجودة",
+    "roomNotFoundMessage": "هذه الغرفة لم تعد موجودة. يرجى إنشاء أو الانضمام إلى غرفة مختلفة.",
+    "gameLoadingTimeout": "انتهت مهلة تحميل اللعبة",
+    "gameLoadingTimeoutMessage": "اللعبة تستغرق وقتاً طويلاً للبدء. يرجى المحاولة مرة أخرى.",
+    "alreadySubmittedTitle": "تم الإرسال مسبقاً",
+    "alreadySubmittedMessage": "لقد أرسلت إجابة بالفعل في هذا الدور. انتظر دورك التالي.",
+    "notYourTurnTitle": "ليس دورك",
+    "notYourTurnMessage": "انتظر دورك لإرسال الإجابات."
+  },
+  "exit": {
+    "title": "الخروج من اللعبة",
+    "exitMultiplayerMessage": "هل أنت متأكد أنك تريد مغادرة اللعبة؟ سيتم قطع اتصالك بالغرفة.",
+    "exitSingleMessage": "هل أنت متأكد أنك تريد الخروج؟ سيتم فقدان تقدمك.",
+    "endGameTitle": "إنهاء اللعبة",
+    "endGameMessage": "هل أنت متأكد أنك تريد إنهاء اللعبة؟ سترى نتائجك النهائية."
+  },
+  "questionCard": {
+    "questionNumber": "سؤال {{number}}",
+    "category": "الفئة"
+  },
+  "answers": {
+    "title": "الإجابات",
+    "noAnswers": "لا توجد إجابات متاحة",
+    "yourAnswers": "إجاباتك:"
+  },
+  "questionComplete": {
+    "title": "اكتمل السؤال!",
+    "message": "لقد وجدت جميع الإجابات الصحيحة العشر لهذا السؤال!"
+  },
+  "teams": {
+    "teamScores": "نتائج الفرق",
+    "currentTurn": "الدور الحالي:",
+    "player": "لاعب"
+  }
+}

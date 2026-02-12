@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   ScrollView,
   ActivityIndicator,
   BackHandler,
@@ -12,7 +11,7 @@ import {
   Dimensions,
 } from 'react-native';
 import LoadingPage from '../components/LoadingPage';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { logger } from '../../backend/utils/logger';
 import ThemedAlert from '../utils/themedAlert';
@@ -25,6 +24,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { COLORS, SPACING, TYPOGRAPHY, ACCESSIBILITY } from '../../backend/utils/constants';
 import { Player } from '../../backend/services/multiplayerService';
 import RoundTimeSelector from '../components/RoundTimeSelector';
+import useAppTranslation from '../../hooks/useTranslation';
 
 const { width } = Dimensions.get('window');
 
@@ -34,6 +34,8 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute();
   const insets = useSafeAreaInsets();
+  const { t, isRTL } = useAppTranslation('screens');
+  const { t: tCommon } = useAppTranslation('common');
   const { user } = useAuth();
   const { 
     currentRoom,
@@ -75,11 +77,11 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
       isLeavingRef.current = true; // Prevent re-triggering
       
       ThemedAlert.alert(
-        'Removed from Room',
-        'You have been removed from the room by the host.',
+        t('multiplayer.roomLobby.removedFromRoomTitle'),
+        t('multiplayer.roomLobby.removedFromRoomMessage'),
         [
           {
-            text: 'OK',
+            text: tCommon('ok'),
             onPress: () => {
               // Clean up multiplayer state and navigate back
               resetAll();
@@ -97,9 +99,9 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
 
   useEffect(() => {
     if (error) {
-      ThemedAlert.error('Error', error, [{ text: 'OK', onPress: clearError }]);
+      ThemedAlert.error(tCommon('error'), error, [{ text: tCommon('ok'), onPress: clearError }]);
     }
-  }, [error, clearError]);
+  }, [error, clearError, tCommon]);
 
   useEffect(() => {
     // Animate in
@@ -158,12 +160,12 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
 
   const handleLeaveRoom = async () => {
     ThemedAlert.warning(
-      'Leave Room',
-      'Are you sure you want to leave this room? This will end the room session.',
+      t('multiplayer.roomLobby.leaveRoomTitle'),
+      t('multiplayer.roomLobby.leaveRoomMessage'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: tCommon('cancel'), style: 'cancel' },
         { 
-          text: 'Leave Room', 
+          text: t('multiplayer.leaveRoom'), 
           style: 'destructive',
           onPress: async () => {
             try {
@@ -198,26 +200,24 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
     
     const playerCount = Object.keys(currentRoom.players).length;
     if (playerCount < 2) {
-      ThemedAlert.warning('Not Enough Players', 'You need at least 2 players to start the game');
+      ThemedAlert.warning(t('multiplayer.roomLobby.notEnoughPlayersTitle'), t('multiplayer.roomLobby.notEnoughPlayersMessage'));
       return;
     }
 
     ThemedAlert.info(
-      'Start Game',
-      `Start the game with ${playerCount} players?`,
+      t('multiplayer.roomLobby.startGameConfirmTitle'),
+      t('multiplayer.roomLobby.startGameConfirmMessage', { count: playerCount }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: tCommon('cancel'), style: 'cancel' },
         { 
-          text: 'Start Game', 
+          text: t('multiplayer.roomLobby.startGame'), 
           onPress: async () => {
             try {
               logger.log(`🎮 Host starting game with ${selectedRoundTime}s rounds...`);
               await startGame(selectedRoundTime);
-              logger.log('🎮 Game start command sent, waiting for auto-navigation...');
-              // Navigation will be handled automatically by the context
             } catch (error) {
               logger.error('Error starting game:', error);
-              ThemedAlert.error('Error', 'Failed to start the game. Please try again.');
+              ThemedAlert.error(tCommon('error'), t('multiplayer.roomLobby.failedToStart'));
             }
           }
         }
@@ -268,12 +268,12 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
 
   const handleKickPlayer = (player: Player) => {
     ThemedAlert.warning(
-      'Remove Player',
-      `Remove ${player.name || 'Unknown Player'} from the room?`,
+      t('multiplayer.roomLobby.removePlayerTitle'),
+      t('multiplayer.roomLobby.removePlayerMessage', { name: player.name || t('multiplayer.roomLobby.unknownPlayer') }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: tCommon('cancel'), style: 'cancel' },
         { 
-          text: 'Remove', 
+          text: t('multiplayer.roomLobby.remove'), 
           style: 'destructive',
           onPress: async () => {
             try {
@@ -289,7 +289,7 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
 
 
   if (!currentRoom) {
-    return <LoadingPage message="Loading room…" />;
+    return <LoadingPage message={t('multiplayer.roomLobby.loadingRoom')} />;
   }
 
   const players = Object.values(currentRoom.players).filter(player => {
@@ -299,7 +299,7 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
     }
     if (!player.name) {
       logger.warn('Player with undefined name found:', player);
-      player.name = 'Unknown Player'; // Fix it in place
+      player.name = t('multiplayer.roomLobby.unknownPlayer');
     }
     return true;
   });
@@ -315,15 +315,15 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
         style={StyleSheet.absoluteFill}
       />
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + SPACING.md }]}>
+      <View style={[styles.header, { paddingTop: Math.max(SPACING.xs, insets.top * 0.5) }, isRTL && styles.rtlRow]}>
         <TouchableOpacity 
           style={styles.exitButton}
           onPress={handleLeaveRoom}
-          accessibilityLabel="Exit room and end session"
+          accessibilityLabel={t('multiplayer.roomLobby.exit')}
         >
-          <Text style={styles.exitButtonText}>Exit</Text>
+          <Text style={styles.exitButtonText}>{t('multiplayer.roomLobby.exit')}</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Room Lobby</Text>
+        <Text style={styles.title}>{t('multiplayer.roomLobby.title')}</Text>
         <View style={styles.placeholder} />
       </View>
 
@@ -339,35 +339,33 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
         >
           {/* Room Code Display */}
           <View style={styles.roomCodeSection}>
-            <Text style={styles.roomCodeLabel}>Room Code</Text>
-            <View style={styles.roomCodeContainer}>
-              <Text style={styles.roomCodeText}>{currentRoom.roomCode}</Text>
+            <Text style={[styles.roomCodeLabel, isRTL && styles.rtlText]}>{t('multiplayer.roomLobby.roomCodeLabel')}</Text>
+            <View style={[styles.roomCodeContainer, isRTL && styles.rtlRow]}>
+              <Text style={[styles.roomCodeText, isRTL && styles.rtlText]}>{currentRoom.roomCode}</Text>
             </View>
-            <Text style={styles.roomCodeHint}>
-              Share this code with friends to invite them
-            </Text>
+            <Text style={[styles.roomCodeHint, isRTL && styles.rtlText]}>{t('multiplayer.roomLobby.shareCodeHint')}</Text>
           </View>
 
           {/* Game Info */}
           <View style={styles.gameInfoSection}>
-            <Text style={styles.gameInfoTitle}>Game Details</Text>
+            <Text style={[styles.gameInfoTitle, isRTL && styles.rtlText]}>{t('multiplayer.roomLobby.gameDetails')}</Text>
             <View style={styles.gameInfoGrid}>
               <View style={styles.gameInfoItem}>
-                <Text style={styles.gameInfoLabel}>Category</Text>
-                <Text style={styles.gameInfoValue}>{currentRoom.category}</Text>
+                <Text style={[styles.gameInfoLabel, isRTL && styles.rtlText]}>{t('multiplayer.roomLobby.category')}</Text>
+                <Text style={[styles.gameInfoValue, isRTL && styles.rtlText]}>{currentRoom.category}</Text>
               </View>
               <View style={styles.gameInfoItem}>
-                <Text style={styles.gameInfoLabel}>Question</Text>
-                <Text style={[styles.gameInfoValue, styles.questionText]}>
-                  {currentRoom.questions[0]?.text || 'No question selected'}
+                <Text style={[styles.gameInfoLabel, isRTL && styles.rtlText]}>{t('multiplayer.roomLobby.question')}</Text>
+                <Text style={[styles.gameInfoValue, styles.questionText, isRTL && styles.rtlText]}>
+                  {currentRoom.questions[0]?.text || t('multiplayer.roomLobby.noQuestionSelected')}
                 </Text>
               </View>
               <View style={styles.gameInfoItem}>
-                <Text style={styles.gameInfoLabel}>Players</Text>
-                <Text style={styles.gameInfoValue}>{playerCount}/{currentRoom.maxPlayers}</Text>
+                <Text style={[styles.gameInfoLabel, isRTL && styles.rtlText]}>{t('multiplayer.roomLobby.players')}</Text>
+                <Text style={[styles.gameInfoValue, isRTL && styles.rtlText]}>{playerCount}/{currentRoom.maxPlayers}</Text>
               </View>
               <View style={styles.gameInfoItem}>
-                <Text style={styles.gameInfoLabel}>Status</Text>
+                <Text style={[styles.gameInfoLabel, isRTL && styles.rtlText]}>{t('multiplayer.roomLobby.status')}</Text>
                 <Text style={[
                   styles.gameInfoValue,
                   styles[`status${currentRoom.status.charAt(0).toUpperCase() + currentRoom.status.slice(1)}` as keyof typeof styles]
@@ -380,17 +378,17 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
 
           {/* Players List */}
           <View style={styles.playersSection}>
-            <Text style={styles.playersTitle}>
-              Players ({playerCount})
+            <Text style={[styles.playersTitle, isRTL && styles.rtlText]}>
+              {t('multiplayer.roomLobby.playersTitle', { count: playerCount })}
             </Text>
             <View style={styles.playersList}>
               {players.map((player, index) => (
-                <View key={player.id} style={styles.playerCard}>
-                  <View style={styles.playerInfo}>
+                <View key={player.id} style={[styles.playerCard, isRTL && styles.rtlRow]}>
+                  <View style={[styles.playerInfo, isRTL && styles.rtlRow]}>
                     <AvatarIcon 
                       user={{ 
                         id: player.id, 
-                        displayName: player.name || 'Player', 
+                        displayName: player.name || t('multiplayer.roomLobby.player'), 
                         email: `${player.id}@player.local`,
                         selectedAvatar: player.selectedAvatar 
                       }} 
@@ -398,13 +396,13 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
                       showBorder={true}
                       borderColor={COLORS.primary}
                     />
-                    <View style={styles.playerDetails}>
-                      <Text style={styles.playerName}>
-                        {player.name || 'Unknown Player'}
-                        {player.isHost && ' (Host)'}
+                    <View style={[styles.playerDetails, isRTL && { marginLeft: 0, marginRight: SPACING.md }]}>
+                      <Text style={[styles.playerName, isRTL && styles.rtlText]}>
+                        {player.name || t('multiplayer.roomLobby.unknownPlayer')}
+                        {player.isHost && t('multiplayer.roomLobby.hostSuffix')}
                       </Text>
-                      <Text style={styles.playerStatus}>
-                        {player.isConnected ? 'Connected' : 'Disconnected'}
+                      <Text style={[styles.playerStatus, isRTL && styles.rtlText]}>
+                        {player.isConnected ? t('multiplayer.roomLobby.connected') : t('multiplayer.roomLobby.disconnected')}
                       </Text>
                     </View>
                   </View>
@@ -412,9 +410,9 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
                     <TouchableOpacity
                       style={styles.kickButton}
                       onPress={() => handleKickPlayer(player)}
-                      accessibilityLabel={`Remove ${player.name || 'Unknown Player'}`}
+                      accessibilityLabel={t('multiplayer.roomLobby.remove')}
                     >
-                      <Text style={styles.kickButtonText}>Remove</Text>
+                      <Text style={styles.kickButtonText}>{t('multiplayer.roomLobby.remove')}</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -425,21 +423,21 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
           {/* Host Controls */}
           {isHost && (
             <View style={styles.hostControlsSection}>
-              <Text style={styles.hostControlsTitle}>Host Controls</Text>
+              <Text style={[styles.hostControlsTitle, isRTL && styles.rtlText]}>{t('multiplayer.roomLobby.hostControls')}</Text>
               
               {/* Round Time Selector */}
               <View style={styles.roundTimeSection}>
-                <Text style={styles.roundTimeLabel}>Round Time</Text>
+                <Text style={[styles.roundTimeLabel, isRTL && styles.rtlText]}>{t('multiplayer.roomLobby.roundTime')}</Text>
                 <TouchableOpacity
-                  style={styles.roundTimeButton}
+                  style={[styles.roundTimeButton, isRTL && styles.rtlRow]}
                   onPress={() => setShowRoundTimeSelector(true)}
-                  accessibilityLabel="Select round time"
+                  accessibilityLabel={t('multiplayer.roomLobby.roundTime')}
                 >
-                  <Text style={styles.roundTimeButtonText}>
-                    {selectedRoundTime === 10 ? '10 seconds' :
-                     selectedRoundTime === 20 ? '20 seconds' :
-                     selectedRoundTime === 40 ? '40 seconds' :
-                     '1 minute'}
+                  <Text style={[styles.roundTimeButtonText, isRTL && styles.rtlText]}>
+                    {selectedRoundTime === 10 ? t('multiplayer.roomLobby.roundTime10') :
+                     selectedRoundTime === 20 ? t('multiplayer.roomLobby.roundTime20') :
+                     selectedRoundTime === 40 ? t('multiplayer.roomLobby.roundTime40') :
+                     t('multiplayer.roomLobby.roundTime60')}
                   </Text>
                   <Text style={styles.roundTimeButtonIcon}>⚙️</Text>
                 </TouchableOpacity>
@@ -453,13 +451,13 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
                   ]}
                   onPress={handleStartGame}
                   disabled={playerCount < 2 || loading || isStarting}
-                  accessibilityLabel="Start the game"
+                  accessibilityLabel={t('multiplayer.roomLobby.startGame')}
                 >
                   {(loading || isStarting) ? (
                     <ActivityIndicator color={COLORS.white} />
                   ) : (
                     <Text style={styles.startGameButtonText}>
-                      {isStarting ? 'Starting...' : `Start Game (${playerCount} players)`}
+                      {isStarting ? t('multiplayer.roomLobby.starting') : t('multiplayer.roomLobby.startGameWithPlayers', { count: playerCount })}
                     </Text>
                   )}
                 </TouchableOpacity>
@@ -467,12 +465,12 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
                 <TouchableOpacity
                   style={styles.endGameButton}
                   onPress={handleEndGame}
-                  accessibilityLabel="End the game"
+                  accessibilityLabel={t('multiplayer.roomLobby.endGame')}
                 >
-                  <Text style={styles.endGameButtonText}>End Game</Text>
+                  <Text style={styles.endGameButtonText}>{t('multiplayer.roomLobby.endGame')}</Text>
                 </TouchableOpacity>
-                <Text style={styles.buttonDescription}>
-                  End Game: Exits all players from the room and returns to the multiplayer menu.
+                <Text style={[styles.buttonDescription, isRTL && styles.rtlText]}>
+                  {t('multiplayer.roomLobby.endGameDescription')}
                 </Text>
               </View>
             </View>
@@ -481,9 +479,9 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
           {/* Waiting Message for Players */}
           {!isHost && (
             <View style={styles.waitingSection}>
-              <Text style={styles.waitingTitle}>Waiting for Host</Text>
-              <Text style={styles.waitingSubtitle}>
-                The host will start the game when ready
+              <Text style={[styles.waitingTitle, isRTL && styles.rtlText]}>{t('multiplayer.roomLobby.waitingForHost')}</Text>
+              <Text style={[styles.waitingSubtitle, isRTL && styles.rtlText]}>
+                {t('multiplayer.roomLobby.waitingForHostSubtitle')}
               </Text>
               <ActivityIndicator size="large" color={COLORS.primary} style={styles.waitingSpinner} />
             </View>
@@ -820,6 +818,12 @@ const styles = StyleSheet.create({
   },
   statusStarting: {
     color: COLORS.info,
+  },
+  rtlRow: {
+    flexDirection: 'row-reverse',
+  },
+  rtlText: {
+    textAlign: 'right',
   },
 });
 

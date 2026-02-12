@@ -7,6 +7,7 @@ import { signInWithGoogle as googleAuth } from '../../backend/services/googleAut
 import { COLORS, SPACING } from '../../backend/utils/constants';
 import { logger } from '../../backend/utils/logger';
 import { AppError, toAppError } from '../../shared/errors';
+import useAppTranslation from '../../hooks/useTranslation';
 
 interface GoogleSignInButtonProps {
   onSuccess?: () => void;
@@ -21,6 +22,8 @@ const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
   style,
   textStyle
 }) => {
+  const { t } = useAppTranslation('components');
+  const { isRTL } = useAppTranslation();
   const { signInWithGoogle } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -78,7 +81,7 @@ const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
 
   return (
     <TouchableOpacity
-      style={[styles.button, style]}
+      style={[styles.button, isRTL && styles.rtlRow, style]}
       onPress={handleGoogleSignIn}
       disabled={isLoading}
       activeOpacity={0.7}
@@ -120,6 +123,12 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
   },
+  rtlRow: {
+    flexDirection: 'row-reverse',
+  },
+  rtlText: {
+    textAlign: 'right',
+  },
   googleIcon: {
     width: 24,
     height: 24,
@@ -136,6 +145,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 4,
+  },
+  googleIconRTL: {
+    marginRight: 0,
+    marginLeft: SPACING.md,
   },
   googleIconText: {
     color: '#FFFFFF',

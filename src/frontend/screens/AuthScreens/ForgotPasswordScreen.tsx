@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from '../../components/Button';
 import { useAuth } from '../../contexts/AuthContext';
@@ -7,28 +7,12 @@ import { COLORS, SPACING } from '../../../backend/utils/constants';
 import { ForgotPasswordScreenProps } from '../../../shared/types/navigation';
 import { InputValidator } from '../../../backend/utils/inputValidator';
 import { logger } from '../../../backend/utils/logger';
+import useAppTranslation from '../../../hooks/useTranslation';
 
-/**
- * ForgotPasswordScreen Component
- * 
- * Provides a secure password reset functionality with:
- * - Real-time email validation
- * - Rate limiting protection
- * - User-friendly error messages
- * - Success feedback
- * - Accessibility support
- * 
- * Features:
- * - Validates email format in real-time
- * - Prevents spam with rate limiting (3 attempts per hour)
- * - Shows specific error messages for different failure scenarios
- * - Provides clear success feedback
- * - Maintains consistent UI with other auth screens
- * 
- * @param navigation - React Navigation object for screen transitions
- */
 const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation }) => {
   const { resetPassword, loading } = useAuth();
+  const { t: tScreens } = useAppTranslation('screens');
+  const { t: tErrors } = useAppTranslation('errors');
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
@@ -42,13 +26,12 @@ const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation 
     isTouched: false
   });
 
-  // Real-time email validation
   useEffect(() => {
     if (email.trim()) {
       const isValid = InputValidator.validateEmail(email.trim());
       setEmailValidation({
         isValid,
-        message: isValid ? '' : 'Please enter a valid email address',
+        message: isValid ? '' : tErrors('validation.emailInvalid'),
         isTouched: true
       });
     } else {
@@ -58,73 +41,57 @@ const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation 
         isTouched: false
       });
     }
-  }, [email]);
+  }, [email, tErrors]);
 
-  /**
-   * Handles password reset form submission
-   * 
-   * Performs the following validations and actions:
-   * 1. Validates email is not empty
-   * 2. Validates email format using InputValidator
-   * 3. Calls resetPassword with rate limiting protection
-   * 4. Handles success and error states appropriately
-   * 5. Provides user-friendly error messages
-   * 
-   * Error handling includes:
-   * - Rate limiting errors with specific messaging
-   * - Network errors with retry guidance
-   * - Invalid email format errors
-   * - Generic fallback for unknown errors
-   */
   const onSubmit = async () => {
     setError(null);
     if (!email.trim()) {
-      setError('Email is required');
+      setError(tErrors('validation.emailRequired'));
       return;
     }
     if (!emailValidation.isValid) {
-      setError(emailValidation.message || 'Please enter a valid email address');
+      setError(emailValidation.message || tErrors('validation.emailInvalid'));
       return;
     }
     try {
-      logger.log('🔐 DEBUG: Attempting password reset for:', email.trim());
+      logger.log('Attempting password reset for:', email.trim());
       await resetPassword(email.trim());
-      logger.log('✅ DEBUG: Password reset successful, setting sent state');
       setSent(true);
-      setError(null); // Clear any previous errors
+      setError(null);
       
-      // Navigate to success screen after a short delay
       setTimeout(() => {
         navigation.navigate('PasswordResetSuccess');
       }, 2000);
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : 'Failed to send reset email';
       
-      // Check if it's a rate limiting error and provide better feedback
       if (errorMessage.includes('Too many password reset attempts')) {
-        setError('Too many password reset attempts. Please wait before trying again.');
+        setError(tScreens('auth.forgotPasswordScreen.rateLimitMessage'));
       } else {
         setError(errorMessage);
       }
       
-      setSent(false); // Clear success state on error
+      setSent(false);
     }
   };
 
+  const isRateLimit = error?.includes(tScreens('auth.forgotPasswordScreen.rateLimitMessage')) || 
+                      error?.includes('Too many password reset attempts');
+
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Reset Password</Text>
-      <Text style={styles.subtitle}>Enter your email to receive reset instructions.</Text>
+      <Text style={styles.title}>{tScreens('auth.forgotPasswordScreen.title')}</Text>
+      <Text style={styles.subtitle}>{tScreens('auth.forgotPasswordScreen.subtitle')}</Text>
       
       <View style={styles.infoContainer}>
         <Text style={styles.infoIcon}>📧</Text>
         <Text style={styles.infoText}>
-          The reset link might land in your spam or junk folder. Please check there if you don't see it in your primary inbox.
+          {tScreens('auth.forgotPasswordScreen.spamNotice')}
         </Text>
       </View>
 
       <TextInput
-        placeholder="Email"
+        placeholder={tScreens('auth.email')}
         placeholderTextColor={COLORS.muted}
         autoCapitalize="none"
         keyboardType="email-address"
@@ -144,24 +111,29 @@ const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation 
       {error ? (
         <View style={[
           styles.errorContainer,
-          error.includes('Too many password reset attempts') && styles.rateLimitErrorContainer
+          isRateLimit && styles.rateLimitErrorContainer
         ]}>
           <Text style={[
             styles.error,
-            error.includes('Too many password reset attempts') && styles.rateLimitError
+            isRateLimit && styles.rateLimitError
           ]}>
             {error}
           </Text>
-          {error.includes('Too many password reset attempts') && (
+          {isRateLimit && (
             <Text style={styles.rateLimitSubtext}>
-              You can try again in 1 hour.
+              {tScreens('auth.forgotPasswordScreen.rateLimitSubtext')}
             </Text>
           )}
         </View>
       ) : null}
 
       <Button 
-        title={loading ? 'Sending…' : sent ? 'Email Sent ✓' : 'Send reset email'} 
+        title={loading 
+          ? tScreens('auth.forgotPasswordScreen.sending') 
+          : sent 
+            ? tScreens('auth.forgotPasswordScreen.emailSent') 
+            : tScreens('auth.forgotPasswordScreen.sendResetEmail')
+        } 
         onPress={onSubmit} 
         disabled={loading || sent || (emailValidation.isTouched && !emailValidation.isValid)}
         style={sent ? styles.buttonSuccess : undefined}
@@ -170,14 +142,14 @@ const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation 
       {sent ? (
         <View style={styles.successContainer}>
           <Text style={styles.successIcon}>✓</Text>
-          <Text style={styles.success}>Password reset email sent!</Text>
-          <Text style={styles.successSubtext}>Check your inbox and follow the instructions to reset your password.</Text>
+          <Text style={styles.success}>{tScreens('auth.forgotPasswordScreen.successTitle')}</Text>
+          <Text style={styles.successSubtext}>{tScreens('auth.forgotPasswordScreen.successMessage')}</Text>
         </View>
       ) : null}
 
       <View style={styles.footer}>
         <TouchableOpacity onPress={() => navigation.navigate('Login')} disabled={loading}>
-          <Text style={styles.linkText}>Back to Sign in</Text>
+          <Text style={styles.linkText}>{tScreens('auth.forgotPasswordScreen.backToSignIn')}</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

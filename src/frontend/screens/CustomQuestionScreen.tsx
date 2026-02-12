@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   TextInput,
   ScrollView,
@@ -12,19 +11,22 @@ import {
   Dimensions,
 } from 'react-native';
 import ThemedAlert from '../utils/themedAlert';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING } from '../../backend/utils/constants';
 import { logger } from '../../backend/utils/logger';
 import { CustomQuestionScreenProps } from '../../shared/types/navigation';
 import CustomQuestionService from '../../backend/services/customQuestionService';
 import { InputValidator } from '../../backend/utils/inputValidator';
+import useAppTranslation from '../../hooks/useTranslation';
 
 const { width } = Dimensions.get('window');
 
 const CustomQuestionScreen: React.FC<CustomQuestionScreenProps> = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const slotIndex = route.params.slotIndex;
+  const { t: tScreens, isRTL } = useAppTranslation('screens');
+  const { t: tCommon } = useAppTranslation('common');
   const [question, setQuestion] = useState('');
   const [answers, setAnswers] = useState(['', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
@@ -70,19 +72,19 @@ const CustomQuestionScreen: React.FC<CustomQuestionScreenProps> = ({ navigation,
   const handleCreateQuestion = async () => {
     // Validate question
     if (!question.trim()) {
-      ThemedAlert.warning('Missing Question', 'Please enter a question.');
+      ThemedAlert.warning(tScreens('customQuestion.missingQuestion'), tScreens('customQuestion.enterQuestion'));
       return;
     }
 
     // Validate answers
     const validAnswers = answers.filter(answer => answer.trim().length > 0);
     if (validAnswers.length < 2) {
-      ThemedAlert.warning('Not Enough Answers', 'Please provide at least 2 answers.');
+      ThemedAlert.warning(tScreens('customQuestion.notEnoughAnswers'), tScreens('customQuestion.minAnswers'));
       return;
     }
 
     if (validAnswers.length > 10) {
-      ThemedAlert.warning('Too Many Answers', 'Please provide no more than 10 answers.');
+      ThemedAlert.warning(tScreens('customQuestion.tooManyAnswers'), tScreens('customQuestion.maxAnswers'));
       return;
     }
 
@@ -92,12 +94,12 @@ const CustomQuestionScreen: React.FC<CustomQuestionScreenProps> = ({ navigation,
       const customQuestionService = CustomQuestionService.getInstance();
       await customQuestionService.saveToSlot(slotIndex, question.trim(), validAnswers);
       logger.log('✅ Custom question saved to slot', slotIndex + 1);
-      ThemedAlert.success('Saved', `Question saved in Slot ${slotIndex + 1}. You can play it from Single Player → Create Your Own.`);
+      ThemedAlert.success(tCommon('success'), tScreens('customQuestion.questionSaved', { number: slotIndex + 1 }));
       navigation.goBack();
     } catch (error) {
       logger.error('❌ Error creating custom question:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to create custom question. Please try again.';
-      ThemedAlert.error('Error', errorMessage);
+      const errorMessage = error instanceof Error ? error.message : tScreens('customQuestion.createError');
+      ThemedAlert.error(tCommon('error'), errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -109,27 +111,27 @@ const CustomQuestionScreen: React.FC<CustomQuestionScreenProps> = ({ navigation,
 
   const handleClearSlot = () => {
     ThemedAlert.alert(
-      'Clear This Slot',
-      `Are you sure you want to delete the question in Slot ${slotIndex + 1}? This cannot be undone.`,
+      tScreens('customQuestion.clearSlotTitle'),
+      tScreens('customQuestion.clearSlotMessage', { number: slotIndex + 1 }),
       [
         {
-          text: 'Cancel',
+          text: tCommon('cancel'),
           style: 'cancel',
           onPress: () => {},
         },
         {
-          text: 'Delete',
+          text: tCommon('delete'),
           style: 'destructive',
           onPress: async () => {
             try {
               const service = CustomQuestionService.getInstance();
               await service.clearSlot(slotIndex);
               logger.log('✅ Slot cleared:', slotIndex + 1);
-              ThemedAlert.success('Success', `Slot ${slotIndex + 1} has been cleared.`);
+              ThemedAlert.success(tCommon('success'), tScreens('customQuestion.slotCleared', { number: slotIndex + 1 }));
               navigation.goBack();
             } catch (error) {
               logger.error('Error clearing slot:', error);
-              ThemedAlert.error('Error', 'Failed to clear slot. Please try again.');
+              ThemedAlert.error(tCommon('error'), tScreens('customQuestion.clearSlotError'));
             }
           },
         },
@@ -152,12 +154,12 @@ const CustomQuestionScreen: React.FC<CustomQuestionScreenProps> = ({ navigation,
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         {/* Header */}
-        <View style={[styles.header, { paddingTop: insets.top + SPACING.md }]}>
+        <View style={[styles.header, { paddingTop: Math.max(SPACING.xs, insets.top * 0.5) }, isRTL && styles.rtlRow]}>
           <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-            <Text style={styles.backButtonText}>←</Text>
+            <Text style={styles.backButtonText}>{isRTL ? '→' : '←'}</Text>
           </TouchableOpacity>
           <View style={styles.headerContent}>
-            <Text style={styles.headerTitle}>Slot {slotIndex + 1}</Text>
+            <Text style={styles.headerTitle}>{tScreens('customQuestion.slotTitle', { number: slotIndex + 1 })}</Text>
           </View>
           <View style={styles.placeholder} />
         </View>
@@ -169,24 +171,25 @@ const CustomQuestionScreen: React.FC<CustomQuestionScreenProps> = ({ navigation,
         >
           {/* Question Input Section */}
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Question</Text>
+            <Text style={[styles.sectionLabel, isRTL && styles.rtlText]}>{tScreens('customQuestion.questionLabel')}</Text>
             <TextInput
-              style={styles.questionInput}
-              placeholder="Enter your question here..."
+              style={[styles.questionInput, isRTL && styles.rtlText]}
+              placeholder={tScreens('customQuestion.questionPlaceholder')}
               placeholderTextColor="#9CA3AF"
               value={question}
               onChangeText={setQuestion}
               multiline
               numberOfLines={3}
               textAlignVertical="top"
+              textAlign={isRTL ? 'right' : 'left'}
               maxLength={500}
             />
           </View>
 
           {/* Answers Input Section */}
           <View style={styles.section}>
-            <View style={styles.answersHeader}>
-              <Text style={styles.sectionLabel}>Answers (2-10)</Text>
+            <View style={[styles.answersHeader, isRTL && styles.rtlRow]}>
+              <Text style={[styles.sectionLabel, isRTL && styles.rtlText]}>{tScreens('customQuestion.answersLabel')}</Text>
               <TouchableOpacity 
                 onPress={handleAddAnswer} 
                 style={styles.addButton}
@@ -199,23 +202,24 @@ const CustomQuestionScreen: React.FC<CustomQuestionScreenProps> = ({ navigation,
                   end={{ x: 1, y: 0 }}
                   style={styles.addButtonGradient}
                 >
-                  <Text style={styles.addButtonText}>+ Add Answer</Text>
+                  <Text style={styles.addButtonText}>{tScreens('customQuestion.addAnswer')}</Text>
                 </LinearGradient>
               </TouchableOpacity>
             </View>
             
             {answers.map((answer, index) => (
-              <View key={index} style={styles.answerRow}>
-                <View style={styles.answerNumberCircle}>
+              <View key={index} style={[styles.answerRow, isRTL && styles.rtlRow]}>
+                <View style={[styles.answerNumberCircle, isRTL && { marginRight: 0, marginLeft: SPACING.md }]}>
                   <Text style={styles.answerNumber}>{index + 1}</Text>
                 </View>
                 <TextInput
-                  style={styles.answerInput}
-                  placeholder={`Answer ${index + 1}`}
+                  style={[styles.answerInput, isRTL && styles.rtlText]}
+                  placeholder={tScreens('customQuestion.answerPlaceholder', { number: index + 1 })}
                   placeholderTextColor="#9CA3AF"
                   value={answer}
                   onChangeText={(value) => handleAnswerChange(index, value)}
                   maxLength={100}
+                  textAlign={isRTL ? 'right' : 'left'}
                 />
                 {answers.length > 2 && (
                   <TouchableOpacity 
@@ -232,24 +236,24 @@ const CustomQuestionScreen: React.FC<CustomQuestionScreenProps> = ({ navigation,
 
           {/* Tips Section */}
           <View style={styles.tipsSection}>
-            <Text style={styles.tipsTitle}>💡 Tips</Text>
+            <Text style={[styles.tipsTitle, isRTL && styles.rtlText]}>{tScreens('customQuestion.tipsTitle')}</Text>
             <View style={styles.tipsList}>
-              <View style={styles.tipsItem}>
-                <View style={styles.tipsBullet} />
-                <Text style={styles.tipsText}>
-                  #1 answer = 1 point
+              <View style={[styles.tipsItem, isRTL && styles.rtlRow]}>
+                <View style={[styles.tipsBullet, isRTL && { marginRight: 0, marginLeft: SPACING.md }]} />
+                <Text style={[styles.tipsText, isRTL && styles.rtlText]}>
+                  {tScreens('customQuestion.tip1')}
                 </Text>
               </View>
-              <View style={styles.tipsItem}>
-                <View style={styles.tipsBullet} />
-                <Text style={styles.tipsText}>
-                  #10 answer = 10 points
+              <View style={[styles.tipsItem, isRTL && styles.rtlRow]}>
+                <View style={[styles.tipsBullet, isRTL && { marginRight: 0, marginLeft: SPACING.md }]} />
+                <Text style={[styles.tipsText, isRTL && styles.rtlText]}>
+                  {tScreens('customQuestion.tip2')}
                 </Text>
               </View>
-              <View style={styles.tipsItem}>
-                <View style={styles.tipsBullet} />
-                <Text style={styles.tipsText}>
-                  Most points wins!
+              <View style={[styles.tipsItem, isRTL && styles.rtlRow]}>
+                <View style={[styles.tipsBullet, isRTL && { marginRight: 0, marginLeft: SPACING.md }]} />
+                <Text style={[styles.tipsText, isRTL && styles.rtlText]}>
+                  {tScreens('customQuestion.tip3')}
                 </Text>
               </View>
             </View>
@@ -269,14 +273,14 @@ const CustomQuestionScreen: React.FC<CustomQuestionScreenProps> = ({ navigation,
               style={styles.createButtonGradient}
             >
               <Text style={styles.createButtonText}>
-                {!slotLoaded ? 'Loading...' : isLoading ? 'Saving...' : 'Save to slot'}
+                {!slotLoaded ? tCommon('loading') : isLoading ? tScreens('customQuestion.saving') : tScreens('customQuestion.saveToSlot')}
               </Text>
             </LinearGradient>
           </TouchableOpacity>
 
           {/* Clear Slot Button */}
           <TouchableOpacity onPress={handleClearSlot} style={styles.clearSlotButtonContainer} activeOpacity={0.8}>
-            <Text style={styles.clearSlotButtonText}>Clear This Slot</Text>
+            <Text style={styles.clearSlotButtonText}>{tScreens('customQuestion.clearThisSlot')}</Text>
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -498,6 +502,12 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
+  },
+  rtlRow: {
+    flexDirection: 'row-reverse',
+  },
+  rtlText: {
+    textAlign: 'right',
   },
 });
 

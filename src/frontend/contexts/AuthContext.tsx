@@ -2,10 +2,12 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 import { AuthContextType, User } from '../../shared/types';
 import { signInWithEmail, signUpWithEmail, signOutUser, subscribeToAuthChanges, getCurrentUser, verifyAuthPersistence, resetPassword as resetPasswordService, signInWithGoogle, updateUserProfile as updateUserProfileService, forceReAuthentication } from '../../backend/services/auth';
 import { AuthService } from '../../backend/services/authService';
+import { UserProfileService } from '../../backend/services/userProfileService';
 import LocalAvatarStorage from '../../backend/services/localAvatarStorage';
 import LocalDisplayNameStorage from '../../backend/services/localDisplayNameStorage';
 import LoadingPage from '../components/LoadingPage';
 import { RateLimitService } from '../../backend/services/rateLimitService';
+import { CoinService } from '../../backend/services/CoinService';
 import { logger } from '../../backend/utils/logger';
 import { AppError, toAppError } from '../../shared/errors';
 import type { AppErrorOptions } from '../../shared/errors';
@@ -16,6 +18,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [pendingAction, setPendingAction] = useState<boolean>(false);
+  const [welcomeCoinsMessage, setWelcomeCoinsMessage] = useState<string | null>(null);
 
   const buildAuthError = (error: unknown, fallback: AppErrorOptions): AppError => {
     const appError = toAppError(error, fallback);
@@ -55,13 +58,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (currentUser) {
           // Load fresh data from Firestore to ensure we have the latest
           try {
-            const freshUser = await getUserProfileWithAvatar();
+            const userProfileService = UserProfileService.getInstance();
+            let profile = await userProfileService.getUserProfile(currentUser.id);
+            // New users (no profile yet): grant 100 welcome coins; existing with 0: migration 50
+            if (!profile) {
+              try {
+                await CoinService.getInstance().initializeCoins(currentUser.id);
+                profile = await userProfileService.getUserProfile(currentUser.id);
+              } catch (coinError) {
+                logger.warn('⚠️ AuthContext: initializeCoins on first load failed', coinError);
+              }
+            } else if ((profile.coins ?? 0) === 0) {
+              try {
+                const granted = await CoinService.getInstance().grantMigrationBonusIfNeeded(profile.id);
+                if (granted) profile = await userProfileService.getUserProfile(currentUser.id);
+              } catch (coinError) {
+                logger.warn('⚠️ AuthContext: migration bonus check failed', coinError);
+              }
+            }
+            const freshUser = profile
+              ? { ...profile, email: currentUser.email || profile.email }
+              : currentUser;
             if (freshUser && freshUser.id === currentUser.id) {
               logger.log('✅ AuthContext: Fresh user data loaded, using Firestore data as source of truth');
               setUser(freshUser);
               syncAuthService(freshUser);
             } else {
-              // Fallback to current user if fresh fetch fails
               logger.log('⚠️ AuthContext: Fresh fetch failed or user mismatch, using current user');
               setUser(currentUser);
               syncAuthService(currentUser);
@@ -476,16 +498,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       logger.log('🔄 AuthContext: Getting user profile with avatar...');
       
-      // Call the auth service to get profile with avatar data
       const authService = AuthService.getInstance();
-      const profile = await authService.getUserProfileWithAvatar();
+      let profile = await authService.getUserProfileWithAvatar();
+      if (!profile) return null;
+
+      // Migration: existing users with 0 coins get 50 once; new users (no profile) get 100 from initializeCoins elsewhere
+      if ((profile.coins ?? 0) === 0) {
+        try {
+          const granted = await CoinService.getInstance().grantMigrationBonusIfNeeded(profile.id);
+          if (granted) profile = await authService.getUserProfileWithAvatar();
+        } catch (coinError) {
+          logger.warn('⚠️ AuthContext: migration bonus in getProfile failed', coinError);
+        }
+      }
       
-      // Update local user state
       if (profile) {
         setUser(profile);
         syncAuthService(profile);
       }
-      
       return profile;
     } catch (error) {
       buildAuthError(error, {
@@ -497,9 +527,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const clearWelcomeCoinsMessage = () => setWelcomeCoinsMessage(null);
+
   const value = useMemo<AuthContextType>(
-    () => ({ user, loading: loading, pendingAction, signIn, signUp, signOut, resetPassword, signInWithGoogle: signInWithGoogleAuth, updateUserProfile, updateUserAvatar, getUserProfileWithAvatar }),
-    [user, loading, pendingAction]
+    () => ({
+      user,
+      loading: loading,
+      pendingAction,
+      welcomeCoinsMessage,
+      clearWelcomeCoinsMessage,
+      signIn,
+      signUp,
+      signOut,
+      resetPassword,
+      signInWithGoogle: signInWithGoogleAuth,
+      updateUserProfile,
+      updateUserAvatar,
+      getUserProfileWithAvatar,
+    }),
+    [user, loading, pendingAction, welcomeCoinsMessage]
   );
 
   if (loading) {

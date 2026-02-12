@@ -8,6 +8,7 @@ import {
   Platform,
 } from 'react-native';
 import { COLORS, SPACING, TYPOGRAPHY } from '../../backend/utils/constants';
+import useAppTranslation from '../../hooks/useTranslation';
 
 interface ToastNotificationProps {
   visible: boolean;
@@ -28,6 +29,7 @@ const ToastNotification: React.FC<ToastNotificationProps> = ({
   onHide,
   onPress,
 }) => {
+  const { isRTL } = useAppTranslation();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(-100)).current;
 
@@ -131,13 +133,13 @@ const ToastNotification: React.FC<ToastNotificationProps> = ({
         onPress={onPress}
         activeOpacity={0.8}
       >
-        <View style={styles.content}>
-          <Text style={styles.icon}>{getIcon()}</Text>
+        <View style={[styles.content, isRTL && styles.rtlRow]}>
+          <Text style={[styles.icon, isRTL && styles.iconRTL]}>{getIcon()}</Text>
           <View style={styles.textContainer}>
-            <Text style={styles.title}>{title}</Text>
-            {message && <Text style={styles.message}>{message}</Text>}
+            <Text style={[styles.title, isRTL && styles.rtlText]}>{title}</Text>
+            {message && <Text style={[styles.message, isRTL && styles.rtlText]}>{message}</Text>}
           </View>
-          <TouchableOpacity onPress={hideToast} style={styles.closeButton}>
+          <TouchableOpacity onPress={hideToast} style={[styles.closeButton, isRTL && styles.closeButtonRTL]}>
             <Text style={styles.closeText}>×</Text>
           </TouchableOpacity>
         </View>
@@ -197,6 +199,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: SPACING.sm,
+  },
+  closeButtonRTL: {
+    marginLeft: 0,
+    marginRight: SPACING.sm,
   },
   closeText: {
     color: '#FFFFFF',

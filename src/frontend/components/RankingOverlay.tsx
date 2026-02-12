@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Animated, Dimensions } from 'react-native';
 import { COLORS, SPACING } from '../../backend/utils/constants';
 import type { QuestionAnswer } from '../../shared/types';
 import type { Answer } from '../../shared/types/game';
+import useAppTranslation from '../../hooks/useTranslation';
 
 type RankingQuestion = {
   answers: Array<QuestionAnswer | Answer>;
@@ -23,6 +24,8 @@ const RankingOverlay: React.FC<RankingOverlayProps> = ({
   onHide,
   isGameEnd = false
 }) => {
+  const { t } = useAppTranslation('components');
+  const { isRTL } = useAppTranslation();
   const [fadeAnim] = useState(new Animated.Value(0));
   const [slideAnim] = useState(new Animated.Value(50));
 
@@ -196,8 +199,8 @@ const RankingOverlay: React.FC<RankingOverlayProps> = ({
 
         {isGameEnd && (
           <View style={styles.gameEndActions}>
-            <Text style={styles.gameEndText}>
-              Tap anywhere to continue
+            <Text style={[styles.gameEndText, isRTL && styles.rtlText]}>
+              {t('rankingOverlay.tapToContinue')}
             </Text>
           </View>
         )}
@@ -320,6 +323,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#A78BFA', // Light purple text
     fontStyle: 'italic',
+  },
+  rtlText: {
+    textAlign: 'right',
   },
 });
 

@@ -4,12 +4,11 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   ScrollView,
   ActivityIndicator,
   Dimensions,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -23,6 +22,7 @@ import { sampleQuestions } from '../../backend/data/sampleQuestions';
 import CategoryCarousel, { Category } from '../components/CategoryCarousel';
 import type { LegacyQuestion } from '../../shared/types/game';
 import type { RootStackParamList } from '../../shared/types/navigation';
+import useAppTranslation from '../../hooks/useTranslation';
 
 type SampleQuestion = typeof sampleQuestions[number];
 
@@ -45,6 +45,7 @@ const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
     cleanup
   } = useMultiplayer();
   const authService = AuthService.getInstance();
+  const { t, isRTL } = useAppTranslation('screens');
 
   // Get unique categories from sample questions
   const availableCategories = [...new Set(sampleQuestions.map(q => q.category))];
@@ -102,13 +103,17 @@ const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
   const [selectedTurnDuration, setSelectedTurnDuration] = useState<number>(60); // Default 60 seconds
 
   // Timer duration options (in seconds)
-  const turnDurationOptions = [
-    { value: 30, label: '30 seconds', description: 'Quick rounds' },
-    { value: 45, label: '45 seconds', description: 'Fast-paced' },
-    { value: 60, label: '1 minute', description: 'Standard' },
-    { value: 90, label: '1.5 minutes', description: 'Relaxed' },
-    { value: 120, label: '2 minutes', description: 'Leisurely' }
-  ];
+  const turnDurationOptions = [30, 45, 60, 90, 120];
+  const getDurationLabel = (v: number) => {
+    switch (v) {
+      case 30: return t('screens:multiplayer.createRoomScreen.duration30');
+      case 45: return t('screens:multiplayer.createRoomScreen.duration45');
+      case 60: return t('screens:multiplayer.createRoomScreen.duration60');
+      case 90: return t('screens:multiplayer.createRoomScreen.duration90');
+      case 120: return t('screens:multiplayer.createRoomScreen.duration120');
+      default: return String(v);
+    }
+  };
 
   useEffect(() => {
     if (error) {
@@ -229,15 +234,15 @@ const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
         style={StyleSheet.absoluteFill}
       />
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + SPACING.md }]}>
+      <View style={[styles.header, { paddingTop: Math.max(SPACING.xs, insets.top * 0.5) }, isRTL && styles.rtlRow]}>
         <TouchableOpacity 
           style={styles.leaveButton}
           onPress={handleLeaveRoom}
-          accessibilityLabel="Leave room and end session"
+          accessibilityLabel={t('screens:multiplayer.createRoomScreen.leaveRoom')}
         >
-          <Text style={styles.leaveButtonText}>Leave Room</Text>
+          <Text style={styles.leaveButtonText}>{t('screens:multiplayer.createRoomScreen.leaveRoom')}</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Create Room</Text>
+        <Text style={styles.title}>{t('screens:multiplayer.createRoom')}</Text>
         <View style={styles.placeholder} />
       </View>
 
@@ -248,18 +253,18 @@ const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
       >
         {/* Category Selection */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Choose a Category</Text>
+          <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>{t('screens:multiplayer.createRoomScreen.chooseCategory')}</Text>
           <View style={styles.carouselContainer}>
             <CategoryCarousel
               categories={categories}
               selectedCategory={selectedCategory}
               onCategorySelect={handleCategorySelect}
               showInstructions={true}
-              instructionsText="Swipe to browse categories • Tap to select"
+              instructionsText={t('screens:multiplayer.createRoomScreen.carouselInstructions')}
               cardWidth={RESPONSIVE.width.maxMd}
               cardHeight={RESPONSIVE.height.card}
               showQuestionCount={true}
-              buttonText="🎯 Select"
+              buttonText={t('screens:multiplayer.createRoomScreen.selectButton')}
             />
           </View>
         </View>
@@ -267,9 +272,9 @@ const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
         {/* Question Selection */}
         {selectedCategory && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Select a Question</Text>
-            <Text style={styles.sectionSubtitle}>
-              Choose the question you want to use for your game
+            <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>{t('screens:multiplayer.createRoomScreen.selectQuestion')}</Text>
+            <Text style={[styles.sectionSubtitle, isRTL && styles.rtlText]}>
+              {t('screens:multiplayer.createRoomScreen.selectQuestionSubtitle')}
             </Text>
             <View style={styles.questionList}>
               {currentQuestions.map((question) => (
@@ -307,27 +312,28 @@ const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
 
         {/* Timer Duration Selection */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>⏱️ Turn Duration</Text>
-          <Text style={styles.sectionSubtitle}>
-            Choose how long each player has to answer
+          <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>{t('screens:multiplayer.createRoomScreen.turnDuration')}</Text>
+          <Text style={[styles.sectionSubtitle, isRTL && styles.rtlText]}>
+            {t('screens:multiplayer.createRoomScreen.turnDurationSubtitle')}
           </Text>
-          <View style={styles.durationRow}>
-            {turnDurationOptions.map((option) => (
+          <View style={[styles.durationRow, isRTL && styles.rtlRow]}>
+            {turnDurationOptions.map((value) => (
               <TouchableOpacity
-                key={option.value}
+                key={value}
                 style={[
                   styles.durationButton,
-                  selectedTurnDuration === option.value && styles.durationButtonSelected
+                  selectedTurnDuration === value && styles.durationButtonSelected
                 ]}
-                onPress={() => setSelectedTurnDuration(option.value)}
-                accessibilityLabel={`Select ${option.value} seconds turn duration`}
-                accessibilityState={{ selected: selectedTurnDuration === option.value }}
+                onPress={() => setSelectedTurnDuration(value)}
+                accessibilityLabel={getDurationLabel(value)}
+                accessibilityState={{ selected: selectedTurnDuration === value }}
               >
                 <Text style={[
                   styles.durationButtonText,
-                  selectedTurnDuration === option.value && styles.durationButtonTextSelected
+                  selectedTurnDuration === value && styles.durationButtonTextSelected,
+                  isRTL && styles.rtlText
                 ]}>
-                  {option.value}
+                  {value}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -343,12 +349,12 @@ const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
             ]}
             onPress={handleCreateRoom}
             disabled={!selectedCategory || selectedQuestions.length === 0 || loading}
-            accessibilityLabel="Create room with selected category and question"
+            accessibilityLabel={t('screens:multiplayer.createRoomScreen.createRoomButton')}
           >
             {loading ? (
               <ActivityIndicator color={COLORS.white} />
             ) : (
-              <Text style={styles.createButtonText}>Create Room</Text>
+              <Text style={styles.createButtonText}>{t('screens:multiplayer.createRoomScreen.createRoomButton')}</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -516,6 +522,12 @@ const styles = StyleSheet.create({
   },
   durationButtonTextSelected: {
     color: COLORS.white,
+  },
+  rtlRow: {
+    flexDirection: 'row-reverse',
+  },
+  rtlText: {
+    textAlign: 'right',
   },
 });
 

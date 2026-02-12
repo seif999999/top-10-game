@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SPACING } from '../../backend/utils/constants';
+import useAppTranslation from '../../hooks/useTranslation';
 
 const { width, height } = Dimensions.get('window');
 
@@ -19,6 +20,7 @@ interface HowToPlayModalProps {
 }
 
 const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ visible, onClose }) => {
+  const { t, isRTL } = useAppTranslation('components');
   return (
     <Modal
       visible={visible}
@@ -29,8 +31,8 @@ const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ visible, onClose }) => 
       <View style={styles.overlay}>
         <View style={styles.modalContainer}>
           {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.title}>How to Play</Text>
+          <View style={[styles.header, isRTL && styles.rtlRow]}>
+            <Text style={[styles.title, isRTL && styles.rtlText]}>{t('howToPlay.title')}</Text>
           </View>
 
           <ScrollView 
@@ -41,56 +43,56 @@ const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ visible, onClose }) => 
           >
             {/* Game Rules Section */}
             <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionIcon}>📄</Text>
-                <Text style={styles.sectionTitle}>Game Rules</Text>
+              <View style={[styles.sectionHeader, isRTL && styles.rtlRow]}>
+                <Text style={[styles.sectionIcon, isRTL && styles.sectionIconRTL]}>📄</Text>
+                <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>{t('howToPlay.gameRules')}</Text>
               </View>
-              <View style={styles.bulletList}>
-                <View style={styles.bulletItem}>
-                  <View style={styles.bulletDot} />
-                  <Text style={styles.bulletText}>Choose a category</Text>
+              <View style={[styles.bulletList, isRTL && styles.bulletListRTL]}>
+                <View style={[styles.bulletItem, isRTL && styles.rtlRow]}>
+                  <View style={[styles.bulletDot, isRTL && styles.bulletDotRTL]} />
+                  <Text style={[styles.bulletText, isRTL && styles.rtlText]}>{t('howToPlay.chooseCategory')}</Text>
                 </View>
-                <View style={styles.bulletItem}>
-                  <View style={styles.bulletDot} />
-                  <Text style={styles.bulletText}>Guess top 10 answers</Text>
+                <View style={[styles.bulletItem, isRTL && styles.rtlRow]}>
+                  <View style={[styles.bulletDot, isRTL && styles.bulletDotRTL]} />
+                  <Text style={[styles.bulletText, isRTL && styles.rtlText]}>{t('howToPlay.guessTop10')}</Text>
                 </View>
-                <View style={styles.bulletItem}>
-                  <View style={styles.bulletDot} />
-                  <Text style={styles.bulletText}>#1 answer = 1 point</Text>
+                <View style={[styles.bulletItem, isRTL && styles.rtlRow]}>
+                  <View style={[styles.bulletDot, isRTL && styles.bulletDotRTL]} />
+                  <Text style={[styles.bulletText, isRTL && styles.rtlText]}>{t('howToPlay.rank1Point')}</Text>
                 </View>
-                <View style={styles.bulletItem}>
-                  <View style={styles.bulletDot} />
-                  <Text style={styles.bulletText}>#10 answer = 10 points</Text>
+                <View style={[styles.bulletItem, isRTL && styles.rtlRow]}>
+                  <View style={[styles.bulletDot, isRTL && styles.bulletDotRTL]} />
+                  <Text style={[styles.bulletText, isRTL && styles.rtlText]}>{t('howToPlay.rank10Points')}</Text>
                 </View>
-                <View style={styles.bulletItem}>
-                  <View style={styles.bulletDot} />
-                  <Text style={styles.bulletText}>Most points wins!</Text>
+                <View style={[styles.bulletItem, isRTL && styles.rtlRow]}>
+                  <View style={[styles.bulletDot, isRTL && styles.bulletDotRTL]} />
+                  <Text style={[styles.bulletText, isRTL && styles.rtlText]}>{t('howToPlay.mostPointsWins')}</Text>
                 </View>
-                <View style={styles.bulletItem}>
-                  <View style={styles.bulletDot} />
-                  <Text style={styles.bulletText}>Find less obvious answers in lower ranks for strategic advantage</Text>
+                <View style={[styles.bulletItem, isRTL && styles.rtlRow]}>
+                  <View style={[styles.bulletDot, isRTL && styles.bulletDotRTL]} />
+                  <Text style={[styles.bulletText, isRTL && styles.rtlText]}>{t('howToPlay.strategicAdvantage')}</Text>
                 </View>
               </View>
             </View>
 
             {/* Game Modes Section */}
             <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionIcon}>🎮</Text>
-                <Text style={styles.sectionTitle}>Game Modes</Text>
+              <View style={[styles.sectionHeader, isRTL && styles.rtlRow]}>
+                <Text style={[styles.sectionIcon, isRTL && styles.sectionIconRTL]}>🎮</Text>
+                <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>{t('howToPlay.gameModes')}</Text>
               </View>
-              <View style={styles.gameModeList}>
+              <View style={[styles.gameModeList, isRTL && styles.bulletListRTL]}>
                 <View style={styles.gameModeItem}>
-                  <Text style={styles.gameModeTitle}>Single Player</Text>
-                  <Text style={styles.gameModeSubtitle}>Host a local game with friends</Text>
+                  <Text style={[styles.gameModeTitle, isRTL && styles.rtlText]}>{t('howToPlay.singlePlayer')}</Text>
+                  <Text style={[styles.gameModeSubtitle, isRTL && styles.rtlText]}>{t('howToPlay.singlePlayerDesc')}</Text>
                 </View>
                 <View style={styles.gameModeItem}>
-                  <Text style={styles.gameModeTitle}>Multiplayer</Text>
-                  <Text style={styles.gameModeSubtitle}>Create/join online rooms with code</Text>
+                  <Text style={[styles.gameModeTitle, isRTL && styles.rtlText]}>{t('howToPlay.multiplayer')}</Text>
+                  <Text style={[styles.gameModeSubtitle, isRTL && styles.rtlText]}>{t('howToPlay.multiplayerDesc')}</Text>
                 </View>
                 <View style={styles.gameModeItem}>
-                  <Text style={styles.gameModeTitle}>Custom</Text>
-                  <Text style={styles.gameModeSubtitle}>Make your own questions and answers</Text>
+                  <Text style={[styles.gameModeTitle, isRTL && styles.rtlText]}>{t('howToPlay.custom')}</Text>
+                  <Text style={[styles.gameModeSubtitle, isRTL && styles.rtlText]}>{t('howToPlay.customDesc')}</Text>
                 </View>
               </View>
             </View>
@@ -104,7 +106,7 @@ const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ visible, onClose }) => 
               end={{ x: 1, y: 0 }}
               style={styles.buttonGradient}
             >
-              <Text style={styles.buttonText}>Got it!</Text>
+              <Text style={[styles.buttonText, isRTL && styles.rtlText]}>{t('howToPlay.gotIt')}</Text>
             </LinearGradient>
           </TouchableOpacity>
         </View>
@@ -165,9 +167,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: SPACING.md,
   },
+  rtlRow: {
+    flexDirection: 'row-reverse',
+  },
+  rtlText: {
+    textAlign: 'right',
+  },
   sectionIcon: {
     fontSize: 20,
     marginRight: SPACING.sm,
+  },
+  sectionIconRTL: {
+    marginRight: 0,
+    marginLeft: SPACING.sm,
   },
   sectionTitle: {
     fontSize: 18,
@@ -176,6 +188,10 @@ const styles = StyleSheet.create({
   },
   bulletList: {
     paddingLeft: SPACING.md,
+  },
+  bulletListRTL: {
+    paddingLeft: 0,
+    paddingRight: SPACING.md,
   },
   bulletItem: {
     flexDirection: 'row',
@@ -189,6 +205,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#8B5CF6',
     marginRight: SPACING.md,
     marginTop: 6,
+  },
+  bulletDotRTL: {
+    marginRight: 0,
+    marginLeft: SPACING.md,
   },
   bulletText: {
     fontSize: 15,

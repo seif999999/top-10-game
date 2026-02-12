@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,11 +10,15 @@ import { LoginScreenProps } from '../../../shared/types/navigation';
 import { InputValidator } from '../../../backend/utils/inputValidator';
 import { logger } from '../../../backend/utils/logger';
 import { toAppError } from '../../../shared/errors';
+import useAppTranslation from '../../../hooks/useTranslation';
 
 type Props = LoginScreenProps;
 
 const LoginScreen: React.FC<Props> = ({ navigation }) => {
   const { signIn, loading } = useAuth();
+  const { t: tScreens } = useAppTranslation('screens');
+  const { t: tErrors } = useAppTranslation('errors');
+  const { isRTL } = useAppTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [localLoading, setLocalLoading] = useState(false);
@@ -28,20 +32,18 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
   const validate = () => {
     const next: { email?: string; password?: string } = {};
     
-    // Validate email using InputValidator
     if (!email.trim()) {
-      next.email = 'Email is required';
+      next.email = tErrors('validation.emailRequired');
     } else if (!InputValidator.validateEmail(email.trim())) {
-      next.email = 'Enter a valid email address';
+      next.email = tErrors('validation.emailInvalid');
     }
     
-    // Validate password using InputValidator
     if (!password.trim()) {
-      next.password = 'Password is required';
+      next.password = tErrors('validation.passwordRequired');
     } else {
       const passwordValidation = InputValidator.validatePassword(password);
       if (!passwordValidation.valid) {
-        next.password = passwordValidation.errors[0]; // Show first error
+        next.password = passwordValidation.errors[0];
       }
     }
     
@@ -50,58 +52,34 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const handleSignIn = async () => {
-    logger.log('🔍 DEBUG: handleSignIn called');
-    logger.log('🔍 DEBUG: Form data:', { email, password: password ? '***' : '' });
-    
-    // Clear previous Firebase errors
     setFirebaseError(null);
     
     const isValid = validate();
-    logger.log('🔍 DEBUG: Validation result:', isValid);
-    logger.log('🔍 DEBUG: Errors:', errors);
-    
-    if (!isValid) {
-      logger.log('❌ DEBUG: Validation failed, not proceeding');
-      return;
-    }
-    
-    logger.log('✅ DEBUG: Validation passed, proceeding with signin');
+    if (!isValid) return;
     
     // Sanitize inputs
-    logger.log('🔍 DEBUG: Starting input sanitization...');
     let sanitizedEmail, sanitizedPassword;
     
     try {
       sanitizedEmail = InputValidator.sanitizeText(email.trim(), 254);
-      logger.log('🔍 DEBUG: Email sanitized');
       sanitizedPassword = InputValidator.sanitizeText(password, 128);
-      logger.log('🔍 DEBUG: Password sanitized');
     } catch (error) {
-      logger.error('❌ DEBUG: Sanitization error:', error);
-      // Fallback to basic sanitization
+      logger.error('Sanitization error:', error);
       sanitizedEmail = email.trim();
       sanitizedPassword = password;
-      logger.log('🔍 DEBUG: Using fallback sanitization');
     }
-    
-    logger.log('🔍 DEBUG: Sanitized inputs:', { 
-      sanitizedEmail, 
-      sanitizedPassword: sanitizedPassword ? '***' : ''
-    });
     
     setLocalLoading(true);
     try {
-      logger.log('🔍 DEBUG: Calling signIn...');
       await signIn(sanitizedEmail, sanitizedPassword);
-      logger.log('✅ DEBUG: SignIn successful');
     } catch (error) {
       const appError = toAppError(error, {
         code: 'AUTH_LOGIN_FAILED',
         message: 'Login failed',
-        userMessage: 'Login failed. Please try again.'
+        userMessage: tErrors('auth.loginFailed')
       });
       setFirebaseError(appError.userMessage ?? appError.message);
-      logger.error('❌ DEBUG: Login error:', appError);
+      logger.error('Login error:', appError);
     } finally {
       setLocalLoading(false);
     }
@@ -111,7 +89,6 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Dark Purple Gradient Background */}
       <LinearGradient
         colors={['#1a1a2e', '#16213e', '#0f0f1e']}
         start={{ x: 0, y: 0 }}
@@ -139,44 +116,41 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
             </View>
           </View>
           
-          <Text style={styles.subtitle}>Sign in to start playing</Text>
+          <Text style={styles.subtitle}>{tScreens('auth.login.subtitle')}</Text>
           
           <TextInput 
-            placeholder="Email" 
+            placeholder={tScreens('auth.email')}
             placeholderTextColor={COLORS.muted}
             autoCapitalize="none" 
             keyboardType="email-address"
             value={email} 
             onChangeText={setEmail}
             editable={!isLoading}
-            style={styles.input}
+            style={[styles.input, isRTL && styles.rtlText]}
             returnKeyType="next"
             onSubmitEditing={() => passwordInputRef.current?.focus()}
           />
           {errors.email ? <Text style={styles.error}>{errors.email}</Text> : null}
-          <View ref={passwordContainerRef} style={styles.passwordContainer}>
+          <View ref={passwordContainerRef} style={[styles.passwordContainer, isRTL && styles.rtlRow]}>
             <TextInput 
               ref={passwordInputRef}
-              placeholder="Password" 
+              placeholder={tScreens('auth.password')}
               placeholderTextColor={COLORS.muted}
               secureTextEntry={!showPassword}
               value={password} 
               onChangeText={setPassword}
               editable={!isLoading}
-              style={styles.passwordInput}
+              style={[styles.passwordInput, isRTL && styles.rtlPasswordInput]}
               returnKeyType="done"
               onSubmitEditing={handleSignIn}
               onFocus={() => {
-                // Scroll just enough to show the password field with some padding above it
-                // This prevents showing "Forgot password" and other content below
                 setTimeout(() => {
-                  // Scroll to position that shows password field but not content below
                   scrollViewRef.current?.scrollTo({ y: 180, animated: true });
                 }, 200);
               }}
             />
             <TouchableOpacity 
-              style={styles.eyeButton}
+              style={[styles.eyeButton, isRTL && styles.rtlEyeButton]}
               onPress={() => setShowPassword(!showPassword)}
               disabled={isLoading}
             >
@@ -193,19 +167,19 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
           {firebaseError ? <Text style={styles.firebaseError}>{firebaseError}</Text> : null}
           
           <Button 
-            title={isLoading ? 'Signing in…' : 'Sign In'} 
+            title={isLoading ? tScreens('auth.login.signingIn') : tScreens('auth.signIn')} 
             onPress={handleSignIn}
             disabled={isLoading}
           />
 
           <TouchableOpacity style={styles.linkCenter} onPress={() => navigation.navigate('ForgotPassword')} disabled={isLoading}>
-            <Text style={styles.linkText}>Forgot password?</Text>
+            <Text style={styles.linkText}>{tScreens('auth.forgotPassword')}</Text>
           </TouchableOpacity>
           
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Don't have an account? </Text>
+          <View style={[styles.footer, isRTL && styles.rtlRow]}>
+            <Text style={styles.footerText}>{tScreens('auth.dontHaveAccount')} </Text>
             <TouchableOpacity onPress={() => navigation.navigate('Register')} disabled={isLoading}>
-              <Text style={[styles.linkText, isLoading && styles.disabledText]}>Sign up</Text>
+              <Text style={[styles.linkText, isLoading && styles.disabledText]}>{tScreens('auth.signUp')}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -226,7 +200,7 @@ const styles = StyleSheet.create({
     padding: SPACING.xl,
     gap: SPACING.lg,
     justifyContent: 'center',
-    paddingBottom: SPACING.lg, // Reduced padding to prevent excessive scrolling
+    paddingBottom: SPACING.lg,
   },
   title: {
     color: COLORS.text,
@@ -314,6 +288,22 @@ const styles = StyleSheet.create({
   eyeIcon: {
     opacity: 0.8,
   },
+  // RTL styles
+  rtlText: {
+    textAlign: 'right',
+  },
+  rtlRow: {
+    flexDirection: 'row-reverse',
+  },
+  rtlPasswordInput: {
+    paddingRight: SPACING.lg,
+    paddingLeft: 50,
+    textAlign: 'right',
+  },
+  rtlEyeButton: {
+    right: undefined,
+    left: SPACING.md,
+  },
   logoContainer: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -360,5 +350,3 @@ const styles = StyleSheet.create({
 });
 
 export default LoginScreen;
-
-

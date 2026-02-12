@@ -3,24 +3,32 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   ScrollView,
   Animated,
   Dimensions,
+  Image,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING } from '../../backend/utils/constants';
 import { MissionsScreenProps } from '../../shared/types/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import { useAudio } from '../contexts/AudioContext';
+import useAppTranslation from '../../hooks/useTranslation';
 import { missionService } from '../../backend/services/missionService';
 import { MISSION_DEFINITIONS } from '../../backend/services/missionDefinitions';
 import { MissionDefinition, MissionProgress, MissionDifficulty, MissionCategory } from '../../shared/types/missions';
 import { logger } from '../../backend/utils/logger';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+let coinImageSource: any = null;
+try {
+  coinImageSource = require('../assets/avatars/coin.png');
+} catch {
+  coinImageSource = null;
+}
 
 // Difficulty colors
 const DIFFICULTY_COLORS: Record<MissionDifficulty, { bg: string; border: string; text: string; glow: string }> = {
@@ -157,8 +165,13 @@ const MissionCard: React.FC<MissionCardProps> = ({ mission, progress, index }) =
       <View style={styles.rewardContainer}>
         <Text style={styles.rewardLabel}>Reward:</Text>
         <View style={styles.rewardBadge}>
-          <Text style={styles.coinIcon}>🪙</Text>
+          {coinImageSource ? (
+            <Image source={coinImageSource} style={styles.coinImage} resizeMode="contain" />
+          ) : (
+            <Text style={styles.coinIcon}>🪙</Text>
+          )}
           <Text style={styles.rewardAmount}>{mission.rewardCoins}</Text>
+          <Text style={styles.top10CoinLabel}>Top 10</Text>
         </View>
         {mission.isRepeatable && (
           <View style={styles.repeatableBadge}>
@@ -173,6 +186,7 @@ const MissionCard: React.FC<MissionCardProps> = ({ mission, progress, index }) =
 type FilterType = 'all' | 'in_progress' | 'completed' | MissionDifficulty;
 
 const MissionsScreen: React.FC<MissionsScreenProps> = ({ navigation }) => {
+  const { isRTL } = useAppTranslation();
   const { user } = useAuth();
   const { playButtonClick } = useAudio();
   const insets = useSafeAreaInsets();
@@ -263,7 +277,7 @@ const MissionsScreen: React.FC<MissionsScreenProps> = ({ navigation }) => {
         style={[
           styles.header, 
           { 
-            paddingTop: insets.top + SPACING.md,
+            paddingTop: Math.max(SPACING.xs, insets.top * 0.5),
             opacity: headerAnim,
             transform: [{ 
               translateY: headerAnim.interpolate({
@@ -282,7 +296,7 @@ const MissionsScreen: React.FC<MissionsScreenProps> = ({ navigation }) => {
             colors={['#374151', '#1F2937']}
             style={styles.backButtonGradient}
           >
-            <Text style={styles.backButtonText}>←</Text>
+            <Text style={styles.backButtonText}>{isRTL ? '→' : '←'}</Text>
           </LinearGradient>
         </TouchableOpacity>
         
@@ -326,8 +340,13 @@ const MissionsScreen: React.FC<MissionsScreenProps> = ({ navigation }) => {
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
             <View style={styles.coinStatRow}>
-              <Text style={styles.coinIcon}>🪙</Text>
+              {coinImageSource ? (
+                <Image source={coinImageSource} style={styles.coinImageStat} resizeMode="contain" />
+              ) : (
+                <Text style={styles.coinIcon}>🪙</Text>
+              )}
               <Text style={styles.statValue}>{totalCoins}</Text>
+              <Text style={styles.top10CoinLabel}>Top 10</Text>
             </View>
             <Text style={styles.statLabel}>Earned</Text>
           </View>
@@ -495,6 +514,21 @@ const styles = StyleSheet.create({
   },
   coinIcon: {
     fontSize: 16,
+  },
+  coinImage: {
+    width: 18,
+    height: 18,
+  },
+  coinImageStat: {
+    width: 18,
+    height: 18,
+  },
+  top10CoinLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.9)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   filterContainer: {
     marginBottom: SPACING.md,

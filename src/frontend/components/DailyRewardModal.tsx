@@ -15,6 +15,7 @@ import { SPACING } from '../design-system';
 import { getStreakInfo, claimDailyReward, StreakInfo, DailyRewardResult } from '../../backend/services/dailyRewardService';
 import { useAudio } from '../contexts/AudioContext';
 import { logger } from '../../backend/utils/logger';
+import useAppTranslation from '../../hooks/useTranslation';
 
 // Load coin image
 let coinImageSource: any = null;
@@ -39,6 +40,8 @@ const DailyRewardModal: React.FC<DailyRewardModalProps> = ({
   userId,
   onRewardClaimed,
 }) => {
+  const { t } = useAppTranslation('components');
+  const { isRTL } = useAppTranslation();
   const { playButtonClick, playSuccess } = useAudio();
   const [streakInfo, setStreakInfo] = useState<StreakInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -159,7 +162,7 @@ const DailyRewardModal: React.FC<DailyRewardModalProps> = ({
               </Text>
             )}
           </View>
-          <Text style={styles.dayLabel}>Day {i}</Text>
+          <Text style={[styles.dayLabel, isRTL && styles.rtlText]}>{t('dailyReward.dayN', { n: i })}</Text>
         </View>
       );
     }
@@ -213,7 +216,7 @@ const DailyRewardModal: React.FC<DailyRewardModalProps> = ({
               <>
                 {/* Streak Progress */}
                 <View style={styles.streakContainer}>
-                  <View style={styles.daysRow}>
+                  <View style={[styles.daysRow, isRTL && styles.rtlRow]}>
                     {renderDayIndicators()}
                   </View>
                   <View style={styles.progressBar}>
@@ -260,8 +263,8 @@ const DailyRewardModal: React.FC<DailyRewardModalProps> = ({
                 {/* Streak Warning */}
                 {streakInfo?.streakWillBreak && !claimResult && (
                   <View style={styles.warningContainer}>
-                    <Text style={styles.warningText}>
-                      ⚠️ Your streak was broken! Starting fresh from Week 1.
+                    <Text style={[styles.warningText, isRTL && styles.rtlText]}>
+                      ⚠️ {t('dailyReward.streakBroken')}
                     </Text>
                   </View>
                 )}
@@ -295,16 +298,16 @@ const DailyRewardModal: React.FC<DailyRewardModalProps> = ({
                     {claiming ? (
                       <ActivityIndicator size="small" color="#FFFFFF" />
                     ) : (
-                      <Text style={styles.claimButtonText}>
-                        {streakInfo?.canClaim ? 'Claim Reward' : 'Already Claimed Today'}
+                      <Text style={[styles.claimButtonText, isRTL && styles.rtlText]}>
+                        {streakInfo?.canClaim ? t('dailyReward.claimReward') : t('dailyReward.alreadyClaimed')}
                       </Text>
                     )}
                   </LinearGradient>
                 </TouchableOpacity>
 
                 {/* Info Text */}
-                <Text style={styles.infoText}>
-                  Login daily to build your streak! Complete 7 days to advance to the next week with doubled rewards.
+                <Text style={[styles.infoText, isRTL && styles.rtlText]}>
+                  {t('dailyReward.infoText')}
                 </Text>
               </>
             )}
@@ -349,6 +352,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 10,
+  },
+  closeButtonRTL: {
+    right: undefined,
+    left: SPACING.md,
+  },
+  rtlRow: {
+    flexDirection: 'row-reverse',
+  },
+  rtlText: {
+    textAlign: 'right',
   },
   closeButtonText: {
     color: '#FFFFFF',
