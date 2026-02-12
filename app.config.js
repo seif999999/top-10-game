@@ -32,7 +32,7 @@ module.exports = () => ({
     name: 'Top10Game',
     slug: 'top10game',
     scheme: 'top10game',
-    version: '1.0.0',
+    version: '1.0.1',
     orientation: 'portrait',
     platforms: ['ios', 'android', 'web'],
     assetBundlePatterns: ['**/*'],
@@ -50,8 +50,9 @@ module.exports = () => ({
       [
         'react-native-google-mobile-ads',
         {
-          androidAppId: process.env.EXPO_PUBLIC_ADMOB_ANDROID_APP_ID || '',
-          iosAppId: process.env.EXPO_PUBLIC_ADMOB_IOS_APP_ID || '',
+          // Use test IDs when env vars are empty to prevent crash (AdMob requires valid ID)
+          androidAppId: process.env.EXPO_PUBLIC_ADMOB_ANDROID_APP_ID || 'ca-app-pub-3940256099942544~3347511713',
+          iosAppId: process.env.EXPO_PUBLIC_ADMOB_IOS_APP_ID || 'ca-app-pub-3940256099942544~1458002511',
           skAdNetworkItems,
         },
       ],
@@ -96,6 +97,8 @@ module.exports = () => ({
         UIApplicationSupportsIndirectInputEvents: true,
         // Disable debug information in production
         UIDeviceFamily: [1, 2],
+        // Encryption export compliance (Apple requires this for App Store)
+        ITSAppUsesNonExemptEncryption: false,
         // Privacy usage descriptions
         NSUserTrackingUsageDescription: 'This app does not track users across other apps or websites.',
         NSCameraUsageDescription: 'This app does not use the camera.',
@@ -108,7 +111,7 @@ module.exports = () => ({
       package: 'com.top10game.app',
       // Note: googleServicesFile removed - use EAS secrets or environment-based config
       // For production, add: googleServicesFile: './google-services.json'
-      versionCode: 1,
+      versionCode: 2,
       intentFilters: [
         {
           action: 'VIEW',
@@ -177,6 +180,9 @@ module.exports = () => ({
     },
     
     extra: {
+      eas: {
+        projectId: '1e4be008-bad9-4294-be11-f8f362b1ffc3',
+      },
       firebase: {
         apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || '',
         authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || '',
