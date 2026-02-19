@@ -8,6 +8,7 @@ import { doc, getDoc, setDoc, updateDoc, serverTimestamp, Timestamp } from 'fire
 import { db } from './firebase';
 import { logger } from '../utils/logger';
 import { COLLECTIONS } from '../utils/constants';
+import { CoinService } from './CoinService';
 import {
   MissionProgress,
   UserMissions,
@@ -260,7 +261,7 @@ class MissionService {
         updates.push(...leaderboardUpdates);
       }
 
-      // Calculate totals
+      // Calculate totals and credit coins to balance
       for (const update of updates) {
         if (update.justCompleted) {
           totalCoinsEarned += update.coinsEarned;
@@ -270,6 +271,25 @@ class MissionService {
 
       // Save updated missions
       await this.saveUserMissions(userMissions);
+
+      // Credit earned coins to user balance via CoinService
+      if (totalCoinsEarned > 0 && event.userId) {
+        try {
+          const missionNames = newlyCompletedMissions.join(', ');
+          await CoinService.getInstance().addCoins(
+            event.userId,
+            totalCoinsEarned,
+            `Mission completed: ${missionNames}`
+          );
+          logger.log('Mission coins credited to balance', {
+            userId: event.userId,
+            totalCoinsEarned,
+            missions: newlyCompletedMissions,
+          });
+        } catch (coinError) {
+          logger.error('Failed to credit mission coins to balance', coinError);
+        }
+      }
 
       return {
         updates,

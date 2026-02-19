@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Animated, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Animated, Dimensions, TouchableOpacity } from 'react-native';
 import { COLORS, SPACING } from '../../backend/utils/constants';
 import type { QuestionAnswer } from '../../shared/types';
 import type { Answer } from '../../shared/types/game';
@@ -15,6 +15,10 @@ interface RankingOverlayProps {
   submittedAnswers: string[];
   onHide?: () => void;
   isGameEnd?: boolean;
+  coinsEarned?: number;
+  rewardsDoubled?: boolean;
+  onWatchAdToDouble?: () => void | Promise<void>;
+  adReady?: boolean;
 }
 
 const RankingOverlay: React.FC<RankingOverlayProps> = ({
@@ -22,7 +26,11 @@ const RankingOverlay: React.FC<RankingOverlayProps> = ({
   question,
   submittedAnswers,
   onHide,
-  isGameEnd = false
+  isGameEnd = false,
+  coinsEarned = 0,
+  rewardsDoubled = false,
+  onWatchAdToDouble,
+  adReady = false,
 }) => {
   const { t } = useAppTranslation('components');
   const { isRTL } = useAppTranslation();
@@ -199,6 +207,27 @@ const RankingOverlay: React.FC<RankingOverlayProps> = ({
 
         {isGameEnd && (
           <View style={styles.gameEndActions}>
+            {coinsEarned > 0 && (
+              <View style={styles.coinsEarnedSection}>
+                <Text style={[styles.coinsEarnedText, isRTL && styles.rtlText]}>
+                  {rewardsDoubled
+                    ? t('rankingOverlay.coinsDoubled', { count: coinsEarned * 2 })
+                    : t('rankingOverlay.coinsEarned', { count: coinsEarned })}
+                </Text>
+                {!rewardsDoubled && onWatchAdToDouble && (
+                  <TouchableOpacity
+                    style={[styles.watchAdButton, !adReady && styles.watchAdButtonDisabled]}
+                    onPress={() => onWatchAdToDouble?.()}
+                    disabled={!adReady}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.watchAdButtonText}>
+                      {t('rankingOverlay.watchAdToDouble')}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
             <Text style={[styles.gameEndText, isRTL && styles.rtlText]}>
               {t('rankingOverlay.tapToContinue')}
             </Text>
@@ -318,6 +347,30 @@ const styles = StyleSheet.create({
   gameEndActions: {
     marginTop: SPACING.lg,
     alignItems: 'center',
+    gap: SPACING.md,
+  },
+  coinsEarnedSection: {
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  coinsEarnedText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#F59E0B',
+  },
+  watchAdButton: {
+    backgroundColor: '#8B5CF6',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    borderRadius: 12,
+  },
+  watchAdButtonDisabled: {
+    opacity: 0.6,
+  },
+  watchAdButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
   gameEndText: {
     fontSize: 14,

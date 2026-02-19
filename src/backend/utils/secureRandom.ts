@@ -65,12 +65,12 @@ export async function generateSecureRandomString(
 }
 
 /**
- * Generate a secure room code (6 characters, alphanumeric uppercase)
+ * Generate a secure room code (6 digits only)
  * ✅ SECURITY: Uses cryptographically secure random generation
  * Prevents room code prediction/brute forcing attacks
  */
 export async function generateSecureRoomCode(): Promise<string> {
-  return generateSecureRandomString(6, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789');
+  return generateSecureRandomString(6, '0123456789');
 }
 
 /**

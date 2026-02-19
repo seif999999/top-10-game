@@ -17,6 +17,20 @@ import { getStreakInfo, StreakInfo } from '../../backend/services/dailyRewardSer
 
 const { width, height } = Dimensions.get('window');
 
+let shopIconSource: any = null;
+try {
+  shopIconSource = require('../assets/icons/shop.png');
+} catch {
+  shopIconSource = null;
+}
+
+let medalIconSource: any = null;
+try {
+  medalIconSource = require('../assets/icons/medal.png');
+} catch {
+  medalIconSource = null;
+}
+
 // Swipeable Card Component
 interface SwipeableCardProps {
   onSwipeComplete: () => void;
@@ -216,7 +230,7 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({ onSwipeComplete, onPress,
 
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const { user, getUserProfileWithAvatar, welcomeCoinsMessage, clearWelcomeCoinsMessage } = useAuth();
-  const { playButtonClick, isMusicEnabled, playBackgroundMusic, stopBackgroundMusic } = useAudio();
+  const { playButtonClick, isMusicEnabled, isInitialized, playBackgroundMusic, stopBackgroundMusic } = useAudio();
   const { t, isRTL } = useAppTranslation('screens');
   /** Screens namespace t with string keys (keys exist in locales/en/screens.json; generated types may be stale). */
   const tScreens = t as (key: string, options?: Record<string, unknown>) => string;
@@ -224,9 +238,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const [showDailyReward, setShowDailyReward] = useState(false);
   const [streakInfo, setStreakInfo] = useState<StreakInfo | null>(null);
 
-  // Start background music when on home screen (if enabled)
+  // Start background music when on home screen (if enabled, after prefs loaded)
   useEffect(() => {
-    if (isMusicEnabled) {
+    if (isInitialized && isMusicEnabled) {
       playBackgroundMusic();
     }
     
@@ -234,7 +248,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     return () => {
       stopBackgroundMusic();
     };
-  }, [isMusicEnabled]);
+  }, [isInitialized, isMusicEnabled]);
 
   // Load streak info on mount and when user changes
   useEffect(() => {
@@ -340,28 +354,48 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           />
         </TouchableOpacity>
         
-        {/* Missions & Daily Reward directly left of Coins; coins top-right */}
+        {/* Missions, Daily Reward, Coins in same row; Shop below coins */}
         <View style={styles.headerRight}>
-          <TouchableOpacity 
-            onPress={handleMissions} 
-            style={styles.missionsButton}
+          <View style={styles.headerRightTopRow}>
+            <TouchableOpacity 
+              onPress={handleMissions} 
+              style={styles.missionsButton}
+            >
+              <Text style={styles.missionsIcon}>🎯</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={handleDailyRewardOpen} 
+              style={[styles.dailyRewardButton, streakInfo?.canClaim && styles.dailyRewardButtonActive]}
+            >
+              {medalIconSource ? (
+                <Image source={medalIconSource} style={styles.dailyRewardIconImage} resizeMode="contain" />
+              ) : (
+                <Text style={styles.dailyRewardIcon}>🎁</Text>
+              )}
+              {streakInfo?.canClaim && (
+                <View style={styles.dailyRewardBadge}>
+                  <Text style={styles.dailyRewardBadgeText}>!</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <View style={styles.coinDisplayInHeader} pointerEvents="box-none">
+              <CoinDisplay size="small" showShopButton style={styles.coinDisplay} />
+            </View>
+          </View>
+          <TouchableOpacity
+            style={styles.headerShopButton}
+            onPress={() => {
+              playButtonClick();
+              navigation.navigate('Shop');
+            }}
+            activeOpacity={0.7}
           >
-            <Text style={styles.missionsIcon}>🎯</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            onPress={handleDailyRewardOpen} 
-            style={[styles.dailyRewardButton, streakInfo?.canClaim && styles.dailyRewardButtonActive]}
-          >
-            <Text style={styles.dailyRewardIcon}>🎁</Text>
-            {streakInfo?.canClaim && (
-              <View style={styles.dailyRewardBadge}>
-                <Text style={styles.dailyRewardBadgeText}>!</Text>
-              </View>
+            {shopIconSource ? (
+              <Image source={shopIconSource} style={styles.headerShopIcon} resizeMode="contain" />
+            ) : (
+              <Text style={styles.headerShopButtonText}>🛍️</Text>
             )}
           </TouchableOpacity>
-          <View style={styles.coinDisplayInHeader} pointerEvents="box-none">
-            <CoinDisplay size="small" showShopButton style={styles.coinDisplay} />
-          </View>
         </View>
       </View>
 
@@ -500,10 +534,29 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     paddingHorizontal: SPACING.lg,
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.xs,
     zIndex: 10,
+  },
+  headerShopButton: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
+    borderRadius: 20,
+    backgroundColor: 'rgba(124, 58, 237, 0.35)',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerShopIcon: {
+    width: 28,
+    height: 28,
+  },
+  headerShopButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
   },
   profileButton: {
     width: 44,
@@ -519,6 +572,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   headerRight: {
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    gap: SPACING.xs,
+  },
+  headerRightTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
@@ -567,6 +625,10 @@ const styles = StyleSheet.create({
   dailyRewardIcon: {
     fontSize: 22,
   },
+  dailyRewardIconImage: {
+    width: 24,
+    height: 24,
+  },
   dailyRewardBadge: {
     position: 'absolute',
     top: -4,
@@ -602,7 +664,8 @@ const styles = StyleSheet.create({
   },
   heroSection: {
     paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.xl,
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.xl,
     alignItems: 'center' as const,
     marginBottom: SPACING.lg,
   },

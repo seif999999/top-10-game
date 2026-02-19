@@ -11,7 +11,7 @@ Central reference for Top 10 Game architecture, features, and subsystems. See al
 - **Multiplayer:** Create/join rooms by code; host controls (start, end, next question, kick); host migration and room termination handling.
 - **Custom content:** Create-your-own questions and answers; team mode with configurable turn duration.
 - **Localization:** English and Arabic with RTL support; i18next namespaces (see `docs/TRANSLATION_WORKFLOW.md`).
-- **Coins & ads:** In-app coin economy (earn via rewarded ads, welcome/migration bonuses); optional interstitial and banner ads; premium (ad-free) support.
+- **Coins & ads:** In-app coin economy (earn via progressive rewarded ads, daily rewards, missions); tiered slot unlock costs; premium coin packages (EGP); optional interstitial and banner ads; premium (ad-free) support.
 
 ---
 
@@ -22,7 +22,8 @@ Central reference for Top 10 Game architecture, features, and subsystems. See al
 The coin system provides an in-app currency that rewards engagement and supports future monetization. Coins are used to:
 
 - **Earn:** Users earn coins by watching rewarded video ads (three packages), receiving a one-time welcome bonus (100 coins), and an optional migration bonus (50 coins) for existing users. Daily rewards and missions can also grant coins.
-- **Packages:** Three rewarded-ad packages with different cooldowns:
+- **Earn (updated):** Progressive ads (10→15→20→25→30 coins, 5/hour); daily rewards capped at 32; missions. No welcome/migration bonuses. **Spend:** Tiered slots 5,100 total. **Premium:** 600–6,000 coins for 30–250 EGP.
+- **Packages (deprecated):** Three rewarded-ad packages with different cooldowns:
   - **50 coins:** No cooldown (“Quick Coins”); watch a short ad anytime.
   - **100 coins:** 2-hour cooldown (“Coin Bundle”).
   - **200 coins:** 24-hour cooldown (“Daily Jackpot”).
@@ -41,7 +42,7 @@ Future spending features (e.g. avatars, power-ups, premium rooms) are planned; s
   - Fetches recent transactions via `getCoinTransactions(userId, limit)`; prunes old transactions (keeps last 100 per user).
 - **AdContext** (`src/frontend/contexts/AdContext.tsx`): Integrates with AdService and coin flow:
   - `showRewardedAdForCoins(coinAmount, onSuccess)` loads/shows rewarded ad, then calls CoinService `addCoins` with reason (e.g. “Watched ad”) and updates cooldown via `recordCoinAdClaim(packageId)`.
-  - Cooldown helpers: `coinAdCooldown.ts` (`getLastClaimTime`, `setLastClaimTime`, `getCoinAdCooldownRemaining`, `isCoinAdAvailable`); AdContext exposes `isCoinAdAvailable` and `getCoinAdCooldownRemaining` for UI.
+  - Progressive tracking in `coinAdCooldown.ts` (hour-bucket AsyncStorage).
 - **Components:**
   - **CoinDisplay** (`src/frontend/components/CoinDisplay.tsx`): Shows balance and optional “Get more” navigation to Coin Shop; sizes small/medium/large; animates on balance increase.
   - **CoinsShopScreen** (`src/frontend/screens/CoinShopScreen.tsx`): Lists the three packages, cooldown timers, “View History,” and success/error states; triggers rewarded flow via AdContext.
@@ -62,8 +63,8 @@ Security: `firestore.rules` allow read/write on `userProfiles/{userId}` and `use
 
 ### Coin Economy
 
-- **Earning rates (approximate):** 50 coins anytime; 100 every 2h; 200 every 24h. Theoretical max ~400–500 coins/day if a user claims all three on cooldown. Realistic daily earn is lower due to engagement patterns.
-- **Spending:** Not yet implemented. Roadmap items (avatars, slots, power-ups, premium rooms, etc.) will consume coins; see `COIN_SYSTEM_ROADMAP.md` for target balance of earn vs spend and engagement metrics.
+- **Earning:** Progressive ads up to 100/hour; daily rewards capped at 32; missions 5–250. Casual (1 ad/day × 60 days) ≈2,470 coins; active (4 ads/day × 60 days) ≈6,250 coins.
+- **Spending:** Tiered slots 5,100 total; premium packages 600–6,000 coins for 30–250 EGP.
 
 ### Monetization Strategy Breakdown
 

@@ -10,9 +10,19 @@ import { CoinService } from './CoinService';
 import { logger } from '../utils/logger';
 import { AppError } from '../../shared/errors';
 
-const SLOT_UNLOCK_COST = 100;
 const FREE_SLOTS_COUNT = 1;
 const PAID_SLOT_START_INDEX = 1;
+
+/** Tiered slot pricing: slots 2-3: 300, 4-5: 450, 6-7: 600, 8-9: 750, 10: 900. Total 5,100 coins. */
+export function getSlotUnlockCost(slotIndex: number): number {
+  if (slotIndex === 0) return 0;
+  if (slotIndex >= 1 && slotIndex <= 2) return 300;
+  if (slotIndex >= 3 && slotIndex <= 4) return 450;
+  if (slotIndex >= 5 && slotIndex <= 6) return 600;
+  if (slotIndex >= 7 && slotIndex <= 8) return 750;
+  if (slotIndex === 9) return 900;
+  return 100;
+}
 
 function ensureAuthenticated(userId: string): void {
   if (!userId || typeof userId !== 'string') {
@@ -75,10 +85,11 @@ export async function unlockSlot(userId: string, slotIndex: number): Promise<boo
     return true;
   }
 
+  const cost = getSlotUnlockCost(slotIndex);
   const coinService = CoinService.getInstance();
   const deducted = await coinService.deductCoins(
     userId,
-    SLOT_UNLOCK_COST,
+    cost,
     `Custom slot ${slotIndex + 1} unlock`
   );
 
@@ -90,9 +101,8 @@ export async function unlockSlot(userId: string, slotIndex: number): Promise<boo
     lastUpdated: serverTimestamp(),
   });
 
-  logger.log(`CustomSlotUnlockService: Unlocked slot ${slotIndex + 1} for user ${userId}`);
+  logger.log('Slot unlocked', { userId, slotIndex: slotIndex + 1, cost });
   return true;
 }
 
-export const SLOT_UNLOCK_COINS = SLOT_UNLOCK_COST;
 export const FREE_SLOT_INDEX = 0;

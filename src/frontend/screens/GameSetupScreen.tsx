@@ -7,7 +7,9 @@ import {
   Dimensions,
   Animated,
   TextInput,
-  ScrollView
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -418,12 +420,20 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
           <View style={styles.headerPlaceholder} />
         </View>
 
+        <KeyboardAvoidingView
+          style={styles.keyboardAvoidingWrapper}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        >
         <ScrollView 
           ref={scrollViewRef}
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
+          {/* Scroll hint - scrolls away when user scrolls down */}
+          <Text style={styles.scrollDownHint}>{tScreens('screens:gameSetup.scrollDown')}</Text>
           {/* Category Label */}
           <View style={styles.categoryLabelContainer}>
             <Text style={[styles.settingLabel, isRTL && styles.rtlText]}>{tScreens('screens:gameSetup.category')}</Text>
@@ -581,31 +591,32 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
               </View>
             </View>
           </View>
-        </ScrollView>
 
-        {/* Continue Button */}
-        <View style={[styles.continueButtonContainer, { paddingBottom: insets.bottom + SPACING.md }]}>
-          <TouchableOpacity
-            onPress={handleContinue}
-            style={[styles.continueButton, isLoadingRandom && styles.continueButtonDisabled]}
-            activeOpacity={0.9}
-            disabled={isLoadingRandom}
-          >
-            <LinearGradient
-              colors={categories[currentIndex].id === 'Random' ? ['#059669', '#047857'] : ['#4F46E5', '#4338CA']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.continueButtonGradient}
+          {/* Continue Button - Inside ScrollView so it stays in content flow, no keyboard shift */}
+          <View style={[styles.continueButtonContainer, { paddingBottom: insets.bottom + SPACING.xl }]}>
+            <TouchableOpacity
+              onPress={handleContinue}
+              style={[styles.continueButton, isLoadingRandom && styles.continueButtonDisabled]}
+              activeOpacity={0.9}
+              disabled={isLoadingRandom}
             >
-              <Text style={styles.continueButtonText}>
-                {isLoadingRandom ? tScreens('screens:gameSetup.loading') : (categories[currentIndex].id === 'Random' ? tScreens('screens:gameSetup.startRandomGame') : tScreens('screens:gameSetup.continue'))}
-              </Text>
-              <Text style={styles.continueButtonArrow}>
-                {categories[currentIndex].id === 'Random' ? '🎲' : (isRTL ? '←' : '→')}
-              </Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
+              <LinearGradient
+                colors={categories[currentIndex].id === 'Random' ? ['#059669', '#047857'] : ['#4F46E5', '#4338CA']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.continueButtonGradient}
+              >
+                <Text style={styles.continueButtonText}>
+                  {isLoadingRandom ? tScreens('screens:gameSetup.loading') : (categories[currentIndex].id === 'Random' ? tScreens('screens:gameSetup.startRandomGame') : tScreens('screens:gameSetup.continue'))}
+                </Text>
+                <Text style={styles.continueButtonArrow}>
+                  {categories[currentIndex].id === 'Random' ? '🎲' : (isRTL ? '←' : '→')}
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     );
   }
@@ -673,6 +684,15 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  scrollDownHint: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.6)',
+    textAlign: 'center',
+    marginBottom: SPACING.sm,
+  },
+  keyboardAvoidingWrapper: {
+    flex: 1,
   },
   scrollView: {
     flex: 1,
@@ -784,10 +804,7 @@ const styles = StyleSheet.create({
   },
   continueButtonContainer: {
     paddingHorizontal: SPACING.md,
-    paddingTop: SPACING.md,
-    borderTopWidth: 0.5,
-    borderTopColor: '#374151',
-    backgroundColor: '#0A0A0A',
+    paddingTop: SPACING.xl,
   },
   continueButton: {
     borderRadius: 12,

@@ -1,77 +1,106 @@
 /**
- * Persists and reads last-claim time for coin rewarded ad packages.
- * Storage keys: coin_ad_cooldown_50, coin_ad_cooldown_100, coin_ad_cooldown_200.
- * Used by AdContext for isCoinAdAvailable, getCoinAdCooldownRemaining, and reward flow.
+ * Progressive rewarded ad tracking.
+ * 5 ads per hour with increasing rewards: 10 → 15 → 20 → 25 → 30 coins.
+ * Resets every hour based on hour bucket.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { logger } from '../utils/logger';
 
-export type CoinAdPackageId = '25' | '50' | '100' | '200';
+const PROGRESSIVE_REWARDS = [10, 15, 20, 25, 30] as const;
+const MAX_ADS_PER_HOUR = 5;
+const HOUR_MS = 60 * 60 * 1000;
 
-const COOLDOWN_MS: Record<CoinAdPackageId, number> = {
-  '25': 0,
-  '50': 0,
-  '100': 2 * 60 * 60 * 1000,   // 2 hours (7200000 ms)
-  '200': 24 * 60 * 60 * 1000,   // 24 hours (86400000 ms)
-};
-
-const STORAGE_PREFIX = 'coin_ad_cooldown_';
-
-const VALID_AMOUNTS: CoinAdPackageId[] = ['25', '50', '100', '200'];
-
-export function coinAmountToPackageId(coinAmount: number): CoinAdPackageId | null {
-  const s = String(coinAmount);
-  if (s === '25' || s === '50' || s === '100' || s === '200') return s as CoinAdPackageId;
-  return null;
+export function getHourBucket(): number {
+  return Math.floor(Date.now() / HOUR_MS);
 }
 
-export function getCoinAdCooldownMs(packageId: CoinAdPackageId): number {
-  return COOLDOWN_MS[packageId];
+const STORAGE_PREFIX = 'progressive_ad_count_';
+
+export interface ProgressiveAdInfo {
+  adsWatchedThisHour: number;
+  nextAdCoins: number;
+  maxReached: boolean;
+  timeUntilResetMs: number;
 }
 
-export async function getLastClaimTime(packageId: CoinAdPackageId): Promise<number | null> {
+/**
+ * Get current hour bucket storage key.
+ */
+export function getStorageKey(): string {
+  return STORAGE_PREFIX + getHourBucket();
+}
+
+/**
+ * Get current ads watched this hour.
+ */
+export async function getAdsWatchedThisHour(): Promise<number> {
   try {
-    const raw = await AsyncStorage.getItem(STORAGE_PREFIX + packageId);
-    if (raw == null) return null;
-    const t = parseInt(raw, 10);
-    return Number.isFinite(t) ? t : null;
+    const key = getStorageKey();
+    const raw = await AsyncStorage.getItem(key);
+    if (raw == null) return 0;
+    const n = parseInt(raw, 10);
+    return Number.isFinite(n) && n >= 0 ? Math.min(n, MAX_ADS_PER_HOUR) : 0;
   } catch {
-    return null;
+    return 0;
   }
 }
 
-export async function setLastClaimTime(packageId: CoinAdPackageId): Promise<void> {
+/**
+ * Increment ads watched this hour. Call after successful ad completion.
+ */
+export async function incrementProgressiveAdCount(): Promise<number> {
   try {
-    await AsyncStorage.setItem(STORAGE_PREFIX + packageId, String(Date.now()));
-  } catch {
-    // non-fatal
+    const key = getStorageKey();
+    const current = await getAdsWatchedThisHour();
+    const next = Math.min(current + 1, MAX_ADS_PER_HOUR);
+    await AsyncStorage.setItem(key, String(next));
+    if (next >= MAX_ADS_PER_HOUR) {
+      logger.log('Progressive ad: hourly cap reached', { count: next });
+    }
+    return next;
+  } catch (e) {
+    logger.warn('coinAdCooldown: incrementProgressiveAdCount failed', e);
+    return 0;
   }
 }
 
-export async function getCoinAdCooldownRemaining(packageId: CoinAdPackageId): Promise<number> {
-  const cooldownMs = COOLDOWN_MS[packageId];
-  if (cooldownMs <= 0) return 0;
-  const last = await getLastClaimTime(packageId);
-  if (last == null) return 0;
-  const elapsed = Date.now() - last;
-  return Math.max(0, cooldownMs - elapsed);
+/**
+ * Get coins for the Nth ad (0-indexed: 0=1st ad, 4=5th ad).
+ */
+export function getProgressiveReward(adIndex: number): number {
+  if (adIndex < 0 || adIndex >= MAX_ADS_PER_HOUR) return 0;
+  return PROGRESSIVE_REWARDS[adIndex];
 }
 
-export async function isCoinAdAvailable(packageId: CoinAdPackageId): Promise<boolean> {
-  const remaining = await getCoinAdCooldownRemaining(packageId);
-  return remaining === 0;
+/**
+ * Get milliseconds until next hour boundary (reset).
+ */
+export function getTimeUntilReset(): number {
+  const now = Date.now();
+  const nextHourStart = (getHourBucket() + 1) * HOUR_MS;
+  return Math.max(0, nextHourStart - now);
 }
 
-export async function isCoinAdAvailableByAmount(coinAmount: number): Promise<boolean> {
-  const id = coinAmountToPackageId(coinAmount);
-  return id != null ? isCoinAdAvailable(id) : false;
+/**
+ * Get progressive ad info for UI.
+ */
+export async function getProgressiveAdInfo(): Promise<ProgressiveAdInfo> {
+  const count = await getAdsWatchedThisHour();
+  const maxReached = count >= MAX_ADS_PER_HOUR;
+  const nextAdCoins = maxReached ? 0 : PROGRESSIVE_REWARDS[count];
+  const timeUntilResetMs = getTimeUntilReset();
+  return {
+    adsWatchedThisHour: count,
+    nextAdCoins,
+    maxReached,
+    timeUntilResetMs,
+  };
 }
 
-export async function getCoinAdCooldownRemainingByAmount(coinAmount: number): Promise<number> {
-  const id = coinAmountToPackageId(coinAmount);
-  return id != null ? getCoinAdCooldownRemaining(id) : 0;
-}
-
-export async function setLastClaimTimeByAmount(coinAmount: number): Promise<void> {
-  const id = coinAmountToPackageId(coinAmount);
-  if (id != null) await setLastClaimTime(id);
+/**
+ * Check if user can watch another ad this hour.
+ */
+export async function canWatchProgressiveAd(): Promise<boolean> {
+  const count = await getAdsWatchedThisHour();
+  return count < MAX_ADS_PER_HOUR;
 }

@@ -19,7 +19,7 @@ import { useAuth } from '../contexts/AuthContext';
 import ThemedAlert from '../utils/themedAlert';
 import { logger } from '../../backend/utils/logger';
 import useAppTranslation from '../../hooks/useTranslation';
-import { getUnlockedSlots, unlockSlot, isSlotUsable, SLOT_UNLOCK_COINS } from '../../backend/services/customSlotUnlockService';
+import { getUnlockedSlots, unlockSlot, isSlotUsable, getSlotUnlockCost } from '../../backend/services/customSlotUnlockService';
 
 const NUM_SLOTS = CustomQuestionService.NUM_SLOTS;
 
@@ -87,9 +87,10 @@ const CustomQuestionSlotsScreen: React.FC<CustomQuestionSlotsScreenProps> = ({ n
       ThemedAlert.info(tScreens('customQuestionSlots.signInToUnlock'), '');
       return;
     }
+    const cost = getSlotUnlockCost(slotIndex);
     ThemedAlert.alert(
       tScreens('customQuestionSlots.unlockSlotTitle', { number: slotIndex + 1 }),
-      tScreens('customQuestionSlots.unlockSlotMessage', { cost: SLOT_UNLOCK_COINS }),
+      tScreens('customQuestionSlots.unlockSlotMessage', { cost }),
       [
         { text: tCommon('cancel'), style: 'cancel', onPress: () => {} },
         {
@@ -103,11 +104,25 @@ const CustomQuestionSlotsScreen: React.FC<CustomQuestionSlotsScreenProps> = ({ n
                 ThemedAlert.success(tCommon('success'), tScreens('customQuestionSlots.unlockSuccess', { number: slotIndex + 1 }));
                 navigation.navigate('CreateCustomQuestion', { slotIndex });
               } else {
-                ThemedAlert.warning(tCommon('error'), tScreens('customQuestionSlots.unlockInsufficientCoins', { cost: SLOT_UNLOCK_COINS }));
+                ThemedAlert.warning(
+                  tCommon('error'),
+                  tScreens('customQuestionSlots.unlockInsufficientCoins', { cost }),
+                  [
+                    { text: tCommon('cancel'), style: 'cancel' },
+                    { text: tScreens('customQuestionSlots.goToCoinShop', { defaultValue: 'Get Coins' }), onPress: () => navigation.navigate('CoinsShop') },
+                  ]
+                );
               }
             } catch (e) {
               logger.error('Unlock slot failed', e);
-              ThemedAlert.error(tCommon('error'), tScreens('customQuestionSlots.unlockInsufficientCoins', { cost: SLOT_UNLOCK_COINS }));
+              ThemedAlert.error(
+                tCommon('error'),
+                tScreens('customQuestionSlots.unlockInsufficientCoins', { cost }),
+                [
+                  { text: tCommon('cancel'), style: 'cancel' },
+                  { text: tScreens('customQuestionSlots.goToCoinShop', { defaultValue: 'Get Coins' }), onPress: () => navigation.navigate('CoinsShop') },
+                ]
+              );
             } finally {
               setUnlockingSlot(null);
             }
@@ -206,7 +221,7 @@ const CustomQuestionSlotsScreen: React.FC<CustomQuestionSlotsScreenProps> = ({ n
                     </Text>
                     <Text style={[styles.slotHint, isRTL && styles.rtlText]}>
                       {isLocked
-                        ? tScreens('customQuestionSlots.unlockForCoins', { cost: SLOT_UNLOCK_COINS })
+                        ? tScreens('customQuestionSlots.unlockForCoins', { cost: getSlotUnlockCost(i) })
                         : isFilled
                           ? tScreens('customQuestionSlots.tapToEdit')
                           : tScreens('customQuestionSlots.tapToAdd')}

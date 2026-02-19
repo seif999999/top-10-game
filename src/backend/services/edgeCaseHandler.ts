@@ -178,23 +178,20 @@ export class EdgeCaseHandler {
   /**
    * Handle duplicate room codes
    */
-  async handleDuplicateRoomCode(roomCode: string): Promise<string> {
-    logger.log(`🔄 Handling duplicate room code: ${roomCode}`);
-    
-    // Generate new code with additional entropy
-    const timestamp = Date.now().toString(36);
-    const randomSuffix = Math.random().toString(36).substring(2, 4);
-    const newRoomCode = roomCode.substring(0, 4) + timestamp.substring(-2) + randomSuffix;
-    
-    // Verify new code is unique
-    const isAvailable = await this.isRoomCodeAvailable(newRoomCode);
-    if (isAvailable) {
-      logger.log(`✅ Generated new unique room code: ${newRoomCode}`);
-      return newRoomCode;
-    }
-    
-    // If still duplicate, generate completely new code
-    return await this.generateSecureRoomCode();
+  async handleDuplicateRoomCode(_roomCode: string): Promise<string> {
+    logger.log('🔄 Handling duplicate room code, generating new digits-only code');
+    let newRoomCode: string;
+    let attempts = 0;
+    do {
+      newRoomCode = await this.generateSecureRoomCode();
+      attempts++;
+      if (attempts > 20) {
+        logger.error('Failed to generate unique room code after 20 attempts');
+        return newRoomCode;
+      }
+    } while (!(await this.isRoomCodeAvailable(newRoomCode)));
+    logger.log(`✅ Generated new unique room code: ${newRoomCode}`);
+    return newRoomCode;
   }
 
   /**

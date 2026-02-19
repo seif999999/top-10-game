@@ -52,14 +52,14 @@ const JoinRoomScreen: React.FC<JoinRoomScreenProps> = () => {
   }, [error, clearError, tCommon]);
 
   useEffect(() => {
-    // Validate room code format (6 characters, alphanumeric)
-    const isValid = /^[A-Z0-9]{6}$/.test(roomCode);
+    // Validate room code format (6 digits only)
+    const isValid = /^[0-9]{6}$/.test(roomCode);
     setIsValidCode(isValid);
   }, [roomCode]);
 
   const handleRoomCodeChange = (text: string) => {
-    // Convert to uppercase and limit to 6 characters
-    const formattedText = text.toUpperCase().slice(0, 6);
+    // Allow digits only, limit to 6 characters
+    const formattedText = text.replace(/\D/g, '').slice(0, 6);
     setRoomCode(formattedText);
     setJoinRoomCode(formattedText);
   };
@@ -176,7 +176,7 @@ const JoinRoomScreen: React.FC<JoinRoomScreenProps> = () => {
               placeholder={t('multiplayer.joinRoomScreen.roomCodePlaceholder')}
               placeholderTextColor={COLORS.muted}
               maxLength={6}
-              autoCapitalize="characters"
+              keyboardType="number-pad"
               autoCorrect={false}
               autoFocus
               accessibilityLabel={t('multiplayer.joinRoomScreen.roomCodeLabel')}

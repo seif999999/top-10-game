@@ -85,8 +85,11 @@ module.exports = {
       },
     },
     {
-      // Config files
-      files: ['*.config.js', '*.config.ts', '.eslintrc.js'],
+      // Config files (Node.js - process, module, require)
+      files: ['*.config.js', '*.config.ts', '.eslintrc.js', 'app.config.js'],
+      env: {
+        node: true,
+      },
       rules: {
         '@typescript-eslint/no-var-requires': 'off',
       },

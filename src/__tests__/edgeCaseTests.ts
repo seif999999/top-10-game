@@ -80,7 +80,8 @@ describe('Edge Case Handling Tests', () => {
       
       expect(newCode).toBeDefined();
       expect(newCode).not.toBe(duplicateCode);
-      expect(newCode.length).toBeGreaterThan(6); // Should have additional entropy
+      expect(newCode.length).toBe(6); // 6-digit room code
+      expect(/^[0-9]{6}$/.test(newCode)).toBe(true); // Digits only
     });
 
     test('should repair corrupted room data', async () => {

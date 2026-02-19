@@ -30,6 +30,7 @@ const CustomQuestionScreen = lazy(() => import('../screens/CustomQuestionScreen'
 const MissionsScreen = lazy(() => import('../screens/MissionsScreen'));
 const CoinShopScreen = lazy(() => import('../screens/CoinShopScreen'));
 const CoinHistoryScreen = lazy(() => import('../screens/CoinHistoryScreen'));
+const ShopScreen = lazy(() => import('../screens/ShopScreen'));
 
 const ScreenFallback = () => (
   <View style={screenFallbackStyles.container}>
@@ -69,6 +70,7 @@ const AppNavigator: React.FC = () => {
           <Stack.Screen name="Missions" component={MissionsScreen} />
           <Stack.Screen name="CoinsShop" component={CoinShopScreen} />
           <Stack.Screen name="CoinHistory" component={CoinHistoryScreen} />
+          <Stack.Screen name="Shop" component={ShopScreen} />
           <Stack.Screen name="Categories" component={GameSetupScreen} />
           <Stack.Screen name="QuestionSelection" component={QuestionSelectionScreen} />
           <Stack.Screen name="GameScreen" component={GameScreen} />
