@@ -1,3 +1,5 @@
+/* eslint-env node */
+/* global process, module */
 // Expo app configuration with Firebase env wiring
 // Populate values from process.env; provide empty defaults for .env.example
 

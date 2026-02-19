@@ -62,7 +62,7 @@ export const VALIDATION_LIMITS = {
 export const VALIDATION_PATTERNS = {
   EMAIL: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
   DISPLAY_NAME: /^[a-zA-Z0-9\s._-]+$/,
-  ROOM_CODE: /^[A-Z0-9]{6}$/,
+  ROOM_CODE: /^[0-9]{6}$/,
   ALPHANUMERIC: /^[a-zA-Z0-9]+$/,
   ALPHANUMERIC_SPACES: /^[a-zA-Z0-9\s]+$/,
   NO_SPECIAL_CHARS: /^[^<>{}[\]\\\/]+$/,

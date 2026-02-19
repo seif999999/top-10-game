@@ -27,8 +27,9 @@ import { COLLECTIONS } from '../utils/constants';
 
 const COIN_TRANSACTIONS_SUBCOLLECTION = 'coinTransactions';
 const MAX_TRANSACTIONS_PER_USER = 100;
-const WELCOME_BONUS_AMOUNT = 100;
-const MIGRATION_BONUS_AMOUNT = 50;
+
+/** Cost in coins to purchase ad-free (one-time) */
+export const AD_FREE_COST = 500;
 
 async function ensureAuthenticatedAndOwn(userId: string): Promise<void> {
   const { auth } = await import('./firebase');
@@ -179,37 +180,92 @@ export class CoinService {
   }
 
   /**
-   * Set balance to 100 and record "Welcome bonus" for new users. Idempotent: skips if welcome transaction already exists.
+   * Purchase ad-free for coins. Deducts AD_FREE_COST and sets adFree: true on the user profile.
+   * Returns true if purchase succeeded, false if already ad-free or insufficient balance.
+   */
+  public async purchaseAdFree(userId: string): Promise<{ success: boolean; reason?: string }> {
+    try {
+      await ensureAuthenticatedAndOwn(userId);
+      const userRef = doc(db, COLLECTIONS.USER_PROFILES, userId);
+      const txCollRef = collection(db, COLLECTIONS.USER_PROFILES, userId, COIN_TRANSACTIONS_SUBCOLLECTION);
+
+      let purchased = false;
+      await runTransaction(db, async (tx) => {
+        const userSnap = await tx.get(userRef);
+        const data = userSnap.exists() ? userSnap.data() : {};
+        const currentCoins = data?.coins ?? 0;
+        const alreadyAdFree = data?.adFree === true;
+
+        if (alreadyAdFree) {
+          logger.log(`CoinService: purchaseAdFree skipped, user ${userId} already ad-free`);
+          return;
+        }
+        if (currentCoins < AD_FREE_COST) {
+          logger.log(`CoinService: purchaseAdFree insufficient balance for ${userId}, have ${currentCoins}`);
+          return;
+        }
+
+        const newCoins = currentCoins - AD_FREE_COST;
+        if (userSnap.exists()) {
+          tx.update(userRef, {
+            coins: newCoins,
+            adFree: true,
+            lastUpdated: serverTimestamp(),
+          });
+        } else {
+          tx.set(
+            userRef,
+            { coins: newCoins, adFree: true, lastUpdated: serverTimestamp() },
+            { merge: true }
+          );
+        }
+        const newTxRef = doc(txCollRef);
+        tx.set(newTxRef, {
+          amount: -AD_FREE_COST,
+          type: 'spent',
+          reason: 'Remove ads',
+          timestamp: serverTimestamp(),
+        });
+        purchased = true;
+      });
+
+      if (purchased) {
+        await this.pruneOldTransactions(userId);
+        logger.log(`CoinService: purchased ad-free for ${userId}`);
+        return { success: true };
+      }
+
+      const userSnap = await getDoc(userRef);
+      const data = userSnap.exists() ? userSnap.data() : {};
+      if (data?.adFree === true) return { success: false, reason: 'already_ad_free' };
+      return { success: false, reason: 'insufficient_coins' };
+    } catch (error) {
+      logger.error('CoinService: purchaseAdFree failed', userId, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Initialize coins for new users. No welcome bonus - new users start with 0 coins.
+   * Idempotent: skips if profile already has coins; otherwise ensures coins: 0.
    */
   public async initializeCoins(userId: string): Promise<void> {
     try {
       await ensureAuthenticatedAndOwn(userId);
-      const existing = await this.getCoinTransactions(userId, 50);
-      const hasWelcome = existing.some((t) => t.reason === 'Welcome bonus' && t.type === 'earned');
-      if (hasWelcome) {
-        logger.log(`CoinService: initializeCoins skipped, already has Welcome bonus for ${userId}`);
-        return;
-      }
-
       const userRef = doc(db, COLLECTIONS.USER_PROFILES, userId);
       const snap = await getDoc(userRef);
-      const currentCoins = snap.exists() ? (snap.data()?.coins ?? 0) : 0;
-      const newCoins = currentCoins + WELCOME_BONUS_AMOUNT;
-
-      const txCollRef = collection(db, COLLECTIONS.USER_PROFILES, userId, COIN_TRANSACTIONS_SUBCOLLECTION);
-      if (snap.exists()) {
-        await updateDoc(userRef, { coins: newCoins, lastUpdated: serverTimestamp() });
-      } else {
-        await setDoc(userRef, { coins: newCoins, lastUpdated: serverTimestamp() }, { merge: true });
+      if (!snap.exists()) {
+        await setDoc(userRef, { coins: 0, lastUpdated: serverTimestamp() }, { merge: true });
+        logger.log(`CoinService: initialized coins for new user ${userId}, balance 0`);
+        return;
       }
-      await addDoc(txCollRef, {
-        amount: WELCOME_BONUS_AMOUNT,
-        type: 'earned',
-        reason: 'Welcome bonus',
-        timestamp: serverTimestamp(),
-      });
-      await this.pruneOldTransactions(userId);
-      logger.log(`CoinService: initialized coins for ${userId}, balance ${newCoins} (Welcome bonus)`);
+      const data = snap.data();
+      if (data && typeof data.coins === 'number') {
+        logger.log(`CoinService: initializeCoins skipped, profile has coins for ${userId}`);
+        return;
+      }
+      await updateDoc(userRef, { coins: 0, lastUpdated: serverTimestamp() });
+      logger.log(`CoinService: set coins to 0 for ${userId}`);
     } catch (error) {
       logger.error('CoinService: initializeCoins failed', userId, error);
       throw error;
@@ -217,24 +273,10 @@ export class CoinService {
   }
 
   /**
-   * Grant 50 coins with reason "Account upgrade bonus" once for existing users who have 0 balance and no transactions.
+   * Migration bonus disabled. Returns false without granting coins.
    */
-  public async grantMigrationBonusIfNeeded(userId: string): Promise<boolean> {
-    try {
-      await ensureAuthenticatedAndOwn(userId);
-      const balance = await this.getCoinBalance(userId);
-      if (balance > 0) return false;
-      const transactions = await this.getCoinTransactions(userId, 10);
-      const hasMigration = transactions.some((t) => t.reason === 'Account upgrade bonus');
-      if (hasMigration) return false;
-
-      await this.addCoins(userId, MIGRATION_BONUS_AMOUNT, 'Account upgrade bonus');
-      logger.log(`CoinService: migration bonus granted for ${userId}`);
-      return true;
-    } catch (error) {
-      logger.error('CoinService: grantMigrationBonusIfNeeded failed', userId, error);
-      return false;
-    }
+  public async grantMigrationBonusIfNeeded(_userId: string): Promise<boolean> {
+    return false;
   }
 
   /**

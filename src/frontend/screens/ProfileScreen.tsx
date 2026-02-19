@@ -226,7 +226,13 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           </TouchableOpacity>
           
           <Text style={styles.userEmail}>{user?.email || ''}</Text>
-          
+
+          {user?.hasVIPBadge && (
+            <View style={styles.vipBadge}>
+              <Text style={styles.vipBadgeText}>👑 {tScreens('profile.vipBadge', { defaultValue: 'VIP' })}</Text>
+            </View>
+          )}
+
           {user?.createdAt && (
             <Text style={styles.memberSince}>
               {getMemberSinceText()}
@@ -538,6 +544,18 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     fontSize: 16,
     marginBottom: SPACING.xs,
+  },
+  vipBadge: {
+    backgroundColor: 'rgba(245, 158, 11, 0.25)',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    borderRadius: 999,
+    marginTop: SPACING.sm,
+  },
+  vipBadgeText: {
+    color: '#F59E0B',
+    fontSize: 14,
+    fontWeight: '600',
   },
   memberSince: {
     color: '#9CA3AF',

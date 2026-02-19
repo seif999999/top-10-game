@@ -5,14 +5,18 @@ import AdService from '../../backend/services/AdService';
 import AdConsentService from '../../backend/services/AdConsentService';
 import { CoinService } from '../../backend/services/CoinService';
 import { logger } from '../../backend/utils/logger';
-import * as CoinAdCooldown from '../../backend/utils/coinAdCooldown';
+import * as ProgressiveAd from '../../backend/utils/coinAdCooldown';
 import { useAuth } from './AuthContext';
+import UserProfileService from '../../backend/services/userProfileService';
 
 const INTERSTITIAL_FREQUENCY_CAP_MS = 5 * 60 * 1000; // 5 minutes
 
-const REWARD_REASON = 'Watched ad';
-
-export type CoinAdPackageId = CoinAdCooldown.CoinAdPackageId;
+export interface ProgressiveAdInfo {
+  adsWatchedThisHour: number;
+  nextAdCoins: number;
+  maxReached: boolean;
+  timeUntilResetMs: number;
+}
 
 export interface AdContextValue {
   // Premium
@@ -41,11 +45,10 @@ export interface AdContextValue {
   showRewardedAd: (onRewardEarned?: (reward: AdReward) => void) => Promise<void>;
   showInterstitialAd: (callbacks?: { onAdClosed?: () => void }) => Promise<void>;
 
-  // Coin rewarded ad: amount-based API and full reward flow
-  showRewardedAdForCoins: (coinAmount: number, onSuccess: () => void) => Promise<void>;
-  isCoinAdAvailable: (coinAmountOrPackageId: number | CoinAdPackageId) => Promise<boolean>;
-  getCoinAdCooldownRemaining: (coinAmountOrPackageId: number | CoinAdPackageId) => Promise<number>;
-  recordCoinAdClaim: (packageId: CoinAdPackageId) => Promise<void>;
+  // Progressive rewarded ad: 10→15→20→25→30 coins, 5 per hour
+  showProgressiveRewardedAd: (onSuccess: (coinsEarned: number) => void) => Promise<void>;
+  getProgressiveAdInfo: () => Promise<ProgressiveAdInfo>;
+  getTimeUntilReset: () => number;
 
   // Initialization
   isAdReady: boolean;
@@ -73,6 +76,30 @@ export const AdProvider: React.FC<{ children: React.ReactNode }> = ({ children }
       logger.warn('AdContext: syncLoadStates failed', e);
     }
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const sync = async () => {
+      if (!user?.id) {
+        setIsPremiumState(false);
+        return;
+      }
+      if (user.adFree) {
+        setIsPremiumState(true);
+        return;
+      }
+      try {
+        const active = await UserProfileService.checkPremiumExpiration(user.id);
+        if (!cancelled) setIsPremiumState(active);
+      } catch (e) {
+        if (!cancelled) setIsPremiumState(false);
+      }
+    };
+    sync();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, user?.adFree]);
 
   useEffect(() => {
     let cancelled = false;
@@ -185,52 +212,28 @@ export const AdProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     [isPremium, lastInterstitialShownAt, syncLoadStates]
   );
 
-  const isCoinAdAvailable = useCallback(
-    async (coinAmountOrPackageId: number | CoinAdCooldown.CoinAdPackageId): Promise<boolean> => {
-      if (typeof coinAmountOrPackageId === 'number') {
-        return CoinAdCooldown.isCoinAdAvailableByAmount(coinAmountOrPackageId);
-      }
-      return CoinAdCooldown.isCoinAdAvailable(coinAmountOrPackageId);
-    },
-    []
-  );
+  const getProgressiveAdInfo = useCallback((): Promise<ProgressiveAdInfo> => ProgressiveAd.getProgressiveAdInfo(), []);
+  const getTimeUntilReset = useCallback((): number => ProgressiveAd.getTimeUntilReset(), []);
 
-  const getCoinAdCooldownRemaining = useCallback(
-    async (coinAmountOrPackageId: number | CoinAdCooldown.CoinAdPackageId): Promise<number> => {
-      if (typeof coinAmountOrPackageId === 'number') {
-        return CoinAdCooldown.getCoinAdCooldownRemainingByAmount(coinAmountOrPackageId);
-      }
-      return CoinAdCooldown.getCoinAdCooldownRemaining(coinAmountOrPackageId);
-    },
-    []
-  );
-
-  const recordCoinAdClaim = useCallback((packageId: CoinAdCooldown.CoinAdPackageId) => CoinAdCooldown.setLastClaimTime(packageId), []);
-
-  const showRewardedAdForCoins = useCallback(
-    async (coinAmount: number, onSuccess: () => void) => {
-      const packageId = CoinAdCooldown.coinAmountToPackageId(coinAmount);
-      if (packageId == null) {
-        logger.warn('AdContext: showRewardedAdForCoins invalid amount', { coinAmount });
-        return;
-      }
+  const showProgressiveRewardedAd = useCallback(
+    async (onSuccess: (coinsEarned: number) => void) => {
       if (isPremium) {
-        logger.log('AdContext: skipped coin ad (premium)');
+        logger.log('AdContext: skipped progressive ad (premium)');
         return;
       }
       const userId = user?.id;
       if (!userId) {
-        logger.warn('AdContext: showRewardedAdForCoins no user');
+        logger.warn('AdContext: showProgressiveRewardedAd no user');
         setAdError('Please sign in to earn coins');
         return;
       }
-      const available = await CoinAdCooldown.isCoinAdAvailable(packageId);
-      if (!available) {
-        const remaining = await CoinAdCooldown.getCoinAdCooldownRemaining(packageId);
-        logger.log('AdContext: coin ad on cooldown', { coinAmount, remainingMs: remaining });
-        setAdError(`Coins available again in ${Math.ceil(remaining / 60000)} min`);
+      const info = await ProgressiveAd.getProgressiveAdInfo();
+      if (info.maxReached) {
+        logger.log('AdContext: max ads reached this hour');
+        setAdError('Maximum ads reached for this hour');
         return;
       }
+      const coinsToEarn = ProgressiveAd.getProgressiveReward(info.adsWatchedThisHour);
       setAdError(null);
       let rewardGranted = false;
       await AdService.showRewardedAd({
@@ -243,10 +246,15 @@ export const AdProvider: React.FC<{ children: React.ReactNode }> = ({ children }
         onRewardEarned: async () => {
           rewardGranted = true;
           try {
-            await CoinService.getInstance().addCoins(userId, coinAmount, REWARD_REASON);
-            await CoinAdCooldown.setLastClaimTime(packageId);
-            logger.log('AdContext: coins granted after ad', { userId, coinAmount });
-            onSuccess();
+            await CoinService.getInstance().addCoins(userId, coinsToEarn, `Rewarded ad (${coinsToEarn} coins)`);
+            await ProgressiveAd.incrementProgressiveAdCount();
+            logger.log('Progressive ad watched', {
+              userId,
+              adCount: info.adsWatchedThisHour + 1,
+              coinsEarned: coinsToEarn,
+              totalThisHour: coinsToEarn,
+            });
+            onSuccess(coinsToEarn);
           } catch (e) {
             logger.error('AdContext: addCoins failed after ad', e);
             setAdError('Coins could not be added. Please try again.');
@@ -280,10 +288,9 @@ export const AdProvider: React.FC<{ children: React.ReactNode }> = ({ children }
       loadInterstitialAd,
       showRewardedAd,
       showInterstitialAd,
-      showRewardedAdForCoins,
-      isCoinAdAvailable,
-      getCoinAdCooldownRemaining,
-      recordCoinAdClaim,
+      showProgressiveRewardedAd,
+      getProgressiveAdInfo,
+      getTimeUntilReset,
       isAdReady,
     }),
     [
@@ -301,10 +308,9 @@ export const AdProvider: React.FC<{ children: React.ReactNode }> = ({ children }
       loadInterstitialAd,
       showRewardedAd,
       showInterstitialAd,
-      showRewardedAdForCoins,
-      isCoinAdAvailable,
-      getCoinAdCooldownRemaining,
-      recordCoinAdClaim,
+      showProgressiveRewardedAd,
+      getProgressiveAdInfo,
+      getTimeUntilReset,
       isAdReady,
     ]
   );

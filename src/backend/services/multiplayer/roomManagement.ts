@@ -22,7 +22,7 @@ import { AppError, toAppError } from '../../../shared/errors';
 import { generateSecureRoomCode } from '../../utils/secureRandom';
 
 /**
- * Generate a unique 6-character room code
+ * Generate a unique 6-digit room code
  * ✅ SECURITY: Uses cryptographically secure random generation
  */
 export async function generateRoomCode(): Promise<string> {

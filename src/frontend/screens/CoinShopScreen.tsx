@@ -19,19 +19,26 @@ import { useAuth } from '../contexts/AuthContext';
 import { useAd } from '../contexts/AdContext';
 import useAppTranslation from '../../hooks/useTranslation';
 import CoinDisplay from '../components/CoinDisplay';
-import { CoinService } from '../../backend/services/CoinService';
-import { logger } from '../../backend/utils/logger';
 import CoinShopOnboarding, { hasSeenCoinShopOnboarding } from '../components/CoinShopOnboarding';
 import ToastNotification from '../components/ToastNotification';
+import ThemedAlert from '../utils/themedAlert';
+import IAPService, { type PremiumSubscriptionType } from '../../backend/services/IAPService';
 
 type CoinShopScreenProps = NativeStackScreenProps<RootStackParamList, 'CoinsShop'>;
 
-/** Premium coin packages with EGP pricing */
-const PURCHASE_PACKAGES: { id: string; coins: number; egp: number }[] = [
-  { id: 'buy_50', coins: 50, egp: 15 },
-  { id: 'buy_100', coins: 100, egp: 25 },
-  { id: 'buy_150', coins: 150, egp: 35 },
-  { id: 'buy_200', coins: 200, egp: 45 },
+/** Premium coin packages with EGP pricing (70/30 economy) - .9 charm pricing */
+const PURCHASE_PACKAGES: {
+  id: string;
+  coins: number;
+  price: number;
+  popular: boolean;
+  savings: string;
+  description: string;
+}[] = [
+  { id: 'starter', coins: 600, price: 29.9, popular: false, savings: '0%', description: 'Perfect for unlocking your first slots' },
+  { id: 'value', coins: 1800, price: 79.9, popular: true, savings: '11%', description: 'Most popular choice' },
+  { id: 'premium', coins: 3500, price: 149.9, popular: false, savings: '17%', description: 'Unlock most of your slots' },
+  { id: 'ultimate', coins: 6000, price: 249.9, popular: false, savings: '20%', description: 'Unlock everything + bonus coins' },
 ];
 
 let coinImageSource: ReturnType<typeof require> | null = null;
@@ -41,35 +48,63 @@ try {
   coinImageSource = null;
 }
 
-function formatMmSs(ms: number): string {
-  if (ms <= 0) return '00:00';
-  const totalSeconds = Math.ceil(ms / 1000);
-  const m = Math.floor(totalSeconds / 60);
-  const s = totalSeconds % 60;
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+/** Format EGP price with .9 charm pricing (e.g. 59.9, 149.9) */
+function formatEgpPrice(price: number): string {
+  return price.toFixed(1);
 }
+
+function formatCountdown(ms: number): string {
+  if (ms <= 0) return '0';
+  const totalSeconds = Math.ceil(ms / 1000);
+  if (totalSeconds >= 60) {
+    const m = Math.floor(totalSeconds / 60);
+    return `${m} minute${m !== 1 ? 's' : ''}`;
+  }
+  return `${totalSeconds} second${totalSeconds !== 1 ? 's' : ''}`;
+}
+
+/** Option 1: Subscription model - .9 charm pricing on EGP */
+const REMOVE_ADS_PACKAGES: {
+  id: PremiumSubscriptionType;
+  price: number;
+  discount?: string;
+  subtitleKey: string;
+  popular: boolean;
+}[] = [
+  { id: 'monthly', price: 59.9, subtitleKey: 'playUninterrupted', popular: false },
+  { id: 'quarterly', price: 149.9, discount: '17%', subtitleKey: 'popularChoice', popular: false },
+  { id: 'yearly', price: 499.9, discount: '33%', subtitleKey: 'smartestDeal', popular: true },
+];
 
 const CoinShopScreen: React.FC<CoinShopScreenProps> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const { playButtonClick } = useAudio();
-  const { user } = useAuth();
+  const { user, getUserProfileWithAvatar } = useAuth();
   const { t: tScreens, isRTL } = useAppTranslation('screens');
+  const { t: tCommon } = useAppTranslation('common');
   const tCoin = (key: string, opts?: Record<string, unknown>) =>
     (tScreens as (k: string, o?: Record<string, unknown>) => string)(key as never, opts);
   const {
-    getCoinAdCooldownRemaining,
-    recordCoinAdClaim,
     loadRewardedAd,
-    showRewardedAd,
+    showProgressiveRewardedAd,
+    getProgressiveAdInfo,
+    getTimeUntilReset,
     rewardedLoadState,
     adError,
     clearAdError,
     isAdReady,
     isPremium,
+    setPremium,
   } = useAd();
 
+  const [purchasingAdFree, setPurchasingAdFree] = useState<PremiumSubscriptionType | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [cooldown25, setCooldown25] = useState(0);
+  const [progressiveInfo, setProgressiveInfo] = useState<{
+    adsWatchedThisHour: number;
+    nextAdCoins: number;
+    maxReached: boolean;
+    timeUntilResetMs: number;
+  }>({ adsWatchedThisHour: 0, nextAdCoins: 10, maxReached: false, timeUntilResetMs: 0 });
   const [isShowingAd, setIsShowingAd] = useState(false);
   const [successAmount, setSuccessAmount] = useState<number | null>(null);
   const [toast, setToast] = useState<{ visible: boolean; type: 'info' | 'success'; title: string; message?: string }>({
@@ -84,76 +119,132 @@ const CoinShopScreen: React.FC<CoinShopScreenProps> = ({ navigation }) => {
     });
   }, []);
 
-  const refreshCooldown25 = useCallback(async () => {
-    const remaining = await getCoinAdCooldownRemaining('25');
-    setCooldown25(remaining);
-  }, [getCoinAdCooldownRemaining]);
+  const refreshProgressiveInfo = useCallback(async () => {
+    const info = await getProgressiveAdInfo();
+    setProgressiveInfo(info);
+  }, [getProgressiveAdInfo]);
 
   useEffect(() => {
-    refreshCooldown25();
-  }, [refreshCooldown25]);
+    refreshProgressiveInfo();
+  }, [refreshProgressiveInfo]);
 
   useEffect(() => {
     if (!isPremium && isAdReady) loadRewardedAd();
   }, [isPremium, isAdReady, loadRewardedAd]);
 
+  // Countdown timer when maxed
   useEffect(() => {
-    if (cooldown25 <= 0) return;
-    const interval = setInterval(refreshCooldown25, 1000);
+    if (!progressiveInfo.maxReached || progressiveInfo.timeUntilResetMs <= 0) return;
+    const interval = setInterval(() => {
+      setProgressiveInfo((prev) => {
+        const next = Math.max(0, prev.timeUntilResetMs - 1000);
+        if (next <= 0) setTimeout(() => refreshProgressiveInfo(), 0);
+        return { ...prev, timeUntilResetMs: next };
+      });
+    }, 1000);
     return () => clearInterval(interval);
-  }, [cooldown25 > 0, refreshCooldown25]);
+  }, [progressiveInfo.maxReached, refreshProgressiveInfo]);
 
-  const handleRewardEarned = useCallback(
-    async () => {
-      if (!user?.id) return;
-      try {
-        await CoinService.getInstance().addCoins(
-          user.id,
-          25,
-          tCoin('coinShop.transactionReason', { amount: '25' })
-        );
-        await recordCoinAdClaim('25');
-        setSuccessAmount(25);
-        refreshCooldown25();
-        setTimeout(() => setSuccessAmount(null), 2000);
-      } catch (e) {
-        logger.error('CoinShopScreen: addCoins failed', e);
-      }
+  const handleProgressiveAdSuccess = useCallback(
+    (coinsEarned: number) => {
+      setSuccessAmount(coinsEarned);
+      refreshProgressiveInfo();
+      setTimeout(() => setSuccessAmount(null), 2000);
     },
-    [user?.id, recordCoinAdClaim, tCoin, refreshCooldown25]
+    [refreshProgressiveInfo]
   );
 
-  const handleWatchVideoPress = useCallback(() => {
-    if (cooldown25 > 0 || isPremium) return;
-    const isLoading =
+  const handleWatchProgressiveAd = useCallback(() => {
+    if (progressiveInfo.maxReached || isPremium) return;
+    const adLoading =
       !isAdReady ||
       rewardedLoadState === 'idle' ||
       rewardedLoadState === 'loading' ||
       isShowingAd;
-    const isLoaded = rewardedLoadState === 'loaded' && !isShowingAd;
-    const hasError = !!adError || rewardedLoadState === 'failed';
-    if (isLoading || !isLoaded || hasError) return;
+    const adReady = rewardedLoadState === 'loaded' && !isShowingAd;
+    const adErrorState = !!adError || rewardedLoadState === 'failed';
+    if (adLoading || !adReady || adErrorState) return;
     playButtonClick();
     clearAdError();
     setIsShowingAd(true);
     const fallbackTimer = setTimeout(() => setIsShowingAd(false), 90000);
-    showRewardedAd(() => {
+    showProgressiveRewardedAd((coins) => {
       clearTimeout(fallbackTimer);
       setIsShowingAd(false);
-      handleRewardEarned();
+      handleProgressiveAdSuccess(coins);
     });
   }, [
-    cooldown25,
+    progressiveInfo.maxReached,
     isPremium,
     isAdReady,
     rewardedLoadState,
     isShowingAd,
     adError,
     clearAdError,
-    showRewardedAd,
-    handleRewardEarned,
+    showProgressiveRewardedAd,
+    handleProgressiveAdSuccess,
     playButtonClick,
   ]);
+
+  const handleRemoveAdsPurchase = useCallback(
+    (type: PremiumSubscriptionType) => {
+      playButtonClick();
+      if (!user?.id) {
+        setToast({ visible: true, type: 'info', title: tCoin('coinShop.removeAds.subscription.signInRequired') });
+        return;
+      }
+      const pkg = REMOVE_ADS_PACKAGES.find((p) => p.id === type);
+      if (!pkg) return;
+      const periodKey = type === 'monthly' ? 'month' : type === 'quarterly' ? 'quarter' : 'year';
+      ThemedAlert.alert(
+        tCoin('coinShop.removeAds.subscription.confirmTitle'),
+        tCoin('coinShop.removeAds.subscription.confirmMessage', {
+          price: formatEgpPrice(pkg.price),
+          period: tCoin(`coinShop.removeAds.subscription.${periodKey}`),
+          defaultValue: `Subscribe for ${formatEgpPrice(pkg.price)} EGP per ${periodKey}? You'll get +500 bonus coins and 2× daily rewards.`,
+        }),
+        [
+          { text: tCommon('cancel'), style: 'cancel', onPress: () => {} },
+          {
+            text: tCommon('confirm'),
+            onPress: async () => {
+              setPurchasingAdFree(type);
+              try {
+                const result = await IAPService.purchaseSubscription(user.id, type);
+                if (result.success) {
+                  setPremium(true);
+                  await getUserProfileWithAvatar?.();
+                  setToast({
+                    visible: true,
+                    type: 'success',
+                    title: tCoin('coinShop.removeAds.subscription.successTitle'),
+                    message: tCoin('coinShop.removeAds.subscription.successMessage'),
+                  });
+                } else {
+                  setToast({
+                    visible: true,
+                    type: 'info',
+                    title: tCommon('error'),
+                    message: result.error || tCoin('coinShop.removeAds.subscription.errorMessage'),
+                  });
+                }
+              } catch (e) {
+                setToast({
+                  visible: true,
+                  type: 'info',
+                  title: tCommon('error'),
+                  message: tCoin('coinShop.removeAds.subscription.errorMessage'),
+                });
+              } finally {
+                setPurchasingAdFree(null);
+              }
+            },
+          },
+        ]
+      );
+    },
+    [user?.id, playButtonClick, tCoin, tCommon, setPremium, getUserProfileWithAvatar]
+  );
 
   const adLoading =
     !isAdReady ||
@@ -162,7 +253,8 @@ const CoinShopScreen: React.FC<CoinShopScreenProps> = ({ navigation }) => {
     isShowingAd;
   const adReady = rewardedLoadState === 'loaded' && !isShowingAd;
   const adErrorState = !!adError || rewardedLoadState === 'failed';
-  const adDisabled = cooldown25 > 0 || isPremium || adLoading || !adReady || adErrorState;
+  const adDisabled =
+    progressiveInfo.maxReached || isPremium || adLoading || !adReady || adErrorState;
 
   const bottomPadding = Math.max(SPACING['2xl'], insets.bottom);
 
@@ -218,68 +310,37 @@ const CoinShopScreen: React.FC<CoinShopScreenProps> = ({ navigation }) => {
           {tCoin('coinShop.buyCoinsSubtitle', { defaultValue: 'Get more coins to unlock avatars and power-ups' })}
         </Text>
 
-        {/* Purchase cards - 2x2 grid (reference design) */}
-        <View style={styles.offers}>
-          {PURCHASE_PACKAGES.map((pkg) => (
-            <TouchableOpacity
-              key={pkg.id}
-              style={[styles.purchaseCard, pkg.coins >= 200 && styles.purchaseCardFeatured]}
-              activeOpacity={0.85}
-              onPress={() => {
-                playButtonClick();
-                setToast({
-                  visible: true,
-                  type: 'info',
-                  title: tCoin('coinShop.premiumPurchases'),
-                });
-              }}
-            >
-              <LinearGradient
-                colors={['#1E1B4B', '#2D2640', '#312E81']}
-                style={styles.purchaseCardGradient}
-              >
-                <Text style={styles.purchaseCoinsAmount}>{pkg.coins} COINS</Text>
-                <View style={styles.purchaseCoinRow}>
-                  {coinImageSource ? (
-                    <Image source={coinImageSource} style={styles.purchaseCoinIcon} resizeMode="contain" />
-                  ) : (
-                    <Text style={styles.purchaseCoinEmoji}>🪙</Text>
-                  )}
-                </View>
-                <View style={styles.purchaseButtonWrap}>
-                <View style={[styles.purchaseButton, styles.purchaseButtonSolid]}>
-                    <Text style={styles.purchaseButtonText}>{pkg.egp} EGP</Text>
-                </View>
-                </View>
-              </LinearGradient>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Watch video for 25 coins - clean card design */}
+        {/* Progressive Ads - Watch Ads for Coins */}
         <View style={styles.watchVideoSection}>
           <View style={styles.watchVideoCard}>
             <LinearGradient
               colors={['#064E3B', '#065F46', '#047857']}
               style={styles.watchVideoCardGradient}
             >
-              <Text style={styles.watchVideoLabel}>+25 COINS</Text>
-              <View style={styles.watchVideoCoinRow}>
-                {coinImageSource ? (
-                  <Image source={coinImageSource} style={styles.watchVideoCoinIcon} resizeMode="contain" />
-                ) : (
-                  <Text style={styles.purchaseCoinEmoji}>🪙</Text>
-                )}
-              </View>
-              <Text style={styles.watchVideoSubtext}>
-                {tCoin('coinShop.watchVideoToEarn', { defaultValue: 'Watch a short video' })}
+              <Text style={styles.watchVideoLabel}>
+                {tCoin('coinShop.progressiveAd.title', { defaultValue: 'Watch Ads for Coins' })}
               </Text>
+              <View style={styles.cycleCounterRow}>
+                <Text style={styles.cycleCounter}>
+                  {tCoin('coinShop.progressiveAd.cycleCounter', {
+                    current: progressiveInfo.adsWatchedThisHour,
+                    total: 5,
+                    defaultValue: `${progressiveInfo.adsWatchedThisHour}/5`,
+                  })}
+                </Text>
+                <Text style={styles.watchVideoSubtext}>
+                  {tCoin('coinShop.progressiveAd.completeAllReward', {
+                    total: 100,
+                    defaultValue: 'Complete all 5 rounds to get 100 coins',
+                  })}
+                </Text>
+              </View>
               <TouchableOpacity
                 style={[
                   styles.watchVideoButton,
                   adDisabled && styles.watchVideoButtonDisabled,
                 ]}
-                onPress={adErrorState ? () => { clearAdError(); loadRewardedAd(); } : handleWatchVideoPress}
+                onPress={adErrorState ? () => { clearAdError(); loadRewardedAd(); } : handleWatchProgressiveAd}
                 disabled={adDisabled && !adErrorState}
                 activeOpacity={0.85}
               >
@@ -302,13 +363,18 @@ const CoinShopScreen: React.FC<CoinShopScreenProps> = ({ navigation }) => {
                     <Text style={styles.watchVideoButtonText}>
                       {tCoin('coinShop.watchVideoRetry', { defaultValue: 'Tap to retry' })}
                     </Text>
-                  ) : cooldown25 > 0 ? (
-                    <Text style={styles.watchVideoButtonText}>
-                      {tCoin('coinShop.watchVideoAvailableIn', {
-                        time: formatMmSs(cooldown25),
-                        defaultValue: `Available in ${formatMmSs(cooldown25)}`,
-                      })}
-                    </Text>
+                  ) : progressiveInfo.maxReached ? (
+                    <View>
+                      <Text style={styles.watchVideoButtonText}>
+                        {tCoin('coinShop.progressiveAd.maxReached', { defaultValue: 'Max Reached' })}
+                      </Text>
+                      <Text style={styles.watchVideoButtonSubtext}>
+                        {tCoin('coinShop.progressiveAd.resetsIn', {
+                          time: formatCountdown(progressiveInfo.timeUntilResetMs),
+                          defaultValue: `Resets in: ${formatCountdown(progressiveInfo.timeUntilResetMs)}`,
+                        })}
+                      </Text>
+                    </View>
                   ) : isPremium ? (
                     <Text style={styles.watchVideoButtonText}>
                       {tCoin('coinShop.watchVideoUnavailable', { defaultValue: 'Unavailable' })}
@@ -317,14 +383,161 @@ const CoinShopScreen: React.FC<CoinShopScreenProps> = ({ navigation }) => {
                     <View style={styles.watchVideoButtonContent}>
                       <Text style={styles.watchVideoPlayIcon}>▶</Text>
                       <Text style={styles.watchVideoButtonText}>
-                        {tCoin('coinShop.watchVideoFree', { defaultValue: 'Watch Video • Free' })}
+                        {tCoin('coinShop.progressiveAd.watchButton', {
+                          coins: progressiveInfo.nextAdCoins,
+                          defaultValue: `Watch Ad for ${progressiveInfo.nextAdCoins} Coins`,
+                        })}
                       </Text>
                     </View>
                   )}
                 </View>
               </TouchableOpacity>
+              {!progressiveInfo.maxReached && progressiveInfo.adsWatchedThisHour < 5 && (
+                <Text style={styles.progressiveHint}>
+                  {progressiveInfo.adsWatchedThisHour < 4
+                    ? tCoin('coinShop.progressiveAd.nextReward', {
+                        coins: [15, 20, 25, 30][progressiveInfo.adsWatchedThisHour] ?? 15,
+                        defaultValue: `Next: ${[15, 20, 25, 30][progressiveInfo.adsWatchedThisHour] ?? 15} coins`,
+                      })
+                    : tCoin('coinShop.progressiveAd.finalReward', {
+                        coins: 30,
+                        defaultValue: 'Final: 30 coins',
+                      })}
+                </Text>
+              )}
+              {progressiveInfo.maxReached && (
+                <Text style={styles.progressiveHint}>
+                  {tCoin('coinShop.progressiveAd.hourlyMax', {
+                    defaultValue: 'You can earn up to 100 coins per hour!',
+                  })}
+                </Text>
+              )}
             </LinearGradient>
           </View>
+        </View>
+
+        {/* Remove Ads - Subscription options (compact horizontal) */}
+        <View style={styles.removeAdsSection}>
+          <Text style={styles.removeAdsLabel}>{tCoin('coinShop.removeAds.title')}</Text>
+          {isPremium || user?.adFree ? (
+            <View style={styles.removeAdsOwnedRow}>
+              <Text style={styles.removeAdsOwnedText}>{tCoin('coinShop.removeAds.alreadyOwned')}</Text>
+            </View>
+          ) : (
+            <View style={styles.removeAdsCardsColumn}>
+              {REMOVE_ADS_PACKAGES.map((pkg) => (
+                <TouchableOpacity
+                  key={pkg.id}
+                  style={[styles.removeAdsCard, pkg.popular && styles.removeAdsCardPopular]}
+                  onPress={() => handleRemoveAdsPurchase(pkg.id)}
+                  disabled={!!purchasingAdFree}
+                  activeOpacity={0.85}
+                >
+                  {pkg.popular && pkg.discount && (
+                    <View style={styles.removeAdsSaveBadge}>
+                      <Text style={styles.removeAdsSaveBadgeText}>🏷 {tCoin('coinShop.removeAds.subscription.saveBadge', { percent: pkg.discount })}</Text>
+                    </View>
+                  )}
+                  <LinearGradient
+                    colors={pkg.popular ? ['#5B21B6', '#2563EB', '#1D4ED8'] : ['#1E1B4B', '#2D2640']}
+                    style={styles.removeAdsCardInner}
+                  >
+                    {purchasingAdFree === pkg.id ? (
+                      <View style={styles.removeAdsCardContent}>
+                        <ActivityIndicator color={COLORS.white} size="small" />
+                      </View>
+                    ) : (
+                      <View style={styles.removeAdsCardContent}>
+                        <View style={styles.removeAdsCardLeft}>
+                          <Text style={styles.removeAdsCardTitle}>
+                            {tCoin(`coinShop.removeAds.subscription.${pkg.id}`)}
+                          </Text>
+                          <Text style={styles.removeAdsCardSubtitle}>
+                            {tCoin(`coinShop.removeAds.subscription.${pkg.subtitleKey}`)}
+                          </Text>
+                        </View>
+                        <View style={styles.removeAdsCardRight}>
+                          <Text style={styles.removeAdsCardPrice}>{formatEgpPrice(pkg.price)} EGP</Text>
+                          {pkg.id === 'yearly' && (
+                            <Text style={styles.removeAdsCardPerMonth}>
+                              {tCoin('coinShop.removeAds.subscription.perMonth', { price: (pkg.price / 12).toFixed(1) })}
+                            </Text>
+                          )}
+                        </View>
+                      </View>
+                    )}
+                  </LinearGradient>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
+
+        {/* Premium Purchase cards */}
+        <Text style={styles.introTitle}>
+          {tCoin('coinShop.premium.title', { defaultValue: 'Premium Coin Packages' })}
+        </Text>
+        <View style={styles.offers}>
+          {PURCHASE_PACKAGES.map((pkg) => (
+            <TouchableOpacity
+              key={pkg.id}
+              style={[styles.purchaseCard, pkg.popular && styles.purchaseCardFeatured]}
+              activeOpacity={0.85}
+              onPress={() => {
+                playButtonClick();
+                setToast({
+                  visible: true,
+                  type: 'info',
+                  title: tCoin('coinShop.premium.confirmMessage', {
+                    coins: pkg.coins,
+                    price: formatEgpPrice(pkg.price),
+                    defaultValue: `You'll receive ${pkg.coins} coins for ${formatEgpPrice(pkg.price)} EGP`,
+                  }),
+                });
+              }}
+            >
+              <LinearGradient
+                colors={['#1E1B4B', '#2D2640', '#312E81']}
+                style={styles.purchaseCardGradient}
+              >
+                <View style={styles.purchaseCardBadgeSlot}>
+                  {pkg.popular && (
+                    <View style={styles.bestValueBadge}>
+                      <Text style={styles.bestValueText}>
+                        {tCoin('coinShop.premium.bestValue', { defaultValue: 'BEST VALUE' })}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.purchaseCoinsAmount}>{pkg.coins.toLocaleString()} COINS</Text>
+                <View style={styles.purchaseCardBonusSlot}>
+                  {pkg.id === 'ultimate' ? (
+                    <Text style={styles.bonusText}>
+                      {tCoin('coinShop.premium.bonus', { amount: 900, defaultValue: '+ 900 BONUS!' })}
+                    </Text>
+                  ) : null}
+                </View>
+                <View style={styles.purchaseCoinRow}>
+                  {coinImageSource ? (
+                    <Image source={coinImageSource} style={styles.purchaseCoinIcon} resizeMode="contain" />
+                  ) : (
+                    <Text style={styles.purchaseCoinEmoji}>🪙</Text>
+                  )}
+                </View>
+                <Text style={styles.purchaseDescription}>{pkg.description}</Text>
+                <View style={[styles.purchaseButtonWrap, styles.purchaseButtonWrapUniform]}>
+                  <View style={[styles.purchaseButton, styles.purchaseButtonSolid]}>
+                    <Text style={styles.purchaseButtonText}>{formatEgpPrice(pkg.price)} EGP</Text>
+                    <Text style={[styles.savingsText, (!pkg.savings || pkg.savings === '0%') && styles.savingsTextInvisible]}>
+                      {pkg.savings && pkg.savings !== '0%'
+                        ? tCoin('coinShop.premium.savings', { percent: pkg.savings, defaultValue: `Save ${pkg.savings}` })
+                        : '\u00A0'}
+                    </Text>
+                  </View>
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
+          ))}
         </View>
 
         {successAmount != null && (
@@ -453,6 +666,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: SPACING.lg,
+    marginTop: SPACING.xl,
   },
   purchaseCard: {
     width: '47%',
@@ -513,6 +727,19 @@ const styles = StyleSheet.create({
     width: '100%',
     zIndex: 1,
   },
+  purchaseButtonWrapUniform: {
+    minHeight: 56,
+  },
+  purchaseCardBadgeSlot: {
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  purchaseCardBonusSlot: {
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   purchaseButton: {
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.xl,
@@ -530,6 +757,93 @@ const styles = StyleSheet.create({
   },
   watchVideoSection: {
     marginTop: SPACING['2xl'],
+    marginBottom: SPACING['2xl'],
+  },
+  removeAdsSection: {
+    marginBottom: SPACING.xl,
+  },
+  removeAdsLabel: {
+    color: COLORS.white,
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    marginBottom: SPACING.sm,
+    textAlign: 'center',
+  },
+  removeAdsOwnedRow: {
+    paddingVertical: SPACING.sm,
+  },
+  removeAdsOwnedText: {
+    color: COLORS.success,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    textAlign: 'center',
+  },
+  removeAdsCardsColumn: {
+    gap: SPACING.lg,
+  },
+  removeAdsCard: {
+    width: '100%',
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.25)',
+  },
+  removeAdsCardPopular: {
+    borderColor: 'rgba(91, 33, 182, 0.5)',
+    ...Platform.select({
+      ios: { shadowColor: '#8B5CF6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 12 },
+      android: { elevation: 8 },
+    }),
+  },
+  removeAdsSaveBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    backgroundColor: '#DC2626',
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 4,
+    borderBottomLeftRadius: 12,
+    zIndex: 1,
+  },
+  removeAdsSaveBadgeText: {
+    color: COLORS.white,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+  },
+  removeAdsCardInner: {
+    paddingVertical: SPACING.lg,
+    paddingHorizontal: SPACING.xl,
+    minHeight: 72,
+  },
+  removeAdsCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  removeAdsCardLeft: {
+    flex: 1,
+  },
+  removeAdsCardTitle: {
+    color: COLORS.white,
+    fontSize: TYPOGRAPHY.fontSize.xl,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+  },
+  removeAdsCardSubtitle: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    marginTop: 4,
+  },
+  removeAdsCardRight: {
+    alignItems: 'flex-end',
+  },
+  removeAdsCardPrice: {
+    color: COLORS.white,
+    fontSize: TYPOGRAPHY.fontSize.xl,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+  },
+  removeAdsCardPerMonth: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    marginTop: 4,
   },
   watchVideoCard: {
     borderRadius: 24,
@@ -568,8 +882,61 @@ const styles = StyleSheet.create({
   watchVideoSubtext: {
     color: 'rgba(255, 255, 255, 0.8)',
     fontSize: TYPOGRAPHY.fontSize.sm,
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.sm,
     textAlign: 'center',
+  },
+  cycleCounterRow: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SPACING.sm,
+  },
+  cycleCounter: {
+    color: COLORS.white,
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+  },
+  progressiveHint: {
+    color: 'rgba(255, 255, 255, 0.85)',
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    marginTop: SPACING.sm,
+    textAlign: 'center',
+  },
+  watchVideoButtonSubtext: {
+    color: COLORS.white,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    marginTop: 4,
+  },
+  bestValueBadge: {
+    backgroundColor: COLORS.warning,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  bestValueText: {
+    color: COLORS.white,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+  },
+  bonusText: {
+    color: '#FCD34D',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    marginBottom: SPACING.xs,
+  },
+  purchaseDescription: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    textAlign: 'center',
+    marginBottom: SPACING.sm,
+    zIndex: 1,
+  },
+  savingsText: {
+    color: COLORS.success,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    marginTop: 2,
+  },
+  savingsTextInvisible: {
+    opacity: 0,
   },
   watchVideoButton: {
     width: '100%',

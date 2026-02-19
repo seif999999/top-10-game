@@ -22,6 +22,18 @@ export type User = {
   selectedAvatar?: string; // Avatar ID or undefined for no avatar
   avatarUrl?: string; // Cached avatar URL
   coins?: number; // Coin balance (defaults to 0)
+  /** Legacy: one-time coin purchase for ad-free. Kept for backward compatibility. */
+  adFree?: boolean;
+  /** Subscription premium: monthly (60 EGP), quarterly (150 EGP), yearly (500 EGP). */
+  premiumType?: 'monthly' | 'quarterly' | 'yearly';
+  /** Timestamp (ms) when subscription expires. Undefined = not subscribed or legacy adFree. */
+  premiumExpiresAt?: number;
+  /** Timestamp (ms) when premium was purchased. */
+  premiumPurchasedAt?: number;
+  /** 2 for premium users (double daily rewards), 1 otherwise. */
+  dailyRewardMultiplier?: number;
+  /** VIP badge for premium subscribers. */
+  hasVIPBadge?: boolean;
   /** Populated when explicitly loading transaction history (e.g. CoinService.getCoinTransactions). */
   coinTransactions?: CoinTransaction[];
   // Daily streak fields

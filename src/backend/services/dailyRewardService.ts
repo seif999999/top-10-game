@@ -51,11 +51,12 @@ const isConsecutiveDay = (lastDate: Date, currentDate: Date): boolean => {
 };
 
 /**
- * Calculate reward based on current week
- * Week 1: 1 coin, Week 2: 2 coins, Week 3: 4 coins, Week 4: 8 coins, etc.
+ * Calculate reward based on current week, capped at 32 coins.
+ * Week 1: 1, Week 2: 2, Week 3: 4, Week 4: 8, Week 5: 16, Week 6+: 32.
  */
 const calculateReward = (week: number): number => {
-  return Math.pow(2, week - 1); // 1, 2, 4, 8, 16...
+  const baseReward = Math.pow(2, week - 1);
+  return Math.min(baseReward, 32);
 };
 
 /**
@@ -224,8 +225,12 @@ export const claimDailyReward = async (userId: string): Promise<DailyRewardResul
       currentWeek = 1;
     }
     
-    // Calculate reward
-    const reward = calculateReward(currentWeek);
+    // Calculate reward (2× for premium subscribers)
+    const multiplier = (typeof data.dailyRewardMultiplier === 'number' && data.dailyRewardMultiplier > 0)
+      ? data.dailyRewardMultiplier
+      : 1;
+    const baseReward = calculateReward(currentWeek);
+    const reward = baseReward * multiplier;
     const currentCoins = data.coins ?? 0;
     const newCoins = currentCoins + reward;
     

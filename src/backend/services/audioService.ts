@@ -426,6 +426,9 @@ class AudioService {
     }
     if (settings.musicEnabled !== undefined) {
       this.musicEnabled = settings.musicEnabled;
+      if (!settings.musicEnabled && this.backgroundMusic) {
+        this.stopBackgroundMusic();
+      }
     }
     if (settings.sfxVolume !== undefined) {
       this.sfxVolume = settings.sfxVolume;

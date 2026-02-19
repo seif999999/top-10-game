@@ -67,6 +67,10 @@
     "notYourTurnTitle": "Not Your Turn",
     "notYourTurnMessage": "Wait for your turn to submit answers."
   },
+  "rewards": {
+    "doubled": "Rewards Doubled!",
+    "doubledMessage": "Your coins have been doubled!"
+  },
   "exit": {
     "title": "Exit Game",
     "exitMultiplayerMessage": "Are you sure you want to leave the game? This will disconnect you from the room.",

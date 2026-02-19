@@ -60,20 +60,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           try {
             const userProfileService = UserProfileService.getInstance();
             let profile = await userProfileService.getUserProfile(currentUser.id);
-            // New users (no profile yet): grant 100 welcome coins; existing with 0: migration 50
+            // New users (no profile yet): initialize with 0 coins; no welcome/migration bonuses
             if (!profile) {
               try {
                 await CoinService.getInstance().initializeCoins(currentUser.id);
                 profile = await userProfileService.getUserProfile(currentUser.id);
               } catch (coinError) {
                 logger.warn('⚠️ AuthContext: initializeCoins on first load failed', coinError);
-              }
-            } else if ((profile.coins ?? 0) === 0) {
-              try {
-                const granted = await CoinService.getInstance().grantMigrationBonusIfNeeded(profile.id);
-                if (granted) profile = await userProfileService.getUserProfile(currentUser.id);
-              } catch (coinError) {
-                logger.warn('⚠️ AuthContext: migration bonus check failed', coinError);
               }
             }
             const freshUser = profile
@@ -502,16 +495,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       let profile = await authService.getUserProfileWithAvatar();
       if (!profile) return null;
 
-      // Migration: existing users with 0 coins get 50 once; new users (no profile) get 100 from initializeCoins elsewhere
-      if ((profile.coins ?? 0) === 0) {
-        try {
-          const granted = await CoinService.getInstance().grantMigrationBonusIfNeeded(profile.id);
-          if (granted) profile = await authService.getUserProfileWithAvatar();
-        } catch (coinError) {
-          logger.warn('⚠️ AuthContext: migration bonus in getProfile failed', coinError);
-        }
-      }
-      
       if (profile) {
         setUser(profile);
         syncAuthService(profile);

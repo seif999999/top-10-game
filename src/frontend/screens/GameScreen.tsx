@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Platform, Animated, BackHandler } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Platform, Animated, BackHandler, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ThemedAlert from '../utils/themedAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -29,6 +29,9 @@ import { logger } from '../../backend/utils/logger';
 import { incrementGameCompletionCount } from '../../backend/utils/gameCompletionStorage';
 import InterstitialAdLoader from '../components/ads/InterstitialAdLoader';
 import useAppTranslation from '../../hooks/useTranslation';
+import { updateGameStats } from '../../backend/services/statsService';
+import { useAd } from '../contexts/AdContext';
+import { CoinService } from '../../backend/services/CoinService';
 
 
 type AnswerLike = string | QuestionAnswer | Answer;
@@ -67,6 +70,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   } = useGame();
   const { user } = useAuth();
   const { playButtonClick, playSuccess, playError, playGameStart, playGameEnd } = useAudio();
+  const { isPremium, isAdReady, loadRewardedAd, showRewardedAd, rewardedLoadState } = useAd();
   
   // Multiplayer context
   const {
@@ -97,6 +101,10 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
 
   const [showResults, setShowResults] = useState(false);
   const [triggerInterstitial, setTriggerInterstitial] = useState(false);
+  const [preGameReady, setPreGameReady] = useState(false);
+  const [triggerPreGameAd, setTriggerPreGameAd] = useState(false);
+  const [lastGameCoinsEarned, setLastGameCoinsEarned] = useState(0);
+  const [rewardsDoubled, setRewardsDoubled] = useState(false);
   const [isAnswerSubmitted, setIsAnswerSubmitted] = useState(false);
   const [submittedAnswers, setSubmittedAnswers] = useState<string[]>([]);
   const [showQuestionComplete, setShowQuestionComplete] = useState(false);
@@ -289,10 +297,27 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     }
   }, [isMultiplayerMode, roomId, categoryId, gameState?.category, multiplayerState?.roomCode, multiplayerState?.gamePhase, multiplayerState?.currentQuestionIndex, multiplayerState?.questions?.length, user?.displayName, user?.email, user?.id, selectedQuestion?.title, teamConfig, customQuestion, isCustomQuestion]);
 
-  // Initialize game based on mode
+  // Pre-game ad: before every game (single-player + multiplayer), unless premium
   useEffect(() => {
+    if (isPremium) {
+      setPreGameReady(true);
+      return;
+    }
+    setTriggerPreGameAd(true);
+  }, [isPremium]);
+
+  // Timeout: if pre-game ad doesn't show within 5s, proceed anyway
+  useEffect(() => {
+    if (preGameReady) return;
+    const t = setTimeout(() => setPreGameReady(true), 5000);
+    return () => clearTimeout(t);
+  }, [preGameReady]);
+
+  // Initialize game (gated by preGameReady - set when pre-game ad closes or user is premium)
+  useEffect(() => {
+    if (!preGameReady) return;
     initializeGame();
-  }, [initializeGame]);
+  }, [initializeGame, preGameReady]);
 
   // Play game start sound when game initializes
   useEffect(() => {
@@ -318,14 +343,37 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
           ? revealedAnswers.filter(ra => ra !== null).length 
           : 0;
         if (revealedAnswersCount >= 10) {
+          // Process missions for multiplayer game completion (credits coins to balance)
+          if (user?.id && multiplayerState?.scores && multiplayerState?.players) {
+            const score = multiplayerState.scores[user.id] || 0;
+            const sorted = Object.entries(multiplayerState.scores)
+              .sort(([, a], [, b]) => (b || 0) - (a || 0));
+            const rankIndex = sorted.findIndex(([id]) => id === user.id);
+            const finalRank = rankIndex >= 0 ? rankIndex + 1 : undefined;
+            const playerCount = Object.keys(multiplayerState.players).length;
+            const isWinner = finalRank === 1;
+            updateGameStats(
+              user.id,
+              score,
+              categoryId || 'General',
+              10, // All 10 questions played when game ends
+              10,
+              0, // Time not tracked per-player in multiplayer
+              true,
+              isWinner,
+              finalRank,
+              playerCount
+            ).catch((e) => logger.warn('GameScreen: multiplayer updateGameStats failed', e));
+          }
           setShowMultiplayerLeaderboard(true);
           setShowGameEndRanking(false); // Ensure no overlapping modals
           setShowResults(false); // Hide results modal
           setShowAnswers(false); // Hide answers
+          setTriggerInterstitial(true); // Post-game ad after every multiplayer game
         }
       }
     }
-  }, [isMultiplayerMode, multiplayerState?.gamePhase, multiplayerState?.status, multiplayerState?.turnStartTime, multiplayerState?.revealedAnswers?.length]);
+  }, [isMultiplayerMode, multiplayerState?.gamePhase, multiplayerState?.status, multiplayerState?.turnStartTime, multiplayerState?.revealedAnswers?.length, multiplayerState?.scores, multiplayerState?.players, user?.id, categoryId]);
 
   // Timeout for multiplayer game loading - simplified dependencies
   useEffect(() => {
@@ -471,30 +519,39 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
         setShowGameEndRanking(true);
         setShowResults(true);
       } else {
-        // For single player games: track completion and show interstitial every 3 games
+        // For single player games: process missions (credits coins to balance) and show interstitial
+        const results = getGameResults();
+        if (user?.id && results) {
+          const score = Object.values(results.finalScores).reduce((a, b) => a + b, 0);
+          const correctAnswers = results.roundResults.reduce(
+            (count, r) => count + (r.playerAnswers?.length || 0),
+            0
+          );
+          const totalQuestions = results.roundResults.length || 10;
+          updateGameStats(
+            user.id,
+            score,
+            results.category,
+            correctAnswers,
+            totalQuestions,
+            results.totalTime,
+            false,
+            false
+          ).then((missionResult) => {
+            if (missionResult?.totalCoinsEarned) {
+              setLastGameCoinsEarned(missionResult.totalCoinsEarned);
+            }
+          }).catch((e) => logger.warn('GameScreen: updateGameStats failed', e));
+        }
         setShowGameEndRanking(true);
         incrementGameCompletionCount().then((newCount) => {
           logger.log('Interstitial ad frequency: game_completion_count', newCount);
-          if (newCount % 3 === 0) {
-            setTriggerInterstitial(true);
-          }
         });
-        // Navigate away after a brief delay (interstitial may show during or after)
-        setTimeout(() => {
-          resetGame();
-          navigation.dispatch(
-            CommonActions.reset({
-              index: 1,
-              routes: [
-                { name: 'Home' },
-                { name: 'Categories', params: { gameMode: 'single' } }
-              ]
-            })
-          );
-        }, 2000); // Show ranking overlay for 2 seconds then navigate
+        setTriggerInterstitial(true); // Post-game ad after every single-player game
+        // User taps overlay to dismiss (no auto-navigate; allows time for "double rewards" option)
       }
     }
-  }, [gameState?.gamePhase, showResults, isMultiplayerMode]);
+  }, [gameState?.gamePhase, showResults, isMultiplayerMode, getGameResults, user?.id]);
 
   // Reset interstitial trigger after ad closed or fallback (e.g. ad not loaded)
   useEffect(() => {
@@ -502,6 +559,13 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     const fallback = setTimeout(() => setTriggerInterstitial(false), 6000);
     return () => clearTimeout(fallback);
   }, [triggerInterstitial]);
+
+  // Preload rewarded ad when game end overlay is shown (for double rewards)
+  useEffect(() => {
+    if (showGameEndRanking && lastGameCoinsEarned > 0 && !isPremium && isAdReady) {
+      loadRewardedAd().catch(() => {});
+    }
+  }, [showGameEndRanking, lastGameCoinsEarned, isPremium, isAdReady, loadRewardedAd]);
 
   // Handle system messages (Sporcle-style notifications)
   useEffect(() => {
@@ -1284,8 +1348,12 @@ const handleEndGame = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      
-             {/* Header */}
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoidingWrapper}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+      {/* Header */}
       <View style={[styles.header, { paddingTop: Math.max(SPACING.xs, insets.top * 0.5) }]}>
         {isMultiplayerMode ? (
           <TouchableOpacity onPress={handleBackButton} style={styles.backButton}>
@@ -1315,6 +1383,7 @@ const handleEndGame = () => {
         style={styles.content}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Multiplayer Leaderboard */}
         {isMultiplayerMode && multiplayerState && (
@@ -1624,14 +1693,63 @@ const handleEndGame = () => {
          <TouchableOpacity
            style={styles.fullScreenTouchable}
            activeOpacity={1}
-           onPress={() => setShowGameEndRanking(false)}
+           onPress={() => {
+             setShowGameEndRanking(false);
+             if (!isMultiplayerMode) {
+               resetGame();
+               navigation.dispatch(
+                 CommonActions.reset({
+                   index: 1,
+                   routes: [
+                     { name: 'Home' },
+                     { name: 'Categories', params: { gameMode: 'single' } }
+                   ]
+                 })
+               );
+             }
+           }}
          >
           <RankingOverlay
             visible={showGameEndRanking}
             question={currentQuestion as Parameters<typeof RankingOverlay>[0]['question']}
             submittedAnswers={getCurrentRoundAnswers()}
-            onHide={() => setShowGameEndRanking(false)}
+            onHide={() => {
+              setShowGameEndRanking(false);
+              if (!isMultiplayerMode) {
+                resetGame();
+                navigation.dispatch(
+                  CommonActions.reset({
+                    index: 1,
+                    routes: [
+                      { name: 'Home' },
+                      { name: 'Categories', params: { gameMode: 'single' } }
+                    ]
+                  })
+                );
+              }
+            }}
             isGameEnd={true}
+            coinsEarned={!isMultiplayerMode ? lastGameCoinsEarned : 0}
+            rewardsDoubled={rewardsDoubled}
+            onWatchAdToDouble={async () => {
+              if (rewardsDoubled || lastGameCoinsEarned <= 0 || isPremium) return;
+              try {
+                await showRewardedAd(async () => {
+                  if (user?.id && lastGameCoinsEarned > 0) {
+                    await CoinService.getInstance().addCoins(
+                      user.id,
+                      lastGameCoinsEarned,
+                      'Double rewards: watch ad'
+                    );
+                    setRewardsDoubled(true);
+                    showToast('success', tGame('rewards.doubled'), tGame('rewards.doubledMessage'));
+                  }
+                });
+              } catch (e) {
+                logger.warn('Double rewards ad failed', e);
+              }
+            }}
+            adReady={rewardedLoadState === 'loaded'}
           />
          </TouchableOpacity>
        )}
@@ -1835,6 +1953,8 @@ const handleEndGame = () => {
           </View>
         )}
 
+      </KeyboardAvoidingView>
+
         {/* Toast Notification */}
         <ToastNotification
           visible={toastNotification.visible}
@@ -1844,7 +1964,17 @@ const handleEndGame = () => {
           onHide={hideToast}
         />
 
-        {/* Interstitial: every 3 single-player completions, 5 min cap; never in multiplayer */}
+        {/* Pre-game ad: before every game (single-player + multiplayer, unless premium) */}
+        <InterstitialAdLoader
+          trigger={triggerPreGameAd}
+          onAdClosed={() => {
+            setTriggerPreGameAd(false);
+            setPreGameReady(true);
+          }}
+          gameplayActive={false}
+          minimumInterval={0}
+        />
+        {/* Post-game ad: after every game (single-player + multiplayer) */}
         <InterstitialAdLoader
           trigger={triggerInterstitial}
           onAdClosed={() => setTriggerInterstitial(false)}
@@ -1858,6 +1988,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.backgroundTertiary
+  },
+  keyboardAvoidingWrapper: {
+    flex: 1,
   },
   loadingContainer: {
     flex: 1,

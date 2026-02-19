@@ -81,6 +81,12 @@ export class UserProfileService {
         selectedAvatar: userData.selectedAvatar,
         avatarUrl: userData.avatarUrl,
         coins: userData.coins ?? 0, // Default to 0 if not set
+        adFree: userData.adFree ?? false,
+        premiumType: userData.premiumType,
+        premiumExpiresAt: userData.premiumExpiresAt,
+        premiumPurchasedAt: userData.premiumPurchasedAt,
+        dailyRewardMultiplier: userData.dailyRewardMultiplier ?? 1,
+        hasVIPBadge: userData.hasVIPBadge ?? false,
         // Daily streak fields
         lastLoginDate: userData.lastLoginDate?.toDate(),
         currentStreak: userData.currentStreak ?? 0,
@@ -132,6 +138,12 @@ export class UserProfileService {
         selectedAvatar: user.selectedAvatar,
         avatarUrl: user.avatarUrl,
         coins: user.coins ?? 0, // Include coins in profile data
+        adFree: user.adFree ?? false,
+        premiumType: user.premiumType,
+        premiumExpiresAt: user.premiumExpiresAt,
+        premiumPurchasedAt: user.premiumPurchasedAt,
+        dailyRewardMultiplier: user.dailyRewardMultiplier ?? 1,
+        hasVIPBadge: user.hasVIPBadge ?? false,
         lastUpdated: serverTimestamp(),
       };
 
@@ -170,6 +182,105 @@ export class UserProfileService {
       logger.log(`User avatar updated for userId: ${userId}, avatar: ${selectedAvatar}`);
     } catch (error) {
       logger.error('Error updating user avatar:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Set premium subscription status (Option 1: Subscription model)
+   * Monthly 60 EGP, Quarterly 150 EGP, Yearly 500 EGP
+   */
+  public async setPremiumStatus(
+    userId: string,
+    type: 'monthly' | 'quarterly' | 'yearly'
+  ): Promise<void> {
+    try {
+      const { auth } = await import('./firebase');
+      const currentUser = auth.currentUser;
+      if (!currentUser || currentUser.uid !== userId) {
+        throw new AppError({
+          code: 'UNAUTHORIZED_UPDATE',
+          message: 'Users can only update their own profile',
+          userMessage: 'You can only update your own profile.',
+        });
+      }
+      const now = Date.now();
+      let expiresAt: number;
+      if (type === 'monthly') {
+        expiresAt = now + 30 * 24 * 60 * 60 * 1000;
+      } else if (type === 'quarterly') {
+        expiresAt = now + 90 * 24 * 60 * 60 * 1000;
+      } else {
+        expiresAt = now + 365 * 24 * 60 * 60 * 1000;
+      }
+      const userRef = doc(db, COLLECTIONS.USER_PROFILES, userId);
+      await updateDoc(userRef, {
+        premiumType: type,
+        premiumExpiresAt: expiresAt,
+        premiumPurchasedAt: now,
+        dailyRewardMultiplier: 2,
+        hasVIPBadge: true,
+        lastUpdated: serverTimestamp(),
+      });
+      logger.log(`Premium status set for ${userId}, type: ${type}, expiresAt: ${new Date(expiresAt).toISOString()}`);
+    } catch (error) {
+      logger.error('Error setting premium status:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Check if premium subscription is still active. Returns false if expired.
+   */
+  public async checkPremiumExpiration(userId: string): Promise<boolean> {
+    const profile = await this.getUserProfile(userId);
+    if (!profile) return false;
+    if (profile.adFree) return true; // Legacy coin purchase
+    if (!profile.premiumType || !profile.premiumExpiresAt) return false;
+    if (Date.now() > profile.premiumExpiresAt) {
+      const userRef = doc(db, COLLECTIONS.USER_PROFILES, userId);
+      await updateDoc(userRef, {
+        premiumType: null,
+        premiumExpiresAt: null,
+        premiumPurchasedAt: null,
+        dailyRewardMultiplier: 1,
+        hasVIPBadge: false,
+        lastUpdated: serverTimestamp(),
+      });
+      logger.log(`Premium expired for ${userId}`);
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Grant bonus perks on premium purchase: +500 coins
+   */
+  public async grantPremiumBonuses(userId: string): Promise<void> {
+    const { CoinService } = await import('./CoinService');
+    await CoinService.getInstance().addCoins(userId, 500, 'Premium purchase bonus');
+    logger.log(`Premium bonuses granted for ${userId}`);
+  }
+
+  /**
+   * Update ad-free status (e.g. after coin purchase - legacy)
+   */
+  public async updateAdFree(userId: string, adFree: boolean): Promise<void> {
+    try {
+      const { auth } = await import('./firebase');
+      const currentUser = auth.currentUser;
+      if (!currentUser || currentUser.uid !== userId) {
+        throw new AppError({
+          code: 'UNAUTHORIZED_UPDATE',
+          message: 'Users can only update their own profile',
+          userMessage: 'You can only update your own profile.',
+        });
+      }
+      const userRef = doc(db, COLLECTIONS.USER_PROFILES, userId);
+      await updateDoc(userRef, { adFree, lastUpdated: serverTimestamp() });
+      logger.log(`User ad-free updated for userId: ${userId}, adFree: ${adFree}`);
+    } catch (error) {
+      logger.error('Error updating ad-free status:', error);
       throw error;
     }
   }

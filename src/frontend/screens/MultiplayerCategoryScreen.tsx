@@ -350,6 +350,8 @@ const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () =
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Scroll hint - scrolls away when user scrolls down */}
+        <Text style={styles.scrollDownHint}>{t('gameSetup.scrollDown')}</Text>
         {/* Category Label */}
         <View style={styles.categoryLabelContainer}>
           <Text style={styles.settingLabel}>{t('gameSetup.category')}</Text>
@@ -448,31 +450,31 @@ const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () =
             </View>
           </View>
         </View>
-      </ScrollView>
 
-      {/* Continue Button */}
-      <View style={[styles.continueButtonContainer, { paddingBottom: insets.bottom + SPACING.md }]}>
-        <TouchableOpacity
-          onPress={handleContinue}
-          style={[styles.continueButton, isLoadingRandom && styles.continueButtonDisabled]}
-          activeOpacity={0.9}
-          disabled={isLoadingRandom}
-        >
-          <LinearGradient
-            colors={categories[currentIndex].id === 'Random' ? ['#059669', '#047857'] : ['#4F46E5', '#4338CA']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.continueButtonGradient}
+        {/* Continue Button - Inside ScrollView so it stays in content flow */}
+        <View style={[styles.continueButtonContainer, { paddingBottom: insets.bottom + SPACING.xl }]}>
+          <TouchableOpacity
+            onPress={handleContinue}
+            style={[styles.continueButton, isLoadingRandom && styles.continueButtonDisabled]}
+            activeOpacity={0.9}
+            disabled={isLoadingRandom}
           >
-            <Text style={styles.continueButtonText}>
-              {isLoadingRandom ? t('gameSetup.loading') : (categories[currentIndex].id === 'Random' ? t('gameSetup.startRandomGame') : t('gameSetup.continue'))}
-            </Text>
-            <Text style={styles.continueButtonArrow}>
-              {categories[currentIndex].id === 'Random' ? '🎲' : (isRTL ? '←' : '→')}
-            </Text>
-          </LinearGradient>
-        </TouchableOpacity>
-      </View>
+            <LinearGradient
+              colors={categories[currentIndex].id === 'Random' ? ['#059669', '#047857'] : ['#4F46E5', '#4338CA']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.continueButtonGradient}
+            >
+              <Text style={styles.continueButtonText}>
+                {isLoadingRandom ? t('gameSetup.loading') : (categories[currentIndex].id === 'Random' ? t('gameSetup.startRandomGame') : t('gameSetup.continue'))}
+              </Text>
+              <Text style={styles.continueButtonArrow}>
+                {categories[currentIndex].id === 'Random' ? '🎲' : (isRTL ? '←' : '→')}
+              </Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -513,6 +515,12 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  scrollDownHint: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.6)',
+    textAlign: 'center',
+    marginBottom: SPACING.sm,
   },
   scrollView: {
     flex: 1,
@@ -624,10 +632,7 @@ const styles = StyleSheet.create({
   },
   continueButtonContainer: {
     paddingHorizontal: SPACING.md,
-    paddingTop: SPACING.md,
-    borderTopWidth: 0.5,
-    borderTopColor: '#374151',
-    backgroundColor: '#0A0A0A',
+    paddingTop: SPACING.xl,
   },
   continueButton: {
     borderRadius: 12,

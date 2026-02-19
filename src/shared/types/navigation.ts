@@ -30,6 +30,7 @@ export type MainStackParamList = {
   CreateCustomQuestion: { slotIndex: number };
   CoinsShop: undefined;
   CoinHistory: undefined;
+  Shop: undefined;
 };
 
 // Combined Root Stack Types

@@ -107,7 +107,7 @@ class MultiplayerService {
   }
 
   /**
-   * Generates a unique 6-character room code
+   * Generates a unique 6-digit room code
    * ✅ SECURITY: Uses cryptographically secure random generation
    */
   private async generateRoomCode(): Promise<string> {

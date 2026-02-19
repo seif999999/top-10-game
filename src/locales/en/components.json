@@ -76,7 +76,10 @@
     "currentRankings": "Current Rankings",
     "gameComplete": "Game Complete!",
     "foundAnswers": "Found: {{count}}/10 answers",
-    "tapToContinue": "Tap anywhere to continue"
+    "tapToContinue": "Tap anywhere to continue",
+    "coinsEarned": "You earned {{count}} coins!",
+    "coinsDoubled": "You earned {{count}} coins! (Doubled!)",
+    "watchAdToDouble": "Watch ad to double rewards"
   },
   "googleSignIn": {
     "signInWithGoogle": "Sign in with Google"

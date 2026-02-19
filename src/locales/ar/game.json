@@ -67,6 +67,10 @@
     "notYourTurnTitle": "ليس دورك",
     "notYourTurnMessage": "انتظر دورك لإرسال الإجابات."
   },
+  "rewards": {
+    "doubled": "تم مضاعفة المكافآت!",
+    "doubledMessage": "تم مضاعفة عملاتك!"
+  },
   "exit": {
     "title": "الخروج من اللعبة",
     "exitMultiplayerMessage": "هل أنت متأكد أنك تريد مغادرة اللعبة؟ سيتم قطع اتصالك بالغرفة.",
