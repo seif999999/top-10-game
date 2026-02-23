@@ -4,6 +4,7 @@
  */
 
 import { Platform } from 'react-native';
+import { safeJsonParse } from '../utils/safeJson';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User } from '../../shared/types';
 import { logger } from '../utils/logger';
@@ -147,6 +148,21 @@ export const sessionManager = new SessionManager();
 /**
  * Clear all authentication-related data from storage
  */
+/** Mutex to prevent race conditions when reading/writing session concurrently. */
+let sessionMutex: Promise<void> = Promise.resolve();
+
+const withSessionLock = async <T>(fn: () => Promise<T>): Promise<T> => {
+  const prev = sessionMutex;
+  let resolveLock: () => void;
+  sessionMutex = new Promise<void>((r) => { resolveLock = r; });
+  try {
+    await prev;
+    return await fn();
+  } finally {
+    resolveLock!();
+  }
+};
+
 export const clearAuthStorage = async (): Promise<void> => {
   try {
     logger.log('🧹 Clearing auth storage...');
@@ -214,8 +230,8 @@ export const clearUserData = async (): Promise<void> => {
  * Store user session data for persistence
  */
 export const storeUserSession = async (user: User): Promise<void> => {
+  return withSessionLock(async () => {
   try {
-    
     const sessionData = {
       id: user.id,
       email: user.email,
@@ -233,12 +249,14 @@ export const storeUserSession = async (user: User): Promise<void> => {
   } catch (error) {
     logger.error('❌ Error storing user session:', error);
   }
+  });
 };
 
 /**
  * Retrieve user session data from storage
  */
 export const retrieveUserSession = async (): Promise<User | null> => {
+  return withSessionLock(async () => {
   try {
     logger.log('🔍 Retrieving user session from storage...');
     
@@ -255,22 +273,20 @@ export const retrieveUserSession = async (): Promise<User | null> => {
       return null;
     }
     
-    let parsed: any;
-    try {
-      parsed = JSON.parse(sessionData);
-    } catch (parseError) {
-      logger.error('❌ Error parsing session data, clearing corrupted session:', parseError);
-      await clearUserSession();
+    let parsed: Record<string, unknown> | null = safeJsonParse<Record<string, unknown>>(sessionData);
+    if (!parsed) {
+      logger.error('❌ Error parsing session data, clearing corrupted session');
+      await clearUserSessionUnlocked();
       return null;
     }
     
     // Check if session is not too old (24 hours)
-    const sessionAge = Date.now() - parsed.timestamp;
+    const sessionAge = Date.now() - (parsed.timestamp as number);
     const maxAge = SECURITY_CONFIG.sessionTimeout;
     
     if (sessionAge > maxAge) {
       logger.log('⏰ Stored session is too old, clearing...');
-      await clearUserSession();
+      await clearUserSessionUnlocked();
       return null;
     }
     
@@ -279,39 +295,45 @@ export const retrieveUserSession = async (): Promise<User | null> => {
       logger.log('🔄 Migrating session from old format (uid -> id)');
       parsed.id = parsed.uid;
       delete parsed.uid;
-      await storeUserSession(parsed as User);
+      await storeUserSession(parsed as unknown as User);
     }
     
     // Validate that we have a valid user ID
     if (!parsed.id) {
       logger.error('❌ Stored session missing user ID, clearing session...');
-      await clearUserSession();
+      await clearUserSessionUnlocked();
       return null;
     }
     
     logger.log('✅ User session retrieved:', parsed.email);
-    return parsed as User;
+    return parsed as unknown as User;
   } catch (error) {
     logger.error('❌ Error retrieving user session:', error);
     return null;
   }
+  });
 };
 
 /**
- * Clear user session data from storage
+ * Internal: clear session storage (call only when holding session lock)
  */
-export const clearUserSession = async (): Promise<void> => {
+async function clearUserSessionUnlocked(): Promise<void> {
   try {
     logger.log('🧹 Clearing user session from storage...');
-    
     if (Platform.OS === 'web') {
       localStorage.removeItem(AUTH_STORAGE_KEYS.USER_SESSION);
     } else {
       await AsyncStorage.removeItem(AUTH_STORAGE_KEYS.USER_SESSION);
     }
-    
     logger.log('✅ User session cleared from storage');
   } catch (error) {
     logger.error('❌ Error clearing user session:', error);
   }
+}
+
+/**
+ * Clear user session data from storage
+ */
+export const clearUserSession = async (): Promise<void> => {
+  return withSessionLock(clearUserSessionUnlocked);
 };

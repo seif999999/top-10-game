@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Modal, Switch, Linking, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ThemedAlert from '../utils/themedAlert';
@@ -38,6 +38,20 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     }
   }, [user?.displayName]);
 
+  const profileHeaderStyle = useMemo(
+    () => [styles.header, { paddingTop: Math.max(SPACING.xs, insets.top * 0.5), paddingBottom: SPACING.xs }, isRTL && styles.rtlRow],
+    [insets.top, isRTL]
+  );
+
+  const handleBackPress = useCallback(() => {
+    playButtonClick();
+    navigation.goBack();
+  }, [playButtonClick, navigation]);
+
+  const handleHowToPlayPress = useCallback(() => {
+    playButtonClick();
+    setShowHowToPlay(true);
+  }, [playButtonClick]);
 
   const handleSaveProfile = async () => {
     if (user?.id) {
@@ -81,6 +95,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     
     try {
       await updateUserProfile({ displayName: sanitizedDisplayName });
+      if (user?.id) {
+        await RateLimitService.recordAction(user.id, 'profileUpdate', { ipAddress: 'unknown', userAgent: 'mobile' }).catch(() => {});
+      }
       setUpdatedDisplayName(sanitizedDisplayName);
       ThemedAlert.success(tCommon('success'), tScreens('profile.profileUpdateSuccess'));
       setIsEditing(false);
@@ -174,8 +191,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
       >
         {/* Header (scrolls away with content) - reduced top inset so title sits higher */}
-        <View style={[styles.header, { paddingTop: Math.max(SPACING.xs, insets.top * 0.5), paddingBottom: SPACING.xs }, isRTL && styles.rtlRow]}>
-          <TouchableOpacity onPress={() => { playButtonClick(); navigation.goBack(); }} style={styles.backButton}>
+        <View style={profileHeaderStyle}>
+          <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
             <View style={styles.backButtonContent}>
               <Text style={styles.backButtonText}>{isRTL ? '→' : '←'}</Text>
               <View style={styles.backButtonDash} />
@@ -185,7 +202,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             <Text style={styles.headerTitle}>{tScreens('profile.title')}</Text>
           </View>
           <TouchableOpacity
-            onPress={() => { playButtonClick(); setShowHowToPlay(true); }}
+            onPress={handleHowToPlayPress}
             style={styles.howToPlayButton}
             accessibilityLabel={tScreens('profile.howToPlay')}
           >

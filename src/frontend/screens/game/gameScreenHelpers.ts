@@ -9,6 +9,24 @@ import { logger } from '../../../backend/utils/logger';
 import type { RoomData } from '../../../shared/types/game';
 
 /**
+ * Get sorted rank and score for multiplayer game end
+ */
+export function getMultiplayerFinalRankAndScore(
+  scores: Record<string, number> | undefined,
+  players: Record<string, unknown> | undefined,
+  userId: string
+): { score: number; finalRank: number | undefined; playerCount: number; isWinner: boolean } | null {
+  if (!scores || !players || !userId) return null;
+  const sorted = Object.entries(scores).sort(([, a], [, b]) => (b || 0) - (a || 0));
+  const rankIndex = sorted.findIndex(([id]) => id === userId);
+  const finalRank = rankIndex >= 0 ? rankIndex + 1 : undefined;
+  const playerCount = Object.keys(players).length;
+  const isWinner = finalRank === 1;
+  const score = scores[userId] || 0;
+  return { score, finalRank, playerCount, isWinner };
+}
+
+/**
  * Check if a multiplayer question is complete
  */
 export function isMultiplayerQuestionComplete(

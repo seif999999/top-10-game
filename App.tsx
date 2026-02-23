@@ -1,7 +1,11 @@
-import React from 'react';
-import { NavigationContainer, DarkTheme } from '@react-navigation/native';
+import React, { useRef, useEffect } from 'react';
+import * as WebBrowser from 'expo-web-browser';
+import { NavigationContainer, DarkTheme, useNavigationContainerRef } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+
+// CRITICAL: Must run at app startup so OAuth redirect from auth.expo.io is handled
+WebBrowser.maybeCompleteAuthSession();
 import { AuthProvider } from './src/frontend/contexts/AuthContext';
 import { AdProvider } from './src/frontend/contexts/AdContext';
 import { GameProvider } from './src/frontend/contexts/GameContext';
@@ -11,6 +15,8 @@ import { GlobalUIProvider } from './src/frontend/contexts/GlobalUIContext';
 import { LanguageProvider } from './src/frontend/contexts/LanguageContext';
 import AppNavigator from './src/frontend/navigation/AppNavigator';
 import { ThemedAlertModal } from './src/frontend/components/CrossPlatformAlert';
+import { setupDeepLinking } from './src/frontend/utils/deepLinking';
+import type { RootStackParamList } from './src/shared/types/navigation';
 import { View, Text, StyleSheet } from 'react-native';
 
 // Initialize i18next — must be imported before any component that uses translations
@@ -50,6 +56,16 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
 }
 
 export default function App() {
+  const navigationRef = useNavigationContainerRef<RootStackParamList>();
+  const deepLinkCleanupRef = useRef<{ remove: () => void } | null>(null);
+
+  useEffect(() => {
+    return () => {
+      deepLinkCleanupRef.current?.remove();
+      deepLinkCleanupRef.current = null;
+    };
+  }, []);
+
   return (
     <SafeAreaProvider style={styles.safeAreaProvider}>
       <ErrorBoundary>
@@ -62,6 +78,12 @@ export default function App() {
                     <ThemedAlertModal />
                     <View style={styles.navigationWrapper}>
                     <NavigationContainer
+                    ref={navigationRef}
+                    onReady={() => {
+                      if (navigationRef.current) {
+                        deepLinkCleanupRef.current = setupDeepLinking(navigationRef.current);
+                      }
+                    }}
                     theme={{
                       ...DarkTheme,
                       colors: {

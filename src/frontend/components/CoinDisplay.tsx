@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Animated } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -53,10 +53,17 @@ const CoinDisplay: React.FC<CoinDisplayProps> = ({
   }, [coins, scaleAnim]);
 
   const dims = SIZE_STYLES[size];
-  const handlePress = () => {
+  const handlePress = useCallback(() => {
     playButtonClick();
     if (showShopButton) navigation.navigate('CoinsShop');
-  };
+  }, [playButtonClick, showShopButton, navigation]);
+
+  const iconWrapStyle = useMemo(() => ({ width: dims.icon + 4, height: dims.icon + 4 }), [dims.icon]);
+  const iconImageStyle = useMemo(() => ({ width: dims.icon, height: dims.icon }), [dims.icon]);
+  const balanceStyle = useMemo(() => ({ fontSize: dims.fontSize }), [dims.fontSize]);
+  const plusWrapStyle = useMemo(() => ({ width: dims.plusSize, height: dims.plusSize }), [dims.plusSize]);
+  const plusTextStyle = useMemo(() => ({ fontSize: dims.fontSize * 0.9 }), [dims.fontSize]);
+  const animatedInnerStyle = useMemo(() => [styles.inner, { transform: [{ scale: scaleAnim }] }], [scaleAnim]);
 
   return (
     <TouchableOpacity
@@ -65,24 +72,24 @@ const CoinDisplay: React.FC<CoinDisplayProps> = ({
       disabled={!showShopButton}
       style={[styles.wrapper, style]}
     >
-      <Animated.View style={[styles.inner, { transform: [{ scale: scaleAnim }] }]}>
-        <View style={[styles.iconWrap, { width: dims.icon + 4, height: dims.icon + 4 }]}>
+      <Animated.View style={animatedInnerStyle}>
+        <View style={[styles.iconWrap, iconWrapStyle]}>
           {coinImageSource ? (
             <Image
               source={coinImageSource}
-              style={{ width: dims.icon, height: dims.icon }}
+              style={iconImageStyle}
               resizeMode="contain"
             />
           ) : (
             <Text style={[styles.emoji, { fontSize: dims.icon }]}>🪙</Text>
           )}
         </View>
-        <Text style={[styles.balance, { fontSize: dims.fontSize }]}>
+        <Text style={[styles.balance, balanceStyle]}>
           {coins.toLocaleString()}
         </Text>
         {showShopButton && (
-          <View style={[styles.plusWrap, { width: dims.plusSize, height: dims.plusSize }]}>
-            <Text style={[styles.plusText, { fontSize: dims.fontSize * 0.9 }]}>+</Text>
+          <View style={[styles.plusWrap, plusWrapStyle]}>
+            <Text style={[styles.plusText, plusTextStyle]}>+</Text>
           </View>
         )}
       </Animated.View>

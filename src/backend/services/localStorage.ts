@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { logger } from '../utils/logger';
+import { safeJsonParse } from '../utils/safeJson';
 import type { GameResults, GameRound, PlayerAnswer } from '../../shared/types';
 import type { Question } from '../../shared/types/game';
 
@@ -113,7 +114,8 @@ export const getPlayerStats = async (userId: string): Promise<GameStats> => {
 export const getAllGameStats = async (): Promise<{[userId: string]: GameStats}> => {
   try {
     const stats = await AsyncStorage.getItem(STORAGE_KEYS.GAME_STATS);
-    return stats ? JSON.parse(stats) : {};
+    const parsed = stats ? safeJsonParse<{[userId: string]: GameStats}>(stats) : null;
+    return parsed ?? {};
   } catch (error) {
     logger.error('Error getting all game stats:', error);
     return {};
@@ -143,7 +145,8 @@ export const saveFavoriteCategories = async (userId: string, categories: string[
 export const getCachedQuestions = async (category: string): Promise<Question[]> => {
   try {
     const cached = await AsyncStorage.getItem(`questions_${category}`);
-    return cached ? JSON.parse(cached) : [];
+    const parsed = cached ? safeJsonParse<Question[]>(cached) : null;
+    return parsed ?? [];
   } catch (error) {
     logger.error('Error getting cached questions:', error);
     return [];
@@ -200,7 +203,8 @@ export const getGameHistory = async (userId: string): Promise<GameHistory[]> => 
 export const getAllGameHistory = async (): Promise<{[userId: string]: GameHistory[]}> => {
   try {
     const history = await AsyncStorage.getItem(STORAGE_KEYS.GAME_HISTORY);
-    return history ? JSON.parse(history) : {};
+    const parsed = history ? safeJsonParse<{[userId: string]: GameHistory[]}>(history) : null;
+    return parsed ?? {};
   } catch (error) {
     logger.error('Error getting all game history:', error);
     return {};
@@ -256,7 +260,8 @@ export const getUserPreferences = async (userId: string): Promise<UserPreference
 export const getAllUserPreferences = async (): Promise<{[userId: string]: UserPreferences}> => {
   try {
     const preferences = await AsyncStorage.getItem(STORAGE_KEYS.USER_PREFERENCES);
-    return preferences ? JSON.parse(preferences) : {};
+    const parsed = preferences ? safeJsonParse<{[userId: string]: UserPreferences}>(preferences) : null;
+    return parsed ?? {};
   } catch (error) {
     logger.error('Error getting all user preferences:', error);
     return {};
@@ -317,7 +322,8 @@ export const getDeviceAudioPreferences = async (): Promise<DeviceAudioPreference
   try {
     const prefsJson = await AsyncStorage.getItem(STORAGE_KEYS.DEVICE_AUDIO_PREFERENCES);
     if (prefsJson) {
-      return JSON.parse(prefsJson);
+      const parsed = safeJsonParse<DeviceAudioPreferences>(prefsJson);
+      if (parsed) return parsed;
     }
     // Default values
     return {

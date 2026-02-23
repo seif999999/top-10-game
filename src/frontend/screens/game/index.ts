@@ -7,6 +7,7 @@ export { useGameScreenState } from './useGameScreenState';
 export type { ToastState, UseGameScreenStateProps } from './useGameScreenState';
 
 export {
+  getMultiplayerFinalRankAndScore,
   isMultiplayerQuestionComplete,
   getCurrentRoundAnswers,
   showConfirmDialog,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -28,6 +28,39 @@ interface MultiplayerLeaderboardScreenProps {
   countdownSeconds?: number;
 }
 
+// Helpers moved outside component so they are stable (no new function refs per render)
+function getRankIcon(rank: number): string {
+  switch (rank) {
+    case 1:
+      return '👑';
+    case 2:
+      return '🥈';
+    case 3:
+      return '🥉';
+    default:
+      return `${rank}`;
+  }
+}
+
+function getRankColor(rank: number): string {
+  switch (rank) {
+    case 1:
+      return '#FFD700';
+    case 2:
+      return '#C0C0C0';
+    case 3:
+      return '#CD7F32';
+    default:
+      return '#94A3B8';
+  }
+}
+
+const PLAYER_COLORS = ['#8B5CF6', '#EF4444', '#10B981', '#F59E0B', '#3B82F6', '#EC4899', '#06B6D4', '#84CC16'];
+
+function getPlayerColor(index: number): string {
+  return PLAYER_COLORS[index % PLAYER_COLORS.length];
+}
+
 const MultiplayerLeaderboardScreen: React.FC<MultiplayerLeaderboardScreenProps> = ({
   players,
   onQuit,
@@ -40,13 +73,17 @@ const MultiplayerLeaderboardScreen: React.FC<MultiplayerLeaderboardScreenProps> 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
 
-  // Sort players by score (descending) and assign ranks
-  const sortedPlayers = [...players]
-    .sort((a, b) => b.score - a.score)
-    .map((player, index) => ({
-      ...player,
-      rank: index + 1,
-    }));
+  // Sort players by score (descending) and assign ranks (memoized to avoid re-sort on every render)
+  const sortedPlayers = useMemo(
+    () =>
+      [...players]
+        .sort((a, b) => b.score - a.score)
+        .map((player, index) => ({
+          ...player,
+          rank: index + 1,
+        })),
+    [players]
+  );
 
   // Countdown timer effect
   useEffect(() => {
@@ -80,82 +117,56 @@ const MultiplayerLeaderboardScreen: React.FC<MultiplayerLeaderboardScreenProps> 
     ]).start();
   }, [fadeAnim, scaleAnim]);
 
-  const getRankIcon = (rank: number) => {
-    switch (rank) {
-      case 1:
-        return '👑';
-      case 2:
-        return '🥈';
-      case 3:
-        return '🥉';
-      default:
-        return `${rank}`;
-    }
-  };
+  const renderPlayer = useCallback(
+    ({ item, index }: { item: Player; index: number }) => {
+      const isWinner = item.rank === 1;
+      const playerColor = getPlayerColor(index);
 
-  const getRankColor = (rank: number) => {
-    switch (rank) {
-      case 1:
-        return '#FFD700'; // Gold
-      case 2:
-        return '#C0C0C0'; // Silver
-      case 3:
-        return '#CD7F32'; // Bronze
-      default:
-        return '#94A3B8'; // Gray
-    }
-  };
+      return (
+        <Animated.View
+          style={[
+            styles.playerRow,
+            isWinner && styles.winnerRow,
+            isRTL && styles.rtlRow,
+            { opacity: fadeAnim },
+          ]}
+        >
+          <View style={styles.rankContainer}>
+            <Text style={[styles.rankText, { color: getRankColor(item.rank) }]}>
+              {getRankIcon(item.rank)}
+            </Text>
+          </View>
 
-  const getPlayerColor = (index: number) => {
-    const colors = ['#8B5CF6', '#EF4444', '#10B981', '#F59E0B', '#3B82F6', '#EC4899', '#06B6D4', '#84CC16'];
-    return colors[index % colors.length];
-  };
+          <View style={styles.playerInfo}>
+            <AvatarIcon
+              user={{
+                id: item.playerId,
+                displayName: item.playerName,
+                email: `${item.playerId}@player.local`,
+                selectedAvatar: item.selectedAvatar,
+              }}
+              size={40}
+              showBorder={true}
+              borderColor={playerColor}
+            />
+            <Text style={[styles.playerName, isWinner && styles.winnerName]}>
+              {item.playerName}
+            </Text>
+          </View>
 
-  const renderPlayer = ({ item, index }: { item: Player; index: number }) => {
-    const isWinner = item.rank === 1;
-    const playerColor = getPlayerColor(index);
-    
-    return (
-      <Animated.View
-        style={[
-          styles.playerRow,
-          isWinner && styles.winnerRow,
-          isRTL && styles.rtlRow,
-          { opacity: fadeAnim }
-        ]}
-      >
-        <View style={styles.rankContainer}>
-          <Text style={[styles.rankText, { color: getRankColor(item.rank) }]}>
-            {getRankIcon(item.rank)}
-          </Text>
-        </View>
-        
-        <View style={styles.playerInfo}>
-          <AvatarIcon 
-            user={{ 
-              id: item.playerId, 
-              displayName: item.playerName, 
-              email: `${item.playerId}@player.local`,
-              selectedAvatar: item.selectedAvatar 
-            }} 
-            size={40} 
-            showBorder={true}
-            borderColor={playerColor}
-          />
-          <Text style={[styles.playerName, isWinner && styles.winnerName]}>
-            {item.playerName}
-          </Text>
-        </View>
-        
-        <View style={styles.scoreContainer}>
-          <Text style={[styles.scoreText, isWinner && styles.winnerScore]}>
-            {item.score}
-          </Text>
-          <Text style={[styles.scoreLabel, isRTL && styles.rtlText]}>{t('multiplayer.leaderboard.pts')}</Text>
-        </View>
-      </Animated.View>
-    );
-  };
+          <View style={styles.scoreContainer}>
+            <Text style={[styles.scoreText, isWinner && styles.winnerScore]}>
+              {item.score}
+            </Text>
+            <Text style={[styles.scoreLabel, isRTL && styles.rtlText]}>
+              {t('multiplayer.leaderboard.pts')}
+            </Text>
+          </View>
+        </Animated.View>
+      );
+    },
+    [fadeAnim, isRTL, t]
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -181,6 +192,10 @@ const MultiplayerLeaderboardScreen: React.FC<MultiplayerLeaderboardScreenProps> 
           keyExtractor={(item) => item.playerId}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.playersList}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          initialNumToRender={10}
         />
 
         {/* Countdown Timer */}

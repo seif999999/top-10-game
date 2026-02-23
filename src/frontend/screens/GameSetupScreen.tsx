@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { 
   View, 
   Text, 
@@ -189,7 +189,7 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
     }).start();
   }, [currentIndex]);
 
-  const handleBackToHome = () => {
+  const handleBackToHome = useCallback(() => {
     Animated.sequence([
       Animated.timing(backButtonScale, {
         toValue: 0.9,
@@ -202,9 +202,13 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
         useNativeDriver: true,
       })
     ]).start();
-    
     navigation.goBack();
-  };
+  }, [backButtonScale, navigation]);
+
+  const headerStyle = useMemo(
+    () => [styles.header, { paddingTop: Math.max(SPACING.xs, insets.top * 0.5) }, isRTL && styles.rtlRow],
+    [insets.top, isRTL]
+  );
 
   const handleNumberOfTeamsChange = (value: number) => {
     const clampedValue = Math.max(1, Math.min(4, value));
@@ -408,7 +412,7 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
         />
         
         {/* Header */}
-        <View style={[styles.header, { paddingTop: Math.max(SPACING.xs, insets.top * 0.5) }, isRTL && styles.rtlRow]}>
+        <View style={headerStyle}>
           <Animated.View style={{ transform: [{ scale: backButtonScale }] }}>
             <TouchableOpacity onPress={handleBackToHome} style={styles.backButton}>
               <Text style={styles.backButtonArrow}>{isRTL ? '→' : '←'}</Text>

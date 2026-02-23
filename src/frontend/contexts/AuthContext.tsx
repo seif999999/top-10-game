@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { AuthContextType, User } from '../../shared/types';
 import { signInWithEmail, signUpWithEmail, signOutUser, subscribeToAuthChanges, getCurrentUser, verifyAuthPersistence, resetPassword as resetPasswordService, signInWithGoogle, updateUserProfile as updateUserProfileService, forceReAuthentication } from '../../backend/services/auth';
 import { AuthService } from '../../backend/services/authService';
@@ -19,6 +19,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState<boolean>(true);
   const [pendingAction, setPendingAction] = useState<boolean>(false);
   const [welcomeCoinsMessage, setWelcomeCoinsMessage] = useState<string | null>(null);
+  const unsubscribeRef = useRef<(() => void) | null>(null);
 
   const buildAuthError = (error: unknown, fallback: AppErrorOptions): AppError => {
     const appError = toAppError(error, fallback);
@@ -141,13 +142,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       return unsub;
     };
-    
-    let unsub: (() => void) | undefined;
-    
-    initializeAuth().then((unsubscribe) => {
-      unsub = unsubscribe;
-    });
-    
+
+    initializeAuth()
+      .then((unsubscribe) => {
+        unsubscribeRef.current = unsubscribe;
+      })
+      .catch((e) => {
+        logger.error('AuthContext: initializeAuth failed', e);
+        setLoading(false);
+      });
+
     // Add a timeout to ensure loading state doesn't get stuck
     const loadingTimeout = setTimeout(() => {
       if (!isInitialized) {
@@ -156,16 +160,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isInitialized = true;
       }
     }, 10000); // 10 second timeout
-    
+
     return () => {
       clearTimeout(loadingTimeout);
-      if (unsub) {
-        unsub();
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+        unsubscribeRef.current = null;
       }
     };
   }, []);
 
-  const signIn = async (email: string, password: string) => {
+  const getUserProfileWithAvatar = useCallback(async (): Promise<User | null> => {
+    try {
+      logger.log('🔄 AuthContext: Getting user profile with avatar...');
+
+      const authService = AuthService.getInstance();
+      const profile = await authService.getUserProfileWithAvatar();
+      if (!profile) return null;
+
+      if (profile) {
+        setUser(profile);
+        syncAuthService(profile);
+      }
+      return profile;
+    } catch (error) {
+      buildAuthError(error, {
+        code: 'AUTH_PROFILE_FETCH_FAILED',
+        message: 'Profile fetch failed',
+        userMessage: 'Failed to load profile. Please try again.'
+      });
+      return user;
+    }
+  }, [user]);
+
+  const signIn = useCallback(async (email: string, password: string) => {
     logger.log('🔍 DEBUG: AuthContext signIn called with:', { email, password: password ? '***' : '' });
     setPendingAction(true);
     logger.log('🔍 DEBUG: AuthContext setPendingAction(true)');
@@ -173,9 +201,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       logger.log('🔍 DEBUG: AuthContext calling signInWithEmail...');
       await signInWithEmail(email, password);
       logger.log('✅ DEBUG: AuthContext signInWithEmail successful');
-      
-      // After successful sign in, explicitly fetch fresh user data from Firestore
-      // This ensures we get the latest avatar and display name, not stale local storage data
+
       try {
         const freshUser = await getUserProfileWithAvatar();
         if (freshUser) {
@@ -185,7 +211,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } catch (profileError) {
         logger.warn('⚠️ AuthContext: Failed to fetch fresh profile, will rely on auth state listener:', profileError);
-        // The auth state listener will update the user data, so this is not critical
       }
     } catch (error) {
       throw buildAuthError(error, {
@@ -198,18 +223,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       logger.log('🔍 DEBUG: AuthContext setPendingAction(false)');
       setPendingAction(false);
     }
-  };
+  }, [getUserProfileWithAvatar]);
 
-  const signInWithGoogleAuth = async (idToken: string) => {
+  const signInWithGoogleAuth = useCallback(async (idToken: string) => {
     setPendingAction(true);
     try {
       await signInWithGoogle(idToken);
     } finally {
       setPendingAction(false);
     }
-  };
+  }, []);
 
-  const signUp = async (email: string, password: string, displayName?: string) => {
+  const signUp = useCallback(async (email: string, password: string, displayName?: string) => {
     logger.log('🔍 DEBUG: AuthContext signUp called with:', { email, displayName, password: password ? '***' : '' });
     setPendingAction(true);
     logger.log('🔍 DEBUG: AuthContext setPendingAction(true)');
@@ -231,7 +256,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       logger.log('🔍 DEBUG: AuthContext setPendingAction(false)');
       setPendingAction(false);
     }
-  };
+  }, []);
 
   /**
    * Initiates password reset process with rate limiting protection
@@ -251,7 +276,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
    * @param email - The email address to send reset instructions to
    * @throws Error if rate limited or if password reset fails
    */
-  const resetPassword = async (email: string) => {
+  const resetPassword = useCallback(async (email: string) => {
     setPendingAction(true);
     try {
       // Check rate limiting for password reset requests
@@ -292,9 +317,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setPendingAction(false);
     }
-  };
+  }, []);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     setPendingAction(true);
     try {
       logger.log('🚪 AuthContext: Starting sign-out process...');
@@ -344,9 +369,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setPendingAction(false);
     }
-  };
+  }, []);
 
-  const updateUserProfile = async (updates: { displayName?: string; avatarId?: string }) => {
+  const updateUserProfile = useCallback(async (updates: { displayName?: string; avatarId?: string }) => {
     setPendingAction(true);
     try {
       logger.log('🔄 AuthContext: Updating user profile...', updates);
@@ -447,9 +472,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setPendingAction(false);
     }
-  };
+  }, [user]);
 
-  const updateUserAvatar = async (selectedAvatar: string | undefined) => {
+  const updateUserAvatar = useCallback(async (selectedAvatar: string | undefined) => {
     setPendingAction(true);
     try {
       
@@ -485,37 +510,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setPendingAction(false);
     }
-  };
+  }, []);
 
-  const getUserProfileWithAvatar = async (): Promise<User | null> => {
-    try {
-      logger.log('🔄 AuthContext: Getting user profile with avatar...');
-      
-      const authService = AuthService.getInstance();
-      let profile = await authService.getUserProfileWithAvatar();
-      if (!profile) return null;
-
-      if (profile) {
-        setUser(profile);
-        syncAuthService(profile);
-      }
-      return profile;
-    } catch (error) {
-      buildAuthError(error, {
-        code: 'AUTH_PROFILE_FETCH_FAILED',
-        message: 'Profile fetch failed',
-        userMessage: 'Failed to load profile. Please try again.'
-      });
-      return user; // Return current user state if error
-    }
-  };
-
-  const clearWelcomeCoinsMessage = () => setWelcomeCoinsMessage(null);
+  const clearWelcomeCoinsMessage = useCallback(() => setWelcomeCoinsMessage(null), []);
 
   const value = useMemo<AuthContextType>(
     () => ({
       user,
-      loading: loading,
+      loading,
       pendingAction,
       welcomeCoinsMessage,
       clearWelcomeCoinsMessage,
@@ -528,7 +530,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       updateUserAvatar,
       getUserProfileWithAvatar,
     }),
-    [user, loading, pendingAction, welcomeCoinsMessage]
+    [
+      user,
+      loading,
+      pendingAction,
+      welcomeCoinsMessage,
+      clearWelcomeCoinsMessage,
+      signIn,
+      signUp,
+      signOut,
+      resetPassword,
+      signInWithGoogleAuth,
+      updateUserProfile,
+      updateUserAvatar,
+      getUserProfileWithAvatar,
+    ]
   );
 
   if (loading) {

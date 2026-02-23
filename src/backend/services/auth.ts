@@ -449,22 +449,20 @@ export const verifyAuthPersistence = async (): Promise<boolean> => {
     
     // For mobile platforms, check if AsyncStorage is working
     if (Platform.OS !== 'web') {
+      const testKey = 'auth_persistence_test';
       try {
-        const testKey = 'auth_persistence_test';
         const testValue = 'test_value_' + Date.now();
-        
         await AsyncStorage.setItem(testKey, testValue);
         const retrievedValue = await AsyncStorage.getItem(testKey);
-        
-        if (retrievedValue === testValue) {
-          await AsyncStorage.removeItem(testKey);
-        } else {
+        if (retrievedValue !== testValue) {
           logger.error('❌ AsyncStorage test failed');
           return false;
         }
       } catch (storageError) {
         logger.error('❌ AsyncStorage error:', storageError);
         return false;
+      } finally {
+        await AsyncStorage.removeItem(testKey).catch(() => {});
       }
     }
     

@@ -358,11 +358,14 @@ class DataRetentionService {
     await deleteDoc(profileRef);
   }
 
+  private static readonly MAX_GAMES_DELETION_PER_RUN = 500;
+
   private static async deleteGameData(userId: string): Promise<void> {
-    // Delete user's game history from multiplayer games
+    // Delete user's game history from multiplayer games (bounded for cost control)
     const gamesQuery = query(
       collection(db, COLLECTIONS.MULTIPLAYER_GAMES),
-      where('players', 'array-contains', userId)
+      where('players', 'array-contains', userId),
+      limit(this.MAX_GAMES_DELETION_PER_RUN)
     );
     const gamesSnapshot = await getDocs(gamesQuery);
     

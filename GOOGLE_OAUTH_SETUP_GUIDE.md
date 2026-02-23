@@ -42,13 +42,15 @@ Go to: **APIs & Services → Credentials**
 1. Click **"+ CREATE CREDENTIALS"** → **"OAuth 2.0 Client ID"**
 2. **Application type**: `Web application`
 3. **Name**: `Top10Game Web Client`
-4. **Authorized redirect URIs** - Add these EXACT URIs:
+4. **Authorized redirect URIs** - Add ALL of these to your **Web** OAuth client:
    ```
-   https://auth.expo.io/@anonymous/top10game
-   https://auth.expo.io/@your-username/top10game
+   https://auth.expo.io/@seifnazmy/top10game
+   top10game://oauth
    http://localhost:19006
    http://localhost:8081
    ```
+   - `https://auth.expo.io/...` - For Expo Go only
+   - `top10game://oauth` - For dev builds (bypasses broken auth.expo.io)
 5. Click **"Create"**
 6. **Copy the Client ID** - this is your `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`
 
@@ -93,8 +95,8 @@ Enable these APIs:
 ## 🔧 **Important Configuration Notes**
 
 ### **Redirect URI Format:**
-- **Development**: `https://auth.expo.io/@anonymous/top10game`
-- **Production**: `https://auth.expo.io/@your-username/top10game`
+- **Expo Go**: `https://auth.expo.io/@seifnazmy/top10game` (deprecated, may show "Something went wrong")
+- **Dev build / standalone**: `top10game://oauth` (direct app redirect - recommended)
 - **Local Web**: `http://localhost:19006` or `http://localhost:8081`
 
 ### **OAuth Consent Screen Status:**
@@ -118,6 +120,10 @@ Enable these APIs:
 4. **Check the logs** for any remaining errors
 
 ## 🚨 **Common Issues & Solutions**
+
+### **"Send an email" / wrong redirect after selecting account (auth.expo.io)**
+- **Cause**: Deprecated auth.expo.io proxy fails on mobile (cookies blocked, "Something went wrong").
+- **Fix**: Use a dev build (not Expo Go) with `top10game://oauth` as redirect. Add it to Google Console. The app now uses this for dev builds automatically.
 
 ### **Error: "invalid_request"**
 - ✅ **Solution**: Check that redirect URIs match exactly

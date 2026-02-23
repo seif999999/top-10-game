@@ -32,6 +32,7 @@ import { getServerTimeOffset, formatTimeRemaining } from './timeSync';
 import { findBestMatch, normalizeAnswerEnhanced } from './fuzzyMatching';
 import { ServerGameService } from './serverGameService';
 import { logger } from '../utils/logger';
+import { generateSecureRoomCode } from '../utils/secureRandom';
 import { RateLimitService } from './rateLimitService';
 import { AnswerValidationService } from './answerValidationService';
 import { TIMING, COLLECTIONS } from '../utils/constants';
@@ -97,7 +98,6 @@ class MultiplayerService {
   private authService = AuthService.getInstance();
   private edgeCaseHandler = EdgeCaseHandler.getInstance();
   private connectionMonitor: Map<string, NodeJS.Timeout> = new Map();
-  private lastActivity: Map<string, number> = new Map();
 
   /**
    * Ensures the user is authenticated, signs them in anonymously if not
@@ -111,7 +111,6 @@ class MultiplayerService {
    * ✅ SECURITY: Uses cryptographically secure random generation
    */
   private async generateRoomCode(): Promise<string> {
-    const { generateSecureRoomCode } = await import('../utils/secureRandom');
     return generateSecureRoomCode();
   }
 
@@ -177,11 +176,6 @@ class MultiplayerService {
           userMessage: 'Room creation validation failed. Please try again.'
         });
       }
-      
-      // Check for rate limiting (disabled for development)
-      // if (await this.checkRateLimit(userId, 'room_creation')) {
-      //   throw new Error('Too many room creation attempts. Please wait before creating another room.');
-      // }
       
       // Note: Removed test collection write - it was causing production failures
       // because Firestore rules block test collection access. Firebase connectivity
@@ -294,6 +288,8 @@ class MultiplayerService {
       // Start connection monitoring for the host
       this.startConnectionMonitoring(roomCode, userId, true);
 
+      await RateLimitService.recordAction(userId, 'roomCreation', { ipAddress: 'unknown', userAgent: 'mobile' }).catch(() => {});
+
       logger.log('✅ Room created successfully:', roomCode);
       return roomCode;
     } catch (error) {
@@ -327,7 +323,6 @@ class MultiplayerService {
       logger.log('Creating room with user:', userId);
       
       // ✅ SECURITY: Generate secure room code using cryptographically secure random
-      const { generateSecureRoomCode } = await import('../utils/secureRandom');
       const roomCode = await generateSecureRoomCode();
       
       // Minimal room data
@@ -460,6 +455,8 @@ class MultiplayerService {
       // Start connection monitoring for the player
       this.startConnectionMonitoring(roomCode, playerId, false);
 
+      await RateLimitService.recordAction(playerId, 'roomJoining', { roomCode, ipAddress: 'unknown', userAgent: 'mobile' }).catch(() => {});
+
       logger.log(`✅ Player ${playerName} joined room ${roomCode}`);
       return true;
     } catch (error) {
@@ -479,6 +476,15 @@ class MultiplayerService {
    */
   async leaveRoom(roomCode: string, playerId: string): Promise<void> {
     try {
+      const rateLimitResult = await RateLimitService.checkRateLimit(playerId, 'leaveRoom', { roomCode });
+      if (!rateLimitResult.allowed) {
+        throw new AppError({
+          code: 'MP_RATE_LIMITED',
+          message: rateLimitResult.error || 'Too many leave attempts. Please wait.',
+          userMessage: rateLimitResult.error || 'Too many leave attempts. Please wait before trying again.',
+        });
+      }
+
       const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await getDoc(roomRef);
       
@@ -619,6 +625,7 @@ class MultiplayerService {
         }
       }
 
+      await RateLimitService.recordAction(playerId, 'leaveRoom', { roomCode }).catch(() => {});
       logger.log(`✅ Player ${playerId} left room ${roomCode}`);
     } catch (error) {
       logger.error('Error leaving room:', error);
@@ -630,12 +637,21 @@ class MultiplayerService {
    * Starts the game (host only) - atomic transition from lobby to playing
    */
   async startGame(roomCode: string, hostId: string, timeLimit: number = 60): Promise<void> {
+    const rateLimitResult = await RateLimitService.checkRateLimit(hostId, 'startGame', { roomCode });
+    if (!rateLimitResult.allowed) {
+      throw new AppError({
+        code: 'MP_RATE_LIMITED',
+        message: rateLimitResult.error || 'Too many game start attempts.',
+        userMessage: rateLimitResult.error || 'Too many game start attempts. Please wait before trying again.',
+      });
+    }
     await this.startGameCore({
       roomCode,
       hostId,
       label: 'ROOM_START',
       start: () => hostStartGame(roomCode, hostId, timeLimit),
     });
+    await RateLimitService.recordAction(hostId, 'startGame', { roomCode }).catch(() => {});
   }
 
   /**
@@ -675,6 +691,15 @@ class MultiplayerService {
    */
   async kickPlayer(roomCode: string, hostId: string, targetPlayerId: string): Promise<void> {
     try {
+      const rateLimitResult = await RateLimitService.checkRateLimit(hostId, 'kickPlayer', { roomCode });
+      if (!rateLimitResult.allowed) {
+        throw new AppError({
+          code: 'MP_RATE_LIMITED',
+          message: rateLimitResult.error || 'Too many kick attempts.',
+          userMessage: rateLimitResult.error || 'Too many kick attempts. Please wait before trying again.',
+        });
+      }
+
       const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await getDoc(roomRef);
       
@@ -811,6 +836,15 @@ class MultiplayerService {
    */
   async advanceTurn(roomCode: string, playerId: string): Promise<void> {
     try {
+      const rateLimitResult = await RateLimitService.checkRateLimit(playerId, 'advanceTurn', { roomCode });
+      if (!rateLimitResult.allowed) {
+        throw new AppError({
+          code: 'MP_RATE_LIMITED',
+          message: rateLimitResult.error || 'Too many turn advances.',
+          userMessage: rateLimitResult.error || 'Too many turn advances. Please wait before trying again.',
+        });
+      }
+
       logger.log(`🔄 ADVANCE_TURN: Advancing turn in room ${roomCode} for player ${playerId}`);
       
       const result = await advanceTurn(roomCode, playerId);
@@ -819,6 +853,7 @@ class MultiplayerService {
         throw new Error(result.error || 'Failed to advance turn');
       }
       
+      await RateLimitService.recordAction(playerId, 'advanceTurn', { roomCode }).catch(() => {});
       logger.log(`✅ ADVANCE_TURN: Turn advanced successfully`);
     } catch (error) {
       logger.error('❌ ADVANCE_TURN: Error advancing turn:', error);
@@ -933,6 +968,14 @@ class MultiplayerService {
    * V2 Game Flow Methods - Following exact specification
    */
   async startGameV2(roomCode: string, hostId: string, turnTimeLimitSec: number = 60): Promise<void> {
+    const rateLimitResult = await RateLimitService.checkRateLimit(hostId, 'startGame', { roomCode });
+    if (!rateLimitResult.allowed) {
+      throw new AppError({
+        code: 'MP_RATE_LIMITED',
+        message: rateLimitResult.error || 'Too many game start attempts.',
+        userMessage: rateLimitResult.error || 'Too many game start attempts. Please wait before trying again.',
+      });
+    }
     await this.startGameCore({
       roomCode,
       hostId,
@@ -940,6 +983,7 @@ class MultiplayerService {
       start: () => hostStartGameV2(roomCode, hostId, turnTimeLimitSec),
       reset: () => resetRoomStatus(roomCode, hostId),
     });
+    await RateLimitService.recordAction(hostId, 'startGame', { roomCode }).catch(() => {});
   }
 
   async submitAnswerV2(roomCode: string, playerId: string, answerText: string): Promise<{ success: boolean; points?: number; error?: string; roundEnded?: boolean }> {
@@ -1002,7 +1046,9 @@ class MultiplayerService {
         logger.log('❌ SERVICE - GAME FLOW FAILED:', result.error);
         return { success: false, error: result.error };
       }
-      
+
+      await RateLimitService.recordAction(playerId, 'answerSubmission', { roomCode }).catch(() => {});
+
       logger.log(`✅ SUBMIT_ANSWER_V2: Answer submitted successfully, points: ${result.points}, roundEnded: ${result.roundEnded || false}`);
       return { success: true, points: result.points, roundEnded: result.roundEnded };
     } catch (error) {
@@ -1036,7 +1082,9 @@ class MultiplayerService {
         logger.log('❌ SKIP_TURN_V2: Failed to skip turn:', result.error);
         return { success: false, error: result.error };
       }
-      
+
+      await RateLimitService.recordAction(playerId, 'skipTurn', { roomCode }).catch(() => {});
+
       logger.log(`✅ SKIP_TURN_V2: Turn skipped successfully`);
       return { success: true };
     } catch (error) {
@@ -1149,6 +1197,15 @@ class MultiplayerService {
    */
   async revealAnswer(roomCode: string, hostId: string, answer: string): Promise<void> {
     try {
+      const rateLimitResult = await RateLimitService.checkRateLimit(hostId, 'revealAnswer', { roomCode: roomCode });
+      if (!rateLimitResult.allowed) {
+        throw new AppError({
+          code: 'MP_RATE_LIMITED',
+          message: rateLimitResult.error || 'Too many reveal attempts.',
+          userMessage: rateLimitResult.error || 'Too many reveal attempts. Please wait before trying again.',
+        });
+      }
+
       const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await getDoc(roomRef);
       
@@ -1211,6 +1268,7 @@ class MultiplayerService {
         lastActivity: Date.now()
       });
 
+      await RateLimitService.recordAction(hostId, 'revealAnswer', { roomCode }).catch(() => {});
       logger.log(`✅ Answer "${answer}" revealed in room ${roomCode}`);
     } catch (error) {
       logger.error('Error revealing answer:', error);
@@ -1377,26 +1435,6 @@ class MultiplayerService {
   // ========================================
   // EDGE CASE HANDLING METHODS
   // ========================================
-
-  /**
-   * Check rate limiting for user actions
-   */
-  private async checkRateLimit(userId: string, action: string): Promise<boolean> {
-    const now = Date.now();
-    const key = `${userId}-${action}`;
-    const lastActivity = this.lastActivity.get(key) || 0;
-    
-    // Check if user has exceeded rate limit
-    if (action === 'room_creation') {
-      const timeSinceLastCreation = now - lastActivity;
-      if (timeSinceLastCreation < 3600000) { // 1 hour
-        return true; // Rate limited
-      }
-    }
-    
-    this.lastActivity.set(key, now);
-    return false;
-  }
 
   /**
    * Start connection monitoring for a player

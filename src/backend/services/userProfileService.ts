@@ -162,9 +162,20 @@ export class UserProfileService {
 
   /**
    * Update only avatar selection
+   * ✅ SECURITY: Validates userId matches authenticated user (defense-in-depth)
    */
   public async updateUserAvatar(userId: string, selectedAvatar: string | undefined): Promise<void> {
     try {
+      const { auth } = await import('./firebase');
+      const currentUser = auth.currentUser;
+      if (!currentUser || currentUser.uid !== userId) {
+        logger.error('UserProfileService: Unauthorized updateUserAvatar', { requested: userId, auth: currentUser?.uid });
+        throw new AppError({
+          code: 'UNAUTHORIZED_UPDATE',
+          message: 'Users can only update their own profile',
+          userMessage: 'You can only update your own profile.',
+        });
+      }
       const userRef = doc(db, COLLECTIONS.USER_PROFILES, userId);
       
       const updateData: Record<string, unknown> = {
@@ -287,9 +298,20 @@ export class UserProfileService {
 
   /**
    * Update avatar URL (for caching)
+   * ✅ SECURITY: Validates userId matches authenticated user (defense-in-depth)
    */
   public async updateAvatarUrl(userId: string, avatarUrl: string | null): Promise<void> {
     try {
+      const { auth } = await import('./firebase');
+      const currentUser = auth.currentUser;
+      if (!currentUser || currentUser.uid !== userId) {
+        logger.error('UserProfileService: Unauthorized updateAvatarUrl', { requested: userId, auth: currentUser?.uid });
+        throw new AppError({
+          code: 'UNAUTHORIZED_UPDATE',
+          message: 'Users can only update their own profile',
+          userMessage: 'You can only update your own profile.',
+        });
+      }
       const userRef = doc(db, COLLECTIONS.USER_PROFILES, userId);
       
       await updateDoc(userRef, {
