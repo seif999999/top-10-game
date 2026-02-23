@@ -343,11 +343,15 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
 
   // Presence monitoring and reconnection
   useEffect(() => {
-    if (!state.currentRoom || !user?.id) return;
+    const room = state.currentRoom;
+    if (!room || !user?.id) return;
 
     const updatePresence = async () => {
       try {
-        await updatePlayerPresence(state.currentRoom!.roomCode, user.id, true);
+        const currentRoom = state.currentRoom;
+        if (currentRoom?.roomCode && user?.id) {
+          await updatePlayerPresence(currentRoom.roomCode, user.id, true);
+        }
       } catch (error) {
         logger.warn('⚠️ PRESENCE: Failed to update presence:', error);
       }
@@ -362,8 +366,9 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
     // Cleanup on unmount
     return () => {
       clearInterval(presenceInterval);
-      if (state.currentRoom && user?.id) {
-        updatePlayerPresence(state.currentRoom.roomCode, user.id, false).catch(logger.warn);
+      const currentRoom = state.currentRoom;
+      if (currentRoom?.roomCode && user?.id) {
+        updatePlayerPresence(currentRoom.roomCode, user.id, false).catch(logger.warn);
       }
     };
   }, [state.currentRoom?.roomCode, user?.id]);

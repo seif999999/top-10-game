@@ -28,7 +28,9 @@ service cloud.firestore {
                         'email', 'displayName', 'createdAt', 'stats', 
                         'selectedAvatar', 'avatarUrl', 'coins', 'lastUpdated', 'isPublic',
                         'lastLoginDate', 'currentStreak', 'currentWeek',
-                        'unlockedCustomSlots'
+                        'unlockedCustomSlots',
+                        'premiumType', 'premiumExpiresAt', 'premiumPurchasedAt',
+                        'adFree', 'dailyRewardMultiplier', 'hasVIPBadge'
                       ]);
     }
     
@@ -59,19 +61,24 @@ service cloud.firestore {
       allow delete: if request.auth != null && resource.data.hostId == request.auth.uid;
     }
     
+    // Action logs - rate limit service writes audit logs (userId must match auth)
+    match /actionLogs/{logId} {
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if false;
+    }
+    
     // Rate limits - allow writes for authentication rate limiting (before user is authenticated)
-    // and for authenticated users to track their own rate limits
+    // and for authenticated users to track their own rate limits only
     match /rateLimits/{documentId} {
-      // Allow read for authenticated users or for password reset rate limit checks (unauthenticated)
+      // Allow read for authenticated users or for password reset / auth rate limit checks (unauthenticated)
       allow read: if request.auth != null || 
-                     documentId.matches('.*_passwordReset') ||
+                     documentId.matches('.*_password_reset') ||
                      documentId.matches('auth_.*');
-      // Allow write for auth rate limits and password reset rate limits (unauthenticated) 
-      // or for authenticated users
-      // Auth rate limits use "auth_" prefix, password reset uses "_passwordReset" suffix
+      // Unauthenticated: auth_* (login rate limit) and *_password_reset (password reset by email)
+      // Authenticated: only allow writing docs where userId in document matches request.auth.uid
       allow write: if documentId.matches('auth_.*') || 
-                      documentId.matches('.*_passwordReset') || 
-                      request.auth != null;
+                      documentId.matches('.*_password_reset') || 
+                      (request.auth != null && request.resource.data.userId == request.auth.uid);
     }
     
     // Security events - write-only for logging, no read access (admin-only via backend)
@@ -115,12 +122,21 @@ service cloud.firestore {
     }
     
     function validateRoomUpdate() {
-      // Allow updates if user is already a participant
+      // Allow updates if user is already a participant (can update game state, leave, etc.)
       let isParticipant = request.auth.uid in resource.data.players ||
                           resource.data.hostId == request.auth.uid;
       
-      // Allow joining: room is in lobby status and user is adding themselves
-      let isJoining = resource.data.status == 'lobby';
+      // Allow joining only: room in lobby, hostId unchanged, and only adding self to players
+      // (prevents a client from overwriting hostId/players or adding fake participants)
+      let oldPlayers = resource.data.players.keys();
+      let newPlayers = request.resource.data.players.keys();
+      let onlyAddingSelf = resource.data.status == 'lobby' &&
+                           request.resource.data.status == 'lobby' &&
+                           request.resource.data.hostId == resource.data.hostId &&
+                           request.auth.uid in request.resource.data.players &&
+                           newPlayers.hasAll(oldPlayers) &&
+                           newPlayers.size() == oldPlayers.size() + 1;
+      let isJoining = onlyAddingSelf;
       
       return isParticipant || isJoining;
     }

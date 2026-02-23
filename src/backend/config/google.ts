@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import * as AuthSession from 'expo-auth-session';
 import { logger } from '../utils/logger';
 
 // Google OAuth Configuration
@@ -14,12 +15,7 @@ export const GOOGLE_CONFIG = {
   // Android Client ID (for Android platform) - Safe to expose, but should come from environment
   ANDROID_CLIENT_ID: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '',
   
-  // ⚠️ SECURITY WARNING: Client Secret should NEVER be exposed to client-side code
-  // This should be moved to a secure backend service
-  // For now, we'll remove it from client-side configuration
-  // CLIENT_SECRET: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_SECRET || 'YOUR_CLIENT_SECRET',
-  
-  // Redirect URI scheme for your app
+  // Redirect URI scheme for your app (must match app.config.js scheme)
   REDIRECT_URI_SCHEME: 'top10game',
   
   // Scopes for Google Sign-In
@@ -32,24 +28,33 @@ export const GOOGLE_CONFIG = {
 
 // Helper function to get the appropriate client ID for the current platform
 export const getGoogleClientId = (): string => {
-  // For Expo OAuth flows, always use the Web Client ID
-  // because Expo's auth service is web-based
   return GOOGLE_CONFIG.WEB_CLIENT_ID;
 };
 
-// Helper function to get the redirect URI
+// Fallback when getRedirectUrl is unavailable (bare workflow)
+const FALLBACK_REDIRECT_URI = 'https://auth.expo.io/@seifnazmy/top10game';
+
+// Helper function to get the redirect URI (must match Google Cloud Console)
+// For Expo Go: uses getRedirectUrl which returns auth.expo.io with correct project (handles @anonymous if not signed in)
+// For web: uses makeRedirectUri for current origin
 export const getGoogleRedirectUri = (): string => {
-  // For Expo development, use the proper Expo OAuth redirect URI format
-  // This will be: https://auth.expo.io/@your-username/your-app-slug
-  // For production, you might want to use a custom scheme
-  if (__DEV__) {
-    // In development, use Expo's OAuth redirect URI
-    // Note: Expo sometimes uses @anonymol instead of @anonymous
-    return 'https://auth.expo.io/@anonymol/top10game';
+  let uri: string;
+  if (Platform.OS === 'web') {
+    try {
+      uri = AuthSession.makeRedirectUri();
+    } catch {
+      uri = 'http://localhost:19006';
+    }
   } else {
-    // In production, you can use custom scheme
-    return `${GOOGLE_CONFIG.REDIRECT_URI_SCHEME}://auth`;
+    try {
+      // getRedirectUrl returns https://auth.expo.io/@owner/slug - correct for Expo Go proxy
+      uri = AuthSession.getRedirectUrl();
+    } catch {
+      uri = FALLBACK_REDIRECT_URI;
+    }
   }
+  logger.log('[GoogleAuth] Redirect URI:', uri);
+  return uri;
 };
 
 // Helper function to check if Google Sign-In is properly configured

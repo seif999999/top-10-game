@@ -40,6 +40,11 @@ export interface ActionRateLimits {
   chatMessage: RateLimitConfig;
   profileUpdate: RateLimitConfig;
   passwordReset: RateLimitConfig;
+  leaveRoom: RateLimitConfig;
+  kickPlayer: RateLimitConfig;
+  revealAnswer: RateLimitConfig;
+  startGame: RateLimitConfig;
+  advanceTurn: RateLimitConfig;
 }
 
 /**
@@ -93,6 +98,36 @@ export class RateLimitService {
       windowMs: 3600000, // 1 hour window
       blockDurationMs: 3600000, // 1 hour block
       actionType: 'password_reset'
+    },
+    leaveRoom: {
+      maxAttempts: 30, // 30 leaves per 5 min (prevent leave/rejoin spam)
+      windowMs: 300000,
+      blockDurationMs: 300000,
+      actionType: 'leave_room'
+    },
+    kickPlayer: {
+      maxAttempts: 10, // 10 kicks per 5 min
+      windowMs: 300000,
+      blockDurationMs: 300000,
+      actionType: 'kick_player'
+    },
+    revealAnswer: {
+      maxAttempts: 15, // 15 reveals per min (host reveals answers)
+      windowMs: 60000,
+      blockDurationMs: 60000,
+      actionType: 'reveal_answer'
+    },
+    startGame: {
+      maxAttempts: 10, // 10 game starts per hour
+      windowMs: 3600000,
+      blockDurationMs: 600000,
+      actionType: 'start_game'
+    },
+    advanceTurn: {
+      maxAttempts: 60, // 60 advances per 5 min (skip/timeout; 10 questions × 4 players = 40 max)
+      windowMs: 300000,
+      blockDurationMs: 120000,
+      actionType: 'advance_turn'
     }
   };
 
@@ -465,7 +500,7 @@ export class RateLimitService {
         collection(db, this.ACTION_LOGS_COLLECTION),
         where('timestamp', '>=', windowStart),
         orderBy('timestamp', 'desc'),
-        limit(1000)
+        limit(500)
       );
       
       const logsSnap = await getDocs(logsQuery);

@@ -16,7 +16,6 @@ import { RoomData, Player, Question, LegacyQuestion } from '../../../shared/type
 import { normalizeQuestion } from '../questionsService';
 import { logger } from '../../utils/logger';
 import { COLLECTIONS } from '../../utils/constants';
-import { RateLimitService } from '../rateLimitService';
 import { ServerGameService } from '../serverGameService';
 import { AppError, toAppError } from '../../../shared/errors';
 import { generateSecureRoomCode } from '../../utils/secureRandom';

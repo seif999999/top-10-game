@@ -15,7 +15,7 @@ interface AvatarIconProps {
   textColor?: string;
 }
 
-const AvatarIcon: React.FC<AvatarIconProps> = ({
+const AvatarIcon = React.memo<AvatarIconProps>(function AvatarIcon({
   user,
   size = 32,
   showBorder = false,
@@ -24,8 +24,7 @@ const AvatarIcon: React.FC<AvatarIconProps> = ({
   style,
   backgroundColor = COLORS.surface,
   textColor = COLORS.text,
-}) => {
-  // Use the new DiceBear avatar system
+}) {
   return (
     <AvatarDisplay
       avatarId={user?.selectedAvatar}
@@ -36,7 +35,7 @@ const AvatarIcon: React.FC<AvatarIconProps> = ({
       fallbackText={user?.displayName?.charAt(0)?.toUpperCase() || 'U'}
     />
   );
-};
+});
 
 // Styles are now handled by AvatarDisplay component
 

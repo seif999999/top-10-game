@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  FlatList,
   Animated,
   Dimensions,
   Image,
@@ -57,7 +58,7 @@ interface MissionCardProps {
   index: number;
 }
 
-const MissionCard: React.FC<MissionCardProps> = ({ mission, progress, index }) => {
+const MissionCard = React.memo<MissionCardProps>(({ mission, progress, index }) => {
   const { t } = useAppTranslation('screens');
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
@@ -184,7 +185,7 @@ const MissionCard: React.FC<MissionCardProps> = ({ mission, progress, index }) =
       </View>
     </Animated.View>
   );
-};
+});
 
 type FilterType = 'all' | 'in_progress' | 'completed' | MissionDifficulty;
 
@@ -238,20 +239,25 @@ const MissionsScreen: React.FC<MissionsScreenProps> = ({ navigation }) => {
     ]).start();
   }, [loadMissions]);
 
-  // Filter missions
-  const filteredMissions = missions.filter(m => {
-    if (filter === 'all') return true;
-    if (filter === 'in_progress') return !m.progress.isCompleted;
-    if (filter === 'completed') return m.progress.isCompleted;
-    return m.difficulty === filter;
-  });
+  // Filter missions (memoized to avoid re-filtering on every render)
+  const filteredMissions = useMemo(() => {
+    return missions.filter(m => {
+      if (filter === 'all') return true;
+      if (filter === 'in_progress') return !m.progress.isCompleted;
+      if (filter === 'completed') return m.progress.isCompleted;
+      return m.difficulty === filter;
+    });
+  }, [missions, filter]);
 
-  // Stats
-  const completedCount = missions.filter(m => m.progress.isCompleted).length;
+  // Stats (memoized)
+  const completedCount = useMemo(
+    () => missions.filter(m => m.progress.isCompleted).length,
+    [missions]
+  );
   const totalCount = missions.length;
   const completionPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
-  const filters: { key: FilterType; label: string; color: string }[] = [
+  const filters: { key: FilterType; label: string; color: string }[] = useMemo(() => [
     { key: 'all', label: tScreens('missions.all'), color: '#6B7280' },
     { key: 'in_progress', label: tScreens('missions.inProgress'), color: '#3B82F6' },
     { key: 'completed', label: tScreens('missions.completed'), color: '#10B981' },
@@ -259,7 +265,16 @@ const MissionsScreen: React.FC<MissionsScreenProps> = ({ navigation }) => {
     { key: 'medium', label: tScreens('missions.medium'), color: '#3B82F6' },
     { key: 'hard', label: tScreens('missions.hard'), color: '#A855F7' },
     { key: 'legendary', label: tScreens('missions.legendary'), color: '#F59E0B' },
-  ];
+  ], [tScreens]);
+
+  const handleFilterPress = useCallback((key: FilterType) => {
+    playButtonClick();
+    setFilter(key);
+  }, []);
+
+  const renderMissionItem = useCallback(({ item, index }: { item: MissionDefinition & { progress: MissionProgress }; index: number }) => (
+    <MissionCard mission={item} progress={item.progress} index={index} />
+  ), []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -362,7 +377,7 @@ const MissionsScreen: React.FC<MissionsScreenProps> = ({ navigation }) => {
           {filters.map((f) => (
             <TouchableOpacity
               key={f.key}
-              onPress={() => { playButtonClick(); setFilter(f.key); }}
+              onPress={() => handleFilterPress(f.key)}
               style={[
                 styles.filterTab,
                 filter === f.key && { backgroundColor: f.color, borderColor: f.color },
@@ -380,35 +395,28 @@ const MissionsScreen: React.FC<MissionsScreenProps> = ({ navigation }) => {
       </View>
 
       {/* Missions List */}
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <Text style={styles.loadingText}>{tScreens('missions.loading')}</Text>
-          </View>
-        ) : filteredMissions.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyIcon}>🔍</Text>
-            <Text style={styles.emptyText}>{tScreens('missions.noMissions')}</Text>
-            <Text style={styles.emptySubtext}>{tScreens('missions.tryFilter')}</Text>
-          </View>
-        ) : (
-          filteredMissions.map((mission, index) => (
-            <MissionCard
-              key={mission.id}
-              mission={mission}
-              progress={mission.progress}
-              index={index}
-            />
-          ))
-        )}
-        
-        {/* Bottom padding */}
-        <View style={{ height: 40 }} />
-      </ScrollView>
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>{tScreens('missions.loading')}</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredMissions}
+          keyExtractor={(item) => item.id}
+          renderItem={renderMissionItem}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyIcon}>🔍</Text>
+              <Text style={styles.emptyText}>{tScreens('missions.noMissions')}</Text>
+              <Text style={styles.emptySubtext}>{tScreens('missions.tryFilter')}</Text>
+            </View>
+          }
+          ListFooterComponent={<View style={styles.listFooter} />}
+          style={styles.scrollView}
+          contentContainerStyle={filteredMissions.length === 0 ? styles.emptyScrollContent : styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -557,6 +565,14 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.sm,
+  },
+  emptyScrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.sm,
+  },
+  listFooter: {
+    height: 40,
   },
   loadingContainer: {
     flex: 1,

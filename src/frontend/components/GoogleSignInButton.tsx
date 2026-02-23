@@ -41,20 +41,17 @@ const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
       
       if (result && result.idToken) {
         logger.log('🔐 GoogleSignInButton: Signing in to Firebase with ID token...');
-        // Sign in to Firebase with the Google ID token
         await signInWithGoogle(result.idToken);
-        
         logger.log('✅ GoogleSignInButton: Firebase sign-in successful');
-        
-        // Call success callback
-        if (onSuccess) {
-          onSuccess();
-        }
+        if (onSuccess) onSuccess();
+      } else if (result === null) {
+        // User cancelled - don't show error
+        logger.log('🔐 GoogleSignInButton: User cancelled');
       } else {
         throw new AppError({
           code: 'GOOGLE_SIGNIN_NO_TOKEN',
           message: 'Google authentication failed - no ID token received',
-          userMessage: 'Google sign-in failed. Please try again.'
+          userMessage: 'Google sign-in failed. Please try again.',
         });
       }
     } catch (error) {

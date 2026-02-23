@@ -1,6 +1,6 @@
 import { Linking } from 'react-native';
 import { NavigationContainerRef } from '@react-navigation/native';
-import { logger } from './logger';
+import { logger } from '../../backend/utils/logger';
 import type { RootStackParamList } from '../../shared/types/navigation';
 
 /**
@@ -59,7 +59,7 @@ export const setupDeepLinking = (navigation: NavigationContainerRef<RootStackPar
     if (url) {
       handlePasswordResetLink(url, navigation);
     }
-  });
+  }).catch((e) => logger.warn('Deep linking: getInitialURL failed', e));
 
   // Handle URL changes (when app is already running)
   const linkingListener = Linking.addEventListener('url', (event) => {

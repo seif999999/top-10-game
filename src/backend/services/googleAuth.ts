@@ -4,7 +4,7 @@ import * as Crypto from 'expo-crypto';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Configure WebBrowser for OAuth
+// Required for OAuth redirect handling
 WebBrowser.maybeCompleteAuthSession();
 
 import { GOOGLE_CONFIG, getGoogleClientId, getGoogleRedirectUri } from '../config/google';
@@ -100,11 +100,15 @@ const validateOAuthState = async (receivedState: string): Promise<boolean> => {
  * ✅ SECURITY: Generates and stores state token for CSRF protection
  */
 const createAuthRequest = async () => {
-  // Use the proper redirect URI from our config
+  // Uses makeRedirectUri internally for correct Expo/standalone redirect
   const redirectUri = getGoogleRedirectUri();
   
   // ✅ SECURITY: Generate and store state token for CSRF protection
   const state = await generateAndStoreOAuthState();
+
+  // OpenID Connect id_token flow requires nonce for replay protection
+  const nonceBytes = await Crypto.getRandomBytesAsync(16);
+  const nonce = Array.from(nonceBytes).map(b => b.toString(16).padStart(2, '0')).join('');
 
   logger.log('🔧 Creating AuthRequest with:', {
     clientId: getGoogleClientId(),
@@ -117,10 +121,11 @@ const createAuthRequest = async () => {
     clientId: getGoogleClientId(),
     scopes: GOOGLE_SCOPES,
     redirectUri,
-    responseType: AuthSession.ResponseType.Token, // Use token response type for simpler flow
+    responseType: AuthSession.ResponseType.IdToken, // id_token for Firebase sign-in
+    usePKCE: false, // Disable PKCE when provider doesn't support it
     state: state, // ✅ Add state parameter for CSRF protection
     extraParams: {
-      access_type: 'offline',
+      nonce,
       prompt: 'select_account'
     }
   });
@@ -129,10 +134,10 @@ const createAuthRequest = async () => {
   return request;
 };
 
-// Sign in with Google
+// Sign in with Google using Expo AuthSession only (no native modules required)
 export const signInWithGoogle = async (): Promise<{ idToken: string; accessToken: string } | null> => {
   try {
-    logger.log('🔐 Starting Google Sign-In flow...');
+    logger.log('🔐 Starting Google Sign-In flow (Expo AuthSession)...');
     
     // Log configuration status
     const { getGoogleConfigStatus } = await import('../config/google');
@@ -160,8 +165,9 @@ export const signInWithGoogle = async (): Promise<{ idToken: string; accessToken
     const discovery = await AuthSession.fetchDiscoveryAsync('https://accounts.google.com');
     
     // Start the OAuth flow with timeout
+    // preferEphemeralSession: false helps auth.expo.io redirect (needs cookies)
     const result = await Promise.race([
-      request.promptAsync(discovery),
+      request.promptAsync(discovery, { preferEphemeralSession: false }),
       new Promise((_, reject) => 
         setTimeout(() => reject(new AppError({
           code: 'OAUTH_TIMEOUT',
@@ -172,6 +178,15 @@ export const signInWithGoogle = async (): Promise<{ idToken: string; accessToken
     ]);
 
     logger.log('📋 Auth result type:', result.type);
+    if (result.type === 'success') {
+      logger.log('[GoogleAuth] Success - params keys:', Object.keys(result.params || {}));
+    }
+    if (result.type === 'error') {
+      logger.log('[GoogleAuth] Error:', result.error);
+    }
+    if (result.type === 'dismiss' || result.type === 'cancel') {
+      logger.log('[GoogleAuth] User cancelled or dismissed');
+    }
     
     // ✅ SECURITY: Validate state parameter to prevent CSRF attacks
     if (result.type === 'success' && result.params.state) {
@@ -189,41 +204,28 @@ export const signInWithGoogle = async (): Promise<{ idToken: string; accessToken
       // For backwards compatibility, allow but log warning
       // In future versions, this should be required
     }
-    
-    if (result.type === 'success' && result.params.access_token) {
-      logger.log('✅ Access token received directly from OAuth flow');
-      
+
+    if (result.type === 'success') {
       const accessToken = result.params.access_token;
       const idToken = result.params.id_token;
-      
-      // ✅ SECURITY: Log token presence only, never the actual tokens
-      logger.log('🎯 OAuth result:', {
-        hasAccessToken: !!accessToken,
-        hasIdToken: !!idToken,
-        tokenType: result.params.token_type
-        // Note: Actual tokens are never logged for security
-      });
-
-      if (accessToken && idToken) {
+      if (idToken) {
+        logger.log('✅ id_token received from OAuth flow');
+        logger.log('🎯 OAuth result:', { hasAccessToken: !!accessToken, hasIdToken: !!idToken });
         logger.log('✅ Google Sign-In successful!');
         return {
-          idToken: idToken,
-          accessToken: accessToken
+          idToken,
+          accessToken: accessToken || ''
         };
-      } else {
-        throw new AppError({
-          code: 'OAUTH_MISSING_TOKENS',
-          message: 'OAuth flow failed - missing required tokens',
-          userMessage: 'Sign-in failed. Please try again.'
-        });
       }
-    } else if (result.type === 'success' && !result.params.access_token) {
+    }
+    if (result.type === 'success' && !result.params?.id_token) {
       throw new AppError({
-        code: 'OAUTH_MISSING_ACCESS_TOKEN',
-        message: 'OAuth flow failed - missing access token',
+        code: 'OAUTH_MISSING_ID_TOKEN',
+        message: 'OAuth flow failed - missing ID token',
         userMessage: 'Sign-in failed. Please try again.'
       });
-    } else if (result.type === 'cancel' || result.type === 'dismiss') {
+    }
+    if (result.type === 'cancel' || result.type === 'dismiss') {
       logger.log('❌ User cancelled or dismissed Google Sign-In');
       return null;
     } else if (result.type === 'error') {
@@ -320,6 +322,37 @@ export const getGoogleUserInfo = async (accessToken: string) => {
   }
 };
 
+/**
+ * Decode base64url string (JWT payload format) - React Native compatible.
+ * Avoids Node.js Buffer which is not available in RN/Hermes.
+ */
+function base64UrlDecode(str: string): string {
+  const base64 = str.replace(/-/g, '+').replace(/_/g, '/');
+  const pad = base64.length % 4;
+  const padded = pad ? base64 + '='.repeat(4 - pad) : base64;
+  try {
+    if (typeof atob === 'function') {
+      return decodeURIComponent(encodeURIComponent(atob(padded)));
+    }
+  } catch {
+    // atob not available or failed
+  }
+  // Fallback: minimal base64 decode for JWT payload (ASCII JSON)
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  let binary = '';
+  for (let i = 0; i < padded.length; i += 4) {
+    const a = chars.indexOf(padded[i]);
+    const b = chars.indexOf(padded[i + 1]);
+    const c = padded[i + 2] === '=' ? -1 : chars.indexOf(padded[i + 2]);
+    const d = padded[i + 3] === '=' ? -1 : chars.indexOf(padded[i + 3]);
+    if (a === -1 || b === -1) break;
+    binary += String.fromCharCode((a << 2) | (b >> 4));
+    if (c >= 0) binary += String.fromCharCode(((b & 15) << 4) | (c >> 2));
+    if (d >= 0) binary += String.fromCharCode(((c >= 0 ? c : 0) & 3) << 6 | d);
+  }
+  return binary;
+}
+
 // Validate Google ID token (basic validation)
 export const validateGoogleIdToken = (idToken: string): boolean => {
   try {
@@ -329,8 +362,8 @@ export const validateGoogleIdToken = (idToken: string): boolean => {
       return false;
     }
     
-    // Decode the payload (second part)
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+    // Decode the payload (second part) - RN compatible, no Buffer
+    const payload = JSON.parse(base64UrlDecode(parts[1]));
     
     // Check if token is not expired
     const currentTime = Math.floor(Date.now() / 1000);

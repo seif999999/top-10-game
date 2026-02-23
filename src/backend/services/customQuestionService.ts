@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { logger } from '../utils/logger';
+import { safeJsonParse } from '../utils/safeJson';
 import type { CustomQuestion } from '../../shared/types';
 import { AppError } from '../../shared/errors';
 
@@ -40,7 +41,11 @@ export class CustomQuestionService {
       if (!raw) {
         return Array(NUM_SLOTS).fill(null);
       }
-      const parsed = JSON.parse(raw) as SlotsData | CustomQuestion[];
+      const parsed = safeJsonParse<SlotsData | CustomQuestion[]>(raw);
+      if (!parsed) {
+        logger.error('CustomQuestionService: invalid JSON in slots, resetting');
+        return Array(NUM_SLOTS).fill(null);
+      }
       let slots: (CustomQuestion | null)[];
       if (Array.isArray(parsed)) {
         // Old format: list of questions → migrate to 10 slots
@@ -147,9 +152,10 @@ export class CustomQuestionService {
       const slots = await this.getSlots();
       const idx = slots.findIndex((q) => q != null && q.id === id);
       if (idx === -1) return;
-      if (slots[idx]) {
-        slots[idx]!.playCount += 1;
-        (slots[idx] as CustomQuestion & { lastPlayed?: Date }).lastPlayed = new Date();
+      const slot = slots[idx];
+      if (slot) {
+        slot.playCount += 1;
+        (slot as CustomQuestion & { lastPlayed?: Date }).lastPlayed = new Date();
         await this.writeSlots(slots);
       }
     } catch (error) {

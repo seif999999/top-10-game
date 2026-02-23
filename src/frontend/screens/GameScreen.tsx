@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Platform, Animated, BackHandler, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ThemedAlert from '../utils/themedAlert';
@@ -32,6 +32,7 @@ import useAppTranslation from '../../hooks/useTranslation';
 import { updateGameStats } from '../../backend/services/statsService';
 import { useAd } from '../contexts/AdContext';
 import { CoinService } from '../../backend/services/CoinService';
+import { getMultiplayerFinalRankAndScore } from './game';
 
 
 type AnswerLike = string | QuestionAnswer | Answer;
@@ -345,25 +346,26 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
         if (revealedAnswersCount >= 10) {
           // Process missions for multiplayer game completion (credits coins to balance)
           if (user?.id && multiplayerState?.scores && multiplayerState?.players) {
-            const score = multiplayerState.scores[user.id] || 0;
-            const sorted = Object.entries(multiplayerState.scores)
-              .sort(([, a], [, b]) => (b || 0) - (a || 0));
-            const rankIndex = sorted.findIndex(([id]) => id === user.id);
-            const finalRank = rankIndex >= 0 ? rankIndex + 1 : undefined;
-            const playerCount = Object.keys(multiplayerState.players).length;
-            const isWinner = finalRank === 1;
-            updateGameStats(
-              user.id,
-              score,
-              categoryId || 'General',
-              10, // All 10 questions played when game ends
-              10,
-              0, // Time not tracked per-player in multiplayer
-              true,
-              isWinner,
-              finalRank,
-              playerCount
-            ).catch((e) => logger.warn('GameScreen: multiplayer updateGameStats failed', e));
+            const rankResult = getMultiplayerFinalRankAndScore(
+              multiplayerState.scores,
+              multiplayerState.players,
+              user.id
+            );
+            if (rankResult) {
+              const { score, finalRank, playerCount, isWinner } = rankResult;
+              updateGameStats(
+                user.id,
+                score,
+                categoryId || 'General',
+                10, // All 10 questions played when game ends
+                10,
+                0, // Time not tracked per-player in multiplayer
+                true,
+                isWinner,
+                finalRank,
+                playerCount
+              ).catch((e) => logger.warn('GameScreen: multiplayer updateGameStats failed', e));
+            }
           }
           setShowMultiplayerLeaderboard(true);
           setShowGameEndRanking(false); // Ensure no overlapping modals
@@ -412,7 +414,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
       // Get server offset once
       multiplayerService.getServerOffsetV2().then(offset => {
         setServerOffset(offset);
-      });
+      }).catch((e) => logger.warn('GameScreen: getServerOffsetV2 failed', e));
       
       const timer = setInterval(() => {
         // Calculate time remaining using server offset for turn phase
@@ -446,7 +448,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   useEffect(() => {
     if (isMultiplayerMode && multiplayerTimeRemaining <= 10) {
       // Warning animation - gentle pulse
-      Animated.loop(
+      const pulseAnim = Animated.loop(
         Animated.sequence([
           Animated.timing(timerPulse, {
             toValue: 1.05,
@@ -459,11 +461,13 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
             useNativeDriver: true,
           }),
         ])
-      ).start();
+      );
+      pulseAnim.start();
 
+      let flashAnim: Animated.CompositeAnimation | null = null;
       if (multiplayerTimeRemaining <= 5) {
         // Critical animation - flash effect
-        Animated.loop(
+        flashAnim = Animated.loop(
           Animated.sequence([
             Animated.timing(timerFlash, {
               toValue: 1,
@@ -476,8 +480,15 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
               useNativeDriver: true,
             }),
           ])
-        ).start();
+        );
+        flashAnim.start();
       }
+      return () => {
+        pulseAnim.stop();
+        flashAnim?.stop();
+        timerPulse.setValue(1);
+        timerFlash.setValue(0);
+      };
     } else {
       // Reset animations when not in warning state
       timerPulse.setValue(1);
@@ -503,9 +514,8 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
         endGame();
       }
       
-      setTimeout(() => {
-        setShowQuestionComplete(false);
-      }, 3000);
+      const t = setTimeout(() => setShowQuestionComplete(false), 3000);
+      return () => clearTimeout(t);
     }
   }, [questionIsComplete, showQuestionComplete, isMultiplayerMode, endGame]);
 
@@ -546,7 +556,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
         setShowGameEndRanking(true);
         incrementGameCompletionCount().then((newCount) => {
           logger.log('Interstitial ad frequency: game_completion_count', newCount);
-        });
+        }).catch((e) => logger.warn('GameScreen: incrementGameCompletionCount failed', e));
         setTriggerInterstitial(true); // Post-game ad after every single-player game
         // User taps overlay to dismiss (no auto-navigate; allows time for "double rewards" option)
       }
@@ -580,9 +590,8 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
         );
         
         // Clear system message after showing toast
-        setTimeout(() => {
-          clearSystemMessage();
-        }, 3000);
+        const t = setTimeout(() => clearSystemMessage(), 3000);
+        return () => clearTimeout(t);
       } else if (systemMessage.type === 'room_terminated') {
         // Room terminated - show cross-platform alert and redirect
         showCrossPlatformAlert({
@@ -943,6 +952,23 @@ const handleEndGame = () => {
       rank: 0, // Will be calculated by the leaderboard component
     }));
   };
+
+  // Memoized leaderboard for in-game MultiplayerLeaderboard (avoids re-creating array every render)
+  const multiplayerLeaderboardData = useMemo(() => {
+    if (!multiplayerState?.players) return [];
+    return Object.entries(multiplayerState.players)
+      .map(([playerId, player]) => ({
+        playerId,
+        playerName: player.name || tGame('multiplayer.unknownPlayer'),
+        score: multiplayerState.scores?.[playerId] || 0,
+      }))
+      .sort((a, b) => b.score - a.score);
+  }, [multiplayerState?.players, multiplayerState?.scores, tGame]);
+
+  const gameScreenHeaderStyle = useMemo(
+    () => [styles.header, { paddingTop: Math.max(SPACING.xs, insets.top * 0.5) }],
+    [insets.top]
+  );
 
   // Helper function to show toast notifications
   const showToast = (type: 'success' | 'info' | 'warning' | 'error', title: string, message?: string) => {
@@ -1354,7 +1380,7 @@ const handleEndGame = () => {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
       {/* Header */}
-      <View style={[styles.header, { paddingTop: Math.max(SPACING.xs, insets.top * 0.5) }]}>
+      <View style={gameScreenHeaderStyle}>
         {isMultiplayerMode ? (
           <TouchableOpacity onPress={handleBackButton} style={styles.backButton}>
             <Text style={styles.backButtonArrow}>{isRTL ? '→' : '←'}</Text>
@@ -1389,11 +1415,7 @@ const handleEndGame = () => {
         {isMultiplayerMode && multiplayerState && (
           <>
             <MultiplayerLeaderboard
-              leaderboard={Object.entries(multiplayerState.players || {}).map(([playerId, player]) => ({
-                playerId,
-                playerName: player.name || tGame('multiplayer.unknownPlayer'),
-                score: multiplayerState.scores?.[playerId] || 0
-              })).sort((a, b) => b.score - a.score)} // Sort by score descending
+              leaderboard={multiplayerLeaderboardData}
               currentPlayerId={user?.id || ''}
               maxHeight={150}
             />

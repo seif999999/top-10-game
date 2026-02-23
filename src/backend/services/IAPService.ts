@@ -25,14 +25,17 @@ export interface PurchaseResult {
 }
 
 /**
- * Mock IAP - simulates successful purchase for development.
- * In production, replace with real store purchase flow.
+ * Mock IAP - simulates successful purchase for development only.
+ * Disabled in production; use real IAP (react-native-purchases) when configured.
  */
 const mockPurchase = async (
   _productId: string,
   userId: string,
   type: PremiumSubscriptionType
 ): Promise<PurchaseResult> => {
+  if (!__DEV__) {
+    return { success: false, error: 'Mock IAP disabled in production. Configure real IAP.' };
+  }
   logger.log(`IAPService: mock purchase ${type} for ${userId}`);
   await UserProfileService.getInstance().setPremiumStatus(userId, type);
   await UserProfileService.getInstance().grantPremiumBonuses(userId);
@@ -52,8 +55,8 @@ export class IAPService {
   }
 
   /**
-   * Purchase a subscription. Uses mock for now.
-   * TODO: Integrate react-native-iap or expo-in-app-purchases when store is configured.
+   * Purchase a subscription. Uses mock in __DEV__ only.
+   * In production: integrate react-native-purchases or expo-in-app-purchases.
    */
   public async purchaseSubscription(
     userId: string,
@@ -61,9 +64,12 @@ export class IAPService {
   ): Promise<PurchaseResult> {
     const productId = PRODUCT_IDS[type];
     try {
-      // Mock implementation - in production, initiate real IAP flow
-      // const purchase = await RNIap.requestSubscription({ sku: productId });
-      // if (purchase) { ... validate receipt, then grant }
+      if (!__DEV__) {
+        return {
+          success: false,
+          error: 'In-app purchases are not configured. Please update from the app store.',
+        };
+      }
       return await mockPurchase(productId, userId, type);
     } catch (error) {
       logger.error('IAPService: purchase failed', error);

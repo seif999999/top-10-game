@@ -34,6 +34,27 @@ function ensureAuthenticated(userId: string): void {
   }
 }
 
+async function ensureAuthenticatedAndOwn(userId: string): Promise<void> {
+  ensureAuthenticated(userId);
+  const { auth } = await import('./firebase');
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    throw new AppError({
+      code: 'AUTH_REQUIRED',
+      message: 'User must be authenticated',
+      userMessage: 'Please sign in to continue.',
+    });
+  }
+  if (currentUser.uid !== userId) {
+    logger.error('CustomSlotUnlockService: Unauthorized access', { requested: userId, auth: currentUser.uid });
+    throw new AppError({
+      code: 'UNAUTHORIZED_UPDATE',
+      message: 'Users can only access their own slots',
+      userMessage: 'You can only manage your own slots.',
+    });
+  }
+}
+
 /**
  * Get list of unlocked paid slot indices (1–9). Slot 0 is always free.
  * Returns [] for guests or if no slots unlocked.
@@ -41,7 +62,7 @@ function ensureAuthenticated(userId: string): void {
 export async function getUnlockedSlots(userId: string | null | undefined): Promise<number[]> {
   if (!userId) return [];
   try {
-    ensureAuthenticated(userId);
+    await ensureAuthenticatedAndOwn(userId);
     const userRef = doc(db, COLLECTIONS.USER_PROFILES, userId);
     const snap = await getDoc(userRef);
     if (!snap.exists()) return [];
@@ -70,7 +91,7 @@ export function isSlotUsable(slotIndex: number, unlockedSlots: number[], slotHas
  * Unlock a paid slot by spending coins. Returns true if unlocked, false if insufficient coins or already unlocked.
  */
 export async function unlockSlot(userId: string, slotIndex: number): Promise<boolean> {
-  ensureAuthenticated(userId);
+  await ensureAuthenticatedAndOwn(userId);
   if (slotIndex < PAID_SLOT_START_INDEX || slotIndex >= 10) {
     throw new AppError({
       code: 'INVALID_SLOT',

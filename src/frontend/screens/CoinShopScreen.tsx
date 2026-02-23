@@ -116,7 +116,7 @@ const CoinShopScreen: React.FC<CoinShopScreenProps> = ({ navigation }) => {
   useEffect(() => {
     hasSeenCoinShopOnboarding().then((seen) => {
       if (!seen) setShowOnboarding(true);
-    });
+    }).catch(() => setShowOnboarding(false));
   }, []);
 
   const refreshProgressiveInfo = useCallback(async () => {

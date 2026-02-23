@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,56 @@ import useAppTranslation from '../../hooks/useTranslation';
 import { getUnlockedSlots, unlockSlot, isSlotUsable, getSlotUnlockCost } from '../../backend/services/customSlotUnlockService';
 
 const NUM_SLOTS = CustomQuestionService.NUM_SLOTS;
+
+interface SlotCardProps {
+  slotIndex: number;
+  label: string;
+  isFilled: boolean;
+  isLocked: boolean;
+  isUnlocking: boolean;
+  onPress: (index: number) => void;
+  isRTL: boolean;
+  hintText: string;
+  slotLabelText: string;
+}
+
+const SlotCard = React.memo<SlotCardProps>(function SlotCard({
+  slotIndex,
+  label,
+  isFilled,
+  isLocked,
+  isUnlocking,
+  onPress,
+  isRTL,
+  hintText,
+  slotLabelText,
+}) {
+  return (
+    <TouchableOpacity
+      onPress={() => !isUnlocking && onPress(slotIndex)}
+      disabled={isUnlocking}
+      style={[styles.slotTouch, isLocked && styles.slotTouchLocked]}
+      activeOpacity={0.8}
+    >
+      <LinearGradient
+        colors={isLocked ? ['#1F2937', '#374151'] : isFilled ? ['#6D28D9', '#8B5CF6'] : ['#374151', '#4B5563']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.slotGradient, isRTL && styles.rtlRow]}
+      >
+        <View style={[styles.slotNumberBadge, isRTL && { marginRight: 0, marginLeft: SPACING.md }]}>
+          <Text style={styles.slotNumberText}>{isLocked ? '🔒' : slotIndex + 1}</Text>
+        </View>
+        <View style={styles.slotLabelContainer}>
+          <Text style={[styles.slotLabel, isRTL && styles.rtlText]} numberOfLines={2}>
+            {isFilled ? label : slotLabelText}
+          </Text>
+          <Text style={[styles.slotHint, isRTL && styles.rtlText]}>{hintText}</Text>
+        </View>
+      </LinearGradient>
+    </TouchableOpacity>
+  );
+});
 
 const CustomQuestionSlotsScreen: React.FC<CustomQuestionSlotsScreenProps> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
@@ -75,7 +125,7 @@ const CustomQuestionSlotsScreen: React.FC<CustomQuestionSlotsScreenProps> = ({ n
     loadUnlockedSlots();
   };
 
-  const handleSlotPress = async (slotIndex: number) => {
+  const handleSlotPress = useCallback(async (slotIndex: number) => {
     playButtonClick();
     const usable = isSlotUsable(slotIndex, unlockedSlots, slots[slotIndex] != null);
     if (usable) {
@@ -130,9 +180,9 @@ const CustomQuestionSlotsScreen: React.FC<CustomQuestionSlotsScreenProps> = ({ n
         },
       ]
     );
-  };
+  }, [user?.id, unlockedSlots, slots, navigation, playButtonClick, tScreens, tCommon]);
 
-  const handleClearAll = () => {
+  const handleClearAll = useCallback(() => {
     playButtonClick();
     ThemedAlert.alert(
       tScreens('customQuestionSlots.clearAllTitle'),
@@ -161,7 +211,17 @@ const CustomQuestionSlotsScreen: React.FC<CustomQuestionSlotsScreenProps> = ({ n
         },
       ]
     );
-  };
+  }, [playButtonClick, tScreens, tCommon]);
+
+  const headerStyle = useMemo(
+    () => [styles.header, { paddingTop: Math.max(SPACING.xs, insets.top * 0.5) }, isRTL && styles.rtlRow],
+    [insets.top, isRTL]
+  );
+
+  const handleBack = useCallback(() => {
+    playButtonClick();
+    navigation.goBack();
+  }, [playButtonClick, navigation]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -172,8 +232,8 @@ const CustomQuestionSlotsScreen: React.FC<CustomQuestionSlotsScreenProps> = ({ n
         style={StyleSheet.absoluteFill}
       />
 
-      <View style={[styles.header, { paddingTop: Math.max(SPACING.xs, insets.top * 0.5) }, isRTL && styles.rtlRow]}>
-        <TouchableOpacity onPress={() => { playButtonClick(); navigation.goBack(); }} style={styles.backButton}>
+      <View style={headerStyle}>
+        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
           <Text style={styles.backButtonText}>{isRTL ? '→' : '←'}</Text>
         </TouchableOpacity>
         <View style={styles.headerContent}>
@@ -197,38 +257,24 @@ const CustomQuestionSlotsScreen: React.FC<CustomQuestionSlotsScreenProps> = ({ n
             const label = question ? question.question : tScreens('customQuestionSlots.slotEmpty', { number: i + 1 });
             const isFilled = question != null;
             const isLocked = !isSlotUsable(i, unlockedSlots, question != null);
-            const isUnlocking = unlockingSlot === i;
+            const hintText = isLocked
+              ? tScreens('customQuestionSlots.unlockForCoins', { cost: getSlotUnlockCost(i) })
+              : isFilled
+                ? tScreens('customQuestionSlots.tapToEdit')
+                : tScreens('customQuestionSlots.tapToAdd');
             return (
-              <TouchableOpacity
+              <SlotCard
                 key={i}
-                onPress={() => !isUnlocking && handleSlotPress(i)}
-                disabled={isUnlocking}
-                style={[styles.slotTouch, isLocked && styles.slotTouchLocked]}
-                activeOpacity={0.8}
-              >
-                <LinearGradient
-                  colors={isLocked ? ['#1F2937', '#374151'] : isFilled ? ['#6D28D9', '#8B5CF6'] : ['#374151', '#4B5563']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={[styles.slotGradient, isRTL && styles.rtlRow]}
-                >
-                  <View style={[styles.slotNumberBadge, isRTL && { marginRight: 0, marginLeft: SPACING.md }]}>
-                    <Text style={styles.slotNumberText}>{isLocked ? '🔒' : i + 1}</Text>
-                  </View>
-                  <View style={styles.slotLabelContainer}>
-                    <Text style={[styles.slotLabel, isRTL && styles.rtlText]} numberOfLines={2}>
-                      {isFilled ? label : tScreens('customQuestionSlots.slotLabel', { number: i + 1 })}
-                    </Text>
-                    <Text style={[styles.slotHint, isRTL && styles.rtlText]}>
-                      {isLocked
-                        ? tScreens('customQuestionSlots.unlockForCoins', { cost: getSlotUnlockCost(i) })
-                        : isFilled
-                          ? tScreens('customQuestionSlots.tapToEdit')
-                          : tScreens('customQuestionSlots.tapToAdd')}
-                    </Text>
-                  </View>
-                </LinearGradient>
-              </TouchableOpacity>
+                slotIndex={i}
+                label={label}
+                isFilled={isFilled}
+                isLocked={isLocked}
+                isUnlocking={unlockingSlot === i}
+                onPress={handleSlotPress}
+                isRTL={!!isRTL}
+                hintText={hintText}
+                slotLabelText={tScreens('customQuestionSlots.slotLabel', { number: i + 1 })}
+              />
             );
           })
         )}

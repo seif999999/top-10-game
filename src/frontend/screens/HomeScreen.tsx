@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ScrollView, Animated, PanResponder, Easing, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -31,6 +31,8 @@ try {
   medalIconSource = null;
 }
 
+const homeBackgroundImage = require('../assets/images/home-background.png');
+
 // Swipeable Card Component
 interface SwipeableCardProps {
   onSwipeComplete: () => void;
@@ -46,6 +48,7 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({ onSwipeComplete, onPress,
   const scale = useRef(new Animated.Value(1)).current;
   const isDragging = useRef(false);
   const hasNavigated = useRef(false);
+  const panOffsetX = useRef(0);
 
   const SWIPE_THRESHOLD = 100;
   const VELOCITY_THRESHOLD = 500;
@@ -65,7 +68,7 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({ onSwipeComplete, onPress,
       onPanResponderTerminationRequest: () => false, // Don't allow ScrollView to take over
       onPanResponderGrant: () => {
         isDragging.current = true;
-        pan.setOffset({ x: (pan.x as any)._value, y: 0 });
+        pan.setOffset({ x: panOffsetX.current, y: 0 });
         pan.setValue({ x: 0, y: 0 });
         // Slight scale up on grab
         Animated.spring(scale, {
@@ -104,7 +107,9 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({ onSwipeComplete, onPress,
             tension: 50,
             friction: 8,
           }),
-        ]).start();
+        ]).start(() => {
+          panOffsetX.current = 0;
+        });
       },
       onPanResponderMove: (evt, gestureState) => {
         // Update position
@@ -185,7 +190,9 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({ onSwipeComplete, onPress,
               tension: 50,
               friction: 8,
             }),
-          ]).start();
+          ]).start(() => {
+            panOffsetX.current = 0;
+          });
         }
       },
     })
@@ -286,44 +293,61 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     }
   };
 
-  const handleProfileNavigation = () => {
+  const handleProfileNavigation = useCallback(() => {
     playButtonClick();
     navigation.navigate('Profile');
-  };
+  }, [playButtonClick, navigation]);
 
-  const handleSinglePlayer = () => {
+  const handleSinglePlayer = useCallback(() => {
     playButtonClick();
     navigation.navigate('Categories', { gameMode: 'single' });
-  };
+  }, [playButtonClick, navigation]);
 
-  const handleMultiplayer = () => {
+  const handleMultiplayer = useCallback(() => {
     playButtonClick();
     navigation.navigate('MultiplayerMenu');
-  };
+  }, [playButtonClick, navigation]);
 
-  const handleCreateYourOwn = () => {
+  const handleCreateYourOwn = useCallback(() => {
     playButtonClick();
     navigation.navigate('CustomQuestionSlots');
-  };
-  
-  const handleDailyRewardOpen = () => {
+  }, [playButtonClick, navigation]);
+
+  const handleDailyRewardOpen = useCallback(() => {
     playButtonClick();
     setShowDailyReward(true);
-  };
+  }, [playButtonClick]);
 
-  const handleMissions = () => {
+  const handleMissions = useCallback(() => {
     playButtonClick();
     navigation.navigate('Missions');
-  };
+  }, [playButtonClick, navigation]);
+
+  const handleShopPress = useCallback(() => {
+    playButtonClick();
+    navigation.navigate('Shop');
+  }, [playButtonClick, navigation]);
+
+  const headerStyle = useMemo(
+    () => [
+      styles.header,
+      {
+        paddingTop: Math.max(SPACING.xs, insets.top * 0.5),
+        paddingRight: isRTL ? SPACING.lg : Math.max(SPACING.lg, insets.right + SPACING.xs),
+        paddingLeft: isRTL ? Math.max(SPACING.lg, insets.left + SPACING.xs) : SPACING.lg,
+      },
+      isRTL && styles.rtlRow,
+    ],
+    [insets.top, insets.right, insets.left, isRTL]
+  );
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Simple Background */}
-      <LinearGradient
-        colors={['#1a1a2e', '#16213e', '#0f0f1e']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={StyleSheet.absoluteFill}
+      {/* Main screen background image */}
+      <Image
+        source={homeBackgroundImage}
+        style={styles.backgroundImage}
+        resizeMode="cover"
       />
 
       <View style={styles.mainContent}>
@@ -335,15 +359,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           directionalLockEnabled={true}
         >
         {/* Header with Profile, Coins, and Rules Buttons */}
-        <View style={[
-          styles.header,
-          {
-            paddingTop: Math.max(SPACING.xs, insets.top * 0.5),
-            paddingRight: isRTL ? SPACING.lg : Math.max(SPACING.lg, insets.right + SPACING.xs),
-            paddingLeft: isRTL ? Math.max(SPACING.lg, insets.left + SPACING.xs) : SPACING.lg,
-          },
-          isRTL && styles.rtlRow
-        ]}>
+        <View style={headerStyle}>
         <TouchableOpacity onPress={handleProfileNavigation} style={styles.profileButton}>
           <AvatarIcon 
             user={user} 
@@ -384,10 +400,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           </View>
           <TouchableOpacity
             style={styles.headerShopButton}
-            onPress={() => {
-              playButtonClick();
-              navigation.navigate('Shop');
-            }}
+            onPress={handleShopPress}
             activeOpacity={0.7}
           >
             {shopIconSource ? (
@@ -521,6 +534,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#1a1a2e',
+  },
+  backgroundImage: {
+    ...StyleSheet.absoluteFillObject,
   },
   mainContent: {
     flex: 1,

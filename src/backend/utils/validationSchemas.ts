@@ -327,8 +327,8 @@ export function validateCustomAnswers(answers: string[]): ValidationResult<strin
     
     if (!result.valid) {
       errors.push(`Answer ${i + 1}: ${result.errors.join(', ')}`);
-    } else {
-      validatedAnswers.push(result.data!);
+    } else if (result.data !== undefined) {
+      validatedAnswers.push(result.data);
     }
   }
   

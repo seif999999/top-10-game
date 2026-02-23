@@ -4,7 +4,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Button from '../../components/Button';
+import GoogleSignInButton from '../../components/GoogleSignInButton';
 import { useAuth } from '../../contexts/AuthContext';
+import { isGoogleSignInConfigured } from '../../../backend/config/google';
 import { COLORS, SPACING } from '../../../backend/utils/constants';
 import { LoginScreenProps } from '../../../shared/types/navigation';
 import { InputValidator } from '../../../backend/utils/inputValidator';
@@ -172,6 +174,20 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
             disabled={isLoading}
           />
 
+          {isGoogleSignInConfigured() && (
+            <>
+              <View style={[styles.divider, isRTL && styles.rtlRow]}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>{tScreens('auth.or')}</Text>
+                <View style={styles.dividerLine} />
+              </View>
+              <GoogleSignInButton
+                onSuccess={() => {}}
+                onError={(msg) => setFirebaseError(msg)}
+              />
+            </>
+          )}
+
           <TouchableOpacity style={styles.linkCenter} onPress={() => navigation.navigate('ForgotPassword')} disabled={isLoading}>
             <Text style={styles.linkText}>{tScreens('auth.forgotPassword')}</Text>
           </TouchableOpacity>
@@ -303,6 +319,21 @@ const styles = StyleSheet.create({
   rtlEyeButton: {
     right: undefined,
     left: SPACING.md,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: SPACING.sm,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#334155',
+  },
+  dividerText: {
+    color: COLORS.muted,
+    fontSize: 14,
+    marginHorizontal: SPACING.md,
   },
   logoContainer: {
     alignItems: 'center',
