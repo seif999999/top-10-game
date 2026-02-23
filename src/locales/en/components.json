@@ -5,9 +5,14 @@
     "availableIn": "Available in {{time}}",
     "coinsEarned": "+{{amount}} coins!",
     "loading": "Loading ad…",
-    "loadFailed": "Ad failed to load",
+    "loadFailed": "Ad not available right now.",
     "unavailable": "Ad not available",
-    "premiumNoAds": "No ads for premium users"
+    "premiumNoAds": "No ads for premium users",
+    "doubleRewardTitle": "Double Your Reward!",
+    "doubleRewardDescription": "Watch an ad to double your {{amount}} coins",
+    "watchAdToDouble": "Watch ad to double your coins",
+    "skip": "Skip",
+    "rewardDoubled": "Nice! Coins doubled 🎉"
   },
   "dailyReward": {
     "title": "Daily Reward",

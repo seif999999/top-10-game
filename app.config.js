@@ -40,7 +40,6 @@ module.exports = () => ({
     assetBundlePatterns: ['**/*'],
     
     plugins: [
-      'expo-localization',
       [
         'expo-build-properties',
         {

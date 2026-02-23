@@ -11,7 +11,7 @@ interface IconProps {
 
 /**
  * Single Player Icon
- * Full standing character holding a phone - like the reference image
+ * Clean, professional minimalist design - person silhouette with phone
  */
 export const SinglePlayerIcon: React.FC<IconProps> = ({
   size = 80,
@@ -23,93 +23,49 @@ export const SinglePlayerIcon: React.FC<IconProps> = ({
   
   return (
     <View style={[styles.iconContainer, { width: size, height: size }]}>
-      {/* Character container */}
-      <View style={[styles.singleCharacter, { transform: [{ scale: scale * 0.9 }] }]}>
-        
-        {/* Hair (long, brown, flowing) */}
-        <View style={styles.hairBack}>
-          {/* Back hair flowing down */}
-          <View style={[styles.hairBackPiece, { left: -2 }]} />
-          <View style={[styles.hairBackPiece, { right: -2 }]} />
-        </View>
-        
-        {/* Head */}
-        <View style={styles.singleHead}>
-          {/* Hair top */}
-          <View style={styles.hairTop} />
-          {/* Hair side left */}
-          <View style={[styles.hairSide, { left: -3 }]} />
-          {/* Hair side right */}
-          <View style={[styles.hairSide, { right: -3 }]} />
+      {/* Professional minimalist design */}
+      <View style={[styles.singlePlayerContainer, { transform: [{ scale }] }]}>
+        {/* Person silhouette - simplified head and shoulders */}
+        <View style={styles.singlePersonSilhouette}>
+          {/* Head - simple circle */}
+          <View style={[styles.singleHeadSimple, { backgroundColor: primaryColor }]} />
           
-          {/* Face */}
-          <View style={styles.face}>
-            {/* Eyes */}
-            <View style={styles.eyesRow}>
-              <View style={styles.singleEye}>
-                <View style={styles.singlePupil} />
-              </View>
-              <View style={styles.singleEye}>
-                <View style={styles.singlePupil} />
-              </View>
-            </View>
-            {/* Subtle smile */}
-            <View style={styles.subtleSmile} />
-            {/* Blush */}
-            <View style={[styles.singleBlush, { left: 2 }]} />
-            <View style={[styles.singleBlush, { right: 2 }]} />
+          {/* Shoulders/body - clean rounded rectangle */}
+          <View style={styles.singleShoulders}>
+            {/* Subtle gradient for depth */}
+            <LinearGradient
+              colors={[primaryColor, secondaryColor]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.singleShouldersGradient}
+            />
           </View>
         </View>
         
-        {/* Neck */}
-        <View style={styles.neck} />
-        
-        {/* Body - White T-shirt */}
-        <View style={styles.tshirt}>
-          {/* Collar */}
-          <View style={styles.tshirtCollar} />
-          {/* Shirt body */}
-          <View style={styles.tshirtBody} />
-        </View>
-        
-        {/* Arms holding phone */}
-        <View style={styles.armsContainer}>
-          {/* Left arm */}
-          <View style={[styles.arm, styles.leftArm]}>
-            <View style={styles.armUpper} />
-            <View style={styles.armLower} />
-            <View style={styles.singleHand}>
-              <View style={[styles.singleFinger, { left: 0 }]} />
-              <View style={[styles.singleFinger, { left: 3 }]} />
-            </View>
-          </View>
-          
-          {/* Phone */}
-          <View style={styles.phoneCenter}>
-            <View style={styles.phoneCenterFrame}>
-              <LinearGradient
-                colors={[accentColor, '#3B82F6']}
-                style={styles.phoneCenterScreen}
-              />
-            </View>
-          </View>
-          
-          {/* Right arm */}
-          <View style={[styles.arm, styles.rightArm]}>
-            <View style={styles.armUpper} />
-            <View style={styles.armLower} />
-            <View style={styles.singleHand}>
-              <View style={[styles.singleFinger, { right: 0 }]} />
-              <View style={[styles.singleFinger, { right: 3 }]} />
-            </View>
+        {/* Phone - prominent, modern design */}
+        <View style={styles.singlePhoneModern}>
+          <View style={styles.singlePhoneFrameModern}>
+            {/* Screen with subtle gradient */}
+            <LinearGradient
+              colors={[accentColor, '#3B82F6']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.singlePhoneScreenModern}
+            >
+              {/* Minimalist UI indicator */}
+              <View style={styles.singlePhoneUI} />
+            </LinearGradient>
           </View>
         </View>
         
-        {/* Jeans/Pants (partial, bottom of icon) */}
-        <View style={styles.jeans}>
-          <View style={[styles.jeansLeg, { left: 2 }]} />
-          <View style={[styles.jeansLeg, { right: 2 }]} />
-        </View>
+        {/* Subtle glow effect for professionalism */}
+        <View style={[styles.singleGlow, { 
+          backgroundColor: primaryColor,
+          opacity: 0.15,
+          width: 60 * scale,
+          height: 60 * scale,
+          borderRadius: 30 * scale,
+        }]} />
       </View>
     </View>
   );
@@ -358,203 +314,79 @@ const styles = StyleSheet.create({
   },
   
   // ========== SINGLE PLAYER STYLES ==========
-  singleCharacter: {
+  singlePlayerContainer: {
     alignItems: 'center',
+    justifyContent: 'center',
     position: 'relative',
+    width: 80,
+    height: 80,
   },
-  hairBack: {
+  singleGlow: {
     position: 'absolute',
-    top: 10,
-    width: 32,
-    height: 50,
     zIndex: 0,
   },
-  hairBackPiece: {
-    position: 'absolute',
-    width: 10,
-    height: 45,
-    backgroundColor: '#78350F',
-    borderBottomLeftRadius: 5,
-    borderBottomRightRadius: 5,
-    top: 8,
-  },
-  singleHead: {
-    width: 24,
-    height: 22,
+  singlePersonSilhouette: {
+    alignItems: 'center',
     position: 'relative',
     zIndex: 2,
+    marginBottom: 8,
   },
-  hairTop: {
-    position: 'absolute',
-    top: -4,
-    left: -2,
-    width: 28,
-    height: 14,
-    backgroundColor: '#78350F',
-    borderTopLeftRadius: 14,
-    borderTopRightRadius: 14,
-    zIndex: 3,
-  },
-  hairSide: {
-    position: 'absolute',
-    top: 6,
-    width: 6,
+  singleHeadSimple: {
+    width: 20,
     height: 20,
-    backgroundColor: '#78350F',
-    borderBottomLeftRadius: 3,
-    borderBottomRightRadius: 3,
-    zIndex: 1,
+    borderRadius: 10,
+    marginBottom: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  face: {
-    width: 22,
+  singleShoulders: {
+    width: 32,
     height: 20,
-    backgroundColor: '#FCD9B6',
-    borderRadius: 11,
-    marginTop: 2,
-    marginLeft: 1,
-    position: 'relative',
-    zIndex: 2,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  eyesRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 6,
-    marginTop: 6,
+  singleShouldersGradient: {
+    width: '100%',
+    height: '100%',
   },
-  singleEye: {
-    width: 4,
-    height: 5,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 2,
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    paddingBottom: 1,
-  },
-  singlePupil: {
-    width: 2,
-    height: 3,
-    backgroundColor: '#1F2937',
-    borderRadius: 1,
-  },
-  subtleSmile: {
-    width: 6,
-    height: 3,
-    borderBottomLeftRadius: 3,
-    borderBottomRightRadius: 3,
-    borderWidth: 1.5,
-    borderTopWidth: 0,
-    borderColor: '#DC8A78',
-    alignSelf: 'center',
-    marginTop: 3,
-  },
-  singleBlush: {
+  singlePhoneModern: {
     position: 'absolute',
-    bottom: 5,
-    width: 4,
-    height: 2,
-    backgroundColor: '#FECACA',
-    borderRadius: 1,
-    opacity: 0.5,
-  },
-  neck: {
-    width: 8,
-    height: 4,
-    backgroundColor: '#FCD9B6',
-    marginTop: -1,
-    zIndex: 1,
-  },
-  tshirt: {
-    alignItems: 'center',
-    zIndex: 1,
-  },
-  tshirtCollar: {
-    width: 14,
-    height: 4,
-    backgroundColor: '#FFFFFF',
-    borderBottomLeftRadius: 7,
-    borderBottomRightRadius: 7,
-  },
-  tshirtBody: {
-    width: 28,
-    height: 18,
-    backgroundColor: '#FFFFFF',
-    borderBottomLeftRadius: 4,
-    borderBottomRightRadius: 4,
-    marginTop: -2,
-  },
-  armsContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginTop: -14,
+    bottom: 8,
     zIndex: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 5,
   },
-  arm: {
-    alignItems: 'center',
-  },
-  leftArm: {
-    transform: [{ rotate: '30deg' }],
-  },
-  rightArm: {
-    transform: [{ rotate: '-30deg' }],
-  },
-  armUpper: {
-    width: 7,
-    height: 10,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 3,
-  },
-  armLower: {
-    width: 6,
-    height: 8,
-    backgroundColor: '#FCD9B6',
-    borderRadius: 3,
-    marginTop: -2,
-  },
-  singleHand: {
-    width: 8,
-    height: 6,
-    backgroundColor: '#FCD9B6',
-    borderRadius: 3,
-    marginTop: -1,
-    flexDirection: 'row',
-    position: 'relative',
-  },
-  singleFinger: {
-    position: 'absolute',
-    width: 2,
-    height: 4,
-    backgroundColor: '#FCD9B6',
-    borderRadius: 1,
-    bottom: -2,
-  },
-  phoneCenter: {
-    marginHorizontal: -4,
-    marginTop: 8,
-    zIndex: 10,
-  },
-  phoneCenterFrame: {
-    width: 14,
-    height: 22,
+  singlePhoneFrameModern: {
+    width: 18,
+    height: 28,
     backgroundColor: '#1F2937',
-    borderRadius: 3,
-    padding: 2,
+    borderRadius: 4,
+    padding: 2.5,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  phoneCenterScreen: {
+  singlePhoneScreenModern: {
     flex: 1,
     borderRadius: 2,
-  },
-  jeans: {
-    flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: -2,
-    zIndex: 0,
+    alignItems: 'center',
   },
-  jeansLeg: {
-    width: 10,
-    height: 12,
-    backgroundColor: '#60A5FA',
-    borderBottomLeftRadius: 2,
-    borderBottomRightRadius: 2,
+  singlePhoneUI: {
+    width: 8,
+    height: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    borderRadius: 1,
   },
   
   // ========== MULTIPLAYER STYLES ==========

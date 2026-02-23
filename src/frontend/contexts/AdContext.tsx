@@ -9,7 +9,7 @@ import * as ProgressiveAd from '../../backend/utils/coinAdCooldown';
 import { useAuth } from './AuthContext';
 import UserProfileService from '../../backend/services/userProfileService';
 
-const INTERSTITIAL_FREQUENCY_CAP_MS = 5 * 60 * 1000; // 5 minutes
+const INTERSTITIAL_FREQUENCY_CAP_MS = 90 * 1000; // 90 seconds (minimum between interstitials)
 
 export interface ProgressiveAdInfo {
   adsWatchedThisHour: number;
@@ -31,6 +31,9 @@ export interface AdContextValue {
   rewardedShownThisSession: number;
   interstitialShownThisSession: number;
 
+  // Session flags
+  hasShownGameEnterInterstitial: boolean; // Once per session flag
+
   // Frequency (last shown timestamps)
   lastRewardedShownAt: number | null;
   lastInterstitialShownAt: number | null;
@@ -43,7 +46,7 @@ export interface AdContextValue {
   loadRewardedAd: () => Promise<void>;
   loadInterstitialAd: () => Promise<void>;
   showRewardedAd: (onRewardEarned?: (reward: AdReward) => void) => Promise<void>;
-  showInterstitialAd: (callbacks?: { onAdClosed?: () => void }) => Promise<void>;
+  showInterstitialAd: (callbacks?: { onAdClosed?: () => void; markAsGameEnter?: boolean }) => Promise<void>;
 
   // Progressive rewarded ad: 10→15→20→25→30 coins, 5 per hour
   showProgressiveRewardedAd: (onSuccess: (coinsEarned: number) => void) => Promise<void>;
@@ -63,6 +66,7 @@ export const AdProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   const [interstitialLoadState, setInterstitialLoadState] = useState<AdLoadState>('idle');
   const [rewardedShownThisSession, setRewardedShownThisSession] = useState(0);
   const [interstitialShownThisSession, setInterstitialShownThisSession] = useState(0);
+  const [hasShownGameEnterInterstitial, setHasShownGameEnterInterstitial] = useState(false);
   const [lastRewardedShownAt, setLastRewardedShownAt] = useState<number | null>(null);
   const [lastInterstitialShownAt, setLastInterstitialShownAt] = useState<number | null>(null);
   const [adError, setAdError] = useState<string | null>(null);
@@ -182,14 +186,16 @@ export const AdProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   );
 
   const showInterstitialAd = useCallback(
-    async (callbacks?: { onAdClosed?: () => void }) => {
+    async (callbacks?: { onAdClosed?: () => void; markAsGameEnter?: boolean }) => {
       if (isPremium) {
         logger.log('AdContext: skipped interstitial ad (premium)');
+        callbacks?.onAdClosed?.();
         return;
       }
       const now = Date.now();
       if (lastInterstitialShownAt != null && now - lastInterstitialShownAt < INTERSTITIAL_FREQUENCY_CAP_MS) {
-        logger.log('AdContext: interstitial frequency cap (5 min)');
+        logger.log(`AdContext: interstitial frequency cap (${INTERSTITIAL_FREQUENCY_CAP_MS / 1000}s)`);
+        callbacks?.onAdClosed?.();
         return;
       }
       setAdError(null);
@@ -198,6 +204,9 @@ export const AdProvider: React.FC<{ children: React.ReactNode }> = ({ children }
           setInterstitialShownThisSession((c) => c + 1);
           setLastInterstitialShownAt(Date.now());
           setInterstitialLoadState('showing');
+          if (callbacks?.markAsGameEnter) {
+            setHasShownGameEnterInterstitial(true);
+          }
         },
         onAdDismissed: () => {
           syncLoadStates();
@@ -206,6 +215,7 @@ export const AdProvider: React.FC<{ children: React.ReactNode }> = ({ children }
         onAdFailedToShow: (err) => {
           setAdError(err.message);
           syncLoadStates();
+          callbacks?.onAdClosed?.();
         },
       });
     },
@@ -280,6 +290,7 @@ export const AdProvider: React.FC<{ children: React.ReactNode }> = ({ children }
       interstitialLoadState,
       rewardedShownThisSession,
       interstitialShownThisSession,
+      hasShownGameEnterInterstitial,
       lastRewardedShownAt,
       lastInterstitialShownAt,
       adError,
@@ -300,6 +311,7 @@ export const AdProvider: React.FC<{ children: React.ReactNode }> = ({ children }
       interstitialLoadState,
       rewardedShownThisSession,
       interstitialShownThisSession,
+      hasShownGameEnterInterstitial,
       lastRewardedShownAt,
       lastInterstitialShownAt,
       adError,

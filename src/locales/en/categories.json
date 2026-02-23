@@ -8,6 +8,7 @@
   "food": "Food & Drink",
   "technology": "Technology",
   "masry": "Masry",
+  "generalKnowledge": "General Knowledge",
   "custom": "Create Your Own",
   "descriptions": {
     "random": "Surprise me! Pick a random category and question",
@@ -19,6 +20,7 @@
     "food": "Cuisine, restaurants, recipes, and beverages",
     "technology": "Tech companies, innovations, and digital trends",
     "masry": "Egyptian culture, food, movies, music, and more",
+    "generalKnowledge": "Famous brands, countries, celebrities, and more",
     "custom": "Play your saved custom questions"
   }
 }

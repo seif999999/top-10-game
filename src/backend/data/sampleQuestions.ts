@@ -2731,6 +2731,908 @@ export const sampleQuestions: GameQuestion[] = [
       { text: 'PES', rank: 9, points: 9, normalized: 'pes', aliases: ['efootball', 'pro evolution soccer'] },
       { text: 'Clash of Clans', rank: 10, points: 10, normalized: 'clash of clans', aliases: ['coc'] }
     ]
+  },
+
+  // General Knowledge Category
+  {
+    id: 'generalknowledge-1',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous brands (worldwide)',
+    difficulty: 'easy',
+    answers: [
+      { text: 'Nike', rank: 1, points: 1, normalized: 'nike' },
+      { text: 'Apple', rank: 2, points: 2, normalized: 'apple' },
+      { text: 'Adidas', rank: 3, points: 3, normalized: 'adidas' },
+      { text: 'Samsung', rank: 4, points: 4, normalized: 'samsung' },
+      { text: 'Coca-Cola', rank: 5, points: 5, normalized: 'coca cola', aliases: ['coca cola', 'coke'] },
+      { text: 'Google', rank: 6, points: 6, normalized: 'google' },
+      { text: 'Microsoft', rank: 7, points: 7, normalized: 'microsoft' },
+      { text: "McDonald's", rank: 8, points: 8, normalized: 'mcdonalds', aliases: ['mcdonalds', 'mcd'] },
+      { text: 'Amazon', rank: 9, points: 9, normalized: 'amazon' },
+      { text: 'Pepsi', rank: 10, points: 10, normalized: 'pepsi' }
+    ]
+  },
+  {
+    id: 'generalknowledge-2',
+    category: 'General Knowledge',
+    title: 'Top 10 most populated countries',
+    difficulty: 'medium',
+    answers: [
+      { text: 'India', rank: 1, points: 1, normalized: 'india' },
+      { text: 'China', rank: 2, points: 2, normalized: 'china' },
+      { text: 'USA', rank: 3, points: 3, normalized: 'usa', aliases: ['united states', 'america', 'us'] },
+      { text: 'Indonesia', rank: 4, points: 4, normalized: 'indonesia' },
+      { text: 'Pakistan', rank: 5, points: 5, normalized: 'pakistan' },
+      { text: 'Nigeria', rank: 6, points: 6, normalized: 'nigeria' },
+      { text: 'Brazil', rank: 7, points: 7, normalized: 'brazil', aliases: ['brasil'] },
+      { text: 'Bangladesh', rank: 8, points: 8, normalized: 'bangladesh' },
+      { text: 'Russia', rank: 9, points: 9, normalized: 'russia' },
+      { text: 'Mexico', rank: 10, points: 10, normalized: 'mexico' }
+    ]
+  },
+  {
+    id: 'generalknowledge-3',
+    category: 'General Knowledge',
+    title: 'Top 10 most popular social media platforms',
+    difficulty: 'easy',
+    answers: [
+      { text: 'Facebook', rank: 1, points: 1, normalized: 'facebook', aliases: ['fb', 'meta'] },
+      { text: 'YouTube', rank: 2, points: 2, normalized: 'youtube', aliases: ['yt'] },
+      { text: 'WhatsApp', rank: 3, points: 3, normalized: 'whatsapp', aliases: ['wa'] },
+      { text: 'Instagram', rank: 4, points: 4, normalized: 'instagram', aliases: ['ig', 'insta'] },
+      { text: 'TikTok', rank: 5, points: 5, normalized: 'tiktok', aliases: ['tik tok'] },
+      { text: 'WeChat', rank: 6, points: 6, normalized: 'wechat' },
+      { text: 'Telegram', rank: 7, points: 7, normalized: 'telegram' },
+      { text: 'Snapchat', rank: 8, points: 8, normalized: 'snapchat', aliases: ['snap'] },
+      { text: 'X (Twitter)', rank: 9, points: 9, normalized: 'twitter', aliases: ['x', 'twitter'] },
+      { text: 'Reddit', rank: 10, points: 10, normalized: 'reddit' }
+    ]
+  },
+  {
+    id: 'generalknowledge-4',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous football clubs',
+    difficulty: 'medium',
+    answers: [
+      { text: 'Real Madrid', rank: 1, points: 1, normalized: 'real madrid', aliases: ['real', 'madrid'] },
+      { text: 'Barcelona', rank: 2, points: 2, normalized: 'barcelona', aliases: ['barca', 'fc barcelona'] },
+      { text: 'Manchester United', rank: 3, points: 3, normalized: 'manchester united', aliases: ['man united', 'man u', 'manchester utd'] },
+      { text: 'Bayern Munich', rank: 4, points: 4, normalized: 'bayern munich', aliases: ['bayern', 'fc bayern'] },
+      { text: 'Liverpool', rank: 5, points: 5, normalized: 'liverpool', aliases: ['lfc'] },
+      { text: 'AC Milan', rank: 6, points: 6, normalized: 'ac milan', aliases: ['milan', 'acm'] },
+      { text: 'Chelsea', rank: 7, points: 7, normalized: 'chelsea', aliases: ['cfc'] },
+      { text: 'Juventus', rank: 8, points: 8, normalized: 'juventus', aliases: ['juve'] },
+      { text: 'PSG', rank: 9, points: 9, normalized: 'psg', aliases: ['paris saint germain', 'paris sg'] },
+      { text: 'Arsenal', rank: 10, points: 10, normalized: 'arsenal', aliases: ['afc'] }
+    ]
+  },
+  {
+    id: 'generalknowledge-5',
+    category: 'General Knowledge',
+    title: 'Top 10 most watched sports',
+    difficulty: 'medium',
+    answers: [
+      { text: 'Football (Soccer)', rank: 1, points: 1, normalized: 'football', aliases: ['soccer', 'futbol'] },
+      { text: 'Cricket', rank: 2, points: 2, normalized: 'cricket' },
+      { text: 'Basketball', rank: 3, points: 3, normalized: 'basketball' },
+      { text: 'Tennis', rank: 4, points: 4, normalized: 'tennis' },
+      { text: 'Volleyball', rank: 5, points: 5, normalized: 'volleyball' },
+      { text: 'Baseball', rank: 6, points: 6, normalized: 'baseball' },
+      { text: 'Formula 1', rank: 7, points: 7, normalized: 'formula 1', aliases: ['f1', 'formula one'] },
+      { text: 'Boxing', rank: 8, points: 8, normalized: 'boxing' },
+      { text: 'MMA', rank: 9, points: 9, normalized: 'mma', aliases: ['mixed martial arts', 'ufc'] },
+      { text: 'Golf', rank: 10, points: 10, normalized: 'golf' }
+    ]
+  },
+  {
+    id: 'generalknowledge-6',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous movies of all time',
+    difficulty: 'easy',
+    answers: [
+      { text: 'Titanic', rank: 1, points: 1, normalized: 'titanic' },
+      { text: 'Avatar', rank: 2, points: 2, normalized: 'avatar' },
+      { text: 'The Avengers', rank: 3, points: 3, normalized: 'avengers', aliases: ['avengers'] },
+      { text: 'The Dark Knight', rank: 4, points: 4, normalized: 'dark knight', aliases: ['batman dark knight'] },
+      { text: 'Harry Potter', rank: 5, points: 5, normalized: 'harry potter', aliases: ['hp'] },
+      { text: 'Star Wars', rank: 6, points: 6, normalized: 'star wars' },
+      { text: 'Inception', rank: 7, points: 7, normalized: 'inception' },
+      { text: 'The Godfather', rank: 8, points: 8, normalized: 'godfather', aliases: ['the godfather'] },
+      { text: 'Jurassic Park', rank: 9, points: 9, normalized: 'jurassic park' },
+      { text: 'Spider-Man', rank: 10, points: 10, normalized: 'spiderman', aliases: ['spider man', 'spiderman'] }
+    ]
+  },
+  {
+    id: 'generalknowledge-7',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous singers (global)',
+    difficulty: 'medium',
+    answers: [
+      { text: 'Michael Jackson', rank: 1, points: 1, normalized: 'michael jackson', aliases: ['mj', 'king of pop'] },
+      { text: 'Taylor Swift', rank: 2, points: 2, normalized: 'taylor swift', aliases: ['taylor', 'tswift'] },
+      { text: 'Drake', rank: 3, points: 3, normalized: 'drake' },
+      { text: 'Beyoncé', rank: 4, points: 4, normalized: 'beyonce', aliases: ['beyonce'] },
+      { text: 'Eminem', rank: 5, points: 5, normalized: 'eminem', aliases: ['slim shady', 'marshall mathers'] },
+      { text: 'Rihanna', rank: 6, points: 6, normalized: 'rihanna' },
+      { text: 'The Weeknd', rank: 7, points: 7, normalized: 'weeknd', aliases: ['the weeknd', 'abel'] },
+      { text: 'Justin Bieber', rank: 8, points: 8, normalized: 'justin bieber', aliases: ['bieber', 'jb'] },
+      { text: 'Ed Sheeran', rank: 9, points: 9, normalized: 'ed sheeran', aliases: ['ed', 'sheeran'] },
+      { text: 'Adele', rank: 10, points: 10, normalized: 'adele' }
+    ]
+  },
+  {
+    id: 'generalknowledge-8',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous video games',
+    difficulty: 'easy',
+    answers: [
+      { text: 'GTA V', rank: 1, points: 1, normalized: 'gta v', aliases: ['gta 5', 'grand theft auto v'] },
+      { text: 'Minecraft', rank: 2, points: 2, normalized: 'minecraft' },
+      { text: 'Fortnite', rank: 3, points: 3, normalized: 'fortnite' },
+      { text: 'Call of Duty', rank: 4, points: 4, normalized: 'call of duty', aliases: ['cod'] },
+      { text: 'FIFA', rank: 5, points: 5, normalized: 'fifa', aliases: ['ea fc', 'fifa 24'] },
+      { text: 'PUBG', rank: 6, points: 6, normalized: 'pubg', aliases: ['playerunknown battlegrounds'] },
+      { text: 'Roblox', rank: 7, points: 7, normalized: 'roblox' },
+      { text: 'League of Legends', rank: 8, points: 8, normalized: 'league of legends', aliases: ['lol'] },
+      { text: 'Among Us', rank: 9, points: 9, normalized: 'among us' },
+      { text: 'Clash of Clans', rank: 10, points: 10, normalized: 'clash of clans', aliases: ['coc'] }
+    ]
+  },
+  {
+    id: 'generalknowledge-9',
+    category: 'General Knowledge',
+    title: 'Top 10 biggest countries by area',
+    difficulty: 'hard',
+    answers: [
+      { text: 'Russia', rank: 1, points: 1, normalized: 'russia' },
+      { text: 'Canada', rank: 2, points: 2, normalized: 'canada' },
+      { text: 'China', rank: 3, points: 3, normalized: 'china' },
+      { text: 'USA', rank: 4, points: 4, normalized: 'usa', aliases: ['united states', 'america', 'us'] },
+      { text: 'Brazil', rank: 5, points: 5, normalized: 'brazil', aliases: ['brasil'] },
+      { text: 'Australia', rank: 6, points: 6, normalized: 'australia' },
+      { text: 'India', rank: 7, points: 7, normalized: 'india' },
+      { text: 'Argentina', rank: 8, points: 8, normalized: 'argentina' },
+      { text: 'Kazakhstan', rank: 9, points: 9, normalized: 'kazakhstan' },
+      { text: 'Algeria', rank: 10, points: 10, normalized: 'algeria' }
+    ]
+  },
+  {
+    id: 'generalknowledge-10',
+    category: 'General Knowledge',
+    title: 'Top 10 most popular foods',
+    difficulty: 'easy',
+    answers: [
+      { text: 'Pizza', rank: 1, points: 1, normalized: 'pizza' },
+      { text: 'Burger', rank: 2, points: 2, normalized: 'burger', aliases: ['hamburger'] },
+      { text: 'Pasta', rank: 3, points: 3, normalized: 'pasta' },
+      { text: 'Fried Chicken', rank: 4, points: 4, normalized: 'fried chicken', aliases: ['chicken', 'kfc'] },
+      { text: 'Sushi', rank: 5, points: 5, normalized: 'sushi' },
+      { text: 'Shawarma', rank: 6, points: 6, normalized: 'shawarma', aliases: ['shawrma'] },
+      { text: 'Tacos', rank: 7, points: 7, normalized: 'tacos', aliases: ['taco'] },
+      { text: 'Kebab', rank: 8, points: 8, normalized: 'kebab', aliases: ['kabab'] },
+      { text: 'Sandwich', rank: 9, points: 9, normalized: 'sandwich' },
+      { text: 'Noodles', rank: 10, points: 10, normalized: 'noodles', aliases: ['noodle'] }
+    ]
+  },
+  {
+    id: 'generalknowledge-11',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous companies',
+    difficulty: 'medium',
+    answers: [
+      { text: 'Apple', rank: 1, points: 1, normalized: 'apple' },
+      { text: 'Microsoft', rank: 2, points: 2, normalized: 'microsoft' },
+      { text: 'Amazon', rank: 3, points: 3, normalized: 'amazon' },
+      { text: 'Google', rank: 4, points: 4, normalized: 'google' },
+      { text: 'Tesla', rank: 5, points: 5, normalized: 'tesla' },
+      { text: 'Meta', rank: 6, points: 6, normalized: 'meta', aliases: ['facebook'] },
+      { text: 'Samsung', rank: 7, points: 7, normalized: 'samsung' },
+      { text: 'NVIDIA', rank: 8, points: 8, normalized: 'nvidia', aliases: ['nvidia'] },
+      { text: 'Netflix', rank: 9, points: 9, normalized: 'netflix' },
+      { text: 'Coca-Cola', rank: 10, points: 10, normalized: 'coca cola', aliases: ['coca cola', 'coke'] }
+    ]
+  },
+  {
+    id: 'generalknowledge-12',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous actors',
+    difficulty: 'medium',
+    answers: [
+      { text: 'Leonardo DiCaprio', rank: 1, points: 1, normalized: 'leonardo dicaprio', aliases: ['dicaprio', 'leo'] },
+      { text: 'Dwayne Johnson', rank: 2, points: 2, normalized: 'dwayne johnson', aliases: ['the rock', 'rock'] },
+      { text: 'Tom Cruise', rank: 3, points: 3, normalized: 'tom cruise', aliases: ['cruise'] },
+      { text: 'Brad Pitt', rank: 4, points: 4, normalized: 'brad pitt', aliases: ['pitt'] },
+      { text: 'Johnny Depp', rank: 5, points: 5, normalized: 'johnny depp', aliases: ['depp'] },
+      { text: 'Robert Downey Jr', rank: 6, points: 6, normalized: 'robert downey jr', aliases: ['rdj', 'iron man', 'downey'] },
+      { text: 'Will Smith', rank: 7, points: 7, normalized: 'will smith', aliases: ['smith'] },
+      { text: 'Keanu Reeves', rank: 8, points: 8, normalized: 'keanu reeves', aliases: ['reeves', 'neo'] },
+      { text: 'Morgan Freeman', rank: 9, points: 9, normalized: 'morgan freeman', aliases: ['freeman'] },
+      { text: 'Ryan Reynolds', rank: 10, points: 10, normalized: 'ryan reynolds', aliases: ['reynolds', 'deadpool'] }
+    ]
+  },
+  {
+    id: 'generalknowledge-13',
+    category: 'General Knowledge',
+    title: 'Top 10 most popular mobile apps',
+    difficulty: 'easy',
+    answers: [
+      { text: 'TikTok', rank: 1, points: 1, normalized: 'tiktok', aliases: ['tik tok'] },
+      { text: 'Instagram', rank: 2, points: 2, normalized: 'instagram', aliases: ['ig', 'insta'] },
+      { text: 'WhatsApp', rank: 3, points: 3, normalized: 'whatsapp', aliases: ['wa'] },
+      { text: 'Facebook', rank: 4, points: 4, normalized: 'facebook', aliases: ['fb', 'meta'] },
+      { text: 'YouTube', rank: 5, points: 5, normalized: 'youtube', aliases: ['yt'] },
+      { text: 'Snapchat', rank: 6, points: 6, normalized: 'snapchat', aliases: ['snap'] },
+      { text: 'Telegram', rank: 7, points: 7, normalized: 'telegram' },
+      { text: 'Spotify', rank: 8, points: 8, normalized: 'spotify' },
+      { text: 'Netflix', rank: 9, points: 9, normalized: 'netflix' },
+      { text: 'Uber', rank: 10, points: 10, normalized: 'uber' }
+    ]
+  },
+  {
+    id: 'generalknowledge-14',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous cities',
+    difficulty: 'medium',
+    answers: [
+      { text: 'New York', rank: 1, points: 1, normalized: 'new york', aliases: ['nyc', 'new york city'] },
+      { text: 'Paris', rank: 2, points: 2, normalized: 'paris' },
+      { text: 'London', rank: 3, points: 3, normalized: 'london' },
+      { text: 'Tokyo', rank: 4, points: 4, normalized: 'tokyo' },
+      { text: 'Dubai', rank: 5, points: 5, normalized: 'dubai' },
+      { text: 'Los Angeles', rank: 6, points: 6, normalized: 'los angeles', aliases: ['la', 'los angeles'] },
+      { text: 'Rome', rank: 7, points: 7, normalized: 'rome' },
+      { text: 'Istanbul', rank: 8, points: 8, normalized: 'istanbul' },
+      { text: 'Barcelona', rank: 9, points: 9, normalized: 'barcelona', aliases: ['barca'] },
+      { text: 'Bangkok', rank: 10, points: 10, normalized: 'bangkok' }
+    ]
+  },
+  {
+    id: 'generalknowledge-15',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous cars brands',
+    difficulty: 'medium',
+    answers: [
+      { text: 'Toyota', rank: 1, points: 1, normalized: 'toyota' },
+      { text: 'Mercedes-Benz', rank: 2, points: 2, normalized: 'mercedes benz', aliases: ['mercedes', 'benz'] },
+      { text: 'BMW', rank: 3, points: 3, normalized: 'bmw' },
+      { text: 'Tesla', rank: 4, points: 4, normalized: 'tesla' },
+      { text: 'Ferrari', rank: 5, points: 5, normalized: 'ferrari' },
+      { text: 'Porsche', rank: 6, points: 6, normalized: 'porsche' },
+      { text: 'Honda', rank: 7, points: 7, normalized: 'honda' },
+      { text: 'Audi', rank: 8, points: 8, normalized: 'audi' },
+      { text: 'Ford', rank: 9, points: 9, normalized: 'ford' },
+      { text: 'Lamborghini', rank: 10, points: 10, normalized: 'lamborghini', aliases: ['lambo'] }
+    ]
+  },
+  {
+    id: 'generalknowledge-16',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous fast food chains',
+    difficulty: 'easy',
+    answers: [
+      { text: "McDonald's", rank: 1, points: 1, normalized: 'mcdonalds', aliases: ['mcdonalds', 'mcd'] },
+      { text: 'KFC', rank: 2, points: 2, normalized: 'kfc', aliases: ['kentucky fried chicken'] },
+      { text: 'Subway', rank: 3, points: 3, normalized: 'subway' },
+      { text: 'Burger King', rank: 4, points: 4, normalized: 'burger king', aliases: ['bk'] },
+      { text: 'Pizza Hut', rank: 5, points: 5, normalized: 'pizza hut' },
+      { text: "Domino's", rank: 6, points: 6, normalized: 'dominos', aliases: ['dominos pizza', "domino's"] },
+      { text: 'Starbucks', rank: 7, points: 7, normalized: 'starbucks' },
+      { text: 'Taco Bell', rank: 8, points: 8, normalized: 'taco bell' },
+      { text: "Wendy's", rank: 9, points: 9, normalized: 'wendys', aliases: ["wendy's"] },
+      { text: 'Popeyes', rank: 10, points: 10, normalized: 'popeyes', aliases: ['popeyes chicken'] }
+    ]
+  },
+  {
+    id: 'generalknowledge-17',
+    category: 'General Knowledge',
+    title: 'Top 10 most streamed songs (all time – general popularity)',
+    difficulty: 'medium',
+    answers: [
+      { text: 'Blinding Lights', rank: 1, points: 1, normalized: 'blinding lights', aliases: ['the weeknd blinding lights'] },
+      { text: 'Shape of You', rank: 2, points: 2, normalized: 'shape of you', aliases: ['ed sheeran shape of you'] },
+      { text: 'Despacito', rank: 3, points: 3, normalized: 'despacito', aliases: ['luis fonsi despacito'] },
+      { text: 'Someone You Loved', rank: 4, points: 4, normalized: 'someone you loved', aliases: ['lewis capaldi someone you loved'] },
+      { text: 'Dance Monkey', rank: 5, points: 5, normalized: 'dance monkey', aliases: ['tones and i dance monkey'] },
+      { text: 'One Dance', rank: 6, points: 6, normalized: 'one dance', aliases: ['drake one dance'] },
+      { text: 'Rockstar', rank: 7, points: 7, normalized: 'rockstar', aliases: ['post malone rockstar'] },
+      { text: 'Sunflower', rank: 8, points: 8, normalized: 'sunflower', aliases: ['post malone sunflower', 'swae lee sunflower'] },
+      { text: 'Perfect', rank: 9, points: 9, normalized: 'perfect', aliases: ['ed sheeran perfect'] },
+      { text: 'Stay', rank: 10, points: 10, normalized: 'stay', aliases: ['the kid laroi stay', 'justin bieber stay'] }
+    ]
+  },
+  {
+    id: 'generalknowledge-18',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous YouTubers',
+    difficulty: 'easy',
+    answers: [
+      { text: 'MrBeast', rank: 1, points: 1, normalized: 'mrbeast', aliases: ['mr beast', 'jimmy donaldson'] },
+      { text: 'PewDiePie', rank: 2, points: 2, normalized: 'pewdiepie', aliases: ['pew die pie', 'felix'] },
+      { text: 'Like Nastya', rank: 3, points: 3, normalized: 'like nastya', aliases: ['nastya'] },
+      { text: 'Logan Paul', rank: 4, points: 4, normalized: 'logan paul', aliases: ['logan'] },
+      { text: 'Jake Paul', rank: 5, points: 5, normalized: 'jake paul', aliases: ['jake'] },
+      { text: 'Markiplier', rank: 6, points: 6, normalized: 'markiplier', aliases: ['mark'] },
+      { text: 'KSI', rank: 7, points: 7, normalized: 'ksi' },
+      { text: 'Dude Perfect', rank: 8, points: 8, normalized: 'dude perfect', aliases: ['dude perfect'] },
+      { text: 'Jacksepticeye', rank: 9, points: 9, normalized: 'jacksepticeye', aliases: ['jack', 'sean'] },
+      { text: "Ryan's World", rank: 10, points: 10, normalized: 'ryans world', aliases: ['ryan', 'ryan toy review'] }
+    ]
+  },
+  {
+    id: 'generalknowledge-19',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous superheroes',
+    difficulty: 'easy',
+    answers: [
+      { text: 'Spider-Man', rank: 1, points: 1, normalized: 'spiderman', aliases: ['spider man', 'spiderman', 'peter parker'] },
+      { text: 'Batman', rank: 2, points: 2, normalized: 'batman', aliases: ['bruce wayne', 'dark knight'] },
+      { text: 'Superman', rank: 3, points: 3, normalized: 'superman', aliases: ['clark kent', 'man of steel'] },
+      { text: 'Iron Man', rank: 4, points: 4, normalized: 'iron man', aliases: ['tony stark', 'ironman'] },
+      { text: 'Captain America', rank: 5, points: 5, normalized: 'captain america', aliases: ['cap', 'steve rogers'] },
+      { text: 'Thor', rank: 6, points: 6, normalized: 'thor' },
+      { text: 'Hulk', rank: 7, points: 7, normalized: 'hulk', aliases: ['bruce banner'] },
+      { text: 'Wonder Woman', rank: 8, points: 8, normalized: 'wonder woman', aliases: ['diana prince'] },
+      { text: 'Deadpool', rank: 9, points: 9, normalized: 'deadpool', aliases: ['wade wilson'] },
+      { text: 'Wolverine', rank: 10, points: 10, normalized: 'wolverine', aliases: ['logan', 'x men'] }
+    ]
+  },
+  {
+    id: 'generalknowledge-20',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous countries to visit',
+    difficulty: 'medium',
+    answers: [
+      { text: 'France', rank: 1, points: 1, normalized: 'france' },
+      { text: 'Italy', rank: 2, points: 2, normalized: 'italy' },
+      { text: 'USA', rank: 3, points: 3, normalized: 'usa', aliases: ['united states', 'america', 'us'] },
+      { text: 'Spain', rank: 4, points: 4, normalized: 'spain' },
+      { text: 'Turkey', rank: 5, points: 5, normalized: 'turkey' },
+      { text: 'Thailand', rank: 6, points: 6, normalized: 'thailand' },
+      { text: 'UK', rank: 7, points: 7, normalized: 'uk', aliases: ['united kingdom', 'britain', 'england'] },
+      { text: 'Japan', rank: 8, points: 8, normalized: 'japan' },
+      { text: 'UAE', rank: 9, points: 9, normalized: 'uae', aliases: ['united arab emirates', 'dubai'] },
+      { text: 'Greece', rank: 10, points: 10, normalized: 'greece' }
+    ]
+  },
+  {
+    id: 'generalknowledge-21',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous TV series',
+    difficulty: 'medium',
+    answers: [
+      { text: 'Game of Thrones', rank: 1, points: 1, normalized: 'game of thrones', aliases: ['got', 'game of thrones'] },
+      { text: 'Breaking Bad', rank: 2, points: 2, normalized: 'breaking bad' },
+      { text: 'Friends', rank: 3, points: 3, normalized: 'friends' },
+      { text: 'Money Heist', rank: 4, points: 4, normalized: 'money heist', aliases: ['la casa de papel'] },
+      { text: 'The Walking Dead', rank: 5, points: 5, normalized: 'walking dead', aliases: ['twd'] },
+      { text: 'Stranger Things', rank: 6, points: 6, normalized: 'stranger things' },
+      { text: 'The Office', rank: 7, points: 7, normalized: 'office', aliases: ['the office'] },
+      { text: 'Peaky Blinders', rank: 8, points: 8, normalized: 'peaky blinders' },
+      { text: 'Prison Break', rank: 9, points: 9, normalized: 'prison break' },
+      { text: 'The Simpsons', rank: 10, points: 10, normalized: 'simpsons', aliases: ['simpsons'] }
+    ]
+  },
+  {
+    id: 'generalknowledge-22',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous athletes',
+    difficulty: 'medium',
+    answers: [
+      { text: 'Cristiano Ronaldo', rank: 1, points: 1, normalized: 'cristiano ronaldo', aliases: ['ronaldo', 'cr7'] },
+      { text: 'Lionel Messi', rank: 2, points: 2, normalized: 'lionel messi', aliases: ['messi'] },
+      { text: 'LeBron James', rank: 3, points: 3, normalized: 'lebron james', aliases: ['lebron', 'king james'] },
+      { text: 'Michael Jordan', rank: 4, points: 4, normalized: 'michael jordan', aliases: ['mj', 'jordan'] },
+      { text: 'Serena Williams', rank: 5, points: 5, normalized: 'serena williams', aliases: ['serena'] },
+      { text: 'Usain Bolt', rank: 6, points: 6, normalized: 'usain bolt', aliases: ['bolt'] },
+      { text: 'Roger Federer', rank: 7, points: 7, normalized: 'roger federer', aliases: ['federer'] },
+      { text: 'Neymar', rank: 8, points: 8, normalized: 'neymar', aliases: ['neymar jr'] },
+      { text: 'Tiger Woods', rank: 9, points: 9, normalized: 'tiger woods', aliases: ['tiger', 'woods'] },
+      { text: 'Conor McGregor', rank: 10, points: 10, normalized: 'conor mcgregor', aliases: ['mcgregor', 'notorious'] }
+    ]
+  },
+  {
+    id: 'generalknowledge-23',
+    category: 'General Knowledge',
+    title: 'Top 10 most used search engines',
+    difficulty: 'hard',
+    answers: [
+      { text: 'Google', rank: 1, points: 1, normalized: 'google' },
+      { text: 'Bing', rank: 2, points: 2, normalized: 'bing' },
+      { text: 'Yahoo', rank: 3, points: 3, normalized: 'yahoo' },
+      { text: 'Baidu', rank: 4, points: 4, normalized: 'baidu' },
+      { text: 'Yandex', rank: 5, points: 5, normalized: 'yandex' },
+      { text: 'DuckDuckGo', rank: 6, points: 6, normalized: 'duckduckgo', aliases: ['duck duck go'] },
+      { text: 'Naver', rank: 7, points: 7, normalized: 'naver' },
+      { text: 'Ask', rank: 8, points: 8, normalized: 'ask', aliases: ['ask.com'] },
+      { text: 'AOL', rank: 9, points: 9, normalized: 'aol' },
+      { text: 'Seznam', rank: 10, points: 10, normalized: 'seznam' }
+    ]
+  },
+  {
+    id: 'generalknowledge-24',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous brands of phones',
+    difficulty: 'easy',
+    answers: [
+      { text: 'Apple', rank: 1, points: 1, normalized: 'apple', aliases: ['iphone'] },
+      { text: 'Samsung', rank: 2, points: 2, normalized: 'samsung', aliases: ['galaxy'] },
+      { text: 'Xiaomi', rank: 3, points: 3, normalized: 'xiaomi', aliases: ['mi'] },
+      { text: 'Huawei', rank: 4, points: 4, normalized: 'huawei' },
+      { text: 'Oppo', rank: 5, points: 5, normalized: 'oppo' },
+      { text: 'Vivo', rank: 6, points: 6, normalized: 'vivo' },
+      { text: 'OnePlus', rank: 7, points: 7, normalized: 'oneplus', aliases: ['one plus'] },
+      { text: 'Google Pixel', rank: 8, points: 8, normalized: 'google pixel', aliases: ['pixel'] },
+      { text: 'Realme', rank: 9, points: 9, normalized: 'realme', aliases: ['real me'] },
+      { text: 'Motorola', rank: 10, points: 10, normalized: 'motorola', aliases: ['moto'] }
+    ]
+  },
+  {
+    id: 'generalknowledge-25',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous cartoons',
+    difficulty: 'easy',
+    answers: [
+      { text: 'Tom & Jerry', rank: 1, points: 1, normalized: 'tom and jerry', aliases: ['tom jerry', 'tom & jerry'] },
+      { text: 'SpongeBob', rank: 2, points: 2, normalized: 'spongebob', aliases: ['spongebob squarepants'] },
+      { text: 'The Simpsons', rank: 3, points: 3, normalized: 'simpsons', aliases: ['simpsons'] },
+      { text: 'Pokémon', rank: 4, points: 4, normalized: 'pokemon', aliases: ['pokemon', 'poke mon'] },
+      { text: 'Dragon Ball', rank: 5, points: 5, normalized: 'dragon ball', aliases: ['dragonball', 'dbz'] },
+      { text: 'Naruto', rank: 6, points: 6, normalized: 'naruto' },
+      { text: 'Scooby-Doo', rank: 7, points: 7, normalized: 'scooby doo', aliases: ['scooby doo'] },
+      { text: 'Rick and Morty', rank: 8, points: 8, normalized: 'rick and morty', aliases: ['rick morty'] },
+      { text: 'Ben 10', rank: 9, points: 9, normalized: 'ben 10', aliases: ['ben ten'] },
+      { text: 'Avatar: The Last Airbender', rank: 10, points: 10, normalized: 'avatar last airbender', aliases: ['avatar', 'last airbender', 'atla'] }
+    ]
+  },
+  {
+    id: 'generalknowledge-26',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous football players ever',
+    difficulty: 'hard',
+    answers: [
+      { text: 'Pelé', rank: 1, points: 1, normalized: 'pele', aliases: ['pele'] },
+      { text: 'Maradona', rank: 2, points: 2, normalized: 'maradona', aliases: ['diego maradona'] },
+      { text: 'Messi', rank: 3, points: 3, normalized: 'messi', aliases: ['lionel messi'] },
+      { text: 'Cristiano Ronaldo', rank: 4, points: 4, normalized: 'cristiano ronaldo', aliases: ['ronaldo', 'cr7'] },
+      { text: 'Zidane', rank: 5, points: 5, normalized: 'zidane', aliases: ['zinedine zidane', 'zizou'] },
+      { text: 'Ronaldo Nazário', rank: 6, points: 6, normalized: 'ronaldo nazario', aliases: ['ronaldo', 'r9', 'ronaldo nazário'] },
+      { text: 'Ronaldinho', rank: 7, points: 7, normalized: 'ronaldinho', aliases: ['ronaldinho gaucho'] },
+      { text: 'Cruyff', rank: 8, points: 8, normalized: 'cruyff', aliases: ['johan cruyff'] },
+      { text: 'Beckenbauer', rank: 9, points: 9, normalized: 'beckenbauer', aliases: ['franz beckenbauer'] },
+      { text: 'Neymar', rank: 10, points: 10, normalized: 'neymar', aliases: ['neymar jr'] }
+    ]
+  },
+  {
+    id: 'generalknowledge-27',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous mountains',
+    difficulty: 'hard',
+    answers: [
+      { text: 'Mount Everest', rank: 1, points: 1, normalized: 'mount everest', aliases: ['everest'] },
+      { text: 'K2', rank: 2, points: 2, normalized: 'k2' },
+      { text: 'Kilimanjaro', rank: 3, points: 3, normalized: 'kilimanjaro', aliases: ['mount kilimanjaro'] },
+      { text: 'Mont Blanc', rank: 4, points: 4, normalized: 'mont blanc', aliases: ['monte bianco'] },
+      { text: 'Mount Fuji', rank: 5, points: 5, normalized: 'mount fuji', aliases: ['fuji', 'fujisan'] },
+      { text: 'Matterhorn', rank: 6, points: 6, normalized: 'matterhorn' },
+      { text: 'Mount Elbrus', rank: 7, points: 7, normalized: 'mount elbrus', aliases: ['elbrus'] },
+      { text: 'Denali', rank: 8, points: 8, normalized: 'denali', aliases: ['mount mckinley'] },
+      { text: 'Aconcagua', rank: 9, points: 9, normalized: 'aconcagua', aliases: ['mount aconcagua'] },
+      { text: 'Mount Sinai', rank: 10, points: 10, normalized: 'mount sinai', aliases: ['sinai'] }
+    ]
+  },
+  {
+    id: 'generalknowledge-28',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous brands of shoes',
+    difficulty: 'easy',
+    answers: [
+      { text: 'Nike', rank: 1, points: 1, normalized: 'nike' },
+      { text: 'Adidas', rank: 2, points: 2, normalized: 'adidas' },
+      { text: 'Puma', rank: 3, points: 3, normalized: 'puma' },
+      { text: 'New Balance', rank: 4, points: 4, normalized: 'new balance', aliases: ['nb'] },
+      { text: 'Reebok', rank: 5, points: 5, normalized: 'reebok' },
+      { text: 'Converse', rank: 6, points: 6, normalized: 'converse', aliases: ['chuck taylor'] },
+      { text: 'Vans', rank: 7, points: 7, normalized: 'vans' },
+      { text: 'Skechers', rank: 8, points: 8, normalized: 'skechers' },
+      { text: 'Timberland', rank: 9, points: 9, normalized: 'timberland', aliases: ['timberlands'] },
+      { text: 'Jordan', rank: 10, points: 10, normalized: 'jordan', aliases: ['air jordan', 'jordans'] }
+    ]
+  },
+  {
+    id: 'generalknowledge-29',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous desserts',
+    difficulty: 'easy',
+    answers: [
+      { text: 'Ice Cream', rank: 1, points: 1, normalized: 'ice cream', aliases: ['icecream'] },
+      { text: 'Chocolate Cake', rank: 2, points: 2, normalized: 'chocolate cake', aliases: ['chocolate cake'] },
+      { text: 'Cheesecake', rank: 3, points: 3, normalized: 'cheesecake' },
+      { text: 'Brownies', rank: 4, points: 4, normalized: 'brownies', aliases: ['brownie'] },
+      { text: 'Donuts', rank: 5, points: 5, normalized: 'donuts', aliases: ['doughnuts', 'donut'] },
+      { text: 'Waffles', rank: 6, points: 6, normalized: 'waffles', aliases: ['waffle'] },
+      { text: 'Pancakes', rank: 7, points: 7, normalized: 'pancakes', aliases: ['pancake'] },
+      { text: 'Tiramisu', rank: 8, points: 8, normalized: 'tiramisu' },
+      { text: 'Cookies', rank: 9, points: 9, normalized: 'cookies', aliases: ['cookie', 'biscuits'] },
+      { text: 'Cupcakes', rank: 10, points: 10, normalized: 'cupcakes', aliases: ['cupcake'] }
+    ]
+  },
+  {
+    id: 'generalknowledge-30',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous landmarks',
+    difficulty: 'medium',
+    answers: [
+      { text: 'Eiffel Tower', rank: 1, points: 1, normalized: 'eiffel tower', aliases: ['eiffel', 'paris tower'] },
+      { text: 'Great Wall of China', rank: 2, points: 2, normalized: 'great wall of china', aliases: ['great wall', 'china wall'] },
+      { text: 'Statue of Liberty', rank: 3, points: 3, normalized: 'statue of liberty', aliases: ['liberty statue', 'statue liberty'] },
+      { text: 'Colosseum', rank: 4, points: 4, normalized: 'colosseum', aliases: ['coliseum'] },
+      { text: 'Big Ben', rank: 5, points: 5, normalized: 'big ben', aliases: ['westminster clock'] },
+      { text: 'Taj Mahal', rank: 6, points: 6, normalized: 'taj mahal', aliases: ['taj'] },
+      { text: 'Burj Khalifa', rank: 7, points: 7, normalized: 'burj khalifa', aliases: ['burj', 'dubai tower'] },
+      { text: 'Pyramids of Giza', rank: 8, points: 8, normalized: 'pyramids of giza', aliases: ['pyramids', 'giza pyramids', 'great pyramid'] },
+      { text: 'Machu Picchu', rank: 9, points: 9, normalized: 'machu picchu', aliases: ['machu picchu'] },
+      { text: 'Christ the Redeemer', rank: 10, points: 10, normalized: 'christ the redeemer', aliases: ['christ redeemer', 'rio statue'] }
+    ]
+  },
+  {
+    id: 'generalknowledge-31',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous animals',
+    difficulty: 'easy',
+    answers: [
+      { text: 'Lion', rank: 1, points: 1, normalized: 'lion' },
+      { text: 'Tiger', rank: 2, points: 2, normalized: 'tiger' },
+      { text: 'Elephant', rank: 3, points: 3, normalized: 'elephant' },
+      { text: 'Dog', rank: 4, points: 4, normalized: 'dog', aliases: ['dogs', 'puppy'] },
+      { text: 'Cat', rank: 5, points: 5, normalized: 'cat', aliases: ['cats', 'kitten'] },
+      { text: 'Horse', rank: 6, points: 6, normalized: 'horse', aliases: ['horses'] },
+      { text: 'Panda', rank: 7, points: 7, normalized: 'panda', aliases: ['giant panda'] },
+      { text: 'Dolphin', rank: 8, points: 8, normalized: 'dolphin', aliases: ['dolphins'] },
+      { text: 'Bear', rank: 9, points: 9, normalized: 'bear', aliases: ['bears', 'grizzly'] },
+      { text: 'Wolf', rank: 10, points: 10, normalized: 'wolf', aliases: ['wolves'] }
+    ]
+  },
+  {
+    id: 'generalknowledge-32',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous rivers',
+    difficulty: 'hard',
+    answers: [
+      { text: 'Nile', rank: 1, points: 1, normalized: 'nile', aliases: ['nile river'] },
+      { text: 'Amazon', rank: 2, points: 2, normalized: 'amazon', aliases: ['amazon river'] },
+      { text: 'Mississippi', rank: 3, points: 3, normalized: 'mississippi', aliases: ['mississippi river'] },
+      { text: 'Yangtze', rank: 4, points: 4, normalized: 'yangtze', aliases: ['yangtze river', 'chang jiang'] },
+      { text: 'Danube', rank: 5, points: 5, normalized: 'danube', aliases: ['danube river'] },
+      { text: 'Ganges', rank: 6, points: 6, normalized: 'ganges', aliases: ['ganges river', 'ganga'] },
+      { text: 'Thames', rank: 7, points: 7, normalized: 'thames', aliases: ['thames river'] },
+      { text: 'Tigris', rank: 8, points: 8, normalized: 'tigris', aliases: ['tigris river'] },
+      { text: 'Euphrates', rank: 9, points: 9, normalized: 'euphrates', aliases: ['euphrates river'] },
+      { text: 'Mekong', rank: 10, points: 10, normalized: 'mekong', aliases: ['mekong river'] }
+    ]
+  },
+  {
+    id: 'generalknowledge-33',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous foods in Egypt 🇪🇬',
+    difficulty: 'easy',
+    answers: [
+      { text: 'Koshary', rank: 1, points: 1, normalized: 'koshary', aliases: ['koshari', 'kushari'] },
+      { text: 'Ful Medames', rank: 2, points: 2, normalized: 'ful medames', aliases: ['ful', 'foul', 'fool'] },
+      { text: 'Taameya', rank: 3, points: 3, normalized: 'taameya', aliases: ['taamiya', 'falafel'] },
+      { text: 'Molokhia', rank: 4, points: 4, normalized: 'molokhia', aliases: ['molokhia', 'mulukhiyah'] },
+      { text: 'Mahshi', rank: 5, points: 5, normalized: 'mahshi', aliases: ['mahshy', 'stuffed vegetables'] },
+      { text: 'Hawawshi', rank: 6, points: 6, normalized: 'hawawshi', aliases: ['hawashi'] },
+      { text: 'Shawarma', rank: 7, points: 7, normalized: 'shawarma', aliases: ['shawerma', 'shawrma'] },
+      { text: 'Fatta', rank: 8, points: 8, normalized: 'fatta', aliases: ['fattah'] },
+      { text: 'Kebda', rank: 9, points: 9, normalized: 'kebda', aliases: ['kebda', 'liver'] },
+      { text: 'Basbousa', rank: 10, points: 10, normalized: 'basbousa', aliases: ['basbousa', 'revani'] }
+    ]
+  },
+  {
+    id: 'generalknowledge-34',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous African countries',
+    difficulty: 'medium',
+    answers: [
+      { text: 'Egypt', rank: 1, points: 1, normalized: 'egypt', aliases: ['misr'] },
+      { text: 'Morocco', rank: 2, points: 2, normalized: 'morocco' },
+      { text: 'South Africa', rank: 3, points: 3, normalized: 'south africa', aliases: ['south africa'] },
+      { text: 'Nigeria', rank: 4, points: 4, normalized: 'nigeria' },
+      { text: 'Kenya', rank: 5, points: 5, normalized: 'kenya' },
+      { text: 'Tunisia', rank: 6, points: 6, normalized: 'tunisia' },
+      { text: 'Ghana', rank: 7, points: 7, normalized: 'ghana' },
+      { text: 'Algeria', rank: 8, points: 8, normalized: 'algeria' },
+      { text: 'Ethiopia', rank: 9, points: 9, normalized: 'ethiopia' },
+      { text: 'Senegal', rank: 10, points: 10, normalized: 'senegal' }
+    ]
+  },
+  {
+    id: 'generalknowledge-35',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous football stadiums',
+    difficulty: 'hard',
+    answers: [
+      { text: 'Camp Nou', rank: 1, points: 1, normalized: 'camp nou', aliases: ['camp nou', 'nou camp'] },
+      { text: 'Santiago Bernabéu', rank: 2, points: 2, normalized: 'santiago bernabeu', aliases: ['bernabeu', 'bernabeu stadium'] },
+      { text: 'Old Trafford', rank: 3, points: 3, normalized: 'old trafford', aliases: ['old trafford'] },
+      { text: 'Wembley', rank: 4, points: 4, normalized: 'wembley', aliases: ['wembley stadium'] },
+      { text: 'San Siro', rank: 5, points: 5, normalized: 'san siro', aliases: ['san siro', 'giuseppe meazza'] },
+      { text: 'Allianz Arena', rank: 6, points: 6, normalized: 'allianz arena', aliases: ['allianz'] },
+      { text: 'Maracanã', rank: 7, points: 7, normalized: 'maracana', aliases: ['maracana', 'maracanã stadium'] },
+      { text: 'Signal Iduna Park', rank: 8, points: 8, normalized: 'signal iduna park', aliases: ['westfalenstadion', 'dortmund stadium'] },
+      { text: 'Emirates Stadium', rank: 9, points: 9, normalized: 'emirates stadium', aliases: ['arsenal stadium'] },
+      { text: 'MetLife Stadium', rank: 10, points: 10, normalized: 'metlife stadium', aliases: ['metlife'] }
+    ]
+  },
+  {
+    id: 'generalknowledge-36',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous PlayStation games',
+    difficulty: 'medium',
+    answers: [
+      { text: 'God of War', rank: 1, points: 1, normalized: 'god of war', aliases: ['gow', 'kratos'] },
+      { text: 'GTA V', rank: 2, points: 2, normalized: 'gta v', aliases: ['gta 5', 'grand theft auto v'] },
+      { text: 'The Last of Us', rank: 3, points: 3, normalized: 'last of us', aliases: ['tlou', 'the last of us'] },
+      { text: 'Uncharted', rank: 4, points: 4, normalized: 'uncharted', aliases: ['uncharted series'] },
+      { text: 'Spider-Man', rank: 5, points: 5, normalized: 'spiderman', aliases: ['spider man', 'spiderman ps4'] },
+      { text: 'FIFA', rank: 6, points: 6, normalized: 'fifa', aliases: ['ea fc', 'fifa 24'] },
+      { text: 'Call of Duty', rank: 7, points: 7, normalized: 'call of duty', aliases: ['cod'] },
+      { text: 'Red Dead Redemption 2', rank: 8, points: 8, normalized: 'red dead redemption 2', aliases: ['rdr2', 'red dead 2'] },
+      { text: 'Horizon Zero Dawn', rank: 9, points: 9, normalized: 'horizon zero dawn', aliases: ['horizon', 'hzd'] },
+      { text: 'Gran Turismo', rank: 10, points: 10, normalized: 'gran turismo', aliases: ['gt', 'gt sport'] }
+    ]
+  },
+  {
+    id: 'generalknowledge-37',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous Netflix shows',
+    difficulty: 'easy',
+    answers: [
+      { text: 'Money Heist', rank: 1, points: 1, normalized: 'money heist', aliases: ['la casa de papel'] },
+      { text: 'Stranger Things', rank: 2, points: 2, normalized: 'stranger things' },
+      { text: 'Squid Game', rank: 3, points: 3, normalized: 'squid game' },
+      { text: 'The Witcher', rank: 4, points: 4, normalized: 'witcher', aliases: ['the witcher'] },
+      { text: 'Bridgerton', rank: 5, points: 5, normalized: 'bridgerton' },
+      { text: 'The Crown', rank: 6, points: 6, normalized: 'crown', aliases: ['the crown'] },
+      { text: 'Narcos', rank: 7, points: 7, normalized: 'narcos' },
+      { text: 'Dark', rank: 8, points: 8, normalized: 'dark' },
+      { text: 'You', rank: 9, points: 9, normalized: 'you' },
+      { text: "The Queen's Gambit", rank: 10, points: 10, normalized: 'queens gambit', aliases: ['queens gambit', "the queen's gambit"] }
+    ]
+  },
+  {
+    id: 'generalknowledge-38',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous rappers',
+    difficulty: 'medium',
+    answers: [
+      { text: 'Eminem', rank: 1, points: 1, normalized: 'eminem', aliases: ['slim shady', 'marshall mathers'] },
+      { text: 'Drake', rank: 2, points: 2, normalized: 'drake' },
+      { text: 'Tupac', rank: 3, points: 3, normalized: 'tupac', aliases: ['2pac', 'tupac shakur'] },
+      { text: 'The Notorious B.I.G.', rank: 4, points: 4, normalized: 'notorious big', aliases: ['biggie', 'biggie smalls', 'notorious big'] },
+      { text: 'Kanye West', rank: 5, points: 5, normalized: 'kanye west', aliases: ['kanye', 'ye'] },
+      { text: 'Jay-Z', rank: 6, points: 6, normalized: 'jay z', aliases: ['jayz', 'jay z'] },
+      { text: 'Kendrick Lamar', rank: 7, points: 7, normalized: 'kendrick lamar', aliases: ['kendrick', 'k dot'] },
+      { text: '50 Cent', rank: 8, points: 8, normalized: '50 cent', aliases: ['50cent', 'fifty cent'] },
+      { text: 'Travis Scott', rank: 9, points: 9, normalized: 'travis scott', aliases: ['travis', 'la flame'] },
+      { text: 'Snoop Dogg', rank: 10, points: 10, normalized: 'snoop dogg', aliases: ['snoop', 'snoop dog'] }
+    ]
+  },
+  {
+    id: 'generalknowledge-39',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous watch brands',
+    difficulty: 'hard',
+    answers: [
+      { text: 'Rolex', rank: 1, points: 1, normalized: 'rolex' },
+      { text: 'Omega', rank: 2, points: 2, normalized: 'omega' },
+      { text: 'Patek Philippe', rank: 3, points: 3, normalized: 'patek philippe', aliases: ['patek'] },
+      { text: 'Audemars Piguet', rank: 4, points: 4, normalized: 'audemars piguet', aliases: ['ap', 'audemars'] },
+      { text: 'Tag Heuer', rank: 5, points: 5, normalized: 'tag heuer', aliases: ['tag'] },
+      { text: 'Cartier', rank: 6, points: 6, normalized: 'cartier' },
+      { text: 'Casio', rank: 7, points: 7, normalized: 'casio' },
+      { text: 'Seiko', rank: 8, points: 8, normalized: 'seiko' },
+      { text: 'Tissot', rank: 9, points: 9, normalized: 'tissot' },
+      { text: 'Hublot', rank: 10, points: 10, normalized: 'hublot' }
+    ]
+  },
+  {
+    id: 'generalknowledge-40',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous airlines',
+    difficulty: 'hard',
+    answers: [
+      { text: 'Emirates', rank: 1, points: 1, normalized: 'emirates' },
+      { text: 'Qatar Airways', rank: 2, points: 2, normalized: 'qatar airways', aliases: ['qatar'] },
+      { text: 'Singapore Airlines', rank: 3, points: 3, normalized: 'singapore airlines', aliases: ['singapore'] },
+      { text: 'Turkish Airlines', rank: 4, points: 4, normalized: 'turkish airlines', aliases: ['turkish'] },
+      { text: 'Lufthansa', rank: 5, points: 5, normalized: 'lufthansa' },
+      { text: 'British Airways', rank: 6, points: 6, normalized: 'british airways', aliases: ['ba', 'british'] },
+      { text: 'Air France', rank: 7, points: 7, normalized: 'air france', aliases: ['air france'] },
+      { text: 'Delta Airlines', rank: 8, points: 8, normalized: 'delta airlines', aliases: ['delta'] },
+      { text: 'American Airlines', rank: 9, points: 9, normalized: 'american airlines', aliases: ['american', 'aa'] },
+      { text: 'Etihad Airways', rank: 10, points: 10, normalized: 'etihad airways', aliases: ['etihad'] }
+    ]
+  },
+  {
+    id: 'generalknowledge-41',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous laptop brands',
+    difficulty: 'medium',
+    answers: [
+      { text: 'Apple', rank: 1, points: 1, normalized: 'apple', aliases: ['macbook', 'mac'] },
+      { text: 'Dell', rank: 2, points: 2, normalized: 'dell' },
+      { text: 'HP', rank: 3, points: 3, normalized: 'hp', aliases: ['hewlett packard', 'hp'] },
+      { text: 'Lenovo', rank: 4, points: 4, normalized: 'lenovo', aliases: ['thinkpad'] },
+      { text: 'Asus', rank: 5, points: 5, normalized: 'asus' },
+      { text: 'Acer', rank: 6, points: 6, normalized: 'acer' },
+      { text: 'MSI', rank: 7, points: 7, normalized: 'msi' },
+      { text: 'Microsoft', rank: 8, points: 8, normalized: 'microsoft', aliases: ['surface'] },
+      { text: 'Samsung', rank: 9, points: 9, normalized: 'samsung' },
+      { text: 'Razer', rank: 10, points: 10, normalized: 'razer' }
+    ]
+  },
+  {
+    id: 'generalknowledge-42',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous drinks',
+    difficulty: 'easy',
+    answers: [
+      { text: 'Coca-Cola', rank: 1, points: 1, normalized: 'coca cola', aliases: ['coca cola', 'coke'] },
+      { text: 'Pepsi', rank: 2, points: 2, normalized: 'pepsi' },
+      { text: 'Coffee', rank: 3, points: 3, normalized: 'coffee' },
+      { text: 'Tea', rank: 4, points: 4, normalized: 'tea' },
+      { text: 'Orange Juice', rank: 5, points: 5, normalized: 'orange juice', aliases: ['oj'] },
+      { text: 'Water', rank: 6, points: 6, normalized: 'water' },
+      { text: 'Red Bull', rank: 7, points: 7, normalized: 'red bull', aliases: ['redbull'] },
+      { text: 'Sprite', rank: 8, points: 8, normalized: 'sprite' },
+      { text: 'Fanta', rank: 9, points: 9, normalized: 'fanta' },
+      { text: 'Mountain Dew', rank: 10, points: 10, normalized: 'mountain dew', aliases: ['mtn dew'] }
+    ]
+  },
+  {
+    id: 'generalknowledge-43',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous board games',
+    difficulty: 'easy',
+    answers: [
+      { text: 'Monopoly', rank: 1, points: 1, normalized: 'monopoly' },
+      { text: 'Chess', rank: 2, points: 2, normalized: 'chess' },
+      { text: 'Scrabble', rank: 3, points: 3, normalized: 'scrabble' },
+      { text: 'Ludo', rank: 4, points: 4, normalized: 'ludo' },
+      { text: 'Uno', rank: 5, points: 5, normalized: 'uno' },
+      { text: 'Risk', rank: 6, points: 6, normalized: 'risk' },
+      { text: 'Catan', rank: 7, points: 7, normalized: 'catan', aliases: ['settlers of catan'] },
+      { text: 'Clue', rank: 8, points: 8, normalized: 'clue', aliases: ['cluedo'] },
+      { text: 'Checkers', rank: 9, points: 9, normalized: 'checkers', aliases: ['draughts'] },
+      { text: 'Jenga', rank: 10, points: 10, normalized: 'jenga' }
+    ]
+  },
+  {
+    id: 'generalknowledge-44',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous mobile games',
+    difficulty: 'easy',
+    answers: [
+      { text: 'PUBG Mobile', rank: 1, points: 1, normalized: 'pubg mobile', aliases: ['pubg', 'pubg mobile'] },
+      { text: 'Free Fire', rank: 2, points: 2, normalized: 'free fire', aliases: ['freefire', 'ff'] },
+      { text: 'Candy Crush', rank: 3, points: 3, normalized: 'candy crush', aliases: ['candy crush saga'] },
+      { text: 'Clash of Clans', rank: 4, points: 4, normalized: 'clash of clans', aliases: ['coc'] },
+      { text: 'Subway Surfers', rank: 5, points: 5, normalized: 'subway surfers' },
+      { text: 'Call of Duty Mobile', rank: 6, points: 6, normalized: 'call of duty mobile', aliases: ['cod mobile', 'codm'] },
+      { text: 'Among Us', rank: 7, points: 7, normalized: 'among us' },
+      { text: 'Brawl Stars', rank: 8, points: 8, normalized: 'brawl stars' },
+      { text: 'Clash Royale', rank: 9, points: 9, normalized: 'clash royale', aliases: ['cr'] },
+      { text: 'Pokémon GO', rank: 10, points: 10, normalized: 'pokemon go', aliases: ['pokemon go', 'pokemon go'] }
+    ]
+  },
+  {
+    id: 'generalknowledge-45',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous horror movies',
+    difficulty: 'medium',
+    answers: [
+      { text: 'The Exorcist', rank: 1, points: 1, normalized: 'exorcist', aliases: ['the exorcist'] },
+      { text: 'It', rank: 2, points: 2, normalized: 'it', aliases: ['it movie', 'pennywise'] },
+      { text: 'The Conjuring', rank: 3, points: 3, normalized: 'conjuring', aliases: ['the conjuring'] },
+      { text: 'Annabelle', rank: 4, points: 4, normalized: 'annabelle' },
+      { text: 'Halloween', rank: 5, points: 5, normalized: 'halloween' },
+      { text: 'A Nightmare on Elm Street', rank: 6, points: 6, normalized: 'nightmare on elm street', aliases: ['nightmare on elm street', 'freddy krueger'] },
+      { text: 'The Ring', rank: 7, points: 7, normalized: 'ring', aliases: ['the ring'] },
+      { text: 'The Texas Chainsaw Massacre', rank: 8, points: 8, normalized: 'texas chainsaw massacre', aliases: ['texas chainsaw', 'chainsaw massacre'] },
+      { text: 'Saw', rank: 9, points: 9, normalized: 'saw' },
+      { text: 'Scream', rank: 10, points: 10, normalized: 'scream' }
+    ]
+  },
+  {
+    id: 'generalknowledge-46',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous action movies',
+    difficulty: 'medium',
+    answers: [
+      { text: 'Fast & Furious', rank: 1, points: 1, normalized: 'fast and furious', aliases: ['fast furious', 'f&f', 'fast & furious'] },
+      { text: 'John Wick', rank: 2, points: 2, normalized: 'john wick' },
+      { text: 'Mission: Impossible', rank: 3, points: 3, normalized: 'mission impossible', aliases: ['mission impossible', 'mi'] },
+      { text: 'The Dark Knight', rank: 4, points: 4, normalized: 'dark knight', aliases: ['batman dark knight'] },
+      { text: 'Avengers: Endgame', rank: 5, points: 5, normalized: 'avengers endgame', aliases: ['avengers endgame', 'endgame'] },
+      { text: 'Die Hard', rank: 6, points: 6, normalized: 'die hard' },
+      { text: 'Mad Max: Fury Road', rank: 7, points: 7, normalized: 'mad max fury road', aliases: ['mad max', 'fury road'] },
+      { text: 'Terminator 2', rank: 8, points: 8, normalized: 'terminator 2', aliases: ['t2', 'terminator'] },
+      { text: 'Gladiator', rank: 9, points: 9, normalized: 'gladiator' },
+      { text: 'The Matrix', rank: 10, points: 10, normalized: 'matrix', aliases: ['the matrix'] }
+    ]
+  },
+  {
+    id: 'generalknowledge-47',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous anime',
+    difficulty: 'medium',
+    answers: [
+      { text: 'Naruto', rank: 1, points: 1, normalized: 'naruto' },
+      { text: 'Dragon Ball', rank: 2, points: 2, normalized: 'dragon ball', aliases: ['dragonball', 'dbz'] },
+      { text: 'One Piece', rank: 3, points: 3, normalized: 'one piece' },
+      { text: 'Attack on Titan', rank: 4, points: 4, normalized: 'attack on titan', aliases: ['aot', 'shingeki no kyojin'] },
+      { text: 'Demon Slayer', rank: 5, points: 5, normalized: 'demon slayer', aliases: ['kimetsu no yaiba'] },
+      { text: 'Death Note', rank: 6, points: 6, normalized: 'death note' },
+      { text: 'Pokémon', rank: 7, points: 7, normalized: 'pokemon', aliases: ['pokemon', 'poke mon'] },
+      { text: 'Bleach', rank: 8, points: 8, normalized: 'bleach' },
+      { text: 'Jujutsu Kaisen', rank: 9, points: 9, normalized: 'jujutsu kaisen', aliases: ['jjk'] },
+      { text: 'One Punch Man', rank: 10, points: 10, normalized: 'one punch man', aliases: ['opm'] }
+    ]
+  },
+  {
+    id: 'generalknowledge-48',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous chocolate brands',
+    difficulty: 'easy',
+    answers: [
+      { text: 'Cadbury', rank: 1, points: 1, normalized: 'cadbury' },
+      { text: 'Mars', rank: 2, points: 2, normalized: 'mars' },
+      { text: 'Ferrero Rocher', rank: 3, points: 3, normalized: 'ferrero rocher', aliases: ['ferrero', 'rocher'] },
+      { text: 'KitKat', rank: 4, points: 4, normalized: 'kitkat', aliases: ['kit kat'] },
+      { text: 'Lindt', rank: 5, points: 5, normalized: 'lindt' },
+      { text: 'Toblerone', rank: 6, points: 6, normalized: 'toblerone' },
+      { text: "Hershey's", rank: 7, points: 7, normalized: 'hersheys', aliases: ["hershey's", 'hershey'] },
+      { text: 'Galaxy', rank: 8, points: 8, normalized: 'galaxy', aliases: ['dove'] },
+      { text: 'Milka', rank: 9, points: 9, normalized: 'milka' },
+      { text: 'Kinder', rank: 10, points: 10, normalized: 'kinder', aliases: ['kinder chocolate'] }
+    ]
+  },
+  {
+    id: 'generalknowledge-49',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous tourist attractions',
+    difficulty: 'medium',
+    answers: [
+      { text: 'Eiffel Tower', rank: 1, points: 1, normalized: 'eiffel tower', aliases: ['eiffel', 'paris tower'] },
+      { text: 'Great Wall of China', rank: 2, points: 2, normalized: 'great wall of china', aliases: ['great wall', 'china wall'] },
+      { text: 'Pyramids of Giza', rank: 3, points: 3, normalized: 'pyramids of giza', aliases: ['pyramids', 'giza pyramids', 'great pyramid'] },
+      { text: 'Statue of Liberty', rank: 4, points: 4, normalized: 'statue of liberty', aliases: ['liberty statue', 'statue liberty'] },
+      { text: 'Taj Mahal', rank: 5, points: 5, normalized: 'taj mahal', aliases: ['taj'] },
+      { text: 'Colosseum', rank: 6, points: 6, normalized: 'colosseum', aliases: ['coliseum'] },
+      { text: 'Burj Khalifa', rank: 7, points: 7, normalized: 'burj khalifa', aliases: ['burj', 'dubai tower'] },
+      { text: 'Machu Picchu', rank: 8, points: 8, normalized: 'machu picchu', aliases: ['machu picchu'] },
+      { text: 'Big Ben', rank: 9, points: 9, normalized: 'big ben', aliases: ['westminster clock'] },
+      { text: 'Christ the Redeemer', rank: 10, points: 10, normalized: 'christ the redeemer', aliases: ['christ redeemer', 'rio statue'] }
+    ]
+  },
+  {
+    id: 'generalknowledge-50',
+    category: 'General Knowledge',
+    title: 'Top 10 most famous world leaders (all time)',
+    difficulty: 'hard',
+    answers: [
+      { text: 'Napoleon Bonaparte', rank: 1, points: 1, normalized: 'napoleon bonaparte', aliases: ['napoleon'] },
+      { text: 'Adolf Hitler', rank: 2, points: 2, normalized: 'adolf hitler', aliases: ['hitler'] },
+      { text: 'Julius Caesar', rank: 3, points: 3, normalized: 'julius caesar', aliases: ['caesar'] },
+      { text: 'Alexander the Great', rank: 4, points: 4, normalized: 'alexander the great', aliases: ['alexander', 'alexander great'] },
+      { text: 'Nelson Mandela', rank: 5, points: 5, normalized: 'nelson mandela', aliases: ['mandela'] },
+      { text: 'Mahatma Gandhi', rank: 6, points: 6, normalized: 'mahatma gandhi', aliases: ['gandhi'] },
+      { text: 'Winston Churchill', rank: 7, points: 7, normalized: 'winston churchill', aliases: ['churchill'] },
+      { text: 'Abraham Lincoln', rank: 8, points: 8, normalized: 'abraham lincoln', aliases: ['lincoln'] },
+      { text: 'George Washington', rank: 9, points: 9, normalized: 'george washington', aliases: ['washington'] },
+      { text: 'Cleopatra', rank: 10, points: 10, normalized: 'cleopatra' }
+    ]
   }
 ];
 

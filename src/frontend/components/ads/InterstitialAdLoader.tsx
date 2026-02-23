@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { useAd } from '../../contexts/AdContext';
 import { logger } from '../../../backend/utils/logger';
 
-const DEFAULT_MINIMUM_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const DEFAULT_MINIMUM_INTERVAL_MS = 90 * 1000; // 90 seconds (minimum between interstitials)
 
 export interface InterstitialAdLoaderProps {
   /** When true, attempt to show an interstitial ad (if conditions are met). */

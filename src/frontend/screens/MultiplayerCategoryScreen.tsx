@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,8 @@ import {
   TouchableOpacity,
   Dimensions,
   Animated,
-  ScrollView
+  ScrollView,
+  ImageBackground,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -24,6 +25,20 @@ import CustomQuestionService from '../../backend/services/customQuestionService'
 import { getCategories } from '../../backend/services/questionsService';
 
 const { width, height } = Dimensions.get('window');
+
+// Import category images
+const categoryImages: { [key: string]: any } = {
+  'Random': require('../assets/images/random.webp'),
+  'Sports': require('../assets/images/sports.jpeg'),
+  'Movies': require('../assets/images/movies.jpg'),
+  'Music': require('../assets/images/music.webp'),
+  'Science': require('../assets/images/science.jpg'),
+  'Geography': require('../assets/images/geography.jpg'),
+  'Food': require('../assets/images/food.webp'),
+  'Technology': require('../assets/images/technology.jpg'),
+  'Masry': require('../assets/images/egypt.jpg'),
+  'Custom': require('../assets/images/createyourown.jpg'),
+};
 
 const categories = [
   {
@@ -100,6 +115,14 @@ const categories = [
     questionCount: 20,
   },
   {
+    id: 'General Knowledge',
+    name: 'General Knowledge',
+    icon: '🧠',
+    description: 'Famous brands, countries, celebrities, and more',
+    gradient: ['#9333EA', '#7C3AED'],
+    questionCount: 50,
+  },
+  {
     id: 'Custom',
     name: 'Create Your Own',
     icon: '✏️',
@@ -135,6 +158,9 @@ const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () =
   const cardOpacity = useRef(new Animated.Value(1)).current;
   const leftButtonScale = useRef(new Animated.Value(1)).current;
   const rightButtonScale = useRef(new Animated.Value(1)).current;
+  const cardScale = useRef(new Animated.Value(1)).current;
+  const overlayOpacity = useRef(new Animated.Value(0.7)).current;
+  const backgroundScale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     if (error) {
@@ -191,7 +217,61 @@ const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () =
       duration: 300,
       useNativeDriver: true,
     }).start();
+    
+    // Reset card scale and overlay opacity when category changes
+    if (categoryImages[categories[currentIndex]?.id]) {
+      cardScale.setValue(1);
+      overlayOpacity.setValue(0.7);
+      backgroundScale.setValue(1);
+    }
   }, [currentIndex]);
+
+  // Press animation handlers for image-based cards
+  const handleCardPressIn = useCallback(() => {
+    if (categoryImages[categories[currentIndex]?.id]) {
+      Animated.parallel([
+        Animated.spring(cardScale, {
+          toValue: 1.02,
+          friction: 8,
+          tension: 40,
+          useNativeDriver: true,
+        }),
+        Animated.timing(overlayOpacity, {
+          toValue: 0.6,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(backgroundScale, {
+          toValue: 1.05,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [currentIndex, cardScale, overlayOpacity, backgroundScale]);
+
+  const handleCardPressOut = useCallback(() => {
+    if (categoryImages[categories[currentIndex]?.id]) {
+      Animated.parallel([
+        Animated.spring(cardScale, {
+          toValue: 1,
+          friction: 8,
+          tension: 40,
+          useNativeDriver: true,
+        }),
+        Animated.timing(overlayOpacity, {
+          toValue: 0.7,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(backgroundScale, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [currentIndex, cardScale, overlayOpacity, backgroundScale]);
 
   const handleBackToMenu = async () => {
     // Button press animation
@@ -375,38 +455,95 @@ const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () =
           </View>
 
           {/* Current Card - Always Centered */}
-          <Animated.View
-            style={[
-              styles.currentCard,
-              {
-                opacity: cardOpacity,
-              },
-            ]}
-          >
-            <LinearGradient
-              colors={currentCategory.gradient as [string, string]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.categoryCardGradient}
+            <TouchableOpacity
+              activeOpacity={1}
+              onPressIn={handleCardPressIn}
+              onPressOut={handleCardPressOut}
+              disabled={!categoryImages[categories[currentIndex]?.id]}
             >
-              <View style={styles.cardContent}>
-                <View style={styles.cardContentInner}>
-                  <Text style={styles.categoryIcon}>{currentCategory.icon}</Text>
-                  <Text style={styles.categoryName}>
-                    {translateCategory(currentCategory.id.toLowerCase())}
-                  </Text>
-                  <Text style={styles.categoryDescription}>
-                    {i18n.t(`descriptions.${currentCategory.id.toLowerCase()}`, { ns: 'categories' })}
-                  </Text>
+            <Animated.View
+              style={[
+                styles.currentCard,
+                {
+                  opacity: cardOpacity,
+                  transform: [{ scale: cardScale }],
+                },
+              ]}
+            >
+              {categoryImages[currentCategory.id] ? (
+                // Category with image background
+                <View style={styles.categoryCardGradient}>
+                  <Animated.View
+                    style={[
+                      StyleSheet.absoluteFill,
+                      {
+                        transform: [{ scale: backgroundScale }],
+                      },
+                    ]}
+                  >
+                    <ImageBackground
+                      source={categoryImages[currentCategory.id]}
+                      style={StyleSheet.absoluteFill}
+                      imageStyle={styles.categoryImageStyle}
+                      resizeMode="cover"
+                    />
+                  </Animated.View>
+                  
+                  {/* Dark gradient overlay */}
+                  <Animated.View style={[styles.categoryOverlay, { opacity: overlayOpacity }]}>
+                    <LinearGradient
+                      colors={['rgba(0, 0, 0, 0.65)', 'rgba(0, 0, 0, 0.80)', 'rgba(0, 0, 0, 0.70)']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 0, y: 1 }}
+                      style={StyleSheet.absoluteFill}
+                    />
+                  </Animated.View>
+                  
+                  {/* Text overlay */}
+                  <View style={styles.cardContent}>
+                    <View style={styles.cardContentInner}>
+                      <Text style={styles.egyptCategoryName}>
+                        {translateCategory(currentCategory.id.toLowerCase())}
+                      </Text>
+                      <Text style={styles.egyptCategoryDescription}>
+                        {i18n.t(`descriptions.${currentCategory.id.toLowerCase()}`, { ns: 'categories' })}
+                      </Text>
+                    </View>
+                    <View style={styles.questionCountBadge}>
+                      <Text style={styles.egyptQuestionCountText}>
+                        {t('gameSetup.questionsCount', { count: questionCounts[currentCategory.name] ?? currentCategory.questionCount })}
+                      </Text>
+                    </View>
+                  </View>
                 </View>
-                <View style={styles.questionCountBadge}>
-                  <Text style={styles.questionCountText}>
-                    {t('gameSetup.questionsCount', { count: questionCounts[currentCategory.name] ?? currentCategory.questionCount })}
-                  </Text>
-                </View>
-              </View>
-            </LinearGradient>
-          </Animated.View>
+              ) : (
+                // Regular category with gradient
+                <LinearGradient
+                  colors={currentCategory.gradient as [string, string]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.categoryCardGradient}
+                >
+                  <View style={styles.cardContent}>
+                    <View style={styles.cardContentInner}>
+                      <Text style={styles.categoryIcon}>{currentCategory.icon}</Text>
+                      <Text style={styles.categoryName}>
+                        {translateCategory(currentCategory.id.toLowerCase())}
+                      </Text>
+                      <Text style={styles.categoryDescription}>
+                        {i18n.t(`descriptions.${currentCategory.id.toLowerCase()}`, { ns: 'categories' })}
+                      </Text>
+                    </View>
+                    <View style={styles.questionCountBadge}>
+                      <Text style={styles.questionCountText}>
+                        {t('gameSetup.questionsCount', { count: questionCounts[currentCategory.name] ?? currentCategory.questionCount })}
+                      </Text>
+                    </View>
+                  </View>
+                </LinearGradient>
+              )}
+            </Animated.View>
+          </TouchableOpacity>
 
           {/* Right Navigation Button */}
           <View style={styles.navButtonContainer}>
@@ -587,6 +724,8 @@ const styles = StyleSheet.create({
     padding: SPACING.xl * 2,
     justifyContent: 'center',
     alignItems: 'center',
+    borderRadius: 24,
+    overflow: 'hidden',
   },
   cardContent: {
     width: '100%',
@@ -629,6 +768,42 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  // Category image styles
+  categoryImageStyle: {
+    width: '100%',
+    height: '100%',
+  },
+  categoryOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 24,
+  },
+  egyptCategoryName: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: SPACING.md,
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowOffset: { width: 0, height: 3 },
+    textShadowRadius: 6,
+  },
+  egyptCategoryDescription: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.95)',
+    lineHeight: 24,
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.7)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  egyptQuestionCountText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   continueButtonContainer: {
     paddingHorizontal: SPACING.md,

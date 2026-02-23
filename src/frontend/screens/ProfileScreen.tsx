@@ -16,6 +16,7 @@ import { RateLimitService } from '../../backend/services/rateLimitService';
 import { logger } from '../../backend/utils/logger';
 import { toAppError } from '../../shared/errors';
 import useAppTranslation from '../../hooks/useTranslation';
+import { EmailService } from '../../backend/services/emailService';
 
 
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
@@ -30,6 +31,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const [updatedDisplayName, setUpdatedDisplayName] = useState(user?.displayName || '');
   const [isEditing, setIsEditing] = useState(false);
   const [showHowToPlay, setShowHowToPlay] = useState(false);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [feedbackText, setFeedbackText] = useState('');
 
   useEffect(() => {
     if (user?.displayName) {
@@ -131,37 +134,69 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     }
   };
 
-  const feedbackEmail = 'arahman.hazem@gmail.com';
+  const feedbackEmail = 'gameapptop10@gmail.com';
 
-  const handleFeedback = async () => {
+  const handleFeedback = () => {
     playButtonClick();
-    
-    const subject = encodeURIComponent(tScreens('profile.appFeedback'));
-    const mailtoUrl = `mailto:${feedbackEmail}?subject=${subject}`;
-    
+    setShowFeedbackModal(true);
+  };
+
+  const handleSubmitFeedback = async () => {
+    if (!feedbackText.trim()) {
+      ThemedAlert.warning(
+        tScreens('profile.feedbackEmpty'),
+        tScreens('profile.feedbackEmptyMessage')
+      );
+      return;
+    }
+
+    playButtonClick();
+
     try {
-      const canOpen = await Linking.canOpenURL(mailtoUrl);
+      // Get user info
+      const userEmail = user?.email || 'Unknown User';
+      const userName = user?.displayName || 'User';
       
-      if (canOpen) {
-        await Linking.openURL(mailtoUrl);
-        logger.log('Opened email client for feedback');
+      // The user's message is the main content - format it clearly
+      const feedbackBody = `${feedbackText.trim()}\n\n---\nFrom: ${userName}\nEmail: ${userEmail}`;
+
+      // Send via EmailService (automatically sends, no tabs/windows open)
+      const result = await EmailService.sendFeedbackEmail({
+        to: feedbackEmail,
+        subject: tScreens('profile.appFeedback'),
+        body: feedbackBody,
+        fromEmail: userEmail,
+        fromName: userName
+      });
+
+      if (result.success) {
+        // Email sent successfully
+        setShowFeedbackModal(false);
+        setFeedbackText('');
+        ThemedAlert.success(
+          tScreens('profile.feedbackSent'),
+          tScreens('profile.feedbackSentSuccess')
+        );
       } else {
-        if (Platform.OS === 'web') {
-          window.open(mailtoUrl, '_blank');
-        } else {
-          ThemedAlert.warning(
-            tScreens('profile.emailNotAvailable'),
-            tScreens('profile.emailNotAvailableMessage', { email: feedbackEmail })
-          );
-        }
+        // Failed to send
+        ThemedAlert.error(
+          tScreens('profile.feedbackSendError'),
+          result.error || tScreens('profile.feedbackSendError')
+        );
       }
     } catch (error) {
-      logger.error('Error opening email client:', error);
+      logger.error('Error sending feedback:', error);
       ThemedAlert.error(
         tErrors('general'),
-        tScreens('profile.emailOpenError', { email: feedbackEmail })
+        tScreens('profile.feedbackSendError')
       );
     }
+  };
+
+  const handleCancelFeedback = () => {
+    playButtonClick();
+    setShowFeedbackModal(false);
+    setFeedbackText('');
   };
 
   const getMemberSinceText = () => {
@@ -429,6 +464,49 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 activeOpacity={0.8}
               >
                 <Text style={styles.modalButtonText}>{tCommon('save')}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Feedback Modal */}
+      <Modal
+        visible={showFeedbackModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={handleCancelFeedback}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>{tScreens('profile.sendFeedback')}</Text>
+            
+            <TextInput
+              placeholder={tScreens('profile.feedbackPlaceholder')}
+              placeholderTextColor="#9CA3AF"
+              value={feedbackText}
+              onChangeText={setFeedbackText}
+              style={[styles.feedbackInput, isRTL && styles.rtlText]}
+              multiline={true}
+              numberOfLines={6}
+              textAlignVertical="top"
+              autoFocus={true}
+            />
+            
+            <View style={[styles.modalButtons, isRTL && styles.rtlRow]}>
+              <TouchableOpacity 
+                onPress={handleCancelFeedback}
+                style={styles.modalCancelButton}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.modalButtonText}>{tCommon('cancel')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                onPress={handleSubmitFeedback}
+                style={styles.modalSaveButton}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.modalButtonText}>{tScreens('profile.send')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -707,6 +785,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#666666',
     marginBottom: SPACING.lg,
+  },
+  feedbackInput: {
+    backgroundColor: '#1e1e2e',
+    color: '#FFFFFF',
+    fontSize: 16,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#666666',
+    marginBottom: SPACING.lg,
+    minHeight: 120,
+    maxHeight: 200,
   },
   modalButtons: {
     flexDirection: 'row',

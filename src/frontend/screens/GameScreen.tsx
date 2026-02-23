@@ -33,6 +33,8 @@ import { updateGameStats } from '../../backend/services/statsService';
 import { useAd } from '../contexts/AdContext';
 import { CoinService } from '../../backend/services/CoinService';
 import { getMultiplayerFinalRankAndScore } from './game';
+import { useInterstitialTimer } from '../../hooks/useInterstitialTimer';
+import DoubleRewardAd from '../components/ads/DoubleRewardAd';
 
 
 type AnswerLike = string | QuestionAnswer | Answer;
@@ -71,7 +73,16 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   } = useGame();
   const { user } = useAuth();
   const { playButtonClick, playSuccess, playError, playGameStart, playGameEnd } = useAudio();
-  const { isPremium, isAdReady, loadRewardedAd, showRewardedAd, rewardedLoadState } = useAd();
+  const { 
+    isPremium, 
+    isAdReady, 
+    loadRewardedAd, 
+    showRewardedAd, 
+    rewardedLoadState,
+    showInterstitialAd,
+    hasShownGameEnterInterstitial,
+    lastInterstitialShownAt,
+  } = useAd();
   
   // Multiplayer context
   const {
@@ -148,8 +159,13 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   
   // Track points earned for current answer
   const [pointsEarned, setPointsEarned] = useState<number | null>(null);
- 
-  
+
+  // Ad trigger states
+  const [triggerGameEnterAd, setTriggerGameEnterAd] = useState(false);
+  const [triggerGameExitAd, setTriggerGameExitAd] = useState(false);
+  const [triggerGameplayAd, setTriggerGameplayAd] = useState(false);
+  const [isRageQuit, setIsRageQuit] = useState(false);
+  const [gameStartTime, setGameStartTime] = useState<number | null>(null);
 
   // Determine if we're in multiplayer mode
   const isMultiplayerMode = isMultiplayer === true;
@@ -164,6 +180,31 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   
   // Progress is now always an object
   const gameProgress = progress;
+
+  // Determine gameplay state for timer
+  const gamePhase = isMultiplayerMode 
+    ? multiplayerState?.gamePhase 
+    : gameState?.gamePhase;
+  const isGameplayActive = gamePhase === 'question' || gamePhase === 'answers';
+  const isPaused = false; // TODO: Add pause state if needed
+  const isInMenu = showResults || showGameEndRanking || showMultiplayerLeaderboard || showHostAssignModal;
+  const isMultiplayerRoundActive = isMultiplayerMode && 
+    multiplayerState?.gamePhase === 'question' && 
+    multiplayerState?.currentPlayerId !== user?.id; // Waiting for turn
+
+  // Gameplay timer for interstitial ads (90-150s intervals)
+  const { resetTimer: resetGameplayTimer } = useInterstitialTimer({
+    isGameplayActive,
+    isPaused,
+    isInMenu,
+    isMultiplayerRoundActive,
+    onIntervalReached: () => {
+      // Trigger gameplay interstitial (respects frequency cap in AdContext)
+      if (!isPremium && isAdReady) {
+        setTriggerGameplayAd(true);
+      }
+    },
+  });
   
   // Multiplayer scoring and state
   const getMultiplayerScore = () => {
@@ -297,6 +338,33 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
       }
     }
   }, [isMultiplayerMode, roomId, categoryId, gameState?.category, multiplayerState?.roomCode, multiplayerState?.gamePhase, multiplayerState?.currentQuestionIndex, multiplayerState?.questions?.length, user?.displayName, user?.email, user?.id, selectedQuestion?.title, teamConfig, customQuestion, isCustomQuestion]);
+
+  // Game enter interstitial: once per session, when game actually starts
+  useEffect(() => {
+    if (isGameplayActive && !hasShownGameEnterInterstitial && !isPremium && isAdReady) {
+      // Game has started - show enter ad (once per session)
+      setGameStartTime(Date.now());
+      resetGameplayTimer(); // Reset gameplay timer when game starts
+      
+      // Show the ad directly with markAsGameEnter flag
+      showInterstitialAd({
+        markAsGameEnter: true,
+        onAdClosed: () => {
+          // Ad closed, continue with game
+        },
+      }).catch(() => {
+        // Fail silently - don't block gameplay
+        logger.warn('Game enter ad failed to show');
+      });
+    }
+  }, [
+    isGameplayActive,
+    hasShownGameEnterInterstitial,
+    isPremium,
+    isAdReady,
+    resetGameplayTimer,
+    showInterstitialAd,
+  ]);
 
   // Pre-game ad: before every game (single-player + multiplayer), unless premium
   useEffect(() => {
@@ -791,7 +859,66 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
         { 
           text: tGame('actions.exit'), 
           style: 'destructive', 
-                                          onPress: () => {
+          onPress: () => {
+            // Check if this is a rage-quit (exiting during active question/timer)
+            const isDuringQuestion = gamePhase === 'question' || gamePhase === 'answers';
+            const isDuringTimer = isMultiplayerMode 
+              ? (multiplayerState?.turnStartTime != null)
+              : (teamGameState?.isTurnActive && teamGameState?.timeRemaining > 0);
+            
+            if (isDuringQuestion || isDuringTimer) {
+              setIsRageQuit(true);
+            }
+
+            // Trigger exit ad if not rage-quit and 90s passed
+            if (!isRageQuit && !isPremium && isAdReady) {
+              const now = Date.now();
+              if (lastInterstitialShownAt == null || (now - lastInterstitialShownAt >= 90 * 1000)) {
+                setTriggerGameExitAd(true);
+                // Wait for ad to close before navigating
+                showInterstitialAd({
+                  onAdClosed: () => {
+                    if (isMultiplayerMode) {
+                      leaveRoom();
+                      forceDisconnect();
+                      navigation.navigate('Home');
+                    } else {
+                      resetGame();
+                      navigation.dispatch(
+                        CommonActions.reset({
+                          index: 1,
+                          routes: [
+                            { name: 'Home' },
+                            { name: 'Categories', params: { gameMode: 'single' } }
+                          ]
+                        })
+                      );
+                    }
+                  },
+                }).catch(() => {
+                  // If ad fails, proceed with exit
+                  if (isMultiplayerMode) {
+                    leaveRoom();
+                    forceDisconnect();
+                    navigation.navigate('Home');
+                  } else {
+                    resetGame();
+                    navigation.dispatch(
+                      CommonActions.reset({
+                        index: 1,
+                        routes: [
+                          { name: 'Home' },
+                          { name: 'Categories', params: { gameMode: 'single' } }
+                        ]
+                      })
+                    );
+                  }
+                });
+                return;
+              }
+            }
+
+            // No ad or rage-quit: proceed with exit
             if (isMultiplayerMode) {
               leaveRoom();
               forceDisconnect();
@@ -1996,6 +2123,29 @@ const handleEndGame = () => {
           gameplayActive={false}
           minimumInterval={0}
         />
+        
+        {/* Game enter interstitial handled in useEffect above */}
+        
+        {/* Game exit interstitial: only if 90s passed and not rage-quit */}
+        <InterstitialAdLoader
+          trigger={triggerGameExitAd}
+          onAdClosed={() => {
+            setTriggerGameExitAd(false);
+          }}
+          gameplayActive={false}
+          minimumInterval={90 * 1000} // 90 seconds
+        />
+        
+        {/* Gameplay interstitial: every 90-150s during active gameplay */}
+        <InterstitialAdLoader
+          trigger={triggerGameplayAd}
+          onAdClosed={() => {
+            setTriggerGameplayAd(false);
+          }}
+          gameplayActive={false} // Timer handles this
+          minimumInterval={90 * 1000} // 90 seconds
+        />
+        
         {/* Post-game ad: after every game (single-player + multiplayer) */}
         <InterstitialAdLoader
           trigger={triggerInterstitial}
@@ -3061,7 +3211,7 @@ const styles = StyleSheet.create({
   },
   unassignedAnswerCard: {
     borderColor: 'rgba(167, 139, 250, 0.7)', // Lighter purple border for unassigned
-    backgroundColor: 'rgba(245, 158, 11, 0.2)', // More solid orange background
+    backgroundColor: 'rgba(139, 92, 246, 0.2)', // Purple background matching multiplayer theme
   },
   // Content area styles for different states
   revealedAnswerCardContent: {
@@ -3071,7 +3221,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(99, 102, 241, 0.3)', // Solid purple background for assigned content
   },
   unassignedAnswerCardContent: {
-    backgroundColor: 'rgba(245, 158, 11, 0.3)', // Solid orange background for unassigned content
+    backgroundColor: 'rgba(139, 92, 246, 0.3)', // Purple background matching multiplayer theme
   },
   answerRankBadge: {
     width: 32,
