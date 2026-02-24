@@ -246,29 +246,39 @@ export const AdProvider: React.FC<{ children: React.ReactNode }> = ({ children }
       const coinsToEarn = ProgressiveAd.getProgressiveReward(info.adsWatchedThisHour);
       setAdError(null);
       let rewardGranted = false;
+
+      const grantCoins = async () => {
+        if (rewardGranted) return;
+        rewardGranted = true;
+        try {
+          await CoinService.getInstance().addCoins(userId, coinsToEarn, `Rewarded ad (${coinsToEarn} coins)`);
+          await ProgressiveAd.incrementProgressiveAdCount();
+          logger.log('Progressive ad watched', {
+            userId,
+            adCount: info.adsWatchedThisHour + 1,
+            coinsEarned: coinsToEarn,
+            totalThisHour: coinsToEarn,
+          });
+          onSuccess(coinsToEarn);
+        } catch (e) {
+          logger.error('AdContext: addCoins failed after ad', e);
+          setAdError('Coins could not be added. Please try again.');
+        }
+      };
+
       await AdService.showRewardedAd({
         onAdShown: () => {
           setRewardedShownThisSession((c) => c + 1);
           setLastRewardedShownAt(Date.now());
           setRewardedLoadState('showing');
         },
-        onAdDismissed: () => syncLoadStates(),
-        onRewardEarned: async () => {
-          rewardGranted = true;
-          try {
-            await CoinService.getInstance().addCoins(userId, coinsToEarn, `Rewarded ad (${coinsToEarn} coins)`);
-            await ProgressiveAd.incrementProgressiveAdCount();
-            logger.log('Progressive ad watched', {
-              userId,
-              adCount: info.adsWatchedThisHour + 1,
-              coinsEarned: coinsToEarn,
-              totalThisHour: coinsToEarn,
-            });
-            onSuccess(coinsToEarn);
-          } catch (e) {
-            logger.error('AdContext: addCoins failed after ad', e);
-            setAdError('Coins could not be added. Please try again.');
-          }
+        onAdDismissed: () => {
+          syncLoadStates();
+          // Fallback: some SDKs don't fire onRewardEarned; grant when ad is dismissed if not already granted
+          void grantCoins();
+        },
+        onRewardEarned: () => {
+          void grantCoins();
         },
         onAdFailedToShow: (err) => {
           if (!rewardGranted) {

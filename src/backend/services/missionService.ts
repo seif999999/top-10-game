@@ -208,17 +208,16 @@ class MissionService {
           progress.isCompleted = true;
           progress.completedAt = new Date();
           progress.completionCount++;
-          
-          // Calculate reward
+          progress.rewardClaimed = false; // User must open Missions and claim manually
+
+          // Calculate reward (credited only when user claims)
           if (progress.completionCount === 1) {
             coinsEarned = mission.rewardCoins;
           } else if (mission.isRepeatable && mission.repeatRewardMultiplier) {
             coinsEarned = Math.floor(mission.rewardCoins * mission.repeatRewardMultiplier);
           }
-          
-          userMissions.totalCoinsEarned += coinsEarned;
-          
-          logger.log(`🎉 Mission completed: ${mission.name} (+${coinsEarned} coins)`);
+
+          logger.log(`🎉 Mission completed: ${mission.name} (+${coinsEarned} coins – claim in Missions)`);
         }
       }
     }
@@ -269,27 +268,8 @@ class MissionService {
         }
       }
 
-      // Save updated missions
+      // Save updated missions (rewards are claimed manually in Missions screen)
       await this.saveUserMissions(userMissions);
-
-      // Credit earned coins to user balance via CoinService
-      if (totalCoinsEarned > 0 && event.userId) {
-        try {
-          const missionNames = newlyCompletedMissions.join(', ');
-          await CoinService.getInstance().addCoins(
-            event.userId,
-            totalCoinsEarned,
-            `Mission completed: ${missionNames}`
-          );
-          logger.log('Mission coins credited to balance', {
-            userId: event.userId,
-            totalCoinsEarned,
-            missions: newlyCompletedMissions,
-          });
-        } catch (coinError) {
-          logger.error('Failed to credit mission coins to balance', coinError);
-        }
-      }
 
       return {
         updates,
@@ -488,6 +468,46 @@ class MissionService {
       return update;
     } catch (error) {
       logger.error('Error updating daily streak mission:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Number of completed missions with unclaimed rewards (for badge)
+   */
+  async getUnclaimedRewardCount(userId: string): Promise<number> {
+    const userMissions = await this.getUserMissions(userId);
+    return Object.values(userMissions.missions).filter(
+      (p) => p.isCompleted && p.rewardClaimed !== true
+    ).length;
+  }
+
+  /**
+   * Claim reward for a completed mission. Credits coins and marks as claimed.
+   */
+  async claimMissionReward(userId: string, missionId: string): Promise<{ coins: number } | null> {
+    try {
+      const userMissions = await this.getUserMissions(userId);
+      const progress = userMissions.missions[missionId];
+      const mission = getMissionById(missionId);
+      if (!mission || !progress || !progress.isCompleted || progress.rewardClaimed) {
+        return null;
+      }
+      let coins = 0;
+      if (progress.completionCount === 1) {
+        coins = mission.rewardCoins;
+      } else if (mission.isRepeatable && mission.repeatRewardMultiplier) {
+        coins = Math.floor(mission.rewardCoins * mission.repeatRewardMultiplier);
+      }
+      if (coins <= 0) return null;
+      progress.rewardClaimed = true;
+      userMissions.totalCoinsEarned += coins;
+      await this.saveUserMissions(userMissions);
+      await CoinService.getInstance().addCoins(userId, coins, `Mission reward: ${mission.name}`);
+      logger.log('Mission reward claimed', { userId, missionId, coins });
+      return { coins };
+    } catch (error) {
+      logger.error('Error claiming mission reward:', error);
       return null;
     }
   }

@@ -28,6 +28,12 @@ export const GOOGLE_CONFIG = {
 
 // Helper function to get the appropriate client ID for the current platform
 export const getGoogleClientId = (): string => {
+  if (Platform.OS === 'android' && GOOGLE_CONFIG.ANDROID_CLIENT_ID) {
+    return GOOGLE_CONFIG.ANDROID_CLIENT_ID;
+  }
+  if (Platform.OS === 'ios' && GOOGLE_CONFIG.IOS_CLIENT_ID) {
+    return GOOGLE_CONFIG.IOS_CLIENT_ID;
+  }
   return GOOGLE_CONFIG.WEB_CLIENT_ID;
 };
 

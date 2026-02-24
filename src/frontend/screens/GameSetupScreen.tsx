@@ -23,7 +23,9 @@ import CustomQuestionService from '../../backend/services/customQuestionService'
 import { getCategories } from '../../backend/services/questionsService';
 import useAppTranslation from '../../hooks/useTranslation';
 
-const { width } = Dimensions.get('window');
+import { CATEGORY_CAROUSEL } from '../constants/categoryCarousel';
+
+const { CARD_WIDTH, CARD_HEIGHT, NAV_BUTTON_SIZE } = CATEGORY_CAROUSEL;
 
 // Import category images
 const categoryImages: { [key: string]: any } = {
@@ -35,6 +37,7 @@ const categoryImages: { [key: string]: any } = {
   'Geography': require('../../frontend/assets/images/geography.jpg'),
   'Food': require('../../frontend/assets/images/food.webp'),
   'Technology': require('../../frontend/assets/images/technology.jpg'),
+  // Masry: keep egypt.jpg background and overlay as-is (do not change)
   'Masry': require('../../frontend/assets/images/egypt.jpg'),
   'Custom': require('../../frontend/assets/images/createyourown.jpg'),
 };
@@ -141,7 +144,7 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
   
   // Team and timer settings
   const [numberOfTeams, setNumberOfTeams] = useState(2);
-  const [teamNames, setTeamNames] = useState(['', '', '', '']); // Empty so "Team 1", "Team 2" show as placeholder (background hint); typed text is actual value
+  const [teamNames, setTeamNames] = useState(['', '', '', '']); // Up to 4 teams; placeholder shows "Team 1", etc.
   const [roundTimer, setRoundTimer] = useState<number | null>(null);
   const [durationError, setDurationError] = useState<string>('');
   const [isLoadingRandom, setIsLoadingRandom] = useState(false);
@@ -479,7 +482,6 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
   // For single player mode, use new carousel design
   if (isSinglePlayer) {
     const currentCategory = categories[currentIndex];
-    const cardHeight = 400;
 
     return (
       <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
@@ -523,24 +525,27 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
             <Text style={[styles.settingLabel, isRTL && styles.rtlText]}>{tScreens('screens:gameSetup.category')}</Text>
           </View>
 
-          {/* Carousel Container */}
+          {/* Carousel Container - full width, card centered between visible nav buttons */}
           <View style={styles.carouselWrapper}>
-            {/* Left Navigation Button */}
+            {/* Left Navigation Button - always takes space so card stays centered */}
             <View style={styles.navButtonContainer}>
-              {currentIndex > 0 && (
+              {currentIndex > 0 ? (
                 <Animated.View style={{ transform: [{ scale: leftButtonScale }] }}>
                   <TouchableOpacity
                     onPress={handlePreviousCategory}
                     style={styles.navButton}
                     activeOpacity={0.7}
                   >
-                    <Text style={styles.navButtonChevron}>{'<'}</Text>
+                    <Text style={styles.navButtonChevron}>{isRTL ? '>' : '<'}</Text>
                   </TouchableOpacity>
                 </Animated.View>
+              ) : (
+                <View style={styles.navButtonPlaceholder} />
               )}
             </View>
 
-            {/* Current Card - Always Centered */}
+            {/* Card container - flex to center card between nav buttons */}
+            <View style={styles.categoryCardContainer}>
             <TouchableOpacity
               activeOpacity={1}
               onPressIn={handleCardPressIn}
@@ -550,6 +555,7 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
               <Animated.View
                 style={[
                   styles.currentCard,
+                  styles.currentCardDimensions,
                   {
                     opacity: cardOpacity,
                     transform: [{ scale: cardScale }],
@@ -621,19 +627,22 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
               )}
               </Animated.View>
             </TouchableOpacity>
+            </View>
 
-            {/* Right Navigation Button */}
+            {/* Right Navigation Button - always takes space so card stays centered */}
             <View style={styles.navButtonContainer}>
-              {currentIndex < categories.length - 1 && (
+              {currentIndex < categories.length - 1 ? (
                 <Animated.View style={{ transform: [{ scale: rightButtonScale }] }}>
                   <TouchableOpacity
                     onPress={handleNextCategory}
                     style={styles.navButton}
                     activeOpacity={0.7}
                   >
-                    <Text style={styles.navButtonChevron}>{'>'}</Text>
+                    <Text style={styles.navButtonChevron}>{isRTL ? '<' : '>'}</Text>
                   </TouchableOpacity>
                 </Animated.View>
+              ) : (
+                <View style={styles.navButtonPlaceholder} />
               )}
             </View>
           </View>
@@ -838,47 +847,52 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.xl,
   },
   carouselWrapper: {
+    width: '100%',
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.xs,
+    paddingVertical: SPACING.xl,
+    minHeight: CARD_HEIGHT + SPACING.xl * 2,
+  },
+  categoryCardContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xl,
-    minHeight: 400,
+    paddingHorizontal: SPACING.xs,
   },
   navButtonContainer: {
-    width: 40,
-    height: 40,
+    width: NAV_BUTTON_SIZE,
+    minWidth: NAV_BUTTON_SIZE,
+    height: NAV_BUTTON_SIZE,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  navButtonPlaceholder: {
+    width: NAV_BUTTON_SIZE,
+    height: NAV_BUTTON_SIZE,
+  },
   navButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    width: NAV_BUTTON_SIZE,
+    height: NAV_BUTTON_SIZE,
+    borderRadius: NAV_BUTTON_SIZE / 2,
+    backgroundColor: COLORS.surfaceSecondary,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowRadius: 3,
+    elevation: 3,
   },
   navButtonChevron: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: '600' as const,
+    color: COLORS.text,
+    fontSize: CATEGORY_CAROUSEL.NAV_CHEVRON_FONT_SIZE,
+    fontWeight: '700' as const,
     textAlign: 'center',
   },
   currentCard: {
-    width: '75%',
-    maxWidth: 400,
-    height: 400,
-    marginHorizontal: SPACING.md,
-    borderRadius: 24,
+    borderRadius: CATEGORY_CAROUSEL.CARD_BORDER_RADIUS,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: {
@@ -889,13 +903,17 @@ const styles = StyleSheet.create({
     shadowRadius: 24,
     elevation: 16,
   },
+  currentCardDimensions: {
+    width: CARD_WIDTH,
+    height: CARD_HEIGHT,
+  },
   categoryCardGradient: {
     width: '100%',
     height: '100%',
     padding: SPACING.xl * 2,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 16,
+    borderRadius: CATEGORY_CAROUSEL.CARD_BORDER_RADIUS,
     overflow: 'hidden',
   },
   cardContent: {
@@ -947,7 +965,7 @@ const styles = StyleSheet.create({
   },
   categoryOverlay: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: 24,
+    borderRadius: CATEGORY_CAROUSEL.CARD_BORDER_RADIUS,
   },
   egyptCategoryName: {
     fontSize: 28,

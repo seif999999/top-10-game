@@ -33,6 +33,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const [showHowToPlay, setShowHowToPlay] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [feedbackText, setFeedbackText] = useState('');
+  const [isFeedbackSending, setIsFeedbackSending] = useState(false);
 
   useEffect(() => {
     if (user?.displayName) {
@@ -149,8 +150,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       );
       return;
     }
+    if (isFeedbackSending) return;
 
     playButtonClick();
+    setIsFeedbackSending(true);
 
     try {
       // Get user info
@@ -190,6 +193,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         tErrors('general'),
         tScreens('profile.feedbackSendError')
       );
+    } finally {
+      setIsFeedbackSending(false);
     }
   };
 
@@ -498,15 +503,19 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 onPress={handleCancelFeedback}
                 style={styles.modalCancelButton}
                 activeOpacity={0.8}
+                disabled={isFeedbackSending}
               >
-                <Text style={styles.modalButtonText}>{tCommon('cancel')}</Text>
+                <Text style={[styles.modalButtonText, isFeedbackSending && styles.modalButtonTextDisabled]}>{tCommon('cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity 
                 onPress={handleSubmitFeedback}
-                style={styles.modalSaveButton}
+                style={[styles.modalSaveButton, isFeedbackSending && styles.modalSaveButtonDisabled]}
                 activeOpacity={0.8}
+                disabled={isFeedbackSending}
               >
-                <Text style={styles.modalButtonText}>{tScreens('profile.send')}</Text>
+                <Text style={styles.modalButtonText}>
+                  {isFeedbackSending ? (tScreens('profile.sendingFeedback') || 'Sending…') : tScreens('profile.send')}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -829,6 +838,12 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  modalSaveButtonDisabled: {
+    opacity: 0.6,
+  },
+  modalButtonTextDisabled: {
+    opacity: 0.7,
   },
   // Language settings styles
   languageButtonsContainer: {

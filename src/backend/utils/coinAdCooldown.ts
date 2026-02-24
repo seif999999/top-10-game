@@ -6,7 +6,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { logger } from '../utils/logger';
 
-const PROGRESSIVE_REWARDS = [10, 15, 20, 25, 30] as const;
+/** Rewards per ad in cycle (1st ad = 10, 2nd = 15, ..., 5th = 30). Export for UI. */
+export const PROGRESSIVE_REWARDS = [10, 15, 20, 25, 30] as const;
 const MAX_ADS_PER_HOUR = 5;
 const HOUR_MS = 60 * 60 * 1000;
 
@@ -69,7 +70,7 @@ export async function incrementProgressiveAdCount(): Promise<number> {
  */
 export function getProgressiveReward(adIndex: number): number {
   if (adIndex < 0 || adIndex >= MAX_ADS_PER_HOUR) return 0;
-  return PROGRESSIVE_REWARDS[adIndex];
+  return PROGRESSIVE_REWARDS[adIndex] as number;
 }
 
 /**

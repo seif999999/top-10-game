@@ -27,12 +27,14 @@ export interface TeamGameState {
   answerAssignments: { [answerIndex: number]: { teamId: string; points: number } };
 }
 
-// Pre-defined team colors
+// Pre-defined team colors (supports 2–6 teams)
 export const TEAM_COLORS = [
   '#FF4444', // Red
   '#1E3A8A', // Dark Blue
   '#10B981', // Green
   '#8B5CF6', // Purple
+  '#F59E0B', // Amber
+  '#EC4899', // Pink
 ] as const;
 
 // Timer options (0 = no timer/infinity)

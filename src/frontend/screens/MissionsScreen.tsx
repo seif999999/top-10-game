@@ -56,9 +56,11 @@ interface MissionCardProps {
   mission: MissionDefinition;
   progress: MissionProgress;
   index: number;
+  onClaim?: (missionId: string) => Promise<void>;
+  isClaiming?: boolean;
 }
 
-const MissionCard = React.memo<MissionCardProps>(({ mission, progress, index }) => {
+const MissionCard = React.memo<MissionCardProps>(({ mission, progress, index, onClaim, isClaiming }) => {
   const { t } = useAppTranslation('screens');
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
@@ -66,6 +68,7 @@ const MissionCard = React.memo<MissionCardProps>(({ mission, progress, index }) 
   
   const progressPercent = Math.min(100, (progress.currentValue / mission.targetValue) * 100);
   const isCompleted = progress.isCompleted;
+  const canClaim = isCompleted && progress.rewardClaimed !== true;
   const missionName = (t as (k: string) => string)(`missions.list.${mission.id}.name`) || mission.name;
   const missionDescription = (t as (k: string) => string)(`missions.list.${mission.id}.description`) || mission.description;
 
@@ -175,11 +178,27 @@ const MissionCard = React.memo<MissionCardProps>(({ mission, progress, index }) 
             <Text style={styles.coinIcon}>🪙</Text>
           )}
           <Text style={styles.rewardAmount}>{mission.rewardCoins}</Text>
-          <Text style={styles.top10CoinLabel}>Top 10</Text>
         </View>
         {mission.isRepeatable && (
           <View style={styles.repeatableBadge}>
             <Text style={styles.repeatableText}>🔄 Repeatable</Text>
+          </View>
+        )}
+        {canClaim && onClaim && (
+          <TouchableOpacity
+            style={[styles.collectButton, { borderColor: colors.border }]}
+            onPress={() => onClaim(mission.id)}
+            disabled={isClaiming}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.collectButtonText, { color: colors.text }]}>
+              {isClaiming ? ((t as (k: string) => string)('missions.collecting') || 'Collecting...') : ((t as (k: string) => string)('missions.collectReward') || 'Collect reward')}
+            </Text>
+          </TouchableOpacity>
+        )}
+        {isCompleted && progress.rewardClaimed && (
+          <View style={styles.claimedBadge}>
+            <Text style={styles.claimedBadgeText}>✓ {(t as (k: string) => string)('missions.claimed') || 'Claimed'}</Text>
           </View>
         )}
       </View>
@@ -191,7 +210,7 @@ type FilterType = 'all' | 'in_progress' | 'completed' | MissionDifficulty;
 
 const MissionsScreen: React.FC<MissionsScreenProps> = ({ navigation }) => {
   const { t: tScreens, isRTL } = useAppTranslation('screens');
-  const { user } = useAuth();
+  const { user, getUserProfileWithAvatar } = useAuth();
   const { playButtonClick } = useAudio();
   const insets = useSafeAreaInsets();
   
@@ -199,6 +218,7 @@ const MissionsScreen: React.FC<MissionsScreenProps> = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterType>('all');
   const [totalCoins, setTotalCoins] = useState(0);
+  const [claimingMissionId, setClaimingMissionId] = useState<string | null>(null);
 
   // Header animation
   const headerAnim = useRef(new Animated.Value(0)).current;
@@ -272,9 +292,29 @@ const MissionsScreen: React.FC<MissionsScreenProps> = ({ navigation }) => {
     setFilter(key);
   }, []);
 
+  const handleClaimReward = useCallback(async (missionId: string) => {
+    if (!user?.id || claimingMissionId) return;
+    setClaimingMissionId(missionId);
+    try {
+      const result = await missionService.claimMissionReward(user.id, missionId);
+      if (result?.coins) {
+        await loadMissions();
+        await getUserProfileWithAvatar?.();
+      }
+    } finally {
+      setClaimingMissionId(null);
+    }
+  }, [user?.id, claimingMissionId, loadMissions, getUserProfileWithAvatar]);
+
   const renderMissionItem = useCallback(({ item, index }: { item: MissionDefinition & { progress: MissionProgress }; index: number }) => (
-    <MissionCard mission={item} progress={item.progress} index={index} />
-  ), []);
+    <MissionCard
+      mission={item}
+      progress={item.progress}
+      index={index}
+      onClaim={handleClaimReward}
+      isClaiming={claimingMissionId === item.id}
+    />
+  ), [handleClaimReward, claimingMissionId]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -360,7 +400,6 @@ const MissionsScreen: React.FC<MissionsScreenProps> = ({ navigation }) => {
                 <Text style={styles.coinIcon}>🪙</Text>
               )}
               <Text style={styles.statValue}>{totalCoins}</Text>
-              <Text style={styles.top10CoinLabel}>{tScreens('missions.top10Coin')}</Text>
             </View>
             <Text style={styles.statLabel}>{tScreens('missions.earned')}</Text>
           </View>
@@ -745,6 +784,31 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#60A5FA',
     fontWeight: '600',
+  },
+  collectButton: {
+    marginTop: SPACING.sm,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    backgroundColor: 'rgba(245, 158, 11, 0.3)',
+    alignSelf: 'flex-start',
+  },
+  collectButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  claimedBadge: {
+    marginTop: SPACING.sm,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: 'rgba(16, 185, 129, 0.25)',
+    alignSelf: 'flex-start',
+  },
+  claimedBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#34D399',
   },
 });
 

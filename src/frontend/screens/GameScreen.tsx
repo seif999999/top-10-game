@@ -12,6 +12,7 @@ import MultiplayerLeaderboardScreen from './MultiplayerLeaderboardScreen';
 import ToastNotification from '../components/ToastNotification';
 import { showCrossPlatformAlert } from '../components/CrossPlatformAlert';
 import { COLORS, SPACING, TYPOGRAPHY, ANIMATIONS } from '../design-system';
+import { GAME_COMPLETION_COIN_REWARD } from '../../backend/utils/constants';
 import { GameScreenProps } from '../../shared/types/navigation';
 import { useGame } from '../contexts/GameContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -21,7 +22,6 @@ import multiplayerService from '../../backend/services/multiplayerService';
 import { QuestionAnswer, GameQuestion } from '../../shared/types';
 import type { Answer } from '../../shared/types/game';
 import { FEATURES } from '../../backend/config/featureFlags';
-import HostAssignModal from '../components/HostAssignModal';
 import { InputValidator } from '../../backend/utils/inputValidator';
 import { RateLimitService } from '../../backend/services/rateLimitService';
 import { findMatchingAnswer } from '../../backend/services/multiplayerGameFlowV2';
@@ -33,7 +33,7 @@ import { updateGameStats } from '../../backend/services/statsService';
 import { useAd } from '../contexts/AdContext';
 import { CoinService } from '../../backend/services/CoinService';
 import { getMultiplayerFinalRankAndScore } from './game';
-import { useInterstitialTimer } from '../../hooks/useInterstitialTimer';
+import { useInterstitialTimer } from '../hooks/useInterstitialTimer';
 import DoubleRewardAd from '../components/ads/DoubleRewardAd';
 
 
@@ -71,7 +71,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     teamGameState,
     isTeamMode
   } = useGame();
-  const { user } = useAuth();
+  const { user, getUserProfileWithAvatar } = useAuth();
   const { playButtonClick, playSuccess, playError, playGameStart, playGameEnd } = useAudio();
   const { 
     isPremium, 
@@ -79,7 +79,9 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     loadRewardedAd, 
     showRewardedAd, 
     rewardedLoadState,
+    loadInterstitialAd,
     showInterstitialAd,
+    interstitialLoadState,
     hasShownGameEnterInterstitial,
     lastInterstitialShownAt,
   } = useAd();
@@ -117,6 +119,10 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   const [triggerPreGameAd, setTriggerPreGameAd] = useState(false);
   const [lastGameCoinsEarned, setLastGameCoinsEarned] = useState(0);
   const [rewardsDoubled, setRewardsDoubled] = useState(false);
+  /** Frozen coin amount for game-end overlay so the displayed value doesn't change while overlay is visible */
+  const gameEndCoinsDisplayRef = useRef<number | null>(null);
+  /** Guard: grant game-completion coins only once per game so balance matches the 50 shown */
+  const hasGrantedGameCompletionCoinsRef = useRef(false);
   const [isAnswerSubmitted, setIsAnswerSubmitted] = useState(false);
   const [submittedAnswers, setSubmittedAnswers] = useState<string[]>([]);
   const [showQuestionComplete, setShowQuestionComplete] = useState(false);
@@ -138,14 +144,11 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   });
   
   // Team mode state
-  const [showHostAssignModal, setShowHostAssignModal] = useState(false);
-  const [selectedAnswerIndex, setSelectedAnswerIndex] = useState<number>(-1);
   const [hasSubmittedThisTurn, setHasSubmittedThisTurn] = useState(false);
   
   // Multiplayer timer state
   const [multiplayerTimeRemaining, setMultiplayerTimeRemaining] = useState(60);
   const [serverOffset, setServerOffset] = useState(0);
-  const [selectedAnswer, setSelectedAnswer] = useState<QuestionAnswer | null>(null);
   
   // Animation values
   const submitButtonScale = useRef(new Animated.Value(1)).current;
@@ -187,7 +190,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     : gameState?.gamePhase;
   const isGameplayActive = gamePhase === 'question' || gamePhase === 'answers';
   const isPaused = false; // TODO: Add pause state if needed
-  const isInMenu = showResults || showGameEndRanking || showMultiplayerLeaderboard || showHostAssignModal;
+  const isInMenu = showResults || showGameEndRanking || showMultiplayerLeaderboard;
   const isMultiplayerRoundActive = isMultiplayerMode && 
     multiplayerState?.gamePhase === 'question' && 
     multiplayerState?.currentPlayerId !== user?.id; // Waiting for turn
@@ -587,7 +590,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     }
   }, [questionIsComplete, showQuestionComplete, isMultiplayerMode, endGame]);
 
-  // Check if game is finished and show results - simplified dependencies
+  // Check if game is finished and show results - award coins and show popup when all answers selected (natural completion)
   useEffect(() => {
     if (gameState?.gamePhase === 'finished' && !showResults) {
       logger.log('🎉 Game finished!');
@@ -597,39 +600,69 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
         setShowGameEndRanking(true);
         setShowResults(true);
       } else {
-        // For single player games: process missions (credits coins to balance) and show interstitial
-        const results = getGameResults();
-        if (user?.id && results) {
-          const score = Object.values(results.finalScores).reduce((a, b) => a + b, 0);
-          const correctAnswers = results.roundResults.reduce(
-            (count, r) => count + (r.playerAnswers?.length || 0),
-            0
-          );
-          const totalQuestions = results.roundResults.length || 10;
+        // Single player or team mode: process missions (credit coins) and show game-end popup
+        let score = 0;
+        let correctAnswers = 0;
+        let totalQuestions = 10;
+        let totalTime = 0;
+        let category = gameState.category || '';
+
+        if (isTeamMode && teamGameState) {
+          // Team mode: derive score and stats from team game state
+          const totalAssigned = Object.keys(teamGameState.answerAssignments).length;
+          correctAnswers = totalAssigned;
+          totalQuestions = Math.max(gameState.currentQuestion?.answers?.length ?? 10, totalAssigned);
+          score = teamGameState.teams.reduce((sum, t) => sum + t.score, 0);
+        } else {
+          const results = getGameResults();
+          if (results) {
+            score = Object.values(results.finalScores).reduce((a, b) => a + b, 0);
+            correctAnswers = results.roundResults.reduce(
+              (count, r) => count + (r.playerAnswers?.length || 0),
+              0
+            );
+            totalQuestions = results.roundResults.length || 10;
+            totalTime = results.totalTime ?? 0;
+            category = results.category || category;
+          }
+        }
+
+        if (user?.id) {
+          // Grant fixed game-completion reward exactly once per game (same as the 50 we show on overlay)
+          if (!hasGrantedGameCompletionCoinsRef.current) {
+            hasGrantedGameCompletionCoinsRef.current = true;
+            CoinService.getInstance()
+              .addCoins(user.id, GAME_COMPLETION_COIN_REWARD, 'Game completed')
+              .then(() => {
+                getUserProfileWithAvatar?.();
+              })
+              .catch((e) => {
+                hasGrantedGameCompletionCoinsRef.current = false;
+                logger.warn('GameScreen: addCoins for game completion failed', e);
+              });
+          }
+          setLastGameCoinsEarned(GAME_COMPLETION_COIN_REWARD);
           updateGameStats(
             user.id,
             score,
-            results.category,
+            category,
             correctAnswers,
             totalQuestions,
-            results.totalTime,
+            totalTime,
             false,
             false
-          ).then((missionResult) => {
-            if (missionResult?.totalCoinsEarned) {
-              setLastGameCoinsEarned(missionResult.totalCoinsEarned);
-            }
-          }).catch((e) => logger.warn('GameScreen: updateGameStats failed', e));
+          ).catch((e) => logger.warn('GameScreen: updateGameStats failed', e));
+        } else {
+          setLastGameCoinsEarned(GAME_COMPLETION_COIN_REWARD);
         }
         setShowGameEndRanking(true);
         incrementGameCompletionCount().then((newCount) => {
           logger.log('Interstitial ad frequency: game_completion_count', newCount);
         }).catch((e) => logger.warn('GameScreen: incrementGameCompletionCount failed', e));
-        setTriggerInterstitial(true); // Post-game ad after every single-player game
-        // User taps overlay to dismiss (no auto-navigate; allows time for "double rewards" option)
+        // Post-game ad is shown when user presses Continue (see onHide below)
       }
     }
-  }, [gameState?.gamePhase, showResults, isMultiplayerMode, getGameResults, user?.id]);
+  }, [gameState?.gamePhase, gameState?.category, gameState?.currentQuestion, showResults, isMultiplayerMode, isTeamMode, teamGameState, getGameResults, user?.id]);
 
   // Reset interstitial trigger after ad closed or fallback (e.g. ad not loaded)
   useEffect(() => {
@@ -637,6 +670,20 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     const fallback = setTimeout(() => setTriggerInterstitial(false), 6000);
     return () => clearTimeout(fallback);
   }, [triggerInterstitial]);
+
+  // Freeze displayed coin amount when game-end overlay is shown so it doesn't change
+  useEffect(() => {
+    if (showGameEndRanking && lastGameCoinsEarned > 0 && gameEndCoinsDisplayRef.current === null) {
+      gameEndCoinsDisplayRef.current = lastGameCoinsEarned;
+    }
+  }, [showGameEndRanking, lastGameCoinsEarned]);
+
+  // Preload interstitial when game-end overlay is shown so ad is ready when user presses Continue
+  useEffect(() => {
+    if (showGameEndRanking && !isMultiplayerMode && !isPremium) {
+      loadInterstitialAd().catch(() => {});
+    }
+  }, [showGameEndRanking, isMultiplayerMode, isPremium, loadInterstitialAd]);
 
   // Preload rewarded ad when game end overlay is shown (for double rewards)
   useEffect(() => {
@@ -1732,14 +1779,15 @@ const handleEndGame = () => {
                        !isMultiplayerMode && isTeamMode && !assignedTeam && styles.unassignedAnswerCard
                      ]}
                     onPress={() => {
-                      // In team mode, allow host to assign unassigned answers
+                      // In team mode, auto-assign unassigned answers to the team whose turn it is and end turn
                       if (!isMultiplayerMode && isTeamMode && !assignedTeam) {
-                        setSelectedAnswerIndex(index);
-                        const answerAsQuestion: QuestionAnswer = typeof answer === 'string' 
-                          ? { text: answer, rank: index + 1, points: index + 1 } 
-                          : { text: answer.text, rank: answer.rank, points: 'points' in answer ? answer.points : answer.rank };
-                        setSelectedAnswer(answerAsQuestion);
-                        setShowHostAssignModal(true);
+                        const currentTeam = getCurrentTeam();
+                        if (!currentTeam) return;
+                        const points = typeof answer === 'string'
+                          ? index + 1
+                          : (typeof (answer as QuestionAnswer).points === 'number' ? (answer as QuestionAnswer).points : (answer as QuestionAnswer).rank);
+                        assignAnswerToTeam(index, currentTeam.id, points);
+                        endTeamTurn();
                       }
                     }}
                      disabled={isMultiplayerMode || (isTeamMode && !!assignedTeam)}
@@ -1837,60 +1885,67 @@ const handleEndGame = () => {
        
 
 
-       {/* Game End Ranking Overlay - Shows at game completion */}
+       {/* Game End Ranking Overlay - Dismiss only via Continue button */}
        {showGameEndRanking && (
-         <TouchableOpacity
-           style={styles.fullScreenTouchable}
-           activeOpacity={1}
-           onPress={() => {
-             setShowGameEndRanking(false);
-             if (!isMultiplayerMode) {
-               resetGame();
-               navigation.dispatch(
-                 CommonActions.reset({
-                   index: 1,
-                   routes: [
-                     { name: 'Home' },
-                     { name: 'Categories', params: { gameMode: 'single' } }
-                   ]
-                 })
-               );
-             }
-           }}
-         >
+         <View style={styles.fullScreenTouchable} pointerEvents="box-none">
           <RankingOverlay
             visible={showGameEndRanking}
             question={currentQuestion as Parameters<typeof RankingOverlay>[0]['question']}
             submittedAnswers={getCurrentRoundAnswers()}
             onHide={() => {
+              gameEndCoinsDisplayRef.current = null;
+              hasGrantedGameCompletionCoinsRef.current = false;
               setShowGameEndRanking(false);
               if (!isMultiplayerMode) {
-                resetGame();
-                navigation.dispatch(
-                  CommonActions.reset({
-                    index: 1,
-                    routes: [
-                      { name: 'Home' },
-                      { name: 'Categories', params: { gameMode: 'single' } }
-                    ]
-                  })
-                );
+                const navigateAway = () => {
+                  resetGame();
+                  navigation.dispatch(
+                    CommonActions.reset({
+                      index: 1,
+                      routes: [
+                        { name: 'Home' },
+                        { name: 'Categories', params: { gameMode: 'single' } }
+                      ]
+                    })
+                  );
+                };
+                if (isPremium) {
+                  navigateAway();
+                } else {
+                  // Ensure interstitial is loading, then wait for it to be ready before showing
+                  loadInterstitialAd().catch(() => {});
+                  const showAdAfterLoad = () => {
+                    showInterstitialAd({ onAdClosed: navigateAway }).catch(() => {
+                      navigateAway();
+                    });
+                  };
+                  // If ad is already loaded, show soon; else give time for load to complete
+                  if (interstitialLoadState === 'loaded') {
+                    showAdAfterLoad();
+                  } else {
+                    setTimeout(showAdAfterLoad, 2500);
+                  }
+                }
               }
             }}
             isGameEnd={true}
-            coinsEarned={!isMultiplayerMode ? lastGameCoinsEarned : 0}
+            coinsEarned={!isMultiplayerMode ? (gameEndCoinsDisplayRef.current ?? lastGameCoinsEarned) : 0}
             rewardsDoubled={rewardsDoubled}
+            teams={!isMultiplayerMode && isTeamMode ? teamGameState?.teams : undefined}
+            answerAssignments={!isMultiplayerMode && isTeamMode ? teamGameState?.answerAssignments : undefined}
             onWatchAdToDouble={async () => {
-              if (rewardsDoubled || lastGameCoinsEarned <= 0 || isPremium) return;
+              const amountToDouble = gameEndCoinsDisplayRef.current ?? lastGameCoinsEarned;
+              if (rewardsDoubled || amountToDouble <= 0 || isPremium) return;
               try {
                 await showRewardedAd(async () => {
-                  if (user?.id && lastGameCoinsEarned > 0) {
+                  if (user?.id && amountToDouble > 0) {
                     await CoinService.getInstance().addCoins(
                       user.id,
-                      lastGameCoinsEarned,
+                      amountToDouble,
                       'Double rewards: watch ad'
                     );
                     setRewardsDoubled(true);
+                    await getUserProfileWithAvatar?.();
                     showToast('success', tGame('rewards.doubled'), tGame('rewards.doubledMessage'));
                   }
                 });
@@ -1900,7 +1955,7 @@ const handleEndGame = () => {
             }}
             adReady={rewardedLoadState === 'loaded'}
           />
-         </TouchableOpacity>
+         </View>
        )}
 
                {/* Team Mode UI - Only show in single-player mode */}
@@ -1949,32 +2004,6 @@ const handleEndGame = () => {
             </View>
          </>
        )}
-
-               {/* Host Assign Modal - Only show in single-player mode */}
-        {!isMultiplayerMode && selectedAnswer && (
-          <HostAssignModal
-            visible={showHostAssignModal}
-            onClose={() => setShowHostAssignModal(false)}
-            onAssign={(teamId, points) => {
-              if (selectedAnswerIndex >= 0 && selectedAnswer) {
-                const team = teamGameState?.teams.find(t => t.id === teamId);
-                logger.log(`🎯 Assigning "${selectedAnswer.text}" to ${team?.name} for ${points} points`);
-                
-                assignAnswerToTeam(selectedAnswerIndex, teamId, points);
-                setShowHostAssignModal(false);
-                setSelectedAnswerIndex(-1);
-                setSelectedAnswer(null);
-                
-                // Show success feedback
-                logger.log(`✅ Answer Assigned: "${selectedAnswer.text}" to ${team?.name} (+${points} points)`);
-              }
-            }}
-            answer={selectedAnswer}
-            answerIndex={selectedAnswerIndex}
-            teams={teamGameState?.teams || []}
-            currentTeamIndex={teamGameState?.currentTeamIndex || 0}
-          />
-        )}
 
         {/* Multiplayer Leaderboard Screen - Shows when game is finished */}
         {showMultiplayerLeaderboard && isMultiplayerMode && (
