@@ -32,6 +32,10 @@ yarn-error.*
 .env
 .env*.local
 
+# Google/Firebase config with API keys - do not commit (use .env or EAS secrets)
+google-services.json
+GoogleService-Info.plist
+
 # typescript
 *.tsbuildinfo
 
