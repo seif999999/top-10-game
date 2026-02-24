@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Dimensions,
   Animated,
   ScrollView,
   ImageBackground,
@@ -18,13 +17,16 @@ import { COLORS, SPACING, ANIMATIONS } from '../design-system';
 import useAppTranslation, { useTranslationHelpers } from '../../hooks/useTranslation';
 import i18n from '../../config/i18n';
 import { logger } from '../../backend/utils/logger';
-import { getQuestionsByCategory } from '../../backend/services/questionsService';
+import { getQuestionsByCategory, getRandomQuestion, getCategories } from '../../backend/services/questionsService';
 import { ROUND_TIMER_OPTIONS } from '../../shared/types/teams';
 import type { RootStackParamList } from '../../shared/types/navigation';
+import type { GameQuestion } from '../../shared/types';
+import type { LegacyQuestion } from '../../shared/types/game';
 import CustomQuestionService from '../../backend/services/customQuestionService';
-import { getCategories } from '../../backend/services/questionsService';
+import ThemedAlert from '../utils/themedAlert';
+import { CATEGORY_CAROUSEL } from '../constants/categoryCarousel';
 
-const { width, height } = Dimensions.get('window');
+const { CARD_WIDTH, CARD_HEIGHT, NAV_BUTTON_SIZE } = CATEGORY_CAROUSEL;
 
 // Import category images
 const categoryImages: { [key: string]: any } = {
@@ -36,6 +38,7 @@ const categoryImages: { [key: string]: any } = {
   'Geography': require('../assets/images/geography.jpg'),
   'Food': require('../assets/images/food.webp'),
   'Technology': require('../assets/images/technology.jpg'),
+  // Masry: keep egypt.jpg background and overlay as-is (do not change)
   'Masry': require('../assets/images/egypt.jpg'),
   'Custom': require('../assets/images/createyourown.jpg'),
 };
@@ -141,6 +144,9 @@ const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () =
   const insets = useSafeAreaInsets();
   const { 
     setCategory, 
+    setQuestions,
+    createRoom,
+    loading: multiplayerLoading,
     error,
     clearError,
     leaveRoom,
@@ -352,33 +358,36 @@ const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () =
   const handleCategorySelect = async () => {
     const currentCategory = categories[currentIndex];
     
-    // Handle Random category - pick random category and question
+    // Handle Random category - pick one random question immediately and create room
     if (currentCategory.id === 'Random') {
-      if (isLoadingRandom) return;
+      if (isLoadingRandom || multiplayerLoading) return;
       setIsLoadingRandom(true);
-      
       try {
-        // Get all categories except 'Custom' and 'Random'
-        const allCategories = getCategories().filter(cat => cat !== 'Custom');
-        
-        if (allCategories.length === 0) {
+        const question: GameQuestion = await getRandomQuestion();
+        if (!question?.title || !question?.answers?.length) {
           setIsLoadingRandom(false);
           return;
         }
-        
-        // Pick a random category
-        const randomCategoryIndex = Math.floor(Math.random() * allCategories.length);
-        const randomCategory = allCategories[randomCategoryIndex];
-        
-        // Set the random category in multiplayer context
-        setCategory(randomCategory);
-        
-        // Navigate to MultiplayerQuestions with the random category
-        navigation.navigate('MultiplayerQuestions', { 
-          categoryName: randomCategory 
+        const toLegacy = (q: GameQuestion): LegacyQuestion => ({
+          id: q.id,
+          text: q.title,
+          answers: q.answers.map(a => a.text),
+          category: q.category,
+          difficulty: q.difficulty,
         });
+        const legacyQuestion = toLegacy(question);
+        setCategory(question.category);
+        setQuestions([legacyQuestion]);
+        const roomCode = await createRoom(question.category, [legacyQuestion]);
+        await new Promise(r => setTimeout(r, 500));
+        navigation.navigate('RoomLobby', { roomCode });
       } catch (error) {
-        logger.error('Error loading random game:', error);
+        logger.error('Error creating random game room:', error);
+        ThemedAlert.error(
+          t('gameSetup.randomErrorTitle', { defaultValue: 'Random game failed' }),
+          t('gameSetup.randomErrorMessage', { defaultValue: 'Could not create the game. Please try again.' }),
+          [{ text: 'OK', onPress: () => {} }]
+        );
       } finally {
         setIsLoadingRandom(false);
       }
@@ -437,24 +446,27 @@ const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () =
           <Text style={styles.settingLabel}>{t('gameSetup.category')}</Text>
         </View>
 
-        {/* Carousel Container */}
+        {/* Carousel Container - full width, card centered between visible nav buttons */}
         <View style={styles.carouselWrapper}>
-          {/* Left Navigation Button */}
+          {/* Left Navigation Button - always takes space so card stays centered */}
           <View style={styles.navButtonContainer}>
-            {currentIndex > 0 && (
+            {currentIndex > 0 ? (
               <Animated.View style={{ transform: [{ scale: leftButtonScale }] }}>
                 <TouchableOpacity
                   onPress={handlePreviousCategory}
                   style={styles.navButton}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.navButtonChevron}>{'<'}</Text>
+                  <Text style={styles.navButtonChevron}>{isRTL ? '>' : '<'}</Text>
                 </TouchableOpacity>
               </Animated.View>
+            ) : (
+              <View style={styles.navButtonPlaceholder} />
             )}
           </View>
 
-          {/* Current Card - Always Centered */}
+          {/* Card container - flex to center card between nav buttons */}
+          <View style={styles.categoryCardContainer}>
             <TouchableOpacity
               activeOpacity={1}
               onPressIn={handleCardPressIn}
@@ -464,6 +476,7 @@ const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () =
             <Animated.View
               style={[
                 styles.currentCard,
+                styles.currentCardDimensions,
                 {
                   opacity: cardOpacity,
                   transform: [{ scale: cardScale }],
@@ -544,19 +557,22 @@ const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () =
               )}
             </Animated.View>
           </TouchableOpacity>
+          </View>
 
-          {/* Right Navigation Button */}
+          {/* Right Navigation Button - always takes space so card stays centered */}
           <View style={styles.navButtonContainer}>
-            {currentIndex < categories.length - 1 && (
+            {currentIndex < categories.length - 1 ? (
               <Animated.View style={{ transform: [{ scale: rightButtonScale }] }}>
                 <TouchableOpacity
                   onPress={handleNextCategory}
                   style={styles.navButton}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.navButtonChevron}>{'>'}</Text>
+                  <Text style={styles.navButtonChevron}>{isRTL ? '<' : '>'}</Text>
                 </TouchableOpacity>
               </Animated.View>
+            ) : (
+              <View style={styles.navButtonPlaceholder} />
             )}
           </View>
         </View>
@@ -592,9 +608,9 @@ const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () =
         <View style={[styles.continueButtonContainer, { paddingBottom: insets.bottom + SPACING.xl }]}>
           <TouchableOpacity
             onPress={handleContinue}
-            style={[styles.continueButton, isLoadingRandom && styles.continueButtonDisabled]}
+            style={[styles.continueButton, (isLoadingRandom || multiplayerLoading) && styles.continueButtonDisabled]}
             activeOpacity={0.9}
-            disabled={isLoadingRandom}
+            disabled={isLoadingRandom || multiplayerLoading}
           >
             <LinearGradient
               colors={categories[currentIndex].id === 'Random' ? ['#059669', '#047857'] : ['#4F46E5', '#4338CA']}
@@ -603,7 +619,7 @@ const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () =
               style={styles.continueButtonGradient}
             >
               <Text style={styles.continueButtonText}>
-                {isLoadingRandom ? t('gameSetup.loading') : (categories[currentIndex].id === 'Random' ? t('gameSetup.startRandomGame') : t('gameSetup.continue'))}
+                {(isLoadingRandom || multiplayerLoading) ? t('gameSetup.loading') : (categories[currentIndex].id === 'Random' ? t('gameSetup.startRandomGame') : t('gameSetup.continue'))}
               </Text>
               <Text style={styles.continueButtonArrow}>
                 {categories[currentIndex].id === 'Random' ? '🎲' : (isRTL ? '←' : '→')}
@@ -667,47 +683,52 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.xl,
   },
   carouselWrapper: {
+    width: '100%',
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.xs,
+    paddingVertical: SPACING.xl,
+    minHeight: CARD_HEIGHT + SPACING.xl * 2,
+  },
+  categoryCardContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xl,
-    minHeight: 400,
+    paddingHorizontal: SPACING.xs,
   },
   navButtonContainer: {
-    width: 40,
-    height: 40,
+    width: NAV_BUTTON_SIZE,
+    minWidth: NAV_BUTTON_SIZE,
+    height: NAV_BUTTON_SIZE,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  navButtonPlaceholder: {
+    width: NAV_BUTTON_SIZE,
+    height: NAV_BUTTON_SIZE,
+  },
   navButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    width: NAV_BUTTON_SIZE,
+    height: NAV_BUTTON_SIZE,
+    borderRadius: NAV_BUTTON_SIZE / 2,
+    backgroundColor: COLORS.surfaceSecondary,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowRadius: 3,
+    elevation: 3,
   },
   navButtonChevron: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: '600' as const,
+    color: COLORS.text,
+    fontSize: CATEGORY_CAROUSEL.NAV_CHEVRON_FONT_SIZE,
+    fontWeight: '700' as const,
     textAlign: 'center',
   },
   currentCard: {
-    width: '75%',
-    maxWidth: 400,
-    height: 400,
-    marginHorizontal: SPACING.md,
-    borderRadius: 24,
+    borderRadius: CATEGORY_CAROUSEL.CARD_BORDER_RADIUS,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: {
@@ -718,13 +739,17 @@ const styles = StyleSheet.create({
     shadowRadius: 24,
     elevation: 16,
   },
+  currentCardDimensions: {
+    width: CARD_WIDTH,
+    height: CARD_HEIGHT,
+  },
   categoryCardGradient: {
     width: '100%',
     height: '100%',
     padding: SPACING.xl * 2,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 24,
+    borderRadius: CATEGORY_CAROUSEL.CARD_BORDER_RADIUS,
     overflow: 'hidden',
   },
   cardContent: {
@@ -776,7 +801,7 @@ const styles = StyleSheet.create({
   },
   categoryOverlay: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: 24,
+    borderRadius: CATEGORY_CAROUSEL.CARD_BORDER_RADIUS,
   },
   egyptCategoryName: {
     fontSize: 28,

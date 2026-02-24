@@ -103,6 +103,9 @@ export const ANIMATIONS = {
   }
 };
 
+// Fixed coin reward for completing a game (single player). Shown on game-end overlay; does not vary.
+export const GAME_COMPLETION_COIN_REWARD = 50;
+
 // ============================================
 // TIMING CONSTANTS
 // ============================================

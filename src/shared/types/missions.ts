@@ -36,9 +36,11 @@ export interface MissionProgress {
   completedAt?: Date;
   completionCount: number;       // How many times completed (for repeatable missions)
   lastUpdated: Date;
+  /** True after user has opened Missions and claimed the reward; reward is not auto-credited */
+  rewardClaimed?: boolean;
   // Streak-specific tracking
-  streakCount?: number;          // Current streak count
-  lastStreakGameId?: string;     // Last game that contributed to streak
+  streakCount?: number;
+  lastStreakGameId?: string;
 }
 
 export interface UserMissions {

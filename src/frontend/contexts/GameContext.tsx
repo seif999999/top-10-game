@@ -269,6 +269,11 @@ const gameReducer = (state: GameContextState, action: GameAction): GameContextSt
         }
         
         const { answerIndex, teamId, points } = action.payload;
+        const currentTeam = state.teamGameState.teams[state.teamGameState.currentTeamIndex];
+        if (!currentTeam || currentTeam.id !== teamId) {
+          logger.warn('Assigning only to current team is allowed; ignoring assignment to other team');
+          return state;
+        }
         const updatedTeamGameState = { ...state.teamGameState };
         
         // Update team score

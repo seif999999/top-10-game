@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -36,30 +36,23 @@ const HostAssignModal: React.FC<HostAssignModalProps> = ({
   const { t } = useAppTranslation('components');
   const { t: tCommon } = useAppTranslation('common');
   const { isRTL } = useAppTranslation();
-  const [selectedTeamId, setSelectedTeamId] = useState(teams[currentTeamIndex]?.id || '');
-
-  useEffect(() => {
-    if (visible && teams[currentTeamIndex]) {
-      setSelectedTeamId(teams[currentTeamIndex].id);
-    }
-  }, [visible, currentTeamIndex, teams]);
+  const currentTeamId = teams[currentTeamIndex]?.id ?? '';
 
   const handleAssign = () => {
     try {
-      logger.log('🎯 HostAssignModal: Assigning answer:', {
+      logger.log('🎯 HostAssignModal: Assigning answer to current team:', {
         answerIndex,
         answer: answer.text,
-        selectedTeamId,
+        teamId: currentTeamId,
         points: answer.points,
       });
 
-      if (!selectedTeamId) {
+      if (!currentTeamId) {
         ThemedAlert.warning(tCommon('error'), t('errors.selectTeam'));
         return;
       }
 
-      // Use the fixed points value from the answer object
-      onAssign(selectedTeamId, answer.points);
+      onAssign(currentTeamId, answer.points);
       onClose();
     } catch (error) {
       logger.error('❌ HostAssignModal: Error assigning answer:', error);
@@ -85,46 +78,22 @@ const HostAssignModal: React.FC<HostAssignModalProps> = ({
             <Text style={[styles.answerPoints, isRTL && styles.rtlText]}>{t('hostAssign.worthPoints', { points: answer.points })}</Text>
           </View>
 
-          {/* Team Selection */}
+          {/* Current team only - only the team whose turn it is can receive the point */}
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>{t('hostAssign.selectTeam')}</Text>
-            <View style={styles.teamSelector}>
-              {teams.map((team) => (
-                <TouchableOpacity
-                  key={team.id}
+            <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>{t('hostAssign.assignToCurrentTeam', { defaultValue: 'Assign to current team' })}</Text>
+            {teams[currentTeamIndex] && (
+              <View style={[styles.currentTeamRow, isRTL && styles.rtlRow]}>
+                <View
                   style={[
-                    styles.teamButton,
-                    isRTL && styles.rtlRow,
-                    selectedTeamId === team.id && styles.selectedTeamButton,
+                    styles.teamColorIndicator,
+                    { backgroundColor: teams[currentTeamIndex].color },
+                    isRTL && styles.teamColorIndicatorRTL,
                   ]}
-                  onPress={() => setSelectedTeamId(team.id)}
-                >
-                  <View
-                    style={[
-                      styles.teamColorIndicator,
-                      { backgroundColor: team.color },
-                      isRTL && styles.teamColorIndicatorRTL,
-                    ]}
-                  />
-                  <Text
-                    style={[
-                      styles.teamButtonText,
-                      selectedTeamId === team.id && styles.selectedTeamButtonText,
-                    ]}
-                  >
-                    {team.name}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.teamScore,
-                      selectedTeamId === team.id && styles.selectedTeamButtonText,
-                    ]}
-                  >
-                    {team.score} pts
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+                />
+                <Text style={styles.teamButtonText}>{teams[currentTeamIndex].name}</Text>
+                <Text style={styles.teamScore}>{teams[currentTeamIndex].score} pts</Text>
+              </View>
+            )}
           </View>
 
           {/* Points Display - Read Only */}
@@ -206,21 +175,14 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     marginBottom: SPACING.md,
   },
-  teamSelector: {
-    gap: SPACING.sm,
-  },
-  teamButton: {
+  currentTeamRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
     borderRadius: 8,
-    backgroundColor: COLORS.card,
+    backgroundColor: 'rgba(79, 70, 229, 0.15)',
     borderWidth: 2,
-    borderColor: COLORS.muted,
-  },
-  selectedTeamButton: {
-    backgroundColor: COLORS.primary,
     borderColor: COLORS.primary,
   },
   teamColorIndicator: {

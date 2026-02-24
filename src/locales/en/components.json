@@ -84,7 +84,7 @@
     "tapToContinue": "Tap anywhere to continue",
     "coinsEarned": "You earned {{count}} coins!",
     "coinsDoubled": "You earned {{count}} coins! (Doubled!)",
-    "watchAdToDouble": "Watch ad to double rewards"
+    "watchAdToDouble": "Watch video to double rewards"
   },
   "googleSignIn": {
     "signInWithGoogle": "Sign in with Google"

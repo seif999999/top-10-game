@@ -207,6 +207,7 @@
     "feedbackSentMailto": "Thank you for your feedback! Please send the email from your email client.",
     "feedbackSendError": "Failed to send feedback. Please try again later.",
     "send": "Send",
+    "sendingFeedback": "Sending…",
     "signOutError": "Sign-Out Error",
     "rateLimitExceeded": "Rate Limit Exceeded",
     "rateLimitMessage": "Too many profile updates. Please wait before trying again.",
@@ -238,6 +239,9 @@
     "loading": "Loading missions...",
     "noMissions": "No missions found",
     "tryFilter": "Try a different filter",
+    "collectReward": "Collect reward",
+    "collecting": "Collecting...",
+    "claimed": "Claimed",
     "list": {
       "first_correct": { "name": "First Steps", "description": "Get your first correct answer" },
       "play_5_games": { "name": "Getting Started", "description": "Play 5 games" },

@@ -13,13 +13,18 @@ import type { Analytics } from 'firebase/analytics';
 // We will import and init it conditionally on web to avoid native runtime errors
 
 // Firebase configuration from environment variables
+// On Android use Android app ID when set (matches google-services.json)
+const firebaseAppId = Platform.OS === 'android' && process.env.EXPO_PUBLIC_FIREBASE_ANDROID_APP_ID
+  ? process.env.EXPO_PUBLIC_FIREBASE_ANDROID_APP_ID
+  : (process.env.EXPO_PUBLIC_FIREBASE_APP_ID || '');
+
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || '',
   authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || '',
   projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || '',
   storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || '',
   messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '',
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || '',
+  appId: firebaseAppId,
   measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID || ''
 };
 

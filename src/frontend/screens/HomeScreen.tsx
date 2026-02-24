@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ScrollView, Animated, PanResponder, Easing, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING } from '../../backend/utils/constants';
 import { HomeScreenProps } from '../../shared/types/navigation';
@@ -14,6 +15,7 @@ import BannerAd from '../components/ads/BannerAd';
 import DailyRewardModal from '../components/DailyRewardModal';
 import { SinglePlayerIcon, MultiplayerIcon, CreateIcon } from '../components/GameIcons';
 import { getStreakInfo, StreakInfo } from '../../backend/services/dailyRewardService';
+import { missionService } from '../../backend/services/missionService';
 
 const { width, height } = Dimensions.get('window');
 
@@ -244,6 +246,21 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const [showDailyReward, setShowDailyReward] = useState(false);
   const [streakInfo, setStreakInfo] = useState<StreakInfo | null>(null);
+  const [unclaimedMissionsCount, setUnclaimedMissionsCount] = useState(0);
+
+  // Refresh unclaimed missions count when Home is focused (e.g. after returning from Missions)
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      const load = async () => {
+        if (!user?.id) return;
+        const count = await missionService.getUnclaimedRewardCount(user.id);
+        if (!cancelled) setUnclaimedMissionsCount(count);
+      };
+      load();
+      return () => { cancelled = true; };
+    }, [user?.id])
+  );
 
   // Start background music when on home screen (if enabled, after prefs loaded)
   useEffect(() => {
@@ -343,12 +360,14 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Main screen background image */}
-      <Image
-        source={homeBackgroundImage}
-        style={styles.backgroundImage}
-        resizeMode="cover"
-      />
+      {/* Full-screen background image - reimplemented to fill entire screen */}
+      <View style={styles.backgroundImageWrapper} pointerEvents="none">
+        <Image
+          source={homeBackgroundImage}
+          style={styles.backgroundImage}
+          resizeMode="cover"
+        />
+      </View>
 
       <View style={styles.mainContent}>
         <ScrollView 
@@ -378,6 +397,13 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               style={styles.missionsButton}
             >
               <Text style={styles.missionsIcon}>🎯</Text>
+              {unclaimedMissionsCount > 0 && (
+                <View style={styles.missionsBadge}>
+                  <Text style={styles.missionsBadgeText}>
+                    {unclaimedMissionsCount > 9 ? '9+' : String(unclaimedMissionsCount)}
+                  </Text>
+                </View>
+              )}
             </TouchableOpacity>
             <TouchableOpacity 
               onPress={handleDailyRewardOpen} 
@@ -535,11 +561,27 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#1a1a2e',
   },
+  backgroundImageWrapper: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width,
+    height,
+    zIndex: 0,
+  },
   backgroundImage: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width,
+    height,
+    zIndex: 0,
   },
   mainContent: {
     flex: 1,
+    zIndex: 1,
   },
   scrollView: {
     flex: 1,
@@ -609,6 +651,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(245, 158, 11, 0.4)',
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'relative',
     shadowColor: '#F59E0B',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
@@ -661,6 +704,25 @@ const styles = StyleSheet.create({
   dailyRewardBadgeText: {
     color: '#FFFFFF',
     fontSize: 11,
+    fontWeight: '800',
+  },
+  missionsBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#EF4444',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: '#1a1a2e',
+  },
+  missionsBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
     fontWeight: '800',
   },
   coinDisplay: {

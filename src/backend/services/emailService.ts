@@ -77,8 +77,11 @@ export class EmailService {
         logger.log('API endpoint failed, trying other methods');
       }
 
-      // Try EmailJS if configured
-      if (this.EMAILJS_SERVICE_ID && this.EMAILJS_TEMPLATE_ID && this.EMAILJS_PUBLIC_KEY) {
+      // In React Native there is no browser (location); EmailJS only works on web. Try Formspree/API first in app.
+      const isBrowser = typeof globalThis !== 'undefined' && 'location' in globalThis;
+
+      // Try EmailJS only in browser (it uses window/location)
+      if (isBrowser && this.EMAILJS_SERVICE_ID && this.EMAILJS_TEMPLATE_ID && this.EMAILJS_PUBLIC_KEY) {
         logger.log('📧 Attempting to send via EmailJS...');
         const emailjsResult = await this.sendViaEmailJS({
           to,
@@ -90,18 +93,15 @@ export class EmailService {
         if (emailjsResult.success && emailjsResult.error !== 'MAILTO_FALLBACK') {
           logger.log('✅ Email sent successfully via EmailJS');
           return emailjsResult;
-        } else {
+        }
+        if (emailjsResult.error !== 'MAILTO_FALLBACK') {
           logger.warn('⚠️ EmailJS send failed:', emailjsResult.error);
         }
-      } else {
-        logger.warn('⚠️ EmailJS not fully configured:', {
-          hasServiceId: !!this.EMAILJS_SERVICE_ID,
-          hasTemplateId: !!this.EMAILJS_TEMPLATE_ID,
-          hasPublicKey: !!this.EMAILJS_PUBLIC_KEY
-        });
+      } else if (!isBrowser && this.EMAILJS_SERVICE_ID) {
+        logger.warn('EmailJS is configured but only works in browser. In app: set EXPO_PUBLIC_FORMSPREE_ENDPOINT or EXPO_PUBLIC_EMAIL_API_ENDPOINT for feedback.');
       }
 
-      // Use Formspree if configured
+      // Use Formspree if configured (works in app and web)
       if (this.FORMSPREE_ENDPOINT) {
         const formspreeResult = await this.sendViaFormspree({
           to,
@@ -115,11 +115,18 @@ export class EmailService {
         }
       }
 
-      // If all methods fail, show helpful error
-      logger.error('No email service configured. Please set up EmailJS, Formspree, or API endpoint.');
+      // No method worked (API was already tried at the top)
+      if (!isBrowser) {
+        logger.warn('In-app feedback: no Formspree or API endpoint configured. Add EXPO_PUBLIC_FORMSPREE_ENDPOINT or EXPO_PUBLIC_EMAIL_API_ENDPOINT to .env for in-app feedback.');
+        return {
+          success: false,
+          error: 'Feedback from the app is not set up. You can email us at ' + this.FALLBACK_EMAIL + ' directly.'
+        };
+      }
+      logger.warn('No email service available. Set up Formspree, API endpoint, or EmailJS (web only) in .env.');
       return {
         success: false,
-        error: 'Email service not configured. Please set up an email service in the .env file. See FEEDBACK_EMAIL_SETUP.md for instructions.'
+        error: 'Email service not configured. Please set up Formspree, an API endpoint, or EmailJS in the .env file. See FEEDBACK_EMAIL_SETUP.md for instructions.'
       };
     } catch (error) {
       logger.error('Error sending feedback email:', error);
@@ -175,10 +182,17 @@ export class EmailService {
   }
 
   /**
-   * Send email via EmailJS
+   * Send email via EmailJS (browser only; uses window/location)
    */
   private static async sendViaEmailJS(params: SendEmailParams): Promise<EmailServiceResult> {
     try {
+      // EmailJS (@emailjs/browser) requires browser globals (location, etc.). Skip in React Native.
+      const hasLocation = typeof globalThis !== 'undefined' && 'location' in globalThis;
+      if (!hasLocation) {
+        logger.warn('EmailJS requires browser environment (location); skipping in app');
+        return { success: false, error: 'MAILTO_FALLBACK' };
+      }
+
       // Dynamically import EmailJS to avoid issues if not installed
       let emailjs: any;
       try {

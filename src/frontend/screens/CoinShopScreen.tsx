@@ -23,6 +23,7 @@ import CoinShopOnboarding, { hasSeenCoinShopOnboarding } from '../components/Coi
 import ToastNotification from '../components/ToastNotification';
 import ThemedAlert from '../utils/themedAlert';
 import IAPService, { type PremiumSubscriptionType } from '../../backend/services/IAPService';
+import { PROGRESSIVE_REWARDS } from '../../backend/utils/coinAdCooldown';
 
 type CoinShopScreenProps = NativeStackScreenProps<RootStackParamList, 'CoinsShop'>;
 
@@ -146,12 +147,18 @@ const CoinShopScreen: React.FC<CoinShopScreenProps> = ({ navigation }) => {
   }, [progressiveInfo.maxReached, refreshProgressiveInfo]);
 
   const handleProgressiveAdSuccess = useCallback(
-    (coinsEarned: number) => {
+    async (coinsEarned: number) => {
       setSuccessAmount(coinsEarned);
       refreshProgressiveInfo();
       setTimeout(() => setSuccessAmount(null), 2000);
+      // Refresh user profile so CoinDisplay updates immediately
+      try {
+        await getUserProfileWithAvatar?.();
+      } catch {
+        // Non-fatal: balance may update on next screen focus
+      }
     },
-    [refreshProgressiveInfo]
+    [refreshProgressiveInfo, getUserProfileWithAvatar]
   );
 
   const handleWatchProgressiveAd = useCallback(() => {
@@ -396,12 +403,12 @@ const CoinShopScreen: React.FC<CoinShopScreenProps> = ({ navigation }) => {
                 <Text style={styles.progressiveHint}>
                   {progressiveInfo.adsWatchedThisHour < 4
                     ? tCoin('coinShop.progressiveAd.nextReward', {
-                        coins: [15, 20, 25, 30][progressiveInfo.adsWatchedThisHour] ?? 15,
-                        defaultValue: `Next: ${[15, 20, 25, 30][progressiveInfo.adsWatchedThisHour] ?? 15} coins`,
+                        coins: PROGRESSIVE_REWARDS[progressiveInfo.adsWatchedThisHour + 1] ?? 15,
+                        defaultValue: `Next: ${PROGRESSIVE_REWARDS[progressiveInfo.adsWatchedThisHour + 1] ?? 15} coins`,
                       })
                     : tCoin('coinShop.progressiveAd.finalReward', {
-                        coins: 30,
-                        defaultValue: 'Final: 30 coins',
+                        coins: PROGRESSIVE_REWARDS[4],
+                        defaultValue: `Final: ${PROGRESSIVE_REWARDS[4]} coins`,
                       })}
                 </Text>
               )}
