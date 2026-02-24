@@ -22,19 +22,30 @@ import type { QuestionAnswer } from '../../shared/types';
 import type { Answer } from '../../shared/types/game';
 import type { Team } from '../../shared/types/teams';
 import useAppTranslation from '../../hooks/useTranslation';
+import AvatarIcon from './AvatarIcon';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const CARD_WIDTH = Math.min(SCREEN_WIDTH - 40, 420);
 const LIST_MAX_HEIGHT = Math.min(SCREEN_HEIGHT * 0.4, 320);
 
 type RankingQuestion = {
-  answers: Array<QuestionAnswer | Answer>;
+  answers?: Array<QuestionAnswer | Answer>;
+  title?: string;
+};
+
+/** Multiplayer game-end: player rank list item */
+export type MultiplayerPlayerRow = {
+  playerId: string;
+  playerName: string;
+  score: number;
+  rank: number;
+  selectedAvatar?: string;
 };
 
 interface RankingOverlayProps {
   visible: boolean;
-  question: RankingQuestion;
-  submittedAnswers: string[];
+  question?: RankingQuestion | null;
+  submittedAnswers?: string[];
   onHide?: () => void;
   isGameEnd?: boolean;
   coinsEarned?: number;
@@ -44,12 +55,35 @@ interface RankingOverlayProps {
   /** Team mode: teams and answer assignments to show who scored each answer */
   teams?: Team[];
   answerAssignments?: { [answerIndex: number]: { teamId: string; points: number } };
+  /** Multiplayer game-end: show player leaderboard instead of answer list */
+  multiplayerPlayers?: MultiplayerPlayerRow[];
+}
+
+const PLAYER_COLORS = ['#8B5CF6', '#EF4444', '#10B981', '#F59E0B', '#3B82F6', '#EC4899', '#06B6D4', '#84CC16'];
+function getPlayerColor(index: number): string {
+  return PLAYER_COLORS[index % PLAYER_COLORS.length];
+}
+function getRankIcon(rank: number): string {
+  switch (rank) {
+    case 1: return '👑';
+    case 2: return '🥈';
+    case 3: return '🥉';
+    default: return `${rank}`;
+  }
+}
+function getRankColor(rank: number): string {
+  switch (rank) {
+    case 1: return '#FFD700';
+    case 2: return '#C0C0C0';
+    case 3: return '#CD7F32';
+    default: return '#94A3B8';
+  }
 }
 
 const RankingOverlay: React.FC<RankingOverlayProps> = ({
   visible,
   question,
-  submittedAnswers,
+  submittedAnswers = [],
   onHide,
   isGameEnd = false,
   coinsEarned = 0,
@@ -58,11 +92,14 @@ const RankingOverlay: React.FC<RankingOverlayProps> = ({
   adReady = false,
   teams,
   answerAssignments,
+  multiplayerPlayers,
 }) => {
   const { t } = useAppTranslation('components');
   const { isRTL } = useAppTranslation();
   const [fadeAnim] = useState(new Animated.Value(0));
   const [scaleAnim] = useState(new Animated.Value(0.9));
+
+  const isMultiplayerGameEnd = Boolean(isGameEnd && multiplayerPlayers && multiplayerPlayers.length > 0);
 
   useEffect(() => {
     if (visible) {
@@ -101,7 +138,8 @@ const RankingOverlay: React.FC<RankingOverlayProps> = ({
 
   const hideOverlay = () => onHide?.();
 
-  if (!visible || !question) return null;
+  if (!visible) return null;
+  if (!isMultiplayerGameEnd && !question) return null;
 
   const getAnswerStatus = (answer: QuestionAnswer | Answer) => {
     const isSubmitted = submittedAnswers.some((submitted) => {
@@ -117,7 +155,8 @@ const RankingOverlay: React.FC<RankingOverlayProps> = ({
     return isSubmitted ? { status: 'correct' as const, color: COLORS.success } : { status: 'incorrect' as const, color: COLORS.error };
   };
 
-  const sortedAnswers = question.answers
+  const answers = question?.answers ?? [];
+  const sortedAnswers = answers
     .filter((answer: QuestionAnswer | Answer) => {
       if (isGameEnd) return true;
       return submittedAnswers.some((submitted) => {
@@ -134,7 +173,7 @@ const RankingOverlay: React.FC<RankingOverlayProps> = ({
     .sort((a: QuestionAnswer | Answer, b: QuestionAnswer | Answer) => a.rank - b.rank);
 
   const getTeamForAnswer = (answer: QuestionAnswer | Answer) => {
-    if (!teams?.length || !answerAssignments) return null;
+    if (!teams?.length || !answerAssignments || !question?.answers) return null;
     const originalIndex = question.answers.findIndex(
       (pa) => pa.rank === answer.rank && pa.text === answer.text
     );
@@ -174,10 +213,15 @@ const RankingOverlay: React.FC<RankingOverlayProps> = ({
                 ? t('rankingOverlay.gameComplete', { defaultValue: 'Game Complete!' })
                 : t('rankingOverlay.currentRankings', { defaultValue: 'Current Rankings' })}
             </Text>
-            {!isGameEnd && (
+            {!isGameEnd && question?.title && (
               <Text style={styles.headerSubtitle}>{question.title}</Text>
             )}
-            {isGameEnd && winningTeams.length > 0 && (
+            {isGameEnd && isMultiplayerGameEnd && multiplayerPlayers && multiplayerPlayers.length > 0 && (
+              <Text style={styles.headerSubtitle}>
+                {t('rankingOverlay.multiplayerFinalScores', { defaultValue: 'Final scores' })}
+              </Text>
+            )}
+            {isGameEnd && !isMultiplayerGameEnd && winningTeams.length > 0 && (
               <View style={styles.winnerSection}>
                 <Text style={styles.winnerLabel}>
                   {winningTeams.length === 1
@@ -198,7 +242,7 @@ const RankingOverlay: React.FC<RankingOverlayProps> = ({
             )}
           </LinearGradient>
 
-          {/* Answer list */}
+          {/* List: multiplayer leaderboard or single-player answer list */}
           <View style={styles.listWrap}>
             <ScrollView
               style={styles.scrollView}
@@ -206,28 +250,66 @@ const RankingOverlay: React.FC<RankingOverlayProps> = ({
               showsVerticalScrollIndicator={true}
               bounces={false}
             >
-              {sortedAnswers.map((answer: QuestionAnswer | Answer) => {
-                const { color } = getAnswerStatus(answer);
-                const team = getTeamForAnswer(answer);
-                return (
-                  <View key={answer.rank} style={styles.row}>
-                    <View style={[styles.rankBadge, { backgroundColor: color + '22' }]}>
-                      <Text style={[styles.rankNum, { color }]}>{answer.rank}</Text>
-                    </View>
-                    <Text style={styles.answerText} numberOfLines={2}>
-                      {answer.text}
-                    </Text>
-                    {team && (
-                      <View style={[styles.teamChip, { backgroundColor: team.color + '33' }]}>
-                        <View style={[styles.teamChipDot, { backgroundColor: team.color }]} />
-                        <Text style={styles.teamChipText} numberOfLines={1}>
-                          {team.name}
+              {isMultiplayerGameEnd && multiplayerPlayers ? (
+                multiplayerPlayers.map((player, index) => {
+                  const isWinner = player.rank === 1;
+                  const playerColor = getPlayerColor(index);
+                  return (
+                    <View
+                      key={player.playerId}
+                      style={[styles.row, styles.playerRow, isWinner && styles.winnerRow]}
+                    >
+                      <View style={[styles.rankBadge, { backgroundColor: getRankColor(player.rank) + '22' }]}>
+                        <Text style={[styles.rankNum, { color: getRankColor(player.rank) }]}>
+                          {getRankIcon(player.rank)}
                         </Text>
                       </View>
-                    )}
-                  </View>
-                );
-              })}
+                      <View style={styles.playerInfo}>
+                        <AvatarIcon
+                          user={{
+                            id: player.playerId,
+                            displayName: player.playerName,
+                            email: `${player.playerId}@player.local`,
+                            selectedAvatar: player.selectedAvatar,
+                          }}
+                          size={36}
+                          showBorder={true}
+                          borderColor={playerColor}
+                        />
+                        <Text style={[styles.answerText, styles.playerName, isWinner && styles.winnerName]} numberOfLines={1}>
+                          {player.playerName}
+                        </Text>
+                      </View>
+                      <Text style={[styles.scoreText, isWinner && styles.winnerScore]}>
+                        {player.score}
+                      </Text>
+                    </View>
+                  );
+                })
+              ) : (
+                sortedAnswers.map((answer: QuestionAnswer | Answer) => {
+                  const { color } = getAnswerStatus(answer);
+                  const team = getTeamForAnswer(answer);
+                  return (
+                    <View key={answer.rank} style={styles.row}>
+                      <View style={[styles.rankBadge, { backgroundColor: color + '22' }]}>
+                        <Text style={[styles.rankNum, { color }]}>{answer.rank}</Text>
+                      </View>
+                      <Text style={styles.answerText} numberOfLines={2}>
+                        {answer.text}
+                      </Text>
+                      {team && (
+                        <View style={[styles.teamChip, { backgroundColor: team.color + '33' }]}>
+                          <View style={[styles.teamChipDot, { backgroundColor: team.color }]} />
+                          <Text style={styles.teamChipText} numberOfLines={1}>
+                            {team.name}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  );
+                })
+              )}
             </ScrollView>
           </View>
 
@@ -420,6 +502,36 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.xs,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.text,
+  },
+  playerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  winnerRow: {
+    backgroundColor: 'rgba(255, 215, 0, 0.12)',
+    borderWidth: 1,
+    borderColor: '#FFD700',
+  },
+  playerInfo: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: SPACING.sm,
+  },
+  playerName: {
+    marginLeft: SPACING.sm,
+  },
+  winnerName: {
+    color: '#FFD700',
+    fontWeight: TYPOGRAPHY.fontWeight.extrabold,
+  },
+  scoreText: {
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text,
+  },
+  winnerScore: {
+    color: '#FFD700',
   },
   footer: {
     paddingVertical: SPACING.xl,

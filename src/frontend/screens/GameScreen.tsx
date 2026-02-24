@@ -13,6 +13,7 @@ import ToastNotification from '../components/ToastNotification';
 import { showCrossPlatformAlert } from '../components/CrossPlatformAlert';
 import { COLORS, SPACING, TYPOGRAPHY, ANIMATIONS } from '../design-system';
 import { GAME_COMPLETION_COIN_REWARD } from '../../backend/utils/constants';
+import { getGameReward, incrementDailyGameCount } from '../../backend/utils/dailyGameCap';
 import { GameScreenProps } from '../../shared/types/navigation';
 import { useGame } from '../contexts/GameContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -438,11 +439,48 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
               ).catch((e) => logger.warn('GameScreen: multiplayer updateGameStats failed', e));
             }
           }
-          setShowMultiplayerLeaderboard(true);
-          setShowGameEndRanking(false); // Ensure no overlapping modals
-          setShowResults(false); // Hide results modal
-          setShowAnswers(false); // Hide answers
-          setTriggerInterstitial(true); // Post-game ad after every multiplayer game
+          playGameEnd();
+          // Placement-based reward (1st=30, 2nd=20, 3rd+=10); daily cap: first 8 games full, then 5
+          const rankResult = user?.id && multiplayerState?.scores && multiplayerState?.players
+            ? getMultiplayerFinalRankAndScore(multiplayerState.scores, multiplayerState.players, user.id)
+            : null;
+          const placementReward = rankResult?.finalRank != null
+            ? (rankResult.finalRank === 1 ? 30 : rankResult.finalRank === 2 ? 20 : 10)
+            : 10;
+          if (user?.id && !hasGrantedGameCompletionCoinsRef.current) {
+            hasGrantedGameCompletionCoinsRef.current = true;
+            getGameReward(placementReward).then((reward) => {
+              logger.log('GameScreen: multiplayer reward', { placement: rankResult?.finalRank, placementReward, reward, gamesPlayedToday: 'see dailyGameCap log' });
+              CoinService.getInstance()
+                .addCoins(user.id, reward, 'Multiplayer game completed')
+                .then(() => {
+                  getUserProfileWithAvatar?.();
+                })
+                .catch((e) => {
+                  hasGrantedGameCompletionCoinsRef.current = false;
+                  logger.warn('GameScreen: addCoins for multiplayer game completion failed', e);
+                });
+              incrementDailyGameCount().catch(() => {});
+              setLastGameCoinsEarned(reward);
+            }).catch((e) => {
+              hasGrantedGameCompletionCoinsRef.current = false;
+              logger.warn('GameScreen: getGameReward failed, using placement reward', e);
+              CoinService.getInstance()
+                .addCoins(user.id, placementReward, 'Multiplayer game completed')
+                .then(() => getUserProfileWithAvatar?.())
+                .catch((err) => logger.warn('GameScreen: addCoins for multiplayer failed', err));
+              setLastGameCoinsEarned(placementReward);
+            });
+          } else if (user?.id) {
+            getGameReward(placementReward).then(setLastGameCoinsEarned).catch(() => setLastGameCoinsEarned(placementReward));
+          }
+          setShowGameEndRanking(true);
+          setShowMultiplayerLeaderboard(false);
+          setShowResults(false);
+          setShowAnswers(false);
+          incrementGameCompletionCount().then((newCount) => {
+            logger.log('Interstitial ad frequency: game_completion_count (multiplayer)', newCount);
+          }).catch((e) => logger.warn('GameScreen: incrementGameCompletionCount failed', e));
         }
       }
     }
@@ -628,20 +666,34 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
         }
 
         if (user?.id) {
-          // Grant fixed game-completion reward exactly once per game (same as the 50 we show on overlay)
+          // Daily cap: first 8 games get full reward (20), then 5 coins. Grant exactly once per game.
           if (!hasGrantedGameCompletionCoinsRef.current) {
             hasGrantedGameCompletionCoinsRef.current = true;
-            CoinService.getInstance()
-              .addCoins(user.id, GAME_COMPLETION_COIN_REWARD, 'Game completed')
-              .then(() => {
-                getUserProfileWithAvatar?.();
-              })
-              .catch((e) => {
-                hasGrantedGameCompletionCoinsRef.current = false;
-                logger.warn('GameScreen: addCoins for game completion failed', e);
-              });
+            getGameReward(GAME_COMPLETION_COIN_REWARD).then((reward) => {
+              logger.log('GameScreen: single-player reward', { reward, gamesPlayedToday: 'see dailyGameCap log' });
+              CoinService.getInstance()
+                .addCoins(user.id, reward, 'Game completed')
+                .then(() => {
+                  getUserProfileWithAvatar?.();
+                })
+                .catch((e) => {
+                  hasGrantedGameCompletionCoinsRef.current = false;
+                  logger.warn('GameScreen: addCoins for game completion failed', e);
+                });
+              incrementDailyGameCount().catch(() => {});
+              setLastGameCoinsEarned(reward);
+            }).catch((e) => {
+              hasGrantedGameCompletionCoinsRef.current = false;
+              logger.warn('GameScreen: getGameReward failed, using base reward', e);
+              CoinService.getInstance()
+                .addCoins(user.id, GAME_COMPLETION_COIN_REWARD, 'Game completed')
+                .then(() => getUserProfileWithAvatar?.())
+                .catch((err) => logger.warn('GameScreen: addCoins for game completion failed', err));
+              setLastGameCoinsEarned(GAME_COMPLETION_COIN_REWARD);
+            });
+          } else {
+            getGameReward(GAME_COMPLETION_COIN_REWARD).then(setLastGameCoinsEarned).catch(() => setLastGameCoinsEarned(GAME_COMPLETION_COIN_REWARD));
           }
-          setLastGameCoinsEarned(GAME_COMPLETION_COIN_REWARD);
           updateGameStats(
             user.id,
             score,
@@ -678,12 +730,12 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     }
   }, [showGameEndRanking, lastGameCoinsEarned]);
 
-  // Preload interstitial when game-end overlay is shown so ad is ready when user presses Continue
+  // Preload interstitial when game-end overlay is shown (single or multiplayer) so ad is ready when user presses Continue
   useEffect(() => {
-    if (showGameEndRanking && !isMultiplayerMode && !isPremium) {
+    if (showGameEndRanking && !isPremium) {
       loadInterstitialAd().catch(() => {});
     }
-  }, [showGameEndRanking, isMultiplayerMode, isPremium, loadInterstitialAd]);
+  }, [showGameEndRanking, isPremium, loadInterstitialAd]);
 
   // Preload rewarded ad when game end overlay is shown (for double rewards)
   useEffect(() => {
@@ -1114,17 +1166,20 @@ const handleEndGame = () => {
     navigation.navigate('MultiplayerMenu');
   };
 
-  const getMultiplayerLeaderboardData = () => {
+  const getMultiplayerLeaderboardData = (): Array<{ playerId: string; playerName: string; score: number; rank: number; selectedAvatar?: string }> => {
     if (!multiplayerState || !multiplayerState.players || !multiplayerState.scores) {
       return [];
     }
 
-    return Object.entries(multiplayerState.players).map(([playerId, player]) => ({
+    const list = Object.entries(multiplayerState.players).map(([playerId, player]) => ({
       playerId,
       playerName: player.name || tGame('multiplayer.unknownPlayer'),
       score: multiplayerState.scores?.[playerId] || 0,
-      rank: 0, // Will be calculated by the leaderboard component
+      selectedAvatar: player.selectedAvatar,
     }));
+    return list
+      .sort((a, b) => b.score - a.score)
+      .map((item, index) => ({ ...item, rank: index + 1 }));
   };
 
   // Memoized leaderboard for in-game MultiplayerLeaderboard (avoids re-creating array every render)
@@ -1885,41 +1940,59 @@ const handleEndGame = () => {
        
 
 
-       {/* Game End Ranking Overlay - Dismiss only via Continue button */}
+       {/* Game End Ranking Overlay - Single & Multiplayer; dismiss only via Continue */}
        {showGameEndRanking && (
          <View style={styles.fullScreenTouchable} pointerEvents="box-none">
           <RankingOverlay
             visible={showGameEndRanking}
-            question={currentQuestion as Parameters<typeof RankingOverlay>[0]['question']}
-            submittedAnswers={getCurrentRoundAnswers()}
+            question={isMultiplayerMode ? undefined : (currentQuestion as Parameters<typeof RankingOverlay>[0]['question'])}
+            submittedAnswers={isMultiplayerMode ? [] : getCurrentRoundAnswers()}
             onHide={() => {
               gameEndCoinsDisplayRef.current = null;
               hasGrantedGameCompletionCoinsRef.current = false;
               setShowGameEndRanking(false);
-              if (!isMultiplayerMode) {
-                const navigateAway = () => {
-                  resetGame();
-                  navigation.dispatch(
-                    CommonActions.reset({
-                      index: 1,
-                      routes: [
-                        { name: 'Home' },
-                        { name: 'Categories', params: { gameMode: 'single' } }
-                      ]
-                    })
-                  );
-                };
+              const navigateAwayMultiplayer = () => {
+                forceDisconnect();
+                navigation.navigate('MultiplayerMenu');
+              };
+              const navigateAwaySingle = () => {
+                resetGame();
+                navigation.dispatch(
+                  CommonActions.reset({
+                    index: 1,
+                    routes: [
+                      { name: 'Home' },
+                      { name: 'Categories', params: { gameMode: 'single' } }
+                    ]
+                  })
+                );
+              };
+              if (isMultiplayerMode) {
                 if (isPremium) {
-                  navigateAway();
+                  navigateAwayMultiplayer();
                 } else {
-                  // Ensure interstitial is loading, then wait for it to be ready before showing
                   loadInterstitialAd().catch(() => {});
                   const showAdAfterLoad = () => {
-                    showInterstitialAd({ onAdClosed: navigateAway }).catch(() => {
-                      navigateAway();
+                    showInterstitialAd({ onAdClosed: navigateAwayMultiplayer }).catch(() => {
+                      navigateAwayMultiplayer();
                     });
                   };
-                  // If ad is already loaded, show soon; else give time for load to complete
+                  if (interstitialLoadState === 'loaded') {
+                    showAdAfterLoad();
+                  } else {
+                    setTimeout(showAdAfterLoad, 2500);
+                  }
+                }
+              } else {
+                if (isPremium) {
+                  navigateAwaySingle();
+                } else {
+                  loadInterstitialAd().catch(() => {});
+                  const showAdAfterLoad = () => {
+                    showInterstitialAd({ onAdClosed: navigateAwaySingle }).catch(() => {
+                      navigateAwaySingle();
+                    });
+                  };
                   if (interstitialLoadState === 'loaded') {
                     showAdAfterLoad();
                   } else {
@@ -1929,10 +2002,11 @@ const handleEndGame = () => {
               }
             }}
             isGameEnd={true}
-            coinsEarned={!isMultiplayerMode ? (gameEndCoinsDisplayRef.current ?? lastGameCoinsEarned) : 0}
+            coinsEarned={gameEndCoinsDisplayRef.current ?? lastGameCoinsEarned}
             rewardsDoubled={rewardsDoubled}
             teams={!isMultiplayerMode && isTeamMode ? teamGameState?.teams : undefined}
             answerAssignments={!isMultiplayerMode && isTeamMode ? teamGameState?.answerAssignments : undefined}
+            multiplayerPlayers={isMultiplayerMode ? getMultiplayerLeaderboardData() : undefined}
             onWatchAdToDouble={async () => {
               const amountToDouble = gameEndCoinsDisplayRef.current ?? lastGameCoinsEarned;
               if (rewardsDoubled || amountToDouble <= 0 || isPremium) return;

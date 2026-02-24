@@ -275,6 +275,7 @@ interface MultiplayerContextType {
   
   // Host Actions
   startGame: (roundTimeSeconds?: number) => Promise<void>;
+  ensureRoomIsLobby: () => Promise<void>;
   endGame: () => Promise<void>;
   kickPlayer: (playerId: string) => Promise<void>;
   nextQuestion: () => Promise<void>;
@@ -531,6 +532,17 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
       dispatch({ type: 'SET_STARTING', payload: false });
     }
   };
+
+  const ensureRoomIsLobby = useCallback(async (): Promise<void> => {
+    if (!state.currentRoom || !state.isHost || !user?.id) return;
+    if (state.currentRoom.status === 'lobby') return;
+    try {
+      await multiplayerService.resetRoomStatusV2(state.currentRoom.roomCode, user.id);
+      logger.log('Room reset to lobby so host can start a new game');
+    } catch (e) {
+      logger.warn('ensureRoomIsLobby: reset failed', e);
+    }
+  }, [state.currentRoom?.roomCode, state.currentRoom?.status, state.isHost, user?.id]);
 
   const endGame = async (): Promise<void> => {
     try {
@@ -879,6 +891,7 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
     
     // Host Actions
     startGame,
+    ensureRoomIsLobby,
     endGame,
     kickPlayer,
     nextQuestion,

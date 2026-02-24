@@ -80,11 +80,13 @@
     "finalRankings": "Final Rankings",
     "currentRankings": "Current Rankings",
     "gameComplete": "Game Complete!",
+    "multiplayerFinalScores": "Final scores",
     "foundAnswers": "Found: {{count}}/10 answers",
     "tapToContinue": "Tap anywhere to continue",
     "coinsEarned": "You earned {{count}} coins!",
     "coinsDoubled": "You earned {{count}} coins! (Doubled!)",
-    "watchAdToDouble": "Watch video to double rewards"
+    "watchAdToDouble": "Watch video to double rewards",
+    "continue": "Continue"
   },
   "googleSignIn": {
     "signInWithGoogle": "Sign in with Google"

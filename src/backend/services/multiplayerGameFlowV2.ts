@@ -140,20 +140,9 @@ export async function hostStartGame(
       
       const room = roomSnap.data() as RoomData;
       
-      // Transaction checks
+      // Transaction checks: if room is not in lobby, getStartGameData will throw; startGameCore will reset and retry
       if (room.status !== 'lobby') {
-        logger.error(`❌ HOST_START_GAME: Room status check failed`, {
-          roomCode,
-          currentStatus: room.status,
-          expectedStatus: 'lobby',
-          roomData: {
-            status: room.status,
-            gamePhase: room.gamePhase,
-            playersCount: Object.keys(room.players || {}).length,
-            hostId: room.hostId,
-            requestingHostId: hostId
-          }
-        });
+        logger.warn(`HOST_START_GAME: Room not in lobby (current: ${room.status}); caller will reset and retry`);
       }
 
       const { turnOrder, firstQuestion } = getStartGameData(room, hostId);
@@ -206,7 +195,13 @@ export async function hostStartGame(
     
     return result;
   } catch (error) {
-    logger.error(`❌ HOST_START_GAME: Failed to start game:`, error);
+    const msg = error instanceof Error ? error.message : String(error);
+    const isRecoverableLobbyState = msg.includes('not in lobby state');
+    if (isRecoverableLobbyState) {
+      logger.log(`HOST_START_GAME: Room was not in lobby (${msg}); startGameCore will reset and retry`);
+    } else {
+      logger.error(`❌ HOST_START_GAME: Failed to start game:`, error);
+    }
     const appError = toAppError(error, {
       code: 'MP_START_GAME_FAILED',
       message: 'Failed to start game',

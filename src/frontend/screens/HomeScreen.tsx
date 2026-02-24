@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING } from '../../backend/utils/constants';
 import { HomeScreenProps } from '../../shared/types/navigation';
 import { useAuth } from '../contexts/AuthContext';
+import { useAd } from '../contexts/AdContext';
 import { useAudio } from '../contexts/AudioContext';
 import useAppTranslation from '../../hooks/useTranslation';
 import AvatarIcon from '../components/AvatarIcon';
@@ -239,6 +240,7 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({ onSwipeComplete, onPress,
 
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const { user, getUserProfileWithAvatar, welcomeCoinsMessage, clearWelcomeCoinsMessage } = useAuth();
+  const { isPremium, loadInterstitialAd, showInterstitialAd, interstitialLoadState } = useAd();
   const { playButtonClick, isMusicEnabled, isInitialized, playBackgroundMusic, stopBackgroundMusic } = useAudio();
   const { t, isRTL } = useAppTranslation('screens');
   /** Screens namespace t with string keys (keys exist in locales/en/screens.json; generated types may be stale). */
@@ -327,8 +329,21 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
   const handleCreateYourOwn = useCallback(() => {
     playButtonClick();
-    navigation.navigate('CustomQuestionSlots');
-  }, [playButtonClick, navigation]);
+    const navigateToCustomSlots = () => navigation.navigate('CustomQuestionSlots');
+    if (isPremium) {
+      navigateToCustomSlots();
+      return;
+    }
+    loadInterstitialAd().catch(() => {});
+    const showAdThenNavigate = () => {
+      showInterstitialAd({ onAdClosed: navigateToCustomSlots }).catch(() => navigateToCustomSlots());
+    };
+    if (interstitialLoadState === 'loaded') {
+      showAdThenNavigate();
+    } else {
+      setTimeout(showAdThenNavigate, 2500);
+    }
+  }, [playButtonClick, navigation, isPremium, loadInterstitialAd, showInterstitialAd, interstitialLoadState]);
 
   const handleDailyRewardOpen = useCallback(() => {
     playButtonClick();

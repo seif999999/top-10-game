@@ -46,6 +46,7 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
     error,
     leaveRoom,
     startGame,
+    ensureRoomIsLobby,
     endGame,
     kickPlayer,
     clearError,
@@ -64,6 +65,22 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
 
   // Track voluntary leave to avoid false kick detection
   const isLeavingRef = useRef(false);
+  // Proactive reset: when host sees room in playing/finished, reset to lobby so Start works without error path
+  const hasProactiveResetRef = useRef<string | null>(null);
+
+  // When host is on lobby and room is not in lobby state, reset once so pressing Start doesn't hit "Room not in lobby" error
+  useEffect(() => {
+    if (!isHost || !currentRoom || !user?.id) return;
+    if (currentRoom.status === 'lobby') {
+      hasProactiveResetRef.current = null;
+      return;
+    }
+    if (currentRoom.status !== 'playing' && currentRoom.status !== 'finished') return;
+    const key = `${currentRoom.roomCode}:${currentRoom.status}`;
+    if (hasProactiveResetRef.current === key) return;
+    hasProactiveResetRef.current = key;
+    ensureRoomIsLobby().catch(() => {});
+  }, [isHost, currentRoom?.roomCode, currentRoom?.status, user?.id, ensureRoomIsLobby]);
 
   // Detect when the current user has been kicked from the room
   useEffect(() => {
