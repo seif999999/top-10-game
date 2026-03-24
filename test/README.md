@@ -150,6 +150,56 @@ node test/load-test.js 2000
 const TOTAL_USERS = 2000;
 ```
 
+## Phase 2: k6 Load Test (Real Firebase)
+
+Tests **real** Firebase (Auth + Firestore) with the k6 tool. Use a **separate test project** (e.g. op10game-loadtest), not production.
+
+### Prerequisites
+
+- k6 installed: `choco install k6 -y` (run PowerShell as Administrator) or https://k6.io/docs/getting-started/installation/
+
+### Setup
+
+1. Copy `test/k6.env.example` to `test/k6-config.env` (this file is gitignored).
+2. Edit `test/k6-config.env` and set:
+   - `FIREBASE_API_KEY` — Web API Key from Firebase Console (Project settings → Your apps)
+   - `FIREBASE_PROJECT_ID` — e.g. `op10game-loadtest`
+   - `K6_TEST_USER_EMAILS` — Comma-separated test user emails (see `k6.env.example`); each k6 VU rotates so heavy runs don’t hammer one account
+   - `K6_TEST_USER_PASSWORD` — Shared password for those users (or use a single `K6_TEST_USER_EMAIL` if you don’t set `K6_TEST_USER_EMAILS`)
+
+### Run
+
+```bash
+npm run load-test:k6
+```
+
+Multiplayer-only (skips the default scenario; ~1 minute):
+
+```bash
+npm run load-test:k6:multiplayer
+```
+
+Requires **at least two** emails in `K6_TEST_USER_EMAILS` (host + reader). Optional: `K6_MP_ROOM_CODE` (default `k6-mp-stress-room`; each pair uses `…-p0`, `…-p1`, …).
+
+With **`K6_HEAVY=1`**, multiplayer_sync ramps **0→10 VUs over 60s** and needs **10 emails** (5 pairs: `[0,1]`, `[2,3]`, … `[8,9]`). Threshold stays **`multiplayer_roundtrip` p95 &lt; 1500ms**.
+
+You can also pass extra k6 flags: `node test/run-k6.js --multiplayer-only --vus 2`.
+
+Or run k6 directly (set env vars first):
+
+```bash
+k6 run test/load-test.k6.js
+```
+
+**Auth behavior:** Production Firebase **rate-limits** password sign-in; the script cannot “allow” unlimited parallel logins. By default, **each VU signs in once** and **reuses the ID token** (like a real app), so heavy tests mostly stress **Firestore**, not Auth. Optional env vars in `k6-config.env`:
+
+- `K6_LOGIN_EACH_ITER=1` — sign in every iteration (Auth stress test; expect many failures at high VUs).
+- `K6_STAGGER_SIGNIN_SEC=0.05` — before a VU’s **first** sign-in, sleep `(VU−1)×this` seconds to spread the initial sign-in burst (helps if many VUs start at once).
+
+k6 ramps VUs, then each VU keeps reading Firestore. Check Firebase Console → Usage during the run.
+
+---
+
 ## Next Steps
 
 After Phase 1 (Emulator Testing):
@@ -157,7 +207,7 @@ After Phase 1 (Emulator Testing):
 1. ✅ Fix any bugs or race conditions found
 2. ✅ Optimize Firestore queries
 3. ✅ Review security rules
-4. → Move to **Phase 2**: Production testing with k6
+4. → **Phase 2**: k6 against a test Firebase project (see above)
 
 ## Notes
 

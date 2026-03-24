@@ -275,6 +275,7 @@ interface MultiplayerContextType {
   
   // Host Actions
   startGame: (roundTimeSeconds?: number) => Promise<void>;
+  ensureRoomIsLobby: () => Promise<void>;
   endGame: () => Promise<void>;
   kickPlayer: (playerId: string) => Promise<void>;
   nextQuestion: () => Promise<void>;
@@ -379,7 +380,14 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
       
-      if (!user) {
+      // Resolve user - use AuthContext if available, else fall back to AuthService (handles race where context hasn't propagated)
+      let effectiveUser = user;
+      if (!effectiveUser) {
+        const authService = AuthService.getInstance();
+        await authService.ensureAuthenticated();
+        effectiveUser = authService.getCurrentUser();
+      }
+      if (!effectiveUser) {
         throw new AppError({
           code: 'MP_AUTH_REQUIRED',
           message: 'User not authenticated',
@@ -387,16 +395,33 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
         });
       }
 
+      // Leave current room before creating a new one (avoids orphan rooms)
+      if (state.currentRoom?.roomCode) {
+        const prevRoomCode = state.currentRoom.roomCode;
+        try {
+          if (state.unsubscribe) {
+            state.unsubscribe();
+            dispatch({ type: 'SET_UNSUBSCRIBE', payload: null });
+          }
+          await multiplayerService.leaveRoom(prevRoomCode, effectiveUser.id);
+        } catch (leaveErr) {
+          logger.warn('⚠️ Failed to leave previous room before create:', leaveErr);
+        }
+        dispatch({ type: 'RESET_ALL' });
+        dispatch({ type: 'SET_LOADING', payload: true }); // Restore loading for create
+      }
+
       // Sync AuthService with current user state to prevent race conditions
       const authService = AuthService.getInstance();
-      authService.syncWithUser(user);
+      authService.syncWithUser(effectiveUser);
 
-      const roomCode = await multiplayerService.createRoom(user.id, category, questions, user.displayName || user.email?.split('@')[0] || 'Player', user.selectedAvatar);
-      
-      // Subscribe to room updates
+      const roomCode = await multiplayerService.createRoom(effectiveUser.id, category, questions, effectiveUser.displayName || effectiveUser.email?.split('@')[0] || 'Player', effectiveUser.selectedAvatar);
+
+      // Subscribe to room updates (same as joinRoom — must store unsubscribe so leaveRoom/cleanup can detach listener)
       const unsubscribe = multiplayerService.subscribeToRoom(roomCode, (roomData) => {
-        dispatch({ type: 'SET_ROOM', payload: { roomData, userId: user?.id } });
+        dispatch({ type: 'SET_ROOM', payload: { roomData, userId: effectiveUser?.id } });
       });
+      dispatch({ type: 'SET_UNSUBSCRIBE', payload: unsubscribe });
 
       dispatch({ type: 'SET_LOADING', payload: false });
       return roomCode;
@@ -417,7 +442,14 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
       
-      if (!user) {
+      // Resolve user - use AuthContext if available, else fall back to AuthService
+      let effectiveUser = user;
+      if (!effectiveUser) {
+        const authService = AuthService.getInstance();
+        await authService.ensureAuthenticated();
+        effectiveUser = authService.getCurrentUser();
+      }
+      if (!effectiveUser) {
         throw new AppError({
           code: 'MP_AUTH_REQUIRED',
           message: 'User not authenticated',
@@ -427,14 +459,14 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
 
       // Sync AuthService with current user state to prevent race conditions
       const authService = AuthService.getInstance();
-      authService.syncWithUser(user);
+      authService.syncWithUser(effectiveUser);
 
-      const success = await multiplayerService.joinRoom(roomCode, user.id, user.displayName || 'Player', user.selectedAvatar);
+      const success = await multiplayerService.joinRoom(roomCode, effectiveUser.id, effectiveUser.displayName || 'Player', effectiveUser.selectedAvatar);
       
       if (success) {
         // Subscribe to room updates
         const unsubscribe = multiplayerService.subscribeToRoom(roomCode, (roomData) => {
-          dispatch({ type: 'SET_ROOM', payload: { roomData, userId: user?.id } });
+          dispatch({ type: 'SET_ROOM', payload: { roomData, userId: effectiveUser?.id } });
         });
         
         // Store unsubscribe function for cleanup
@@ -531,6 +563,17 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
       dispatch({ type: 'SET_STARTING', payload: false });
     }
   };
+
+  const ensureRoomIsLobby = useCallback(async (): Promise<void> => {
+    if (!state.currentRoom || !state.isHost || !user?.id) return;
+    if (state.currentRoom.status === 'lobby') return;
+    try {
+      await multiplayerService.resetRoomStatusV2(state.currentRoom.roomCode, user.id);
+      logger.log('Room reset to lobby so host can start a new game');
+    } catch (e) {
+      logger.warn('ensureRoomIsLobby: reset failed', e);
+    }
+  }, [state.currentRoom?.roomCode, state.currentRoom?.status, state.isHost, user?.id]);
 
   const endGame = async (): Promise<void> => {
     try {
@@ -711,12 +754,12 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
         dispatch({
           type: 'SET_SYSTEM_MESSAGE',
           payload: {
-            type: 'room_terminated',
+            type: 'game_terminated',
             message: i18n.t('multiplayer.roomClosedHostLeft', { ns: 'game' })
           }
         });
         
-        logger.log(`🏁 Room terminated due to host disconnection`);
+        logger.log(`🏁 Game terminated due to host disconnection - leaderboard will be shown`);
       } else if (result.action === 'error') {
         const appError = buildMultiplayerError(result.error, {
           code: 'MP_HOST_DISCONNECT_FAILED',
@@ -879,6 +922,7 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
     
     // Host Actions
     startGame,
+    ensureRoomIsLobby,
     endGame,
     kickPlayer,
     nextQuestion,

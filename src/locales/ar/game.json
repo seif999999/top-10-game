@@ -65,7 +65,8 @@
     "alreadySubmittedTitle": "تم الإرسال مسبقاً",
     "alreadySubmittedMessage": "لقد أرسلت إجابة بالفعل في هذا الدور. انتظر دورك التالي.",
     "notYourTurnTitle": "ليس دورك",
-    "notYourTurnMessage": "انتظر دورك لإرسال الإجابات."
+    "notYourTurnMessage": "انتظر دورك لإرسال الإجابات.",
+    "cannotSubmit": "لا يمكن الإرسال"
   },
   "rewards": {
     "doubled": "تم مضاعفة المكافآت!",

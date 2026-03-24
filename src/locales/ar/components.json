@@ -75,11 +75,13 @@
     "finalRankings": "الترتيب النهائي",
     "currentRankings": "الترتيب الحالي",
     "gameComplete": "انتهت اللعبة!",
+    "multiplayerFinalScores": "النتائج النهائية",
     "foundAnswers": "تم العثور على: {{count}}/١٠ إجابات",
     "tapToContinue": "المس للمتابعة",
     "coinsEarned": "حصلت على {{count}} عملات!",
     "coinsDoubled": "حصلت على {{count}} عملات! (مضاعفة!)",
-    "watchAdToDouble": "شاهد فيديو لمضاعفة المكافآت"
+    "watchAdToDouble": "شاهد فيديو لمضاعفة المكافآت",
+    "continue": "متابعة"
   },
   "googleSignIn": {
     "signInWithGoogle": "تسجيل الدخول بـ Google"

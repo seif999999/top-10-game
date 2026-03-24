@@ -2,8 +2,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { logger } from '../utils/logger';
 import { safeJsonParse } from '../utils/safeJson';
+import { sanitizeText } from '../utils/textSanitizer';
 import type { CustomQuestion } from '../../shared/types';
 import { AppError } from '../../shared/errors';
+import { VALIDATION_LIMITS } from '../utils/validationSchemas';
 
 const CUSTOM_QUESTIONS_KEY = 'custom_questions';
 const NUM_SLOTS = 10;
@@ -90,11 +92,16 @@ export class CustomQuestionService {
         userMessage: 'Invalid slot.',
       });
     }
+    // Defense-in-depth: sanitize inputs server-side
+    const sanitizedQuestion = sanitizeText((question || '').trim(), VALIDATION_LIMITS.CUSTOM_QUESTION_MAX);
+    const sanitizedAnswers = answers
+      .filter((a) => (a || '').trim().length > 0)
+      .map((a) => sanitizeText(a.trim(), VALIDATION_LIMITS.CUSTOM_ANSWER_MAX));
     const slots = await this.getSlots();
     const customQuestion: CustomQuestion = {
       id: `custom-slot-${slotIndex + 1}`,
-      question: question.trim(),
-      answers: answers.filter((a) => a.trim().length > 0),
+      question: sanitizedQuestion,
+      answers: sanitizedAnswers,
       createdAt: new Date(),
       playCount: 0,
     };

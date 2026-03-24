@@ -8,7 +8,6 @@ import {
   Unsubscribe,
   serverTimestamp,
   arrayUnion,
-  arrayRemove,
   deleteField,
   query,
   where,
@@ -217,7 +216,8 @@ class MultiplayerService {
             joinedAt: now,
             isConnected: true,
             lastSeen: now,
-            selectedAvatar: selectedAvatar
+            // Firestore rejects undefined; user may have no avatar selected yet
+            selectedAvatar: selectedAvatar ?? '',
           }
         },
         gamePhase: 'lobby',
@@ -443,7 +443,8 @@ class MultiplayerService {
         joinedAt: now,
         isConnected: true,
         lastSeen: now,
-        selectedAvatar: selectedAvatar
+        // Firestore rejects undefined; user may have no avatar selected yet
+        selectedAvatar: selectedAvatar ?? '',
       };
 
       // Update room with new player directly
@@ -523,106 +524,48 @@ class MultiplayerService {
         if (remainingPlayerIds.length === 0) {
           // No players left, delete the room
           logger.log(`🏁 HOST_LEAVING: No players left, deleting room ${roomCode}`);
-            await deleteDoc(roomRef);
+          await deleteDoc(roomRef);
           return;
-        } else if (remainingPlayerIds.length <= 2) {
-          // 2 or fewer players remain, terminate the game
-          logger.log(`🏁 HOST_LEAVING: ≤2 players remain, terminating game in room ${roomCode}`);
-          await runTransaction(db, async (transaction) => {
-            const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
-            const roomSnap = await transaction.get(roomRef);
-            
-            if (!roomSnap.exists()) {
-              throw new Error('Room not found during termination');
-            }
-            
-            // Set game as finished and add system message
-            transaction.update(roomRef, {
-              status: 'finished',
-              gamePhase: 'finished',
-              lastActivity: serverTimestamp(),
-              systemMessage: {
-                type: 'game_terminated',
-                message: 'The host left the game, so the game has been terminated.',
-                timestamp: serverTimestamp()
-              }
-            });
-          });
+        }
+        
+        // Host exit always terminates the game - show leaderboard to all remaining players
+        logger.log(`🏁 HOST_LEAVING: Terminating game in room ${roomCode} (host left)`);
+        await runTransaction(db, async (transaction) => {
+          const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
+          const roomSnap = await transaction.get(roomRef);
           
-          // Also remove the leaving host from the room
-          const updateData: Record<string, unknown> = {
-            [`players.${playerId}`]: arrayRemove(roomData.players[playerId]),
-            lastActivity: serverTimestamp()
-          };
-          
-          if (updateData[`players.${playerId}`] !== undefined) {
-            await updateDoc(roomRef, updateData);
+          if (!roomSnap.exists()) {
+            throw new Error('Room not found during termination');
           }
           
-          logger.log(`✅ HOST_LEAVING: Game terminated and host removed from room ${roomCode}`);
-        } else {
-          // 3+ players remain, migrate host to first remaining player
-          const newHostId = remainingPlayerIds[0];
-          const newHostName = roomData.players[newHostId]?.name || 'Unknown Player';
-          
-          logger.log(`🔄 HOST_LEAVING: Migrating host to ${newHostName} (${newHostId})`);
-          
-          await runTransaction(db, async (transaction) => {
-            const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
-            const roomSnap = await transaction.get(roomRef);
-            
-            if (!roomSnap.exists()) {
-              throw new Error('Room not found during host migration');
+          // Set game as finished and add system message so remaining players see leaderboard
+          transaction.update(roomRef, {
+            status: 'finished',
+            gamePhase: 'finished',
+            lastActivity: serverTimestamp(),
+            systemMessage: {
+              type: 'game_terminated',
+              message: 'The host left the game, so the game has been terminated.',
+              timestamp: serverTimestamp()
             }
-            
-            const currentRoom = roomSnap.data() as RoomData;
-            const currentRemainingPlayers = Object.keys(currentRoom.players).filter(id => id !== playerId);
-            
-            if (currentRemainingPlayers.length < 3) {
-              throw new Error('Not enough players for host migration');
-            }
-            
-            // Validate new host exists
-            if (!currentRoom.players[newHostId]) {
-              throw new Error('New host no longer exists');
-            }
-            
-            // Update host and remove leaving player
-            const updatedPlayers = { ...currentRoom.players };
-            updatedPlayers[newHostId].isHost = true;
-            delete updatedPlayers[playerId];
-            
-            transaction.update(roomRef, {
-              hostId: newHostId,
-              players: updatedPlayers,
-              lastActivity: serverTimestamp(),
-              systemMessage: {
-                type: 'host_migrated',
-                message: `${newHostName} is now the host.`,
-                timestamp: serverTimestamp(),
-                newHostId: newHostId,
-                newHostName: newHostName
-              }
-            });
           });
-        }
+        });
+        
+        // Remove the leaving host from the room
+        await updateDoc(roomRef, {
+          [`players.${playerId}`]: deleteField(),
+          lastActivity: serverTimestamp()
+        });
+        
+        logger.log(`✅ HOST_LEAVING: Game terminated and host removed from room ${roomCode}`);
       } else {
-        // Regular player leaving
+        // Regular player leaving - game continues for others
         logger.log(`👤 PLAYER_LEAVING: Player ${playerId} is leaving room ${roomCode}`);
         
-        const updateData: Record<string, unknown> = {
-          [`players.${playerId}`]: arrayRemove(roomData.players[playerId]),
+        await updateDoc(roomRef, {
+          [`players.${playerId}`]: deleteField(),
           lastActivity: serverTimestamp()
-        };
-        
-        // Validate all values before updating
-        if (updateData[`players.${playerId}`] !== undefined) {
-          await updateDoc(roomRef, updateData);
-        } else {
-          logger.error('❌ Invalid update data for player removal:', updateData);
-          // Fallback: delete the room
-          await deleteDoc(roomRef);
-        }
+        });
       }
 
       await RateLimitService.recordAction(playerId, 'leaveRoom', { roomCode }).catch(() => {});

@@ -13,15 +13,12 @@ import { AppError } from '../../shared/errors';
 const FREE_SLOTS_COUNT = 1;
 const PAID_SLOT_START_INDEX = 1;
 
-/** Tiered slot pricing: slots 2-3: 300, 4-5: 450, 6-7: 600, 8-9: 750, 10: 900. Total 5,100 coins. */
+/** Slot pricing: 0=free, 1=450, 2=500, 3=600, 4=700, 5=850, 6=1000, 7=1200, 8=1400, 9=1600. Total 8,300 coins. */
+const SLOT_COSTS = [0, 450, 500, 600, 700, 850, 1000, 1200, 1400, 1600] as const;
+
 export function getSlotUnlockCost(slotIndex: number): number {
-  if (slotIndex === 0) return 0;
-  if (slotIndex >= 1 && slotIndex <= 2) return 300;
-  if (slotIndex >= 3 && slotIndex <= 4) return 450;
-  if (slotIndex >= 5 && slotIndex <= 6) return 600;
-  if (slotIndex >= 7 && slotIndex <= 8) return 750;
-  if (slotIndex === 9) return 900;
-  return 100;
+  if (slotIndex < 0 || slotIndex >= SLOT_COSTS.length) return 0;
+  return SLOT_COSTS[slotIndex];
 }
 
 function ensureAuthenticated(userId: string): void {

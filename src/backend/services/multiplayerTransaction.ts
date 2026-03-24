@@ -635,8 +635,9 @@ export async function endRound(
 }
 
 /**
- * Update player presence atomically
- * Used for connection monitoring and reconnection
+ * Update player presence (best-effort, non-transactional)
+ * Uses dot notation to avoid document-level contention with game flow writes.
+ * Failures are logged but not surfaced - presence is non-critical.
  */
 export async function updatePlayerPresence(
   roomCode: string,
@@ -644,48 +645,24 @@ export async function updatePlayerPresence(
   isConnected: boolean = true
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const result = await runTransaction(db, async (transaction) => {
-      const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
-      const roomSnap = await transaction.get(roomRef);
-      
-      if (!roomSnap.exists()) {
-        // Room has been deleted, this is expected when host leaves
-        logger.log(`⚠️ UPDATE_PRESENCE: Room ${roomCode} not found, skipping presence update`);
-        return { success: true, skipped: true };
-      }
-      
-      const roomData = roomSnap.data() as RoomData;
-      
-      // Check if player exists
-      if (!roomData.players?.[playerId]) {
-        logger.log(`⚠️ UPDATE_PRESENCE: Player ${playerId} not in room ${roomCode}, skipping presence update`);
-        return { success: true, skipped: true };
-      }
-      
-      // Update player presence
-      const updatedPlayers = { ...roomData.players };
-      if (updatedPlayers[playerId]) {
-        updatedPlayers[playerId].isConnected = isConnected;
-        updatedPlayers[playerId].lastSeen = Date.now();
-      }
-      
-      transaction.update(roomRef, {
-        players: updatedPlayers,
-        lastActivity: serverTimestamp()
-      });
-      
-      return { success: true };
+    const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
+    const snap = await getDoc(roomRef);
+    if (!snap.exists() || !(snap.data() as RoomData).players?.[playerId]) {
+      return { success: true }; // Room gone or player left - skip silently
+    }
+    await updateDoc(roomRef, {
+      [`players.${playerId}.lastSeen`]: Date.now(),
+      [`players.${playerId}.isConnected`]: isConnected,
+      lastActivity: serverTimestamp()
     });
-    
-    return result;
+    return { success: true };
   } catch (error) {
-    // Don't log as error if room was deleted (expected behavior)
-    if (error instanceof Error && error.message.includes('Room not found')) {
-      logger.log(`ℹ️ UPDATE_PRESENCE: Room ${roomCode} was deleted, skipping presence update`);
+    const code = (error as { code?: string })?.code;
+    if (code === 'not-found' || (error instanceof Error && error.message.includes('not found'))) {
+      logger.log(`ℹ️ UPDATE_PRESENCE: Room ${roomCode} not found, skipping`);
       return { success: true };
     }
-    
-    logger.error(`❌ UPDATE_PRESENCE: Failed to update presence:`, error);
+    logger.warn(`⚠️ UPDATE_PRESENCE: Failed (non-critical):`, error instanceof Error ? error.message : error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'

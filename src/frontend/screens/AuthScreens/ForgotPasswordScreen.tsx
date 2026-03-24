@@ -53,9 +53,10 @@ const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation 
       setError(emailValidation.message || tErrors('validation.emailInvalid'));
       return;
     }
+    const sanitizedEmail = InputValidator.sanitizeText(email.trim(), 254);
     try {
-      logger.log('Attempting password reset for:', email.trim());
-      await resetPassword(email.trim());
+      logger.log('Attempting password reset for:', sanitizedEmail);
+      await resetPassword(sanitizedEmail);
       setSent(true);
       setError(null);
       

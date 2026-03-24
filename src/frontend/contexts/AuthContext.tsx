@@ -5,7 +5,6 @@ import { AuthService } from '../../backend/services/authService';
 import { UserProfileService } from '../../backend/services/userProfileService';
 import LocalAvatarStorage from '../../backend/services/localAvatarStorage';
 import LocalDisplayNameStorage from '../../backend/services/localDisplayNameStorage';
-import LoadingPage from '../components/LoadingPage';
 import { RateLimitService } from '../../backend/services/rateLimitService';
 import { CoinService } from '../../backend/services/CoinService';
 import { logger } from '../../backend/utils/logger';
@@ -45,16 +44,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         // Add a small delay to allow Firebase to fully initialize
         await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        // First, verify authentication persistence is working
-        const persistenceWorking = await verifyAuthPersistence();
-        
+
+        // Independent: persistence check vs resolving current user + profile (getCurrentUser does not use verify result)
+        const [persistenceWorking, currentUser] = await Promise.all([
+          verifyAuthPersistence(),
+          getCurrentUser(),
+        ]);
+
         if (!persistenceWorking) {
           logger.warn('⚠️ AuthContext: Authentication persistence verification failed');
         }
-        
-        // Then, check if user is already authenticated
-        const currentUser = await getCurrentUser();
         
         if (currentUser) {
           // Load fresh data from Firestore to ensure we have the latest
@@ -547,10 +546,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     ]
   );
 
-  if (loading) {
-    return <LoadingPage message="Signing you in…" />;
-  }
-
+  // Always mount children so downstream providers (e.g. MultiplayerProvider) stay in the tree.
+  // Replacing the entire subtree with LoadingPage previously unmounted MultiplayerProvider and
+  // caused "useMultiplayer must be used within a MultiplayerProvider" during transitions/HMR.
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 

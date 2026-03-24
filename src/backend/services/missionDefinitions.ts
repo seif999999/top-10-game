@@ -144,7 +144,7 @@ export const MISSION_DEFINITIONS: MissionDefinition[] = [
     category: 'score',
     difficulty: 'hard',
     targetValue: 1000,
-    rewardCoins: 50,
+    rewardCoins: 40,
     isRepeatable: false,
   },
   {
@@ -155,7 +155,7 @@ export const MISSION_DEFINITIONS: MissionDefinition[] = [
     category: 'games',
     difficulty: 'hard',
     targetValue: 25,
-    rewardCoins: 60,
+    rewardCoins: 50,
     isRepeatable: false,
   },
   {
@@ -242,7 +242,7 @@ export const MISSION_DEFINITIONS: MissionDefinition[] = [
     category: 'score',
     difficulty: 'legendary',
     targetValue: 5000,
-    rewardCoins: 200,
+    rewardCoins: 150,
     isRepeatable: false,
   },
   {
@@ -253,7 +253,7 @@ export const MISSION_DEFINITIONS: MissionDefinition[] = [
     category: 'games',
     difficulty: 'legendary',
     targetValue: 100,
-    rewardCoins: 250,
+    rewardCoins: 200,
     isRepeatable: false,
   },
   {
@@ -264,7 +264,7 @@ export const MISSION_DEFINITIONS: MissionDefinition[] = [
     category: 'exploration',
     difficulty: 'legendary',
     targetValue: 9, // Number of main categories (excluding Custom)
-    rewardCoins: 150,
+    rewardCoins: 100,
     isRepeatable: false,
   },
 ];

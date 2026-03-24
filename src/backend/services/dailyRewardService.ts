@@ -51,12 +51,12 @@ const isConsecutiveDay = (lastDate: Date, currentDate: Date): boolean => {
 };
 
 /**
- * Calculate reward based on current week, capped at 32 coins.
- * Week 1: 1, Week 2: 2, Week 3: 4, Week 4: 8, Week 5: 16, Week 6+: 32.
+ * Calculate reward based on current week, capped at 16 coins (Week 5 max).
+ * Week 1: 1, Week 2: 2, Week 3: 4, Week 4: 8, Week 5: 16, Week 6+: 16 (cap).
  */
 const calculateReward = (week: number): number => {
   const baseReward = Math.pow(2, week - 1);
-  return Math.min(baseReward, 32);
+  return Math.min(baseReward, 16);
 };
 
 /**

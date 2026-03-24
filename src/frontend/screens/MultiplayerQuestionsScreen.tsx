@@ -48,8 +48,7 @@ const MultiplayerQuestionsScreen: React.FC = () => {
 
   useEffect(() => {
     if (error) {
-      logger.error('Multiplayer error:', error);
-      clearError();
+      clearError(); // Errors logged server-side only
     }
   }, [error, clearError]);
 
@@ -94,20 +93,13 @@ const MultiplayerQuestionsScreen: React.FC = () => {
       await new Promise(resolve => setTimeout(resolve, 500));
       
       logger.log('🚀 Navigating to RoomLobby with roomCode:', roomCode);
-      navigation.navigate('RoomLobby', { 
+      // Use replace to avoid accidental back-gesture firing to Questions screen
+      navigation.replace('RoomLobby', { 
         roomCode
       });
     } catch (error) {
-      logger.error('❌ Room creation failed:', error);
-      // Error is handled by the context; user can tap another question to retry
       setCreatingRoomForQuestion(null);
-      
-      // Show user-friendly error message
-      ThemedAlert.error(
-        'Room Creation Failed',
-        'Failed to create the game room. Please try again.',
-        [{ text: 'OK', onPress: () => {} }]
-      );
+      clearError(); // Errors logged server-side only
     }
   };
 

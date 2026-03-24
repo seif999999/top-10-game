@@ -240,6 +240,9 @@
     "noMissions": "لا توجد مهام",
     "tryFilter": "جرب فلتراً مختلفاً",
     "collectReward": "استلام المكافأة",
+    "collectAllRewards": "استلام جميع المكافآت",
+    "coinsEarnedTitle": "تم استلام المكافآت!",
+    "coinsEarnedMessage": "لقد حصلت على {{count}} عملة!",
     "collecting": "جاري الاستلام...",
     "claimed": "تم الاستلام",
     "list": {
@@ -335,7 +338,9 @@
       "invalidCodeMessage": "يرجى إدخال رمز غرفة صالح مكوّن من 6 أرقام",
       "joinFailedTitle": "فشل الانضمام",
       "joinFailedMessage": "تعذر الانضمام إلى الغرفة. يرجى التحقق من رمز الغرفة والمحاولة مرة أخرى.",
-      "joinFailedWithError": "فشل الانضمام إلى الغرفة: {{message}}"
+      "joinFailedWithError": "فشل الانضمام إلى الغرفة: {{message}}",
+      "roomNotFoundTitle": "الغرفة غير موجودة",
+      "roomNotFoundMessage": "رمز الغرفة هذا غير موجود أو ربما تم إغلاقه. يرجى التحقق من الرمز والمحاولة مرة أخرى."
     },
     "roomLobby": {
       "loadingRoom": "جارٍ تحميل الغرفة…",
@@ -432,16 +437,16 @@
     "offlineMessage": "أنت غير متصل. سيتم مزامنة العملات عند العودة.",
     "progressiveAd": {
       "title": "شاهد الإعلانات لربح عملات",
-      "completeAllReward": "أكمل الجولات الخمس للحصول على {{total}} عملة",
+      "completeAllReward": "أكمل الجولات الثلاث للحصول على {{total}} عملة",
       "cycleCounter": "{{current}}/{{total}}",
-      "progress": "التقدم: {{count}}/5 هذه الساعة",
+      "progress": "التقدم: {{count}}/3 لهذه الدورة",
       "watchButton": "شاهد إعلاناً لربح {{coins}} عملة",
       "maxReached": "الحد الأقصى",
       "resetsIn": "يعود خلال: {{time}}",
       "nextReward": "التالي: {{coins}} عملة",
       "finalReward": "الأخير: {{coins}} عملة",
-      "hourlyMax": "يمكنك ربح حتى ١٠٠ عملة في الساعة!",
-      "comeBack": "عد خلال ساعة للمزيد!"
+      "hourlyMax": "أكمل 3 فيديوهات لكل دورة لربح 100 عملة!",
+      "comeBack": "أكمل الدورة لربح مرة أخرى!"
     },
     "removeAds": {
       "title": "إزالة الإعلانات",

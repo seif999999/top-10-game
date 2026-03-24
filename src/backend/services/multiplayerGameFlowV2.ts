@@ -79,31 +79,46 @@ export function calculateTimeRemaining(turnStartTime: TurnStartTime, turnTimeLim
   return Math.ceil(remaining / 1000); // Return seconds
 }
 
+/** RevealedAnswer from game types */
+type RevealedAnswerLike = { answerId?: string; playerId?: string; points?: number } | null;
+
 /**
- * Check if user answer matches a correct answer using enhanced fuzzy matching
+ * Check if user answer matches a correct answer using enhanced fuzzy matching.
+ * When revealedAnswers is provided, only matches against UNREVEALED answers -
+ * so "frozen" first matches Frozen 2, then when entered again matches Frozen 3.
  */
-export function findMatchingAnswer(userAnswer: string, correctAnswers: Answer[]): { answer: Answer; index: number } | null {
+export function findMatchingAnswer(
+  userAnswer: string,
+  correctAnswers: Answer[],
+  revealedAnswers?: RevealedAnswerLike[] | null
+): { answer: Answer; index: number } | null {
   if (!userAnswer || !correctAnswers || correctAnswers.length === 0) {
     return null;
   }
 
-  // Use enhanced fuzzy matching
-  const matchResult = findBestMatch(userAnswer, correctAnswers);
-  
+  // Only consider unrevealed answers when provided (enables "frozen" -> Frozen 2, then "frozen" -> Frozen 3)
+  const answersToMatch =
+    revealedAnswers && revealedAnswers.length === correctAnswers.length
+      ? correctAnswers.filter((_, i) => revealedAnswers[i] === null)
+      : correctAnswers;
+
+  if (answersToMatch.length === 0) {
+    return null;
+  }
+
+  const matchResult = findBestMatch(userAnswer, answersToMatch);
+
   if (matchResult.isMatch && matchResult.matchedAnswer) {
-    // Find the index of the matched answer
-    const index = correctAnswers.findIndex(answer => 
-      answer === matchResult.matchedAnswer || 
-      (typeof answer === 'object' && typeof matchResult.matchedAnswer === 'object' && 
-       answer.text === matchResult.matchedAnswer.text)
+    const matched = matchResult.matchedAnswer as Answer;
+    const index = correctAnswers.findIndex(
+      (a) => a === matched || (a.text === matched.text)
     );
-    
     if (index !== -1) {
       logger.log(`✅ FUZZY MATCH: "${userAnswer}" -> "${matchResult.officialAnswer}" (confidence: ${matchResult.confidence}, similarity: ${matchResult.similarity.toFixed(3)})`);
-      return { answer: matchResult.matchedAnswer, index };
+      return { answer: matched, index };
     }
   }
-  
+
   logger.log(`❌ NO MATCH: "${userAnswer}" (best similarity: ${matchResult.similarity.toFixed(3)})`);
   return null;
 }
@@ -140,20 +155,9 @@ export async function hostStartGame(
       
       const room = roomSnap.data() as RoomData;
       
-      // Transaction checks
+      // Transaction checks: if room is not in lobby, getStartGameData will throw; startGameCore will reset and retry
       if (room.status !== 'lobby') {
-        logger.error(`❌ HOST_START_GAME: Room status check failed`, {
-          roomCode,
-          currentStatus: room.status,
-          expectedStatus: 'lobby',
-          roomData: {
-            status: room.status,
-            gamePhase: room.gamePhase,
-            playersCount: Object.keys(room.players || {}).length,
-            hostId: room.hostId,
-            requestingHostId: hostId
-          }
-        });
+        logger.warn(`HOST_START_GAME: Room not in lobby (current: ${room.status}); caller will reset and retry`);
       }
 
       const { turnOrder, firstQuestion } = getStartGameData(room, hostId);
@@ -206,7 +210,13 @@ export async function hostStartGame(
     
     return result;
   } catch (error) {
-    logger.error(`❌ HOST_START_GAME: Failed to start game:`, error);
+    const msg = error instanceof Error ? error.message : String(error);
+    const isRecoverableLobbyState = msg.includes('not in lobby state');
+    if (isRecoverableLobbyState) {
+      logger.log(`HOST_START_GAME: Room was not in lobby (${msg}); startGameCore will reset and retry`);
+    } else {
+      logger.error(`❌ HOST_START_GAME: Failed to start game:`, error);
+    }
     const appError = toAppError(error, {
       code: 'MP_START_GAME_FAILED',
       message: 'Failed to start game',
@@ -218,6 +228,21 @@ export async function hostStartGame(
     };
   }
 }
+
+/** Detect Firestore transaction contention - retryable */
+function isTransactionContentionError(error: unknown): boolean {
+  const code = (error as { code?: string })?.code;
+  const msg = error instanceof Error ? error.message : String(error);
+  return (
+    code === 'failed-precondition' ||
+    code === 'aborted' ||
+    msg.includes('Too much contention') ||
+    msg.includes('transaction')
+  );
+}
+
+const MAX_SUBMIT_RETRIES = 3;
+const RETRY_DELAY_MS = 500;
 
 /**
  * Submit answer for current player's turn
@@ -245,11 +270,18 @@ Room: ${roomCode}`);
   
   logger.log(`📝 SUBMIT_ANSWER: Room ${roomCode}, Player ${playerId}, Answer: "${answerText}"`);
   
-  // Simplified approach - use single attempt with better error handling
-  try {
-    logger.log(`🔄 SUBMIT_ANSWER: Starting submission for player ${playerId}`);
-    
-    const result = await runTransaction(db, async (transaction) => {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < MAX_SUBMIT_RETRIES; attempt++) {
+    try {
+      if (attempt > 0) {
+        const delay = RETRY_DELAY_MS * Math.pow(2, attempt - 1);
+        logger.log(`🔄 SUBMIT_ANSWER: Retry ${attempt + 1}/${MAX_SUBMIT_RETRIES} after ${delay}ms`);
+        await new Promise(r => setTimeout(r, delay));
+      }
+
+      logger.log(`🔄 SUBMIT_ANSWER: Starting submission for player ${playerId} (attempt ${attempt + 1})`);
+      
+      const result = await runTransaction(db, async (transaction) => {
       const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
       const roomSnap = await transaction.get(roomRef);
       
@@ -319,7 +351,7 @@ Room: ${roomCode}`);
         playerId
       });
       
-      const match = findMatchingAnswer(answerText, currentQuestion.answers);
+      const match = findMatchingAnswer(answerText, currentQuestion.answers, room.revealedAnswers);
       let points = 0;
       let newRevealedAnswers = [...room.revealedAnswers];
       let newScores = { ...room.scores };
@@ -558,27 +590,32 @@ Should have updated:
       return { success: true, points };
     });
     
-    // If we get here, the transaction succeeded
-    logger.log(`✅ SUBMIT_ANSWER: Transaction completed successfully`);
-    return result;
-    
-  } catch (error) {
-    logger.error(`❌ SUBMIT_ANSWER: Transaction failed:`, {
-      error: error,
-      message: error instanceof Error ? error.message : 'Unknown error',
-      name: error instanceof Error ? error.name : 'Unknown',
-      stack: error instanceof Error ? error.stack : 'No stack trace',
-      roomCode,
-      playerId,
-      answerText
-    });
-    
-    // Try a simpler fallback approach without transactions
-    logger.log(`🔄 FALLBACK: Trying simple update without transaction...`);
-    try {
+      // If we get here, the transaction succeeded
+      logger.log(`✅ SUBMIT_ANSWER: Transaction completed successfully`);
+      return result;
+    } catch (error) {
+      lastError = error;
+      logger.error(`❌ SUBMIT_ANSWER: Transaction failed:`, {
+        error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        roomCode,
+        playerId,
+        attempt: attempt + 1,
+        isRetryable: isTransactionContentionError(error)
+      });
+      if (isTransactionContentionError(error) && attempt < MAX_SUBMIT_RETRIES - 1) {
+        continue;
+      }
+      break;
+    }
+  }
+
+  // Fallback: simple update without transaction (when retries exhausted or non-retryable error)
+  logger.log(`🔄 FALLBACK: Trying simple update without transaction...`);
+  try {
     const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
     const roomSnap = await getDoc(roomRef);
-    
+
     if (!roomSnap.exists()) {
       throw new AppError({
         code: 'ROOM_NOT_FOUND',
@@ -586,10 +623,9 @@ Should have updated:
         userMessage: 'Room not found. Please check the room code and try again.'
       });
     }
-    
+
     const room = roomSnap.data() as RoomData;
-    
-    // Find matching answer
+
     const currentQuestion = room.questions[room.currentQuestionIndex];
     if (!currentQuestion) {
       throw new AppError({
@@ -598,20 +634,21 @@ Should have updated:
         userMessage: 'No current question found. Please try again.'
       });
     }
-    
-    const match = findMatchingAnswer(answerText, currentQuestion.answers);
+
+    const match = findMatchingAnswer(answerText, currentQuestion.answers, room.revealedAnswers);
+    const nextTurnIndex = (room.currentTurnIndex + 1) % room.turnOrder.length;
+    const nextPlayerId = room.turnOrder[nextTurnIndex];
+
     if (match) {
       const { answer, index } = match;
       const points = calculatePoints(answer.rank);
-      
-      // Check if answer is already revealed
+
       if (room.revealedAnswers[index] !== null) {
         logger.log(`❌ FALLBACK: Answer at index ${index} is already revealed`);
         return { success: false, error: 'Answer already revealed' };
       }
-      
-      // Simple update without transaction
-      const updates = {
+
+      const updates: Record<string, unknown> = {
         [`scores.${playerId}`]: (room.scores?.[playerId] || 0) + points,
         [`revealedAnswers.${index}`]: {
           answerId: answer.text,
@@ -619,36 +656,50 @@ Should have updated:
           points: points
         },
         answersSubmittedCount: room.answersSubmittedCount + 1,
+        currentTurnIndex: nextTurnIndex,
+        currentPlayerId: nextPlayerId,
+        turnStartTime: serverTimestamp(),
         lastActivity: serverTimestamp()
       };
-      
-      await updateDoc(roomRef, updates);
-      
-      logger.log(`✅ FALLBACK SUCCESS: Awarded ${points} points to player ${playerId}`);
-      
-      // Debug logging for fallback success
-      if (__DEV__) {
-        logger.log(`✅ DEBUG 4: Fallback Success!
-Awarded ${points} points to player ${playerId}
-Revealed answer at index ${index}`);
+
+      const newAnswersSubmittedCount = room.answersSubmittedCount + 1;
+      if (newAnswersSubmittedCount >= 10) {
+        const nextQuestionIndex = room.currentQuestionIndex + 1;
+        if (nextQuestionIndex >= room.questions.length) {
+          updates.status = 'finished';
+          updates.gamePhase = 'finished';
+        } else {
+          const nextQuestion = room.questions[nextQuestionIndex];
+          updates.currentQuestionIndex = nextQuestionIndex;
+          updates.currentAnswers = nextQuestion.answers;
+          updates.revealedAnswers = Array(10).fill(null);
+          updates.answersSubmittedCount = 0;
+          updates.currentTurnIndex = 0;
+          updates.currentPlayerId = room.turnOrder[0];
+        }
       }
-      
+
+      await updateDoc(roomRef, updates);
+      logger.log(`✅ FALLBACK SUCCESS: Awarded ${points} points to player ${playerId}`);
       return { success: true, points };
     }
-    
-    // If no match found, still return success but with 0 points
-    logger.log(`❌ FALLBACK: No match found for answer "${answerText}"`);
+
+    // Wrong answer: advance turn only (no points)
+    logger.log(`❌ FALLBACK: No match for "${answerText}", advancing turn`);
+    await updateDoc(roomRef, {
+      currentTurnIndex: nextTurnIndex,
+      currentPlayerId: nextPlayerId,
+      turnStartTime: serverTimestamp(),
+      lastActivity: serverTimestamp()
+    });
     return { success: true, points: 0 };
-    
   } catch (fallbackError) {
     logger.error(`❌ FALLBACK FAILED:`, fallbackError);
-    
     return {
       success: false,
-      error: `Transaction and fallback both failed: ${error?.message || 'Unknown error'}`
+      error: `Transaction and fallback both failed: ${lastError instanceof Error ? lastError.message : 'Unknown error'}`
     };
   }
-}
 }
 
 /**
@@ -1109,8 +1160,8 @@ export async function terminateRoom(
 }
 
 /**
- * Handle host disconnection - migrate host or terminate room based on remaining players (Sporcle-style)
- * Seamlessly handles host changes without interrupting gameplay
+ * Handle host disconnection - always terminate game (no host migration).
+ * When host exits (explicit leave or disconnect), show leaderboard to all remaining players.
  */
 export async function handleHostDisconnection(
   roomCode: string,
@@ -1129,33 +1180,19 @@ export async function handleHostDisconnection(
     const room = roomSnap.data() as RoomData;
     const remainingPlayers = Object.keys(room.players).filter(playerId => playerId !== disconnectedHostId);
     
-    logger.log(`📊 HOST_DISCONNECTION: Remaining players: ${remainingPlayers.length}`);
+    logger.log(`📊 HOST_DISCONNECTION: Remaining players: ${remainingPlayers.length}, always terminating`);
     
-    if (remainingPlayers.length >= 3) {
-      // Migrate host to another player - 3+ players remain (Sporcle-style)
-      const migrationResult = await migrateHost(roomCode, disconnectedHostId);
-      if (migrationResult.success) {
-        return { 
-          action: 'migrated', 
-          newHostId: migrationResult.newHostId,
-          newHostName: migrationResult.newHostName
-        };
-      } else {
-        return { action: 'error', error: migrationResult.error };
-      }
-    } else if (remainingPlayers.length <= 2) {
-      // Terminate game - 2 or fewer players remain (including host)
-      const terminationResult = await terminateGame(roomCode, disconnectedHostId);
-      if (terminationResult.success) {
-        return { action: 'terminated' };
-      } else {
-        return { action: 'error', error: terminationResult.error };
-      }
-    } else {
-      // No players left, just delete the room
+    if (remainingPlayers.length === 0) {
       await deleteDoc(roomRef);
       return { action: 'terminated' };
     }
+    
+    // Host exit always terminates - show leaderboard to remaining players
+    const terminationResult = await terminateGame(roomCode, disconnectedHostId, true);
+    if (terminationResult.success) {
+      return { action: 'terminated' };
+    }
+    return { action: 'error', error: terminationResult.error };
   } catch (error) {
     logger.error(`❌ HOST_DISCONNECTION: Error handling host disconnection:`, error);
     return {
@@ -1166,14 +1203,15 @@ export async function handleHostDisconnection(
 }
 
 /**
- * Terminate game when host leaves and 2 or fewer players remain (including host)
+ * Terminate game - when host exits always terminates; when player exits requires <=2 remaining
  */
 export async function terminateGame(
   roomCode: string,
-  disconnectedPlayerId: string
+  disconnectedPlayerId: string,
+  isHostExit?: boolean
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    logger.log(`🏁 TERMINATE_GAME: Room ${roomCode}, Disconnected Player ${disconnectedPlayerId}`);
+    logger.log(`🏁 TERMINATE_GAME: Room ${roomCode}, Disconnected Player ${disconnectedPlayerId}, isHostExit=${isHostExit}`);
     
     const roomRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
     const roomSnap = await getDoc(roomRef);
@@ -1185,7 +1223,7 @@ export async function terminateGame(
     const room = roomSnap.data() as RoomData;
     const remainingPlayers = Object.keys(room.players).filter(playerId => playerId !== disconnectedPlayerId);
     
-    if (remainingPlayers.length > 2) {
+    if (!isHostExit && remainingPlayers.length > 2) {
       return { success: false, error: 'Game termination requires 2 or fewer remaining players' };
     }
     
@@ -1204,7 +1242,7 @@ export async function terminateGame(
       const currentRoom = roomSnap.data() as RoomData;
       const currentRemainingPlayers = Object.keys(currentRoom.players).filter(playerId => playerId !== disconnectedPlayerId);
       
-      if (currentRemainingPlayers.length > 2) {
+      if (!isHostExit && currentRemainingPlayers.length > 2) {
         throw new AppError({
           code: 'INVALID_TERMINATION_CONDITION',
           message: 'Game termination requires 2 or fewer remaining players',
@@ -1213,14 +1251,13 @@ export async function terminateGame(
       }
       
       // Update game status to finished and set gamePhase to 'finished'
-      // Add system message to notify players about game termination
       transaction.update(roomRef, {
         status: 'finished',
         gamePhase: 'finished',
         lastUpdated: serverTimestamp(),
         systemMessage: {
           type: 'game_terminated',
-          message: 'The host left the game, so the game has been terminated.',
+          message: isHostExit ? 'The host left the game, so the game has been terminated.' : 'A player has left, and the game has been terminated due to insufficient players.',
           timestamp: serverTimestamp()
         }
       });

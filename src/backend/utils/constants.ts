@@ -103,8 +103,8 @@ export const ANIMATIONS = {
   }
 };
 
-// Fixed coin reward for completing a game (single player). Shown on game-end overlay; does not vary.
-export const GAME_COMPLETION_COIN_REWARD = 50;
+// Base coin reward for completing a game (single player). First 8 games/day get this; after that reduced. Shown on game-end overlay.
+export const GAME_COMPLETION_COIN_REWARD = 20;
 
 // ============================================
 // TIMING CONSTANTS

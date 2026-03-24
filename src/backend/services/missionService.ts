@@ -483,6 +483,22 @@ class MissionService {
   }
 
   /**
+   * Claim rewards for all completed, unclaimed missions. Returns total coins collected.
+   */
+  async claimAllMissionRewards(userId: string): Promise<{ totalCoins: number; claimedCount: number }> {
+    const missionsWithProgress = await this.getMissionsWithProgress(userId);
+    const claimable = missionsWithProgress.filter(
+      (m) => m.progress.isCompleted && m.progress.rewardClaimed !== true
+    );
+    let totalCoins = 0;
+    for (const m of claimable) {
+      const result = await this.claimMissionReward(userId, m.id);
+      if (result?.coins) totalCoins += result.coins;
+    }
+    return { totalCoins, claimedCount: claimable.length };
+  }
+
+  /**
    * Claim reward for a completed mission. Credits coins and marks as claimed.
    */
   async claimMissionReward(userId: string, missionId: string): Promise<{ coins: number } | null> {

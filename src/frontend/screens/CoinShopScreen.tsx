@@ -105,7 +105,7 @@ const CoinShopScreen: React.FC<CoinShopScreenProps> = ({ navigation }) => {
     nextAdCoins: number;
     maxReached: boolean;
     timeUntilResetMs: number;
-  }>({ adsWatchedThisHour: 0, nextAdCoins: 10, maxReached: false, timeUntilResetMs: 0 });
+  }>({ adsWatchedThisHour: 0, nextAdCoins: 20, maxReached: false, timeUntilResetMs: 0 });
   const [isShowingAd, setIsShowingAd] = useState(false);
   const [successAmount, setSuccessAmount] = useState<number | null>(null);
   const [toast, setToast] = useState<{ visible: boolean; type: 'info' | 'success'; title: string; message?: string }>({
@@ -331,14 +331,14 @@ const CoinShopScreen: React.FC<CoinShopScreenProps> = ({ navigation }) => {
                 <Text style={styles.cycleCounter}>
                   {tCoin('coinShop.progressiveAd.cycleCounter', {
                     current: progressiveInfo.adsWatchedThisHour,
-                    total: 5,
-                    defaultValue: `${progressiveInfo.adsWatchedThisHour}/5`,
+                    total: 3,
+                    defaultValue: `${progressiveInfo.adsWatchedThisHour}/3`,
                   })}
                 </Text>
                 <Text style={styles.watchVideoSubtext}>
                   {tCoin('coinShop.progressiveAd.completeAllReward', {
                     total: 100,
-                    defaultValue: 'Complete all 5 rounds to get 100 coins',
+                    defaultValue: 'Complete all 3 rounds to get 100 coins',
                   })}
                 </Text>
               </View>
@@ -370,18 +370,6 @@ const CoinShopScreen: React.FC<CoinShopScreenProps> = ({ navigation }) => {
                     <Text style={styles.watchVideoButtonText}>
                       {tCoin('coinShop.watchVideoRetry', { defaultValue: 'Tap to retry' })}
                     </Text>
-                  ) : progressiveInfo.maxReached ? (
-                    <View>
-                      <Text style={styles.watchVideoButtonText}>
-                        {tCoin('coinShop.progressiveAd.maxReached', { defaultValue: 'Max Reached' })}
-                      </Text>
-                      <Text style={styles.watchVideoButtonSubtext}>
-                        {tCoin('coinShop.progressiveAd.resetsIn', {
-                          time: formatCountdown(progressiveInfo.timeUntilResetMs),
-                          defaultValue: `Resets in: ${formatCountdown(progressiveInfo.timeUntilResetMs)}`,
-                        })}
-                      </Text>
-                    </View>
                   ) : isPremium ? (
                     <Text style={styles.watchVideoButtonText}>
                       {tCoin('coinShop.watchVideoUnavailable', { defaultValue: 'Unavailable' })}
@@ -399,24 +387,17 @@ const CoinShopScreen: React.FC<CoinShopScreenProps> = ({ navigation }) => {
                   )}
                 </View>
               </TouchableOpacity>
-              {!progressiveInfo.maxReached && progressiveInfo.adsWatchedThisHour < 5 && (
+              {progressiveInfo.adsWatchedThisHour < 3 && (
                 <Text style={styles.progressiveHint}>
-                  {progressiveInfo.adsWatchedThisHour < 4
+                  {progressiveInfo.adsWatchedThisHour < 2
                     ? tCoin('coinShop.progressiveAd.nextReward', {
-                        coins: PROGRESSIVE_REWARDS[progressiveInfo.adsWatchedThisHour + 1] ?? 15,
-                        defaultValue: `Next: ${PROGRESSIVE_REWARDS[progressiveInfo.adsWatchedThisHour + 1] ?? 15} coins`,
+                        coins: PROGRESSIVE_REWARDS[progressiveInfo.adsWatchedThisHour + 1] ?? 33,
+                        defaultValue: `Next: ${PROGRESSIVE_REWARDS[progressiveInfo.adsWatchedThisHour + 1] ?? 30} coins`,
                       })
                     : tCoin('coinShop.progressiveAd.finalReward', {
-                        coins: PROGRESSIVE_REWARDS[4],
-                        defaultValue: `Final: ${PROGRESSIVE_REWARDS[4]} coins`,
+                        coins: PROGRESSIVE_REWARDS[2],
+                        defaultValue: `Final: ${PROGRESSIVE_REWARDS[2]} coins`,
                       })}
-                </Text>
-              )}
-              {progressiveInfo.maxReached && (
-                <Text style={styles.progressiveHint}>
-                  {tCoin('coinShop.progressiveAd.hourlyMax', {
-                    defaultValue: 'You can earn up to 100 coins per hour!',
-                  })}
                 </Text>
               )}
             </LinearGradient>

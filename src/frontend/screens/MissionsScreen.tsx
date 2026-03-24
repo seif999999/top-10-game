@@ -16,6 +16,7 @@ import { COLORS, SPACING } from '../../backend/utils/constants';
 import { MissionsScreenProps } from '../../shared/types/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import { useAudio } from '../contexts/AudioContext';
+import ToastNotification from '../components/ToastNotification';
 import useAppTranslation from '../../hooks/useTranslation';
 import { missionService } from '../../backend/services/missionService';
 import { MISSION_DEFINITIONS } from '../../backend/services/missionDefinitions';
@@ -219,6 +220,12 @@ const MissionsScreen: React.FC<MissionsScreenProps> = ({ navigation }) => {
   const [filter, setFilter] = useState<FilterType>('all');
   const [totalCoins, setTotalCoins] = useState(0);
   const [claimingMissionId, setClaimingMissionId] = useState<string | null>(null);
+  const [isCollectingAll, setIsCollectingAll] = useState(false);
+  const [toast, setToast] = useState<{ visible: boolean; type: 'success' | 'info' | 'warning' | 'error'; title: string; message?: string }>({
+    visible: false,
+    type: 'success',
+    title: '',
+  });
 
   // Header animation
   const headerAnim = useRef(new Animated.Value(0)).current;
@@ -276,6 +283,10 @@ const MissionsScreen: React.FC<MissionsScreenProps> = ({ navigation }) => {
   );
   const totalCount = missions.length;
   const completionPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+  const claimableCount = useMemo(
+    () => missions.filter((m) => m.progress.isCompleted && m.progress.rewardClaimed !== true).length,
+    [missions]
+  );
 
   const filters: { key: FilterType; label: string; color: string }[] = useMemo(() => [
     { key: 'all', label: tScreens('missions.all'), color: '#6B7280' },
@@ -306,15 +317,36 @@ const MissionsScreen: React.FC<MissionsScreenProps> = ({ navigation }) => {
     }
   }, [user?.id, claimingMissionId, loadMissions, getUserProfileWithAvatar]);
 
+  const handleCollectAllRewards = useCallback(async () => {
+    if (!user?.id || isCollectingAll || claimableCount === 0) return;
+    playButtonClick();
+    setIsCollectingAll(true);
+    try {
+      const result = await missionService.claimAllMissionRewards(user.id);
+      if (result.claimedCount > 0 && result.totalCoins > 0) {
+        await loadMissions();
+        await getUserProfileWithAvatar?.();
+        setToast({
+          visible: true,
+          type: 'success',
+          title: tScreens('missions.coinsEarnedTitle') || 'Rewards Collected!',
+          message: tScreens('missions.coinsEarnedMessage', { count: result.totalCoins }) || `You earned ${result.totalCoins} coins!`,
+        });
+      }
+    } finally {
+      setIsCollectingAll(false);
+    }
+  }, [user?.id, isCollectingAll, claimableCount, loadMissions, getUserProfileWithAvatar, playButtonClick, tScreens]);
+
   const renderMissionItem = useCallback(({ item, index }: { item: MissionDefinition & { progress: MissionProgress }; index: number }) => (
     <MissionCard
       mission={item}
       progress={item.progress}
       index={index}
       onClaim={handleClaimReward}
-      isClaiming={claimingMissionId === item.id}
+      isClaiming={isCollectingAll || claimingMissionId === item.id}
     />
-  ), [handleClaimReward, claimingMissionId]);
+  ), [handleClaimReward, claimingMissionId, isCollectingAll]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -406,6 +438,37 @@ const MissionsScreen: React.FC<MissionsScreenProps> = ({ navigation }) => {
         </LinearGradient>
       </Animated.View>
 
+      {/* Collect All Rewards Button */}
+      {claimableCount > 0 && (
+        <View style={styles.collectAllContainer}>
+          <TouchableOpacity
+            style={[styles.collectAllButton, isCollectingAll && styles.collectAllButtonDisabled]}
+            onPress={handleCollectAllRewards}
+            disabled={isCollectingAll}
+            activeOpacity={0.8}
+          >
+            <LinearGradient
+              colors={['#F59E0B', '#D97706']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.collectAllGradient}
+            >
+              {coinImageSource ? (
+                <Image source={coinImageSource} style={styles.collectAllCoinImage} resizeMode="contain" />
+              ) : (
+                <Text style={styles.collectAllIcon}>🪙</Text>
+              )}
+              <Text style={styles.collectAllButtonText}>
+                {isCollectingAll
+                  ? (tScreens('missions.collecting') || 'Collecting...')
+                  : (tScreens('missions.collectAllRewards') || 'Collect All Rewards')}
+                {!isCollectingAll && ` (${claimableCount})`}
+              </Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Filter Tabs */}
       <View style={styles.filterContainer}>
         <ScrollView
@@ -439,7 +502,15 @@ const MissionsScreen: React.FC<MissionsScreenProps> = ({ navigation }) => {
           <Text style={styles.loadingText}>{tScreens('missions.loading')}</Text>
         </View>
       ) : (
-        <FlatList
+        <>
+          <ToastNotification
+            visible={toast.visible}
+            type={toast.type}
+            title={toast.title}
+            message={toast.message}
+            onHide={() => setToast((p) => ({ ...p, visible: false }))}
+          />
+          <FlatList
           data={filteredMissions}
           keyExtractor={(item) => item.id}
           renderItem={renderMissionItem}
@@ -455,6 +526,7 @@ const MissionsScreen: React.FC<MissionsScreenProps> = ({ navigation }) => {
           contentContainerStyle={filteredMissions.length === 0 ? styles.emptyScrollContent : styles.scrollContent}
           showsVerticalScrollIndicator={false}
         />
+        </>
       )}
     </SafeAreaView>
   );
@@ -574,6 +646,39 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.9)',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  collectAllContainer: {
+    paddingHorizontal: SPACING.lg,
+    marginBottom: SPACING.md,
+  },
+  collectAllButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.5)',
+  },
+  collectAllButtonDisabled: {
+    opacity: 0.7,
+  },
+  collectAllGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    gap: 8,
+  },
+  collectAllIcon: {
+    fontSize: 22,
+  },
+  collectAllCoinImage: {
+    width: 22,
+    height: 22,
+  },
+  collectAllButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   filterContainer: {
     marginBottom: SPACING.md,

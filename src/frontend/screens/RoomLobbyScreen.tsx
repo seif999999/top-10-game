@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -16,14 +16,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { logger } from '../../backend/utils/logger';
 import ThemedAlert from '../utils/themedAlert';
 import AvatarIcon from '../components/AvatarIcon';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../shared/types/navigation';
 import { useMultiplayer } from '../contexts/MultiplayerContext';
 import { useAuth } from '../contexts/AuthContext';
 import { COLORS, SPACING, TYPOGRAPHY, ACCESSIBILITY } from '../../backend/utils/constants';
 import { Player } from '../../backend/services/multiplayerService';
-import RoundTimeSelector from '../components/RoundTimeSelector';
 import useAppTranslation from '../../hooks/useTranslation';
 
 const { width } = Dimensions.get('window');
@@ -32,7 +31,6 @@ interface RoomLobbyScreenProps {}
 
 const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const route = useRoute();
   const insets = useSafeAreaInsets();
   const { t, isRTL } = useAppTranslation('screens');
   const { t: tCommon } = useAppTranslation('common');
@@ -46,6 +44,7 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
     error,
     leaveRoom,
     startGame,
+    ensureRoomIsLobby,
     endGame,
     kickPlayer,
     clearError,
@@ -56,14 +55,35 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
 
   const [fadeAnim] = useState(new Animated.Value(0));
   const [scaleAnim] = useState(new Animated.Value(0.8));
-  const [showRoundTimeSelector, setShowRoundTimeSelector] = useState(false);
-  // Get turn duration from route params if available
-  const routeParams = route.params as { roomCode: string; turnDuration?: number };
-  const initialTurnDuration = routeParams?.turnDuration || 60;
-  const [selectedRoundTime, setSelectedRoundTime] = useState(initialTurnDuration);
 
   // Track voluntary leave to avoid false kick detection
   const isLeavingRef = useRef(false);
+  // Proactive reset: when host sees room in playing/finished, reset to lobby so Start works without error path
+  const hasProactiveResetRef = useRef<string | null>(null);
+  // Grace period: prevent leave immediately after mount (avoids phantom back/gesture firing right after navigation)
+  const mountedAtRef = useRef<number>(0);
+
+  // When host returns to lobby after a finished game, reset once so pressing Start doesn't hit "Room not in lobby" error.
+  // Must NOT reset when status is 'playing' - that means we just started and are navigating to GameScreen.
+  useEffect(() => {
+    if (!isHost || !currentRoom || !user?.id) return;
+    if (currentRoom.status === 'lobby') {
+      hasProactiveResetRef.current = null;
+      return;
+    }
+    if (currentRoom.status !== 'finished') return;
+    const key = `${currentRoom.roomCode}:finished`;
+    if (hasProactiveResetRef.current === key) return;
+    hasProactiveResetRef.current = key;
+    ensureRoomIsLobby().catch(() => {});
+  }, [isHost, currentRoom?.roomCode, currentRoom?.status, user?.id, ensureRoomIsLobby]);
+
+  // Record mount time when we first have a room (for grace period)
+  useEffect(() => {
+    if (currentRoom && mountedAtRef.current === 0) {
+      mountedAtRef.current = Date.now();
+    }
+  }, [currentRoom]);
 
   // Detect when the current user has been kicked from the room
   useEffect(() => {
@@ -99,9 +119,9 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
 
   useEffect(() => {
     if (error) {
-      ThemedAlert.error(tCommon('error'), error, [{ text: tCommon('ok'), onPress: clearError }]);
+      clearError(); // Errors logged server-side only, no user popup
     }
-  }, [error, clearError, tCommon]);
+  }, [error, clearError]);
 
   useEffect(() => {
     // Animate in
@@ -128,9 +148,23 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
     });
   }, [navigation]);
 
+  const GRACE_PERIOD_MS = 2500;
+
+  const canLeaveRoom = useCallback(() => {
+    // Block during initial mount / before room data arrives (prevents phantom leave)
+    if (currentRoom && mountedAtRef.current === 0) return false;
+    if (mountedAtRef.current === 0) return true; // No room yet (loading), allow
+    const elapsed = Date.now() - mountedAtRef.current;
+    return elapsed >= GRACE_PERIOD_MS;
+  }, [currentRoom]);
+
   // Handle back button to prevent accidental exits
   useEffect(() => {
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (!canLeaveRoom()) {
+        logger.log('🚪 Back pressed during grace period, ignoring');
+        return true;
+      }
       ThemedAlert.warning(
         'Leave Room',
         'Are you sure you want to leave this room? This will end the room session.',
@@ -156,9 +190,13 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
     });
 
     return () => backHandler.remove();
-  }, [leaveRoom, navigation]);
+  }, [leaveRoom, navigation, canLeaveRoom]);
 
-  const handleLeaveRoom = async () => {
+  const handleLeaveRoom = useCallback(async () => {
+    if (!canLeaveRoom()) {
+      logger.log('🚪 Leave pressed during grace period, ignoring');
+      return;
+    }
     ThemedAlert.warning(
       t('multiplayer.roomLobby.leaveRoomTitle'),
       t('multiplayer.roomLobby.leaveRoomMessage'),
@@ -193,7 +231,7 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
         }
       ]
     );
-  };
+  }, [canLeaveRoom, leaveRoom, resetAll, cleanup, navigation, t, tCommon]);
 
   const handleStartGame = async () => {
     if (!currentRoom) return;
@@ -213,11 +251,11 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
           text: t('multiplayer.roomLobby.startGame'), 
           onPress: async () => {
             try {
-              logger.log(`🎮 Host starting game with ${selectedRoundTime}s rounds...`);
-              await startGame(selectedRoundTime);
+              logger.log('🎮 Host starting game with 60s rounds...');
+              await startGame(60);
             } catch (error) {
               logger.error('Error starting game:', error);
-              ThemedAlert.error(tCommon('error'), t('multiplayer.roomLobby.failedToStart'));
+              clearError(); // Error logged server-side only
             }
           }
         }
@@ -424,25 +462,6 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
           {isHost && (
             <View style={styles.hostControlsSection}>
               <Text style={[styles.hostControlsTitle, isRTL && styles.rtlText]}>{t('multiplayer.roomLobby.hostControls')}</Text>
-              
-              {/* Round Time Selector */}
-              <View style={styles.roundTimeSection}>
-                <Text style={[styles.roundTimeLabel, isRTL && styles.rtlText]}>{t('multiplayer.roomLobby.roundTime')}</Text>
-                <TouchableOpacity
-                  style={[styles.roundTimeButton, isRTL && styles.rtlRow]}
-                  onPress={() => setShowRoundTimeSelector(true)}
-                  accessibilityLabel={t('multiplayer.roomLobby.roundTime')}
-                >
-                  <Text style={[styles.roundTimeButtonText, isRTL && styles.rtlText]}>
-                    {selectedRoundTime === 10 ? t('multiplayer.roomLobby.roundTime10') :
-                     selectedRoundTime === 20 ? t('multiplayer.roomLobby.roundTime20') :
-                     selectedRoundTime === 40 ? t('multiplayer.roomLobby.roundTime40') :
-                     t('multiplayer.roomLobby.roundTime60')}
-                  </Text>
-                  <Text style={styles.roundTimeButtonIcon}>⚙️</Text>
-                </TouchableOpacity>
-              </View>
-              
               <View style={styles.hostControlsButtons}>
                 <TouchableOpacity
                   style={[
@@ -488,17 +507,6 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
           )}
         </Animated.View>
       </ScrollView>
-      
-      {/* Round Time Selector Modal */}
-      <RoundTimeSelector
-        visible={showRoundTimeSelector}
-        onClose={() => setShowRoundTimeSelector(false)}
-        onSelect={(timeInSeconds) => {
-          setSelectedRoundTime(timeInSeconds);
-          logger.log(`🎮 Round time selected: ${timeInSeconds} seconds`);
-        }}
-        currentTime={selectedRoundTime}
-      />
     </SafeAreaView>
   );
 };
@@ -756,33 +764,6 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
     paddingHorizontal: SPACING.sm,
     lineHeight: 16,
-  },
-  roundTimeSection: {
-    marginBottom: SPACING.lg,
-  },
-  roundTimeLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: SPACING.sm,
-  },
-  roundTimeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 12,
-    padding: SPACING.md,
-    borderWidth: 1,
-    borderColor: '#666666',
-  },
-  roundTimeButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.primary,
-  },
-  roundTimeButtonIcon: {
-    fontSize: 16,
   },
   waitingSection: {
     backgroundColor: '#1e1e2e',

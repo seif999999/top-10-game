@@ -141,7 +141,7 @@ export function createInitialRoomData(options: {
         joinedAt: now,
         isConnected: true,
         lastSeen: now,
-        selectedAvatar: selectedAvatar
+        selectedAvatar: selectedAvatar ?? '',
       }
     },
     gamePhase: 'lobby',
@@ -181,7 +181,7 @@ export function createPlayer(options: {
     joinedAt: now,
     isConnected: true,
     lastSeen: now,
-    selectedAvatar: options.selectedAvatar
+    selectedAvatar: options.selectedAvatar ?? '',
   };
 }
 
