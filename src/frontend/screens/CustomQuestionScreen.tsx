@@ -18,12 +18,15 @@ import { logger } from '../../backend/utils/logger';
 import { CustomQuestionScreenProps } from '../../shared/types/navigation';
 import CustomQuestionService from '../../backend/services/customQuestionService';
 import { InputValidator } from '../../backend/utils/inputValidator';
+import { RateLimitService } from '../../backend/services/rateLimitService';
+import { useAuth } from '../contexts/AuthContext';
 import useAppTranslation from '../../hooks/useTranslation';
 
 const { width } = Dimensions.get('window');
 
 const CustomQuestionScreen: React.FC<CustomQuestionScreenProps> = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const slotIndex = route.params.slotIndex;
   const { t: tScreens, isRTL } = useAppTranslation('screens');
   const { t: tCommon } = useAppTranslation('common');
@@ -88,11 +91,34 @@ const CustomQuestionScreen: React.FC<CustomQuestionScreenProps> = ({ navigation,
       return;
     }
 
+    // Rate limit custom question creation
+    if (user?.id) {
+      const rateLimitResult = await RateLimitService.checkRateLimit(
+        user.id,
+        'customQuestionCreate',
+        { ipAddress: 'unknown', userAgent: 'mobile' }
+      );
+      if (!rateLimitResult.allowed) {
+        ThemedAlert.warning(
+          tCommon('error'),
+          rateLimitResult.error || 'Too many custom question saves. Please try again later.'
+        );
+        return;
+      }
+    }
+
+    // Sanitize all user inputs before save
+    const sanitizedQuestion = InputValidator.sanitizeText(question.trim(), 200);
+    const sanitizedAnswers = validAnswers.map(a => InputValidator.sanitizeText(a.trim(), 100));
+
     setIsLoading(true);
     try {
       logger.log('🔄 Saving custom question to slot...');
       const customQuestionService = CustomQuestionService.getInstance();
-      await customQuestionService.saveToSlot(slotIndex, question.trim(), validAnswers);
+      await customQuestionService.saveToSlot(slotIndex, sanitizedQuestion, sanitizedAnswers);
+      if (user?.id) {
+        await RateLimitService.recordAction(user.id, 'customQuestionCreate', { ipAddress: 'unknown', userAgent: 'mobile' }).catch(() => {});
+      }
       logger.log('✅ Custom question saved to slot', slotIndex + 1);
       ThemedAlert.success(tCommon('success'), tScreens('customQuestion.questionSaved', { number: slotIndex + 1 }));
       navigation.goBack();

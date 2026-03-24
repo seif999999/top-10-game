@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ScrollView, Animated, PanResponder, Easing, Image, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ScrollView, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -15,6 +15,7 @@ import CoinDisplay from '../components/CoinDisplay';
 import BannerAd from '../components/ads/BannerAd';
 import DailyRewardModal from '../components/DailyRewardModal';
 import { SinglePlayerIcon, MultiplayerIcon, CreateIcon } from '../components/GameIcons';
+import { CategoryImagePreloader } from '../utils/categoryImages';
 import { getStreakInfo, StreakInfo } from '../../backend/services/dailyRewardService';
 import { missionService } from '../../backend/services/missionService';
 
@@ -36,207 +37,22 @@ try {
 
 const homeBackgroundImage = require('../assets/images/home-background.png');
 
-// Swipeable Card Component
-interface SwipeableCardProps {
-  onSwipeComplete: () => void;
+// Game Mode Card - tap only, no swipe behavior
+interface GameModeCardProps {
   onPress: () => void;
   children: React.ReactNode;
   cardStyle?: any;
 }
 
-const SwipeableCard: React.FC<SwipeableCardProps> = ({ onSwipeComplete, onPress, children, cardStyle }) => {
-  const pan = useRef(new Animated.ValueXY()).current;
-  const rotate = useRef(new Animated.Value(0)).current;
-  const opacity = useRef(new Animated.Value(1)).current;
-  const scale = useRef(new Animated.Value(1)).current;
-  const isDragging = useRef(false);
-  const hasNavigated = useRef(false);
-  const panOffsetX = useRef(0);
-
-  const SWIPE_THRESHOLD = 100;
-  const VELOCITY_THRESHOLD = 500;
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: (evt, gestureState) => {
-        // Only start if it's clearly a horizontal gesture
-        return Math.abs(gestureState.dx) > 5;
-      },
-      onMoveShouldSetPanResponder: (evt, gestureState) => {
-        // Only respond to horizontal swipes - prioritize over ScrollView
-        const isHorizontal = Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
-        const hasEnoughMovement = Math.abs(gestureState.dx) > 10;
-        return isHorizontal && hasEnoughMovement;
-      },
-      onPanResponderTerminationRequest: () => false, // Don't allow ScrollView to take over
-      onPanResponderGrant: () => {
-        isDragging.current = true;
-        pan.setOffset({ x: panOffsetX.current, y: 0 });
-        pan.setValue({ x: 0, y: 0 });
-        // Slight scale up on grab
-        Animated.spring(scale, {
-          toValue: 1.05,
-          useNativeDriver: true,
-          tension: 300,
-          friction: 20,
-        }).start();
-      },
-      onPanResponderTerminate: () => {
-        // If gesture is terminated, reset to center
-        isDragging.current = false;
-        pan.flattenOffset();
-        Animated.parallel([
-          Animated.spring(pan, {
-            toValue: { x: 0, y: 0 },
-            useNativeDriver: true,
-            tension: 50,
-            friction: 8,
-          }),
-          Animated.spring(rotate, {
-            toValue: 0,
-            useNativeDriver: true,
-            tension: 50,
-            friction: 8,
-          }),
-          Animated.spring(opacity, {
-            toValue: 1,
-            useNativeDriver: true,
-            tension: 50,
-            friction: 8,
-          }),
-          Animated.spring(scale, {
-            toValue: 1,
-            useNativeDriver: true,
-            tension: 50,
-            friction: 8,
-          }),
-        ]).start(() => {
-          panOffsetX.current = 0;
-        });
-      },
-      onPanResponderMove: (evt, gestureState) => {
-        // Update position
-        pan.setValue({ x: gestureState.dx, y: 0 });
-        
-        // Rotate based on drag distance (max 15 degrees)
-        const rotation = gestureState.dx / 10;
-        rotate.setValue(Math.max(-15, Math.min(15, rotation)));
-        
-        // Fade out based on distance
-        const distance = Math.abs(gestureState.dx);
-        const fadeValue = Math.max(0.5, 1 - distance / 300);
-        opacity.setValue(fadeValue);
-      },
-      onPanResponderRelease: (evt, gestureState) => {
-        isDragging.current = false;
-        pan.flattenOffset();
-        
-        const offsetX = gestureState.dx;
-        const velocityX = gestureState.vx;
-        const shouldSwipe = Math.abs(offsetX) > SWIPE_THRESHOLD || Math.abs(velocityX) > VELOCITY_THRESHOLD;
-        
-        if (shouldSwipe && !hasNavigated.current) {
-          hasNavigated.current = true;
-          // Animate card off screen
-          const exitX = offsetX > 0 ? width + 100 : -width - 100;
-          
-          Animated.parallel([
-            Animated.timing(pan, {
-              toValue: { x: exitX, y: 0 },
-              duration: 300,
-              easing: Easing.out(Easing.ease),
-              useNativeDriver: true,
-            }),
-            Animated.timing(opacity, {
-              toValue: 0,
-              duration: 300,
-              useNativeDriver: true,
-            }),
-            Animated.timing(rotate, {
-              toValue: offsetX > 0 ? 15 : -15,
-              duration: 300,
-              useNativeDriver: true,
-            }),
-            Animated.timing(scale, {
-              toValue: 0.8,
-              duration: 300,
-              useNativeDriver: true,
-            }),
-          ]).start(() => {
-            // Navigate after animation completes
-            onSwipeComplete();
-          });
-        } else {
-          // Return to center
-          Animated.parallel([
-            Animated.spring(pan, {
-              toValue: { x: 0, y: 0 },
-              useNativeDriver: true,
-              tension: 50,
-              friction: 8,
-            }),
-            Animated.spring(rotate, {
-              toValue: 0,
-              useNativeDriver: true,
-              tension: 50,
-              friction: 8,
-            }),
-            Animated.spring(opacity, {
-              toValue: 1,
-              useNativeDriver: true,
-              tension: 50,
-              friction: 8,
-            }),
-            Animated.spring(scale, {
-              toValue: 1,
-              useNativeDriver: true,
-              tension: 50,
-              friction: 8,
-            }),
-          ]).start(() => {
-            panOffsetX.current = 0;
-          });
-        }
-      },
-    })
-  ).current;
-
-  const handlePress = () => {
-    if (!isDragging.current && !hasNavigated.current) {
-      onPress();
-    }
-  };
-
-  return (
-    <Animated.View
-      style={[
-        cardStyle,
-        {
-          transform: [
-            { translateX: pan.x },
-            { 
-              rotate: rotate.interpolate({
-                inputRange: [-15, 0, 15],
-                outputRange: ['-15deg', '0deg', '15deg'],
-              })
-            },
-            { scale },
-          ],
-          opacity,
-        },
-      ]}
-      {...panResponder.panHandlers}
-    >
-      <TouchableOpacity 
-        activeOpacity={0.9}
-        onPress={handlePress}
-        style={{ flex: 1 }}
-      >
-        {children}
-      </TouchableOpacity>
-    </Animated.View>
-  );
-};
+const GameModeCard: React.FC<GameModeCardProps> = ({ onPress, children, cardStyle }) => (
+  <TouchableOpacity
+    activeOpacity={0.9}
+    onPress={onPress}
+    style={cardStyle}
+  >
+    {children}
+  </TouchableOpacity>
+);
 
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const { user, getUserProfileWithAvatar, welcomeCoinsMessage, clearWelcomeCoinsMessage } = useAuth();
@@ -375,6 +191,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
+      <CategoryImagePreloader />
       {/* Full-screen background image - reimplemented to fill entire screen */}
       <View style={styles.backgroundImageWrapper} pointerEvents="none">
         <Image
@@ -473,8 +290,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         {/* Game Mode Cards */}
         <View style={styles.gameModeSection}>
           {/* Single Player Card */}
-          <SwipeableCard
-            onSwipeComplete={handleSinglePlayer}
+          <GameModeCard
             onPress={handleSinglePlayer}
             cardStyle={styles.gameModeCard}
           >
@@ -498,11 +314,10 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                 <Text style={styles.arrow}>{isRTL ? '←' : '→'}</Text>
               </View>
             </LinearGradient>
-          </SwipeableCard>
+          </GameModeCard>
 
           {/* Multiplayer Card */}
-          <SwipeableCard
-            onSwipeComplete={handleMultiplayer}
+          <GameModeCard
             onPress={handleMultiplayer}
             cardStyle={styles.gameModeCard}
           >
@@ -525,11 +340,10 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                 <Text style={styles.arrow}>{isRTL ? '←' : '→'}</Text>
               </View>
             </LinearGradient>
-          </SwipeableCard>
+          </GameModeCard>
 
           {/* Create Your Own Card */}
-          <SwipeableCard
-            onSwipeComplete={handleCreateYourOwn}
+          <GameModeCard
             onPress={handleCreateYourOwn}
             cardStyle={styles.gameModeCard}
           >
@@ -552,7 +366,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                 <Text style={styles.arrow}>{isRTL ? '←' : '→'}</Text>
               </View>
             </LinearGradient>
-          </SwipeableCard>
+          </GameModeCard>
         </View>
         </ScrollView>
         <BannerAd position="bottom" />

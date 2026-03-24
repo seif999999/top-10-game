@@ -1,21 +1,20 @@
 /**
  * Progressive rewarded ad tracking.
- * 5 ads per hour with increasing rewards: 10 → 15 → 20 → 25 → 30 coins.
- * Resets every hour based on hour bucket.
+ * 3 ads per cycle with rewards: 20 → 30 → 50 coins (100 total per cycle).
+ * No hourly cap — after 3 ads the cycle resets and the user can start again.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { logger } from '../utils/logger';
 
-/** Rewards per ad in cycle (1st ad = 10, 2nd = 15, ..., 5th = 30). Export for UI. */
-export const PROGRESSIVE_REWARDS = [10, 15, 20, 25, 30] as const;
-const MAX_ADS_PER_HOUR = 5;
-const HOUR_MS = 60 * 60 * 1000;
+/** Rewards per ad in cycle (1st = 20, 2nd = 30, 3rd = 50). Total 100. Export for UI. */
+export const PROGRESSIVE_REWARDS = [20, 30, 50] as const;
+const CYCLE_LENGTH = 3;
+
+const STORAGE_KEY = 'progressive_ad_cycle_count';
 
 export function getHourBucket(): number {
-  return Math.floor(Date.now() / HOUR_MS);
+  return Math.floor(Date.now() / (60 * 60 * 1000));
 }
-
-const STORAGE_PREFIX = 'progressive_ad_count_';
 
 export interface ProgressiveAdInfo {
   adsWatchedThisHour: number;
@@ -25,38 +24,36 @@ export interface ProgressiveAdInfo {
 }
 
 /**
- * Get current hour bucket storage key.
+ * Get current ads watched in the current cycle (0, 1, or 2).
  */
 export function getStorageKey(): string {
-  return STORAGE_PREFIX + getHourBucket();
+  return STORAGE_KEY;
 }
 
 /**
- * Get current ads watched this hour.
+ * Get ads watched in current cycle.
  */
 export async function getAdsWatchedThisHour(): Promise<number> {
   try {
-    const key = getStorageKey();
-    const raw = await AsyncStorage.getItem(key);
+    const raw = await AsyncStorage.getItem(STORAGE_KEY);
     if (raw == null) return 0;
     const n = parseInt(raw, 10);
-    return Number.isFinite(n) && n >= 0 ? Math.min(n, MAX_ADS_PER_HOUR) : 0;
+    return Number.isFinite(n) && n >= 0 ? Math.min(n, CYCLE_LENGTH) % CYCLE_LENGTH : 0;
   } catch {
     return 0;
   }
 }
 
 /**
- * Increment ads watched this hour. Call after successful ad completion.
+ * Increment ads watched this cycle. After 3rd ad, resets to 0 (no cap).
  */
 export async function incrementProgressiveAdCount(): Promise<number> {
   try {
-    const key = getStorageKey();
     const current = await getAdsWatchedThisHour();
-    const next = Math.min(current + 1, MAX_ADS_PER_HOUR);
-    await AsyncStorage.setItem(key, String(next));
-    if (next >= MAX_ADS_PER_HOUR) {
-      logger.log('Progressive ad: hourly cap reached', { count: next });
+    const next = (current + 1) % CYCLE_LENGTH;
+    await AsyncStorage.setItem(STORAGE_KEY, String(next));
+    if (current === CYCLE_LENGTH - 1) {
+      logger.log('Progressive ad: cycle completed, reset for next cycle');
     }
     return next;
   } catch (e) {
@@ -66,20 +63,18 @@ export async function incrementProgressiveAdCount(): Promise<number> {
 }
 
 /**
- * Get coins for the Nth ad (0-indexed: 0=1st ad, 4=5th ad).
+ * Get coins for the Nth ad in cycle (0-indexed: 0=1st, 1=2nd, 2=3rd).
  */
 export function getProgressiveReward(adIndex: number): number {
-  if (adIndex < 0 || adIndex >= MAX_ADS_PER_HOUR) return 0;
+  if (adIndex < 0 || adIndex >= CYCLE_LENGTH) return 0;
   return PROGRESSIVE_REWARDS[adIndex] as number;
 }
 
 /**
- * Get milliseconds until next hour boundary (reset).
+ * No time-based reset; cycle resets after 3 ads.
  */
 export function getTimeUntilReset(): number {
-  const now = Date.now();
-  const nextHourStart = (getHourBucket() + 1) * HOUR_MS;
-  return Math.max(0, nextHourStart - now);
+  return 0;
 }
 
 /**
@@ -87,21 +82,19 @@ export function getTimeUntilReset(): number {
  */
 export async function getProgressiveAdInfo(): Promise<ProgressiveAdInfo> {
   const count = await getAdsWatchedThisHour();
-  const maxReached = count >= MAX_ADS_PER_HOUR;
-  const nextAdCoins = maxReached ? 0 : PROGRESSIVE_REWARDS[count];
-  const timeUntilResetMs = getTimeUntilReset();
+  const maxReached = false; // No cap — user can always start/continue a cycle
+  const nextAdCoins = PROGRESSIVE_REWARDS[count];
   return {
     adsWatchedThisHour: count,
     nextAdCoins,
     maxReached,
-    timeUntilResetMs,
+    timeUntilResetMs: 0,
   };
 }
 
 /**
- * Check if user can watch another ad this hour.
+ * User can always watch another ad (no hourly cap).
  */
 export async function canWatchProgressiveAd(): Promise<boolean> {
-  const count = await getAdsWatchedThisHour();
-  return count < MAX_ADS_PER_HOUR;
+  return true;
 }

@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
   Dimensions,
   Animated,
   TextInput,
@@ -21,26 +21,13 @@ import { getQuestionsByCategory } from '../../backend/services/questionsService'
 import { TeamSetupConfig, ROUND_TIMER_OPTIONS, TEAM_COLORS } from '../../shared/types/teams';
 import CustomQuestionService from '../../backend/services/customQuestionService';
 import { getCategories } from '../../backend/services/questionsService';
+import { InputValidator } from '../../backend/utils/inputValidator';
 import useAppTranslation from '../../hooks/useTranslation';
 
 import { CATEGORY_CAROUSEL } from '../constants/categoryCarousel';
+import { categoryImages, CategoryImagePreloader } from '../utils/categoryImages';
 
 const { CARD_WIDTH, CARD_HEIGHT, NAV_BUTTON_SIZE } = CATEGORY_CAROUSEL;
-
-// Import category images
-const categoryImages: { [key: string]: any } = {
-  'Random': require('../../frontend/assets/images/random.webp'),
-  'Sports': require('../../frontend/assets/images/sports.jpeg'),
-  'Movies': require('../../frontend/assets/images/movies.jpg'),
-  'Music': require('../../frontend/assets/images/music.webp'),
-  'Science': require('../../frontend/assets/images/science.jpg'),
-  'Geography': require('../../frontend/assets/images/geography.jpg'),
-  'Food': require('../../frontend/assets/images/food.webp'),
-  'Technology': require('../../frontend/assets/images/technology.jpg'),
-  // Masry: keep egypt.jpg background and overlay as-is (do not change)
-  'Masry': require('../../frontend/assets/images/egypt.jpg'),
-  'Custom': require('../../frontend/assets/images/createyourown.jpg'),
-};
 
 const categories = [
   {
@@ -363,10 +350,12 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
         const randomQuestionIndex = Math.floor(Math.random() * questions.length);
         const randomQuestion = questions[randomQuestionIndex];
         
-        // Build team config; use placeholder as display name when user left field empty
-        const resolvedNames = teamNames.slice(0, numberOfTeams).map((name, i) =>
-          name.trim() || tScreens('screens:gameSetup.teamPlaceholder', { number: i + 1 })
-        );
+        // Build team config; sanitize and use placeholder when user left field empty
+        const resolvedNames = teamNames.slice(0, numberOfTeams).map((name, i) => {
+          const trimmed = (name || '').trim();
+          const sanitized = trimmed ? InputValidator.sanitizeText(trimmed, 30) : '';
+          return sanitized || tScreens('screens:gameSetup.teamPlaceholder', { number: i + 1 });
+        });
         const teamConfig: TeamSetupConfig = numberOfTeams > 1 ? {
           numberOfTeams,
           teamNames: resolvedNames,
@@ -403,10 +392,12 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
     
     // If teams mode is enabled (numberOfTeams > 1), create team config
     if (numberOfTeams > 1) {
-      // Use placeholder text when user left a field empty
-      const validTeamNames = teamNames.slice(0, numberOfTeams).map((name, i) =>
-        name.trim() || tScreens('screens:gameSetup.teamPlaceholder', { number: i + 1 })
-      );
+      // Sanitize team names; use placeholder when user left field empty
+      const validTeamNames = teamNames.slice(0, numberOfTeams).map((name, i) => {
+        const trimmed = (name || '').trim();
+        const sanitized = trimmed ? InputValidator.sanitizeText(trimmed, 30) : '';
+        return sanitized || tScreens('screens:gameSetup.teamPlaceholder', { number: i + 1 });
+      });
 
       const teamConfig: TeamSetupConfig = {
         numberOfTeams,
@@ -492,7 +483,8 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
           end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFill}
         />
-        
+        <CategoryImagePreloader />
+
         {/* Header */}
         <View style={headerStyle}>
           <Animated.View style={{ transform: [{ scale: backButtonScale }] }}>
@@ -518,8 +510,10 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Scroll hint - scrolls away when user scrolls down */}
-          <Text style={styles.scrollDownHint}>{tScreens('screens:gameSetup.scrollDown')}</Text>
+          {/* Scroll hint - single player only; multiplayer has minimal content */}
+          {isSinglePlayer && (
+            <Text style={styles.scrollDownHint}>{tScreens('screens:gameSetup.scrollDown')}</Text>
+          )}
           {/* Category Label */}
           <View style={styles.categoryLabelContainer}>
             <Text style={[styles.settingLabel, isRTL && styles.rtlText]}>{tScreens('screens:gameSetup.category')}</Text>

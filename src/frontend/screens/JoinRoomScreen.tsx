@@ -16,6 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { RootStackParamList } from '../../shared/types/navigation';
 import { useMultiplayer } from '../contexts/MultiplayerContext';
 import ThemedAlert from '../utils/themedAlert';
+import { InputValidator } from '../../backend/utils/inputValidator';
 import { COLORS, SPACING, TYPOGRAPHY, ACCESSIBILITY } from '../../backend/utils/constants';
 import { AuthService } from '../../backend/services/authService';
 import { logger } from '../../backend/utils/logger';
@@ -47,9 +48,9 @@ const JoinRoomScreen: React.FC<JoinRoomScreenProps> = () => {
 
   useEffect(() => {
     if (error) {
-      ThemedAlert.error(tCommon('error'), error, [{ text: tCommon('ok'), onPress: clearError }]);
+      clearError(); // Errors logged server-side only
     }
-  }, [error, clearError, tCommon]);
+  }, [error, clearError]);
 
   useEffect(() => {
     // Validate room code format (6 digits only)
@@ -65,19 +66,24 @@ const JoinRoomScreen: React.FC<JoinRoomScreenProps> = () => {
   };
 
   const handleJoinRoom = async () => {
-    if (!isValidCode) {
+    const normalizedCode = roomCode.replace(/\D/g, '').slice(0, 6);
+    if (!normalizedCode || normalizedCode.length !== 6) {
+      ThemedAlert.warning(t('multiplayer.joinRoomScreen.invalidCodeTitle'), t('multiplayer.joinRoomScreen.invalidCodeMessage'));
+      return;
+    }
+    if (!InputValidator.validateRoomCode(normalizedCode)) {
       ThemedAlert.warning(t('multiplayer.joinRoomScreen.invalidCodeTitle'), t('multiplayer.joinRoomScreen.invalidCodeMessage'));
       return;
     }
 
     try {
-      logger.log('🎯 Attempting to join room:', roomCode);
+      logger.log('🎯 Attempting to join room:', normalizedCode);
       
       // Ensure user is authenticated before joining room
       await authService.ensureAuthenticated();
       
       logger.log('✅ User authenticated, calling joinRoom...');
-      const success = await joinRoom(roomCode);
+      const success = await joinRoom(normalizedCode);
       
       if (success) {
         logger.log('✅ Successfully joined room, navigating to RoomLobby');
@@ -85,21 +91,27 @@ const JoinRoomScreen: React.FC<JoinRoomScreenProps> = () => {
         // Add a small delay to ensure room subscription is established
         await new Promise(resolve => setTimeout(resolve, 300));
         
-        navigation.navigate('RoomLobby', { roomCode });
+        navigation.navigate('RoomLobby', { roomCode: normalizedCode });
       } else {
-        logger.log('❌ Failed to join room - joinRoom returned false');
         ThemedAlert.error(
-          t('multiplayer.joinRoomScreen.joinFailedTitle'),
-          t('multiplayer.joinRoomScreen.joinFailedMessage')
+          t('multiplayer.joinRoomScreen.roomNotFoundTitle'),
+          t('multiplayer.joinRoomScreen.roomNotFoundMessage'),
+          [{ text: tCommon('ok'), onPress: () => {} }]
         );
       }
     } catch (error) {
-      logger.error('❌ Error in handleJoinRoom:', error);
-      const errorMessage = error instanceof Error ? error.message : '';
-      ThemedAlert.error(
-        t('multiplayer.joinRoomScreen.joinFailedTitle'),
-        errorMessage ? t('multiplayer.joinRoomScreen.joinFailedWithError', { message: errorMessage }) : t('multiplayer.joinRoomScreen.joinFailedMessage')
-      );
+      const code = (error as { code?: string })?.code;
+      const message = (error instanceof Error ? error.message : '')?.toLowerCase() || '';
+      const isRoomNotFound = code === 'ROOM_NOT_FOUND' ||
+        code === 'MP_ROOM_NOT_FOUND' ||
+        (code === 'PLAYER_JOIN_VALIDATION_FAILED' && message.includes('room not found'));
+      if (isRoomNotFound) {
+        ThemedAlert.error(
+          t('multiplayer.joinRoomScreen.roomNotFoundTitle'),
+          t('multiplayer.joinRoomScreen.roomNotFoundMessage'),
+          [{ text: tCommon('ok'), onPress: () => {} }]
+        );
+      }
     }
   };
 

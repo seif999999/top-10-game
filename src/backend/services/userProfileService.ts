@@ -179,7 +179,8 @@ export class UserProfileService {
       const userRef = doc(db, COLLECTIONS.USER_PROFILES, userId);
       
       const updateData: Record<string, unknown> = {
-        selectedAvatar: selectedAvatar,
+        // Firestore rejects undefined; use null when clearing avatar
+        selectedAvatar: selectedAvatar ?? null,
         lastUpdated: serverTimestamp(),
       };
 

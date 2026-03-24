@@ -75,8 +75,16 @@ class SecurityMonitoringService {
         resolved: false,
       };
 
+      const metadata = eventData.metadata || {};
+      const sanitizedMetadata: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(metadata)) {
+        if (v !== undefined) sanitizedMetadata[k] = v;
+      }
+
+      const { metadata: _m, ...rest } = eventData;
       const docRef = await addDoc(collection(db, this.EVENTS_COLLECTION), {
-        ...eventData,
+        ...rest,
+        metadata: sanitizedMetadata,
         timestamp: serverTimestamp(),
       });
 

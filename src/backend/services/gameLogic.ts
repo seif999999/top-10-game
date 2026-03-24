@@ -2,6 +2,7 @@ import { GameState, GameRound, GameQuestion, PlayerAnswer, GameResults } from '.
 import { getQuestionsByCategory, shuffleQuestions } from './questionsService';
 import { logger } from '../utils/logger';
 import { AppError } from '../../shared/errors';
+import { findMatchingAnswer } from './multiplayerGameFlowV2';
 
 // Generate unique game ID
 // ✅ SECURITY: Uses secure random for ID generation
@@ -61,33 +62,24 @@ export const processAnswer = (
   // Calculate time taken since round started
   const timeTaken = Math.floor((Date.now() - (gameState.roundStartTime || Date.now())) / 1000);
   
-  // Find the correct answer
-  if (!gameState.currentQuestion.answers || !Array.isArray(gameState.currentQuestion.answers)) {
+  // Find the correct answer (use fuzzy matching, exclude already-found so "frozen" -> Frozen 2, then "frozen" -> Frozen 3)
+  const answers = gameState.currentQuestion.answers;
+  if (!answers || !Array.isArray(answers)) {
     throw new AppError({ code: 'GAME_NO_ANSWERS', message: 'No answers available for current question', userMessage: 'Question data is incomplete.' });
   }
-  
-  const correctAnswer = gameState.currentQuestion.answers.find(
-    a => {
-      const normalizedAnswer = answer.toLowerCase().trim();
-      const normalizedText = a.text.toLowerCase().trim();
-      const normalizedAlias = a.normalized || normalizedText;
-      
-      // Check exact match first
-      if (normalizedText === normalizedAnswer) return true;
-      if (normalizedAlias === normalizedAnswer) return true;
-      
-      // Check aliases
-      if (a.aliases && Array.isArray(a.aliases)) {
-        return a.aliases.some(alias => alias.toLowerCase().trim() === normalizedAnswer);
-      }
-      
-      return false;
-    }
+
+  const existingRound = gameState.rounds?.find(r => r.roundNumber === gameState.currentRound);
+  const revealedAnswers = answers.map((a) =>
+    existingRound?.playerAnswers?.some((pa) => pa.rank === a.rank)
+      ? { answerId: a.text, playerId: '', points: 0 }
+      : null
   );
-  
-  if (!correctAnswer) {
+
+  const match = findMatchingAnswer(answer.trim(), answers, revealedAnswers);
+  if (!match) {
     throw new AppError({ code: 'GAME_INVALID_ANSWER', message: 'Invalid answer submitted', userMessage: 'That answer is not correct.' });
   }
+  const correctAnswer = match.answer;
   
   const playerAnswer: PlayerAnswer = {
     playerId,

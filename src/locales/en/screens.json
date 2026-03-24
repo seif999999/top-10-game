@@ -240,6 +240,9 @@
     "noMissions": "No missions found",
     "tryFilter": "Try a different filter",
     "collectReward": "Collect reward",
+    "collectAllRewards": "Collect All Rewards",
+    "coinsEarnedTitle": "Rewards Collected!",
+    "coinsEarnedMessage": "You earned {{count}} coins!",
     "collecting": "Collecting...",
     "claimed": "Claimed",
     "list": {
@@ -335,7 +338,9 @@
       "invalidCodeMessage": "Please enter a valid 6-digit room code",
       "joinFailedTitle": "Join Failed",
       "joinFailedMessage": "Could not join the room. Please check the room code and try again.",
-      "joinFailedWithError": "Failed to join room: {{message}}"
+      "joinFailedWithError": "Failed to join room: {{message}}",
+      "roomNotFoundTitle": "Room Not Found",
+      "roomNotFoundMessage": "This room code doesn't exist or may have been closed. Please check the code and try again."
     },
     "roomLobby": {
       "loadingRoom": "Loading room…",
@@ -432,16 +437,16 @@
     "offlineMessage": "You're offline. Coins will sync when you're back online.",
     "progressiveAd": {
       "title": "Watch Ads for Coins",
-      "completeAllReward": "Complete all 5 rounds to get {{total}} coins",
+      "completeAllReward": "Complete all 3 rounds to get {{total}} coins",
       "cycleCounter": "{{current}}/{{total}}",
-      "progress": "Progress: {{count}}/5 this hour",
+      "progress": "Progress: {{count}}/3 this cycle",
       "watchButton": "Watch Ad for {{coins}} Coins",
       "maxReached": "Max Reached",
       "resetsIn": "Resets in: {{time}}",
       "nextReward": "Next: {{coins}} coins",
       "finalReward": "Final: {{coins}} coins",
-      "hourlyMax": "You can earn up to 100 coins per hour!",
-      "comeBack": "Come back in 1 hour for more!"
+      "hourlyMax": "Complete 3 videos per cycle for 100 coins!",
+      "comeBack": "Complete the cycle to earn again!"
     },
     "removeAds": {
       "title": "Remove Ads",

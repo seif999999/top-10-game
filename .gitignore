@@ -23,6 +23,12 @@ web-build/
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+firestore-debug.log
+firebase-debug.log
+audit-report.json
+
+# IDE
+.idea/
 
 # macOS
 .DS_Store
@@ -31,6 +37,7 @@ yarn-error.*
 # local env files
 .env
 .env*.local
+test/k6-config.env
 
 # Google/Firebase config with API keys - do not commit (use .env or EAS secrets)
 google-services.json

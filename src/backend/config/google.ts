@@ -37,28 +37,29 @@ export const getGoogleClientId = (): string => {
   return GOOGLE_CONFIG.WEB_CLIENT_ID;
 };
 
-// Fallback when getRedirectUrl is unavailable (bare workflow)
-const FALLBACK_REDIRECT_URI = 'https://auth.expo.io/@seifnazmy/top10game';
+// Expo auth proxy URL — must be in Google Cloud Console authorized redirect URIs.
+// On native, we always use this so the request never sends the app scheme (top10game://).
+const EXPO_PROXY_REDIRECT_URI = 'https://auth.expo.io/@seifnazmy/top10game';
 
 // Helper function to get the redirect URI (must match Google Cloud Console)
-// For Expo Go: uses getRedirectUrl which returns auth.expo.io with correct project (handles @anonymous if not signed in)
-// For web: uses makeRedirectUri for current origin
+// Native: always use Expo proxy URL so Google never receives top10game:// (avoids 400 invalid_request).
+// Web: use makeRedirectUri with useProxy for current origin.
 export const getGoogleRedirectUri = (): string => {
-  let uri: string;
   if (Platform.OS === 'web') {
     try {
-      uri = AuthSession.makeRedirectUri();
-    } catch {
-      uri = 'http://localhost:19006';
-    }
-  } else {
-    try {
-      // getRedirectUrl returns https://auth.expo.io/@owner/slug - correct for Expo Go proxy
-      uri = AuthSession.getRedirectUrl();
-    } catch {
-      uri = FALLBACK_REDIRECT_URI;
+      const uri = AuthSession.makeRedirectUri() || EXPO_PROXY_REDIRECT_URI;
+      console.log('[Google Config] Using redirect URI (web):', uri);
+      logger.log('[GoogleAuth] Redirect URI:', uri);
+      return uri;
+    } catch (e) {
+      logger.warn('getGoogleRedirectUri: makeRedirectUri failed, using proxy', e);
+      console.log('[Google Config] Using proxy redirect URI:', EXPO_PROXY_REDIRECT_URI);
+      return EXPO_PROXY_REDIRECT_URI;
     }
   }
+  // Native (iOS/Android): always use proxy so Google never receives top10game:// (avoids 400 invalid_request)
+  const uri = EXPO_PROXY_REDIRECT_URI;
+  console.log('[Google Config] Using redirect URI (native):', uri);
   logger.log('[GoogleAuth] Redirect URI:', uri);
   return uri;
 };

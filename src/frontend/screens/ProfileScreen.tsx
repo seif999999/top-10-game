@@ -152,16 +152,34 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     }
     if (isFeedbackSending) return;
 
+    // Rate limit feedback submissions
+    if (user?.id) {
+      const rateLimitResult = await RateLimitService.checkRateLimit(
+        user.id,
+        'feedbackSubmit',
+        { ipAddress: 'unknown', userAgent: 'mobile' }
+      );
+      if (!rateLimitResult.allowed) {
+        ThemedAlert.warning(
+          tScreens('profile.rateLimitExceeded'),
+          rateLimitResult.error || tScreens('profile.rateLimitMessage')
+        );
+        return;
+      }
+    }
+
     playButtonClick();
     setIsFeedbackSending(true);
 
     try {
+      // Sanitize feedback body to prevent XSS/injection
+      const sanitizedFeedback = InputValidator.sanitizeText(feedbackText.trim(), 2000);
       // Get user info
       const userEmail = user?.email || 'Unknown User';
       const userName = user?.displayName || 'User';
-      
+
       // The user's message is the main content - format it clearly
-      const feedbackBody = `${feedbackText.trim()}\n\n---\nFrom: ${userName}\nEmail: ${userEmail}`;
+      const feedbackBody = `${sanitizedFeedback}\n\n---\nFrom: ${userName}\nEmail: ${userEmail}`;
 
       // Send via EmailService (automatically sends, no tabs/windows open)
       const result = await EmailService.sendFeedbackEmail({
@@ -173,6 +191,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       });
 
       if (result.success) {
+        if (user?.id) {
+          await RateLimitService.recordAction(user.id, 'feedbackSubmit', { ipAddress: 'unknown', userAgent: 'mobile' }).catch(() => {});
+        }
         // Email sent successfully
         setShowFeedbackModal(false);
         setFeedbackText('');

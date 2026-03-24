@@ -48,7 +48,7 @@ export interface AdContextValue {
   showRewardedAd: (onRewardEarned?: (reward: AdReward) => void) => Promise<void>;
   showInterstitialAd: (callbacks?: { onAdClosed?: () => void; markAsGameEnter?: boolean }) => Promise<void>;
 
-  // Progressive rewarded ad: 10→15→20→25→30 coins, 5 per hour
+  // Progressive rewarded ad: 20→30→50 coins per cycle (100 total), no hourly cap
   showProgressiveRewardedAd: (onSuccess: (coinsEarned: number) => void) => Promise<void>;
   getProgressiveAdInfo: () => Promise<ProgressiveAdInfo>;
   getTimeUntilReset: () => number;

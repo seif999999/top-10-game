@@ -25,23 +25,9 @@ import type { LegacyQuestion } from '../../shared/types/game';
 import CustomQuestionService from '../../backend/services/customQuestionService';
 import ThemedAlert from '../utils/themedAlert';
 import { CATEGORY_CAROUSEL } from '../constants/categoryCarousel';
+import { categoryImages, CategoryImagePreloader } from '../utils/categoryImages';
 
 const { CARD_WIDTH, CARD_HEIGHT, NAV_BUTTON_SIZE } = CATEGORY_CAROUSEL;
-
-// Import category images
-const categoryImages: { [key: string]: any } = {
-  'Random': require('../assets/images/random.webp'),
-  'Sports': require('../assets/images/sports.jpeg'),
-  'Movies': require('../assets/images/movies.jpg'),
-  'Music': require('../assets/images/music.webp'),
-  'Science': require('../assets/images/science.jpg'),
-  'Geography': require('../assets/images/geography.jpg'),
-  'Food': require('../assets/images/food.webp'),
-  'Technology': require('../assets/images/technology.jpg'),
-  // Masry: keep egypt.jpg background and overlay as-is (do not change)
-  'Masry': require('../assets/images/egypt.jpg'),
-  'Custom': require('../assets/images/createyourown.jpg'),
-};
 
 const categories = [
   {
@@ -170,8 +156,7 @@ const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () =
 
   useEffect(() => {
     if (error) {
-      logger.error('Multiplayer error:', error);
-      clearError();
+      clearError(); // Errors logged server-side only
     }
   }, [error, clearError]);
 
@@ -380,14 +365,9 @@ const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () =
         setQuestions([legacyQuestion]);
         const roomCode = await createRoom(question.category, [legacyQuestion]);
         await new Promise(r => setTimeout(r, 500));
-        navigation.navigate('RoomLobby', { roomCode });
+        navigation.replace('RoomLobby', { roomCode });
       } catch (error) {
-        logger.error('Error creating random game room:', error);
-        ThemedAlert.error(
-          t('gameSetup.randomErrorTitle', { defaultValue: 'Random game failed' }),
-          t('gameSetup.randomErrorMessage', { defaultValue: 'Could not create the game. Please try again.' }),
-          [{ text: 'OK', onPress: () => {} }]
-        );
+        clearError(); // Errors logged server-side only
       } finally {
         setIsLoadingRandom(false);
       }
@@ -420,7 +400,8 @@ const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () =
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
-      
+      <CategoryImagePreloader />
+
       {/* Header */}
       <View style={[styles.header, { paddingTop: Math.max(SPACING.xs, insets.top * 0.5) }]}>
         <Animated.View style={{ transform: [{ scale: backButtonScale }] }}>
@@ -439,8 +420,6 @@ const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () =
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Scroll hint - scrolls away when user scrolls down */}
-        <Text style={styles.scrollDownHint}>{t('gameSetup.scrollDown')}</Text>
         {/* Category Label */}
         <View style={styles.categoryLabelContainer}>
           <Text style={styles.settingLabel}>{t('gameSetup.category')}</Text>
@@ -668,12 +647,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '600',
     color: '#FFFFFF',
-  },
-  scrollDownHint: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.6)',
-    textAlign: 'center',
-    marginBottom: SPACING.sm,
   },
   scrollView: {
     flex: 1,

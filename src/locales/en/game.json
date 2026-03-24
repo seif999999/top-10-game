@@ -65,7 +65,8 @@
     "alreadySubmittedTitle": "Already Submitted",
     "alreadySubmittedMessage": "You have already submitted an answer this turn. Wait for your next turn.",
     "notYourTurnTitle": "Not Your Turn",
-    "notYourTurnMessage": "Wait for your turn to submit answers."
+    "notYourTurnMessage": "Wait for your turn to submit answers.",
+    "cannotSubmit": "Can't Submit"
   },
   "rewards": {
     "doubled": "Rewards Doubled!",

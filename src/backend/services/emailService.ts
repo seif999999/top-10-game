@@ -1,5 +1,8 @@
 import { logger } from '../utils/logger';
+import { sanitizeText } from '../utils/textSanitizer';
 import { AppError } from '../../shared/errors';
+
+const FEEDBACK_BODY_MAX_LENGTH = 2000;
 
 export interface SendEmailParams {
   to: string;
@@ -61,12 +64,15 @@ export class EmailService {
         };
       }
 
+      // Sanitize body to prevent XSS/injection (defense-in-depth)
+      const sanitizedBody = sanitizeText(body.trim(), FEEDBACK_BODY_MAX_LENGTH);
+
       // Try HTTP API endpoint first (if configured)
       if (this.EMAIL_API_ENDPOINT) {
         const apiResult = await this.sendViaAPI({
           to,
           subject,
-          body,
+          body: sanitizedBody,
           fromEmail,
           fromName
         });
@@ -86,7 +92,7 @@ export class EmailService {
         const emailjsResult = await this.sendViaEmailJS({
           to,
           subject,
-          body,
+          body: sanitizedBody,
           fromEmail,
           fromName
         });
@@ -106,7 +112,7 @@ export class EmailService {
         const formspreeResult = await this.sendViaFormspree({
           to,
           subject,
-          body,
+          body: sanitizedBody,
           fromEmail,
           fromName
         });

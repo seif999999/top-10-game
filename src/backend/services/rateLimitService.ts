@@ -45,6 +45,8 @@ export interface ActionRateLimits {
   revealAnswer: RateLimitConfig;
   startGame: RateLimitConfig;
   advanceTurn: RateLimitConfig;
+  feedbackSubmit: RateLimitConfig;
+  customQuestionCreate: RateLimitConfig;
 }
 
 /**
@@ -64,9 +66,9 @@ export class RateLimitService {
       actionType: 'answer_submission'
     },
     roomCreation: {
-      maxAttempts: 5, // 5 rooms per window
+      maxAttempts: 20, // 20 rooms per hour (testing/retries after accidental leave)
       windowMs: 3600000, // 1 hour window
-      blockDurationMs: 1800000, // 30 minute block
+      blockDurationMs: 300000, // 5 minute block (was 30 min, too harsh)
       actionType: 'room_creation'
     },
     roomJoining: {
@@ -128,6 +130,18 @@ export class RateLimitService {
       windowMs: 300000,
       blockDurationMs: 120000,
       actionType: 'advance_turn'
+    },
+    feedbackSubmit: {
+      maxAttempts: 5, // 5 feedback submissions per hour
+      windowMs: 3600000,
+      blockDurationMs: 1800000,
+      actionType: 'feedback_submit'
+    },
+    customQuestionCreate: {
+      maxAttempts: 20, // 20 custom question saves per hour
+      windowMs: 3600000,
+      blockDurationMs: 600000,
+      actionType: 'custom_question_create'
     }
   };
 
@@ -179,9 +193,9 @@ export class RateLimitService {
               description: `Rate limit exceeded for action: ${actionType}`,
               metadata: {
                 action: actionType,
-                ipAddress: metadata?.ipAddress,
-                userAgent: metadata?.userAgent,
-                roomCode: metadata?.roomCode,
+                ipAddress: metadata?.ipAddress ?? 'unknown',
+                userAgent: metadata?.userAgent ?? 'unknown',
+                roomCode: metadata?.roomCode ?? 'none',
                 attempts: rateLimitEntry.attempts,
                 maxAttempts: config.maxAttempts,
               },

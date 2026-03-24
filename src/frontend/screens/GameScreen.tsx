@@ -124,6 +124,8 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   const gameEndCoinsDisplayRef = useRef<number | null>(null);
   /** Guard: grant game-completion coins only once per game so balance matches the 50 shown */
   const hasGrantedGameCompletionCoinsRef = useRef(false);
+  /** When host quits, leaderboard data is captured before leaveRoom; overlay uses this when multiplayerState is reset */
+  const hostExitLeaderboardDataRef = useRef<Array<{ playerId: string; playerName: string; score: number; rank: number; selectedAvatar?: string }> | null>(null);
   const [isAnswerSubmitted, setIsAnswerSubmitted] = useState(false);
   const [submittedAnswers, setSubmittedAnswers] = useState<string[]>([]);
   const [showQuestionComplete, setShowQuestionComplete] = useState(false);
@@ -163,6 +165,8 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   
   // Track points earned for current answer
   const [pointsEarned, setPointsEarned] = useState<number | null>(null);
+  // Answer section height for ScrollView padding (prevents content from being hidden behind it)
+  const [answerSectionHeight, setAnswerSectionHeight] = useState(0);
 
   // Ad trigger states
   const [triggerGameEnterAd, setTriggerGameEnterAd] = useState(false);
@@ -277,23 +281,10 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
             await multiplayerService.joinRoom(roomId, playerId, playerName);
             logger.log('✅ Successfully joined multiplayer room');
           } catch (error) {
-            logger.error('❌ Failed to join room:', error);
-            // Room not found - navigate back to home
-            ThemedAlert.error(
-              tGame('multiplayer.roomNotFound'),
-              tGame('multiplayer.roomNotFoundMessage'),
-              [
-                {
-                  text: tCommon('ok'),
-                  onPress: () => {
-                    navigation.reset({
-                      index: 0,
-                      routes: [{ name: 'Home' }],
-                    });
-                  }
-                }
-              ]
-            );
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'Home' }],
+            });
           }
         }
       }
@@ -410,13 +401,14 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
       } else if (multiplayerState.gamePhase === 'results') {
         // Results phase
       } else if (multiplayerState.gamePhase === 'finished') {
-        // Check if all 10 answers are revealed before showing leaderboard
+        // Show leaderboard whenever game ends (natural completion or host exit)
         const revealedAnswers = multiplayerState.revealedAnswers;
         const revealedAnswersCount = Array.isArray(revealedAnswers) 
           ? revealedAnswers.filter(ra => ra !== null).length 
           : 0;
-        if (revealedAnswersCount >= 10) {
-          // Process missions for multiplayer game completion (credits coins to balance)
+        const isNaturalCompletion = revealedAnswersCount >= 10;
+        if (isNaturalCompletion) {
+          // Process missions and full rewards only when all 10 answers revealed
           if (user?.id && multiplayerState?.scores && multiplayerState?.players) {
             const rankResult = getMultiplayerFinalRankAndScore(
               multiplayerState.scores,
@@ -440,7 +432,6 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
             }
           }
           playGameEnd();
-          // Placement-based reward (1st=30, 2nd=20, 3rd+=10); daily cap: first 8 games full, then 5
           const rankResult = user?.id && multiplayerState?.scores && multiplayerState?.players
             ? getMultiplayerFinalRankAndScore(multiplayerState.scores, multiplayerState.players, user.id)
             : null;
@@ -474,14 +465,17 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
           } else if (user?.id) {
             getGameReward(placementReward).then(setLastGameCoinsEarned).catch(() => setLastGameCoinsEarned(placementReward));
           }
-          setShowGameEndRanking(true);
-          setShowMultiplayerLeaderboard(false);
-          setShowResults(false);
-          setShowAnswers(false);
           incrementGameCompletionCount().then((newCount) => {
             logger.log('Interstitial ad frequency: game_completion_count (multiplayer)', newCount);
           }).catch((e) => logger.warn('GameScreen: incrementGameCompletionCount failed', e));
+        } else {
+          // Host exit or early termination - show leaderboard with current scores
+          playGameEnd();
         }
+        setShowGameEndRanking(true);
+        setShowMultiplayerLeaderboard(false);
+        setShowResults(false);
+        setShowAnswers(false);
       }
     }
   }, [isMultiplayerMode, multiplayerState?.gamePhase, multiplayerState?.status, multiplayerState?.turnStartTime, multiplayerState?.revealedAnswers?.length, multiplayerState?.scores, multiplayerState?.players, user?.id, categoryId]);
@@ -490,14 +484,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   useEffect(() => {
     if (isMultiplayerMode && multiplayerState?.gamePhase === 'lobby') {
       const timeout = setTimeout(() => {
-        logger.log('⏰ Multiplayer game loading timeout - showing error');
-        ThemedAlert.warning(
-          tGame('multiplayer.gameLoadingTimeout'),
-          tGame('multiplayer.gameLoadingTimeoutMessage'),
-          [
-            { text: tCommon('ok'), onPress: () => navigation.goBack() }
-          ]
-        );
+        navigation.goBack();
       }, 10000); // 10 second timeout
 
       return () => clearTimeout(timeout);
@@ -517,6 +504,8 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     }
   }, [isMultiplayerMode, isTeamMode, teamGameState?.isTurnActive, teamGameState?.roundTimerSeconds, teamGameState?.timeRemaining, setTeamTimer]);
 
+  // Ref to debounce turn advance - only call once per turn expiry (avoid repeated calls every second)
+  const turnAdvanceAttemptedRef = useRef<{ turnStartTime: unknown; playerId: string } | null>(null);
   // Multiplayer turn timer effect with V2 server synchronization
   useEffect(() => {
     if (isMultiplayerMode && multiplayerState?.gamePhase === 'question' && multiplayerState.turnStartTime) {
@@ -526,32 +515,29 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
       }).catch((e) => logger.warn('GameScreen: getServerOffsetV2 failed', e));
       
       const timer = setInterval(() => {
-        // Calculate time remaining using server offset for turn phase
         const timeRemaining = multiplayerService.calculateTimeRemainingV2(
           multiplayerState.turnStartTime,
-          multiplayerState.turnTimeLimit || 60, // Changed to 60 seconds
+          multiplayerState.turnTimeLimit || 60,
           serverOffset
         );
-        
-        // Update the timer state for UI display
         setMultiplayerTimeRemaining(timeRemaining);
         
-        if (timeRemaining <= 0) {
-          // Turn time's up - automatically advance to next player
-          logger.log('⏰ Turn timer expired - advancing to next player');
-          if (multiplayerState.currentPlayerId === user?.id && user?.id) {
-            // Current player's turn expired, try to advance turn
-            multiplayerService.advanceTurnOnTimeoutV2(multiplayerState.roomCode, user.id).catch(error => {
-              logger.log('⚠️ Turn advance failed:', error);
-              // This is expected - another client may have already advanced the turn
-            });
+        if (timeRemaining <= 0 && multiplayerState.currentPlayerId === user?.id && user?.id) {
+          const prev = turnAdvanceAttemptedRef.current;
+          if (prev?.turnStartTime === multiplayerState.turnStartTime && prev?.playerId === user.id) {
+            return; // Already attempted for this turn (debounce duplicate calls)
           }
+          turnAdvanceAttemptedRef.current = { turnStartTime: multiplayerState.turnStartTime, playerId: user.id };
+          logger.log('⏰ Turn timer expired - advancing to next player');
+          multiplayerService.advanceTurnOnTimeoutV2(multiplayerState.roomCode, user.id).catch(error => {
+            logger.log('⚠️ Turn advance failed:', error);
+          });
         }
       }, 1000);
 
       return () => clearInterval(timer);
     }
-  }, [isMultiplayerMode, multiplayerState?.gamePhase, multiplayerState?.turnStartTime, multiplayerState?.turnTimeLimit, multiplayerState?.currentPlayerId, user?.id, serverOffset]);
+  }, [isMultiplayerMode, multiplayerState?.gamePhase, multiplayerState?.turnStartTime, multiplayerState?.turnTimeLimit, multiplayerState?.currentPlayerId, multiplayerState?.roomCode, user?.id, serverOffset]);
 
   // Timer animation effects
   useEffect(() => {
@@ -776,23 +762,9 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
           ]
         });
       } else if (systemMessage.type === 'game_terminated') {
-        // Game terminated due to insufficient players
-        logger.log('🔔 GAME_TERMINATED: Showing termination alert');
-        showCrossPlatformAlert({
-          title: tGame('multiplayer.gameEnded'),
-          message: systemMessage.message,
-          buttons: [
-            { 
-              text: tCommon('ok'), 
-              onPress: () => {
-                logger.log('🔔 GAME_TERMINATED: User acknowledged, redirecting to MultiplayerMenu');
-                clearSystemMessage();
-                forceDisconnect();
-                navigation.navigate('MultiplayerMenu');
-              }
-            }
-          ]
-        });
+        // Game terminated (e.g. host left) - leaderboard is shown by gamePhase effect, just clear message
+        logger.log('🔔 GAME_TERMINATED: Leaderboard will be shown, clearing system message');
+        clearSystemMessage();
       }
     }
   }, [isMultiplayerMode, systemMessage, clearSystemMessage, forceDisconnect, navigation]);
@@ -801,6 +773,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   const previousPlayersRef = useRef<string[]>([]);
   const previousHostIdRef = useRef<string | null>(null);
   const previousCurrentPlayerIdRef = useRef<string | null>(null);
+  const previousTurnIndexRef = useRef<number>(-1);
   
   useEffect(() => {
     if (isMultiplayerMode && multiplayerState && user?.id) {
@@ -856,21 +829,26 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     }
   }, [isMultiplayerMode, multiplayerState?.players, multiplayerState?.hostId, user?.id, handleHostDisconnection, terminateGame]);
 
-  // Reset submission state when current player changes
+  // Reset submission state when current player or turn index changes (ensures submit is always available on our turn)
   useEffect(() => {
     if (isMultiplayerMode && multiplayerState && user?.id) {
       const currentPlayerId = multiplayerState.currentPlayerId;
+      const currentTurnIndex = multiplayerState.currentTurnIndex ?? 0;
+      const prevPlayerId = previousCurrentPlayerIdRef.current;
+      const prevTurnIndex = previousTurnIndexRef.current;
       
-      // If the current player changed, reset submission state
-      if (previousCurrentPlayerIdRef.current !== currentPlayerId) {
-        // Reset submission state for all players when turn changes
+      const playerChanged = prevPlayerId !== currentPlayerId;
+      const turnIndexChanged = prevTurnIndex !== currentTurnIndex;
+      
+      if (playerChanged || turnIndexChanged) {
         setHasSubmittedThisTurn(false);
-        
-        // Update the ref
+        setLastAnswerResult(null);
+        setIsAnswerSubmitted(false);
         previousCurrentPlayerIdRef.current = currentPlayerId ?? null;
+        previousTurnIndexRef.current = currentTurnIndex;
       }
     }
-  }, [isMultiplayerMode, multiplayerState?.currentPlayerId, user?.id]);
+  }, [isMultiplayerMode, multiplayerState?.currentPlayerId, multiplayerState?.currentTurnIndex, user?.id]);
 
   // Reset submission state when question changes
   useEffect(() => {
@@ -879,35 +857,9 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     }
   }, [isMultiplayerMode, multiplayerState?.currentQuestionIndex]);
 
-  // Handle back button in multiplayer mode
+  // Handle back button in single-player mode (native only - BackHandler not supported on web)
   useEffect(() => {
-    if (isMultiplayerMode) {
-      const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-        showCrossPlatformAlert({
-          title: tGame('exit.title'),
-          message: tGame('exit.exitMultiplayerMessage'),
-          buttons: [
-            { text: tCommon('cancel'), style: 'cancel' },
-            { 
-              text: tGame('actions.exit'), 
-              style: 'destructive', 
-              onPress: () => {
-                leaveRoom();
-                navigation.goBack();
-              }
-            }
-          ]
-        });
-        return true; // Prevent default back behavior
-      });
-
-      return () => backHandler.remove();
-    }
-  }, [isMultiplayerMode, leaveRoom, navigation]);
-
-  // Handle back button in single-player mode
-  useEffect(() => {
-    if (!isMultiplayerMode) {
+    if (!isMultiplayerMode && Platform.OS !== 'web' && typeof BackHandler?.addEventListener === 'function') {
       const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
         ThemedAlert.warning(
           tGame('exit.title'),
@@ -949,58 +901,52 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     }, [isMultiplayerMode, resetGame])
   );
 
+  const proceedWithMultiplayerExit = async (isHost: boolean) => {
+    if (isHost) {
+      hostExitLeaderboardDataRef.current = getMultiplayerLeaderboardData();
+      try {
+        await leaveRoom();
+      } catch (e) {
+        logger.warn('leaveRoom failed on host quit', e);
+      }
+      setShowGameEndRanking(true);
+    } else {
+      try {
+        await leaveRoom();
+      } catch (e) {
+        logger.warn('leaveRoom failed on player quit', e);
+      }
+      forceDisconnect();
+      navigation.navigate('MultiplayerMenu');
+    }
+  };
+
   const handleExitGame = () => {
     ThemedAlert.warning(
       tGame('exit.title'),
-      tGame('exit.exitSingleMessage'),
+      isMultiplayerMode ? tGame('exit.exitMultiplayerMessage') : tGame('exit.exitSingleMessage'),
       [
         { text: tCommon('cancel'), style: 'cancel' },
         { 
           text: tGame('actions.exit'), 
           style: 'destructive', 
-          onPress: () => {
-            // Check if this is a rage-quit (exiting during active question/timer)
+          onPress: async () => {
+            if (isMultiplayerMode) {
+              await proceedWithMultiplayerExit(isMultiplayerHost);
+              return;
+            }
+            // Single-player: check rage-quit, ads, etc.
             const isDuringQuestion = gamePhase === 'question' || gamePhase === 'answers';
-            const isDuringTimer = isMultiplayerMode 
-              ? (multiplayerState?.turnStartTime != null)
-              : (teamGameState?.isTurnActive && teamGameState?.timeRemaining > 0);
-            
+            const isDuringTimer = teamGameState?.isTurnActive && teamGameState?.timeRemaining > 0;
             if (isDuringQuestion || isDuringTimer) {
               setIsRageQuit(true);
             }
-
-            // Trigger exit ad if not rage-quit and 90s passed
             if (!isRageQuit && !isPremium && isAdReady) {
               const now = Date.now();
               if (lastInterstitialShownAt == null || (now - lastInterstitialShownAt >= 90 * 1000)) {
                 setTriggerGameExitAd(true);
-                // Wait for ad to close before navigating
                 showInterstitialAd({
                   onAdClosed: () => {
-                    if (isMultiplayerMode) {
-                      leaveRoom();
-                      forceDisconnect();
-                      navigation.navigate('Home');
-                    } else {
-                      resetGame();
-                      navigation.dispatch(
-                        CommonActions.reset({
-                          index: 1,
-                          routes: [
-                            { name: 'Home' },
-                            { name: 'Categories', params: { gameMode: 'single' } }
-                          ]
-                        })
-                      );
-                    }
-                  },
-                }).catch(() => {
-                  // If ad fails, proceed with exit
-                  if (isMultiplayerMode) {
-                    leaveRoom();
-                    forceDisconnect();
-                    navigation.navigate('Home');
-                  } else {
                     resetGame();
                     navigation.dispatch(
                       CommonActions.reset({
@@ -1011,53 +957,59 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
                         ]
                       })
                     );
-                  }
+                  },
+                }).catch(() => {
+                  resetGame();
+                  navigation.dispatch(
+                    CommonActions.reset({
+                      index: 1,
+                      routes: [
+                        { name: 'Home' },
+                        { name: 'Categories', params: { gameMode: 'single' } }
+                      ]
+                    })
+                  );
                 });
                 return;
               }
             }
-
-            // No ad or rage-quit: proceed with exit
-            if (isMultiplayerMode) {
-              leaveRoom();
-              forceDisconnect();
-              navigation.navigate('Home');
-            } else {
-              resetGame();
-              navigation.dispatch(
-                CommonActions.reset({
-                  index: 1,
-                  routes: [
-                    { name: 'Home' },
-                    { name: 'Categories', params: { gameMode: 'single' } }
-                  ]
-                })
-              );
-            }
+            resetGame();
+            navigation.dispatch(
+              CommonActions.reset({
+                index: 1,
+                routes: [
+                  { name: 'Home' },
+                  { name: 'Categories', params: { gameMode: 'single' } }
+                ]
+              })
+            );
           }
         }
       ]
     );
   };
-  
-  
-  
-  
 
-  
+  // Handle back button in multiplayer mode (native only - BackHandler not supported on web)
+  useEffect(() => {
+    if (isMultiplayerMode && Platform.OS !== 'web' && typeof BackHandler?.addEventListener === 'function') {
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+        handleExitGame();
+        return true; // Prevent default back behavior
+      });
+
+      return () => backHandler.remove();
+    }
+  }, [isMultiplayerMode, handleExitGame]);
 
 const handleEndGame = () => {
   if (Platform.OS === 'web') {
-    // Web version
     const message = isMultiplayerMode 
       ? tGame('exit.exitMultiplayerMessage')
       : tGame('exit.endGameMessage');
     const confirmed = window.confirm(message);
     if (confirmed) {
       if (isMultiplayerMode) {
-        leaveRoom();
-        forceDisconnect();
-        navigation.navigate('Home');
+        proceedWithMultiplayerExit(isMultiplayerHost);
       } else {
         endGame();
         // For single player, navigate away without showing results modal
@@ -1092,9 +1044,7 @@ const handleEndGame = () => {
             text: buttonText, 
             style: 'destructive', 
             onPress: () => {
-              leaveRoom();
-              forceDisconnect();
-              navigation.navigate('Home');
+              proceedWithMultiplayerExit(isMultiplayerHost);
             }
           }
         ]
@@ -1152,11 +1102,28 @@ const handleEndGame = () => {
       navigation.navigate('Home');
     };
 
-  const handleQuitMultiplayerGame = () => {
+  const handleQuitMultiplayerGame = async () => {
     logger.log('🚪 Quitting multiplayer game...');
-    setShowMultiplayerLeaderboard(false);
-    forceDisconnect();
-    navigation.navigate('MultiplayerMenu');
+    if (isMultiplayerHost) {
+      // Host: terminate game, show leaderboard, then leave on Continue
+      hostExitLeaderboardDataRef.current = getMultiplayerLeaderboardData();
+      try {
+        await leaveRoom();
+      } catch (e) {
+        logger.warn('leaveRoom failed on host quit', e);
+      }
+      setShowGameEndRanking(true);
+    } else {
+      // Player: just leave, game continues for others
+      setShowMultiplayerLeaderboard(false);
+      try {
+        await leaveRoom();
+      } catch (e) {
+        logger.warn('leaveRoom failed on player quit', e);
+      }
+      forceDisconnect();
+      navigation.navigate('MultiplayerMenu');
+    }
   };
 
   const handleMultiplayerLeaderboardComplete = () => {
@@ -1180,6 +1147,21 @@ const handleEndGame = () => {
     return list
       .sort((a, b) => b.score - a.score)
       .map((item, index) => ({ ...item, rank: index + 1 }));
+  };
+
+  /** Single-player game end: build leaderboard in same format as multiplayer for consistent UI */
+  const getSinglePlayerLeaderboardData = (): Array<{ playerId: string; playerName: string; score: number; rank: number; selectedAvatar?: string }> => {
+    const results = getGameResults();
+    if (!results || !user?.id) return [];
+    const score = results.finalScores[results.winner] ?? Object.values(results.finalScores)[0] ?? 0;
+    const playerName = user.displayName || user.email?.split('@')[0] || 'You';
+    return [{
+      playerId: user.id,
+      playerName,
+      score,
+      rank: 1,
+      selectedAvatar: user.selectedAvatar,
+    }];
   };
 
   // Memoized leaderboard for in-game MultiplayerLeaderboard (avoids re-creating array every render)
@@ -1215,7 +1197,6 @@ const handleEndGame = () => {
 
   const handleBackButton = () => {
     if (!isMultiplayerMode) {
-      // Single player mode - show warning
       ThemedAlert.warning(
         tGame('exit.title'),
         tGame('exit.exitSingleMessage'),
@@ -1232,9 +1213,8 @@ const handleEndGame = () => {
         ]
       );
     } else {
-      // Multiplayer mode - handle differently if needed
-      logger.log('🎮 Back button pressed in multiplayer mode');
-      navigation.goBack();
+      // Multiplayer: same exit flow as Exit button (host shows leaderboard, player leaves to MultiplayerMenu)
+      handleExitGame();
     }
   };
 
@@ -1318,8 +1298,6 @@ const handleEndGame = () => {
       );
       
       if (!rateLimitResult.allowed) {
-        logger.log('❌ Rate limit exceeded:', rateLimitResult.error);
-        ThemedAlert.warning('Rate Limit Exceeded', rateLimitResult.error || 'Too many answer submissions. Please wait before trying again.');
         return;
       }
     }
@@ -1332,8 +1310,6 @@ const handleEndGame = () => {
 
     const answerValidation = InputValidator.validateGameAnswer(answerToSubmit);
     if (!answerValidation.valid) {
-      logger.log('❌ Invalid answer:', answerValidation.errors);
-      ThemedAlert.error('Invalid Answer', answerValidation.errors.join('\n'));
       return;
     }
     
@@ -1347,8 +1323,6 @@ const handleEndGame = () => {
       );
       
       if (!moderationResult.approved) {
-        logger.log('❌ Answer not approved by moderation:', moderationResult.errors);
-        ThemedAlert.warning('Content Not Approved', moderationResult.errors.join('\n'));
         return;
       }
     }
@@ -1371,42 +1345,15 @@ const handleEndGame = () => {
 
     try {
       if (isMultiplayerMode) {
-        // Check if player has already submitted this turn
         if (hasSubmittedThisTurn) {
-          logger.log('❌ Already submitted this turn');
-          ThemedAlert.warning(tGame('multiplayer.alreadySubmittedTitle'), tGame('multiplayer.alreadySubmittedMessage'));
           return;
         }
         
-        // Check if it's the current player's turn using V2 validation
         if (multiplayerState) {
           const validation = multiplayerService.isAllowedToSubmitV2(user?.id || '', multiplayerState);
           if (!validation.allowed) {
-            logger.log('❌ Cannot submit:', validation.reason || 'Wait for your turn to submit answers.');
-            ThemedAlert.warning(tGame('multiplayer.notYourTurnTitle'), validation.reason || tGame('multiplayer.notYourTurnMessage'));
+            showToast('warning', tGame('multiplayer.cannotSubmit', { defaultValue: "Can't submit" }), validation.reason);
             return;
-          }
-        }
-        
-        // Check if the answer has already been revealed
-        if (multiplayerState && multiplayerState.revealedAnswers) {
-          const currentQuestion = multiplayerState.questions?.[multiplayerState.currentQuestionIndex];
-          if (currentQuestion && currentQuestion.answers) {
-            // Find if the user's answer matches any of the correct answers
-            const match = findMatchingAnswer(sanitizedAnswer, currentQuestion.answers);
-            if (match) {
-              const { index } = match;
-              // Check if this answer position is already revealed
-              if (multiplayerState.revealedAnswers[index] !== null) {
-                logger.log('❌ Answer already revealed:', {
-                  userAnswer: sanitizedAnswer,
-                  matchedAnswer: currentQuestion.answers[index]?.text,
-                  revealedAnswer: multiplayerState.revealedAnswers[index]
-                });
-                ThemedAlert.warning('Answer Already Revealed', 'This answer has already been revealed by another player. Please try a different answer.');
-                return;
-              }
-            }
           }
         }
         
@@ -1444,24 +1391,10 @@ const handleEndGame = () => {
             setLastAnswerResult('correct');
             setPointsEarned(result.points);
             playSuccess(); // Play success sound for correct answer
-            logger.log(`✅ Correct answer! Earned ${result.points} points`);
-            // Show success message with points
-            ThemedAlert.success(
-              'Correct Answer!',
-              `You earned ${result.points} points!`,
-              [{ text: 'Great!', style: 'default' }]
-            );
           } else {
             setLastAnswerResult('incorrect');
             setPointsEarned(0);
             playError(); // Play error sound for wrong answer
-            logger.log(`❌ Wrong answer - no points earned`);
-            // Show error message
-            ThemedAlert.error(
-              'Wrong Answer',
-              'That answer is not correct. Try again!',
-              [{ text: 'OK', style: 'default' }]
-            );
           }
           
           // If round ended, show message
@@ -1505,7 +1438,8 @@ const handleEndGame = () => {
         }).start();
       }, 100); // Small delay to ensure state is updated
       
-      // Reset feedback after delay
+      // Reset feedback after delay - green/red answer shown for 4s then fades
+      const FEEDBACK_DURATION_MS = 4000;
       setTimeout(() => {
         setIsAnswerSubmitted(false);
         setLastAnswerResult(null);
@@ -1514,7 +1448,7 @@ const handleEndGame = () => {
           duration: ANIMATIONS.duration.normal,
           useNativeDriver: false,
         }).start();
-      }, 2000);
+      }, FEEDBACK_DURATION_MS);
     } catch (error) {
       logger.error('❌ Error submitting answer:', error);
     }
@@ -1608,38 +1542,35 @@ const handleEndGame = () => {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-      {/* Header */}
-      <View style={gameScreenHeaderStyle}>
-        {isMultiplayerMode ? (
-          <TouchableOpacity onPress={handleBackButton} style={styles.backButton}>
-            <Text style={styles.backButtonArrow}>{isRTL ? '→' : '←'}</Text>
-          </TouchableOpacity>
-        ) : (
+      {/* Header - hidden in multiplayer (back button scrolls with content) */}
+      {!isMultiplayerMode && (
+        <View style={gameScreenHeaderStyle}>
           <View style={styles.headerLeft} />
-        )}
-
-        <View style={styles.headerCenter}>
-          {isMultiplayerMode && (
-            <Text style={styles.multiplayerIndicator}>
-              {tGame('multiplayer.indicator')}
-            </Text>
-          )}
+          <View style={styles.headerCenter} />
+          <View style={styles.headerRight} />
         </View>
-        <View style={styles.headerRight}>
-          {isMultiplayerMode && (
-            <TouchableOpacity onPress={handleExitGame} style={styles.exitButton}>
-              <Text style={styles.exitButtonText}>{tGame('actions.exit')}</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
+      )}
 
+      {/* Main content: ScrollView fills space, answer section pinned to bottom */}
+      <View style={styles.mainGameLayout}>
       <ScrollView 
         style={styles.content}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: SPACING.lg + answerSectionHeight }
+        ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        {/* Back button - scrolls with content in multiplayer */}
+        {isMultiplayerMode && (
+          <View style={styles.scrollBackButtonRow}>
+            <TouchableOpacity onPress={handleBackButton} style={styles.backButton}>
+              <Text style={styles.backButtonArrow}>{isRTL ? '→' : '←'}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Multiplayer Leaderboard */}
         {isMultiplayerMode && multiplayerState && (
           <>
@@ -1950,6 +1881,7 @@ const handleEndGame = () => {
             onHide={() => {
               gameEndCoinsDisplayRef.current = null;
               hasGrantedGameCompletionCoinsRef.current = false;
+              hostExitLeaderboardDataRef.current = null;
               setShowGameEndRanking(false);
               const navigateAwayMultiplayer = () => {
                 forceDisconnect();
@@ -2006,7 +1938,13 @@ const handleEndGame = () => {
             rewardsDoubled={rewardsDoubled}
             teams={!isMultiplayerMode && isTeamMode ? teamGameState?.teams : undefined}
             answerAssignments={!isMultiplayerMode && isTeamMode ? teamGameState?.answerAssignments : undefined}
-            multiplayerPlayers={isMultiplayerMode ? getMultiplayerLeaderboardData() : undefined}
+            multiplayerPlayers={
+              isMultiplayerMode
+                ? (hostExitLeaderboardDataRef.current ?? getMultiplayerLeaderboardData())
+                : !isTeamMode
+                  ? getSinglePlayerLeaderboardData()
+                  : undefined
+            }
             onWatchAdToDouble={async () => {
               const amountToDouble = gameEndCoinsDisplayRef.current ?? lastGameCoinsEarned;
               if (rewardsDoubled || amountToDouble <= 0 || isPremium) return;
@@ -2098,7 +2036,10 @@ const handleEndGame = () => {
           
           return shouldShowAnswer;
         })() && (
-          <View style={styles.modernAnswerSection}>
+          <View 
+            style={[styles.modernAnswerSection, { paddingBottom: Math.max(20, insets.bottom + 10) }]}
+            onLayout={(e) => setAnswerSectionHeight(e.nativeEvent.layout.height)}
+          >
             <Animated.View style={[
                styles.answerInputContainer,
               {
@@ -2113,7 +2054,7 @@ const handleEndGame = () => {
                    outputRange: [20, 8, 20]
                  }),
                 borderColor: lastAnswerResult === 'correct' ? COLORS.success : 
-                             lastAnswerResult === 'incorrect' ? COLORS.error : COLORS.textMuted
+                             lastAnswerResult === 'incorrect' ? COLORS.error : 'rgba(139, 92, 246, 0.3)'
                }
              ]}>
               <TextInput 
@@ -2127,55 +2068,58 @@ const handleEndGame = () => {
                />
              </Animated.View>
              
-             {/* Modern Submit Button */}
-             <Animated.View style={[
-               styles.modernSubmitContainer,
-               { transform: [{ scale: submitButtonScale }] }
-             ]}>
-               <TouchableOpacity
-                 style={[
-                   styles.modernSubmitButton,
-                   // Only apply grey styling when it's not your turn
-                   (isMultiplayerMode && multiplayerState?.currentPlayerId !== user?.id) && styles.modernSubmitButtonNotMyTurn,
-                   // Apply disabled styling when there's no answer AND it's your turn
-                   (!(isMultiplayerMode ? (multiplayerCurrentAnswer || '') : currentAnswer).trim() && 
-                    !(isMultiplayerMode && multiplayerState?.currentPlayerId !== user?.id)) && styles.modernSubmitButtonDisabled,
-                   // Apply submitted styling when player has already submitted this turn
-                   (isMultiplayerMode && hasSubmittedThisTurn) && styles.modernSubmitButtonSubmitted
-                 ]}
-                 onPress={handleSubmitAnswer}
-                 disabled={
-                   !(isMultiplayerMode ? (multiplayerCurrentAnswer || '') : currentAnswer).trim() ||
-                   (isMultiplayerMode && hasSubmittedThisTurn)
-                 }
-               >
-                 <Text style={[
-                   styles.modernSubmitButtonText,
-                   (isMultiplayerMode && multiplayerState?.currentPlayerId !== user?.id) && styles.modernSubmitButtonTextNotMyTurn,
-                   (isMultiplayerMode && hasSubmittedThisTurn) && styles.modernSubmitButtonTextSubmitted
-                 ]}>
-                   {isMultiplayerMode && hasSubmittedThisTurn ? tGame('actions.submitted') : tGame('actions.submitAnswer')}
-              </Text>
-               </TouchableOpacity>
-             </Animated.View>
-             
-             {/* Skip Turn Button - Modern Design */}
-             {isMultiplayerMode && (
-               <TouchableOpacity
-                 style={[
-                   styles.modernSkipButton,
-                   (multiplayerState?.currentPlayerId !== user?.id) && styles.modernSkipButtonNotMyTurn
-                 ]}
-                 onPress={handleSkipTurn}
-               >
-                 <Text style={[
-                   styles.modernSkipButtonText,
-                   (multiplayerState?.currentPlayerId !== user?.id) && styles.modernSkipButtonTextNotMyTurn
-                 ]}>
-                   {tGame('actions.skipTurn')}
-                 </Text>
-               </TouchableOpacity>
-             )}
+             {/* Submit and Skip Turn buttons side by side - equal size and look */}
+             <View style={styles.submitSkipRow}>
+               <Animated.View style={[
+                 styles.submitSkipButtonWrapper,
+                 { transform: [{ scale: submitButtonScale }] }
+               ]}>
+                 <TouchableOpacity
+                   style={[
+                     styles.modernSubmitButton,
+                     // Grey when not your turn
+                     (isMultiplayerMode && multiplayerState?.currentPlayerId !== user?.id) && styles.modernSubmitButtonNotMyTurn,
+                     // Disabled styling when no answer AND it's your turn
+                     (!(isMultiplayerMode ? (multiplayerCurrentAnswer || '') : currentAnswer).trim() && 
+                      !(isMultiplayerMode && multiplayerState?.currentPlayerId !== user?.id)) && styles.modernSubmitButtonDisabled,
+                     // Green "Submitted" only when it's YOUR turn AND you just submitted this turn
+                     (isMultiplayerMode && hasSubmittedThisTurn && multiplayerState?.currentPlayerId === user?.id) && styles.modernSubmitButtonSubmitted
+                   ]}
+                   onPress={handleSubmitAnswer}
+                   disabled={
+                     !(isMultiplayerMode ? (multiplayerCurrentAnswer || '') : currentAnswer).trim() ||
+                     (isMultiplayerMode && multiplayerState?.currentPlayerId !== user?.id) ||
+                     (isMultiplayerMode && hasSubmittedThisTurn && multiplayerState?.currentPlayerId === user?.id)
+                   }
+                 >
+                   <Text style={[
+                     styles.modernSubmitButtonText,
+                     (isMultiplayerMode && multiplayerState?.currentPlayerId !== user?.id) && styles.modernSubmitButtonTextNotMyTurn,
+                     (isMultiplayerMode && hasSubmittedThisTurn && multiplayerState?.currentPlayerId === user?.id) && styles.modernSubmitButtonTextSubmitted
+                   ]} numberOfLines={1}>
+                     {(isMultiplayerMode && hasSubmittedThisTurn && multiplayerState?.currentPlayerId === user?.id) ? tGame('actions.submitted') : tGame('actions.submitAnswer')}
+                   </Text>
+                 </TouchableOpacity>
+               </Animated.View>
+               {isMultiplayerMode && (
+                 <View style={styles.submitSkipButtonWrapper}>
+                   <TouchableOpacity
+                     style={[
+                       styles.modernSubmitButton,
+                       (multiplayerState?.currentPlayerId !== user?.id) && styles.modernSubmitButtonNotMyTurn
+                     ]}
+                     onPress={handleSkipTurn}
+                   >
+                   <Text style={[
+                     styles.modernSubmitButtonText,
+                     (multiplayerState?.currentPlayerId !== user?.id) && styles.modernSubmitButtonTextNotMyTurn
+                   ]} numberOfLines={1}>
+                     {tGame('actions.skipTurn')}
+                   </Text>
+                 </TouchableOpacity>
+               </View>
+               )}
+             </View>
              
              {/* Answer Feedback Indicator */}
              {lastAnswerResult && (
@@ -2205,6 +2149,7 @@ const handleEndGame = () => {
           </View>
         )}
 
+      </View>
       </KeyboardAvoidingView>
 
         {/* Toast Notification */}
@@ -2267,6 +2212,10 @@ const styles = StyleSheet.create({
   keyboardAvoidingWrapper: {
     flex: 1,
   },
+  mainGameLayout: {
+    flex: 1,
+    flexDirection: 'column',
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -2292,6 +2241,11 @@ const styles = StyleSheet.create({
      paddingVertical: SPACING.sm,
      backgroundColor: COLORS.backgroundSecondary,
    },
+   scrollBackButtonRow: {
+     flexDirection: 'row',
+     marginBottom: SPACING.sm,
+     alignSelf: 'flex-start',
+   },
    backButton: {
      width: 40,
      height: 40,
@@ -2307,19 +2261,6 @@ const styles = StyleSheet.create({
      textShadowRadius: 8,
      includeFontPadding: false,
    },
-  exitButton: {
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    borderRadius: 12,
-    backgroundColor: 'transparent',
-    borderWidth: 2,
-    borderColor: COLORS.error
-  },
-  exitButtonText: {
-    color: COLORS.error,
-    fontSize: 16,
-    fontWeight: '600'
-  },
   headerLeft: {
     width: 80, // Same width as back button to maintain layout balance
   },
@@ -2429,18 +2370,18 @@ const styles = StyleSheet.create({
     textAlign: 'center'
   },
      answerInputContainer: {
-     marginBottom: SPACING.sm,
-     borderRadius: 12,
-     borderWidth: 2,
-     shadowOffset: { width: 0, height: 0 },
-     elevation: 8,
+     marginBottom: 0,
+     marginTop: 4,
+     borderRadius: 8,
+     borderWidth: 1,
+     borderColor: 'rgba(139, 92, 246, 0.3)',
    },
    answerInput: {
      backgroundColor: '#1E293B',
-     borderRadius: 12,
+     borderRadius: 8,
      borderWidth: 0,
      paddingHorizontal: SPACING.md,
-     paddingVertical: SPACING.sm,
+     paddingVertical: 10,
      color: '#F1F5F9',
      fontSize: 16,
      fontFamily: TYPOGRAPHY.fontFamily.primary,
@@ -2771,11 +2712,11 @@ const styles = StyleSheet.create({
      zIndex: 999,
    },
    feedbackIndicator: {
-     marginTop: SPACING.md,
-     paddingVertical: SPACING.sm,
-     paddingHorizontal: SPACING.md,
-     borderRadius: 12,
-     borderWidth: 2,
+     marginTop: SPACING.sm,
+     paddingVertical: 6,
+     paddingHorizontal: SPACING.sm,
+     borderRadius: 8,
+     borderWidth: 1,
      alignItems: 'center',
      justifyContent: 'center',
      shadowOffset: { width: 0, height: 4 },
@@ -3372,20 +3313,24 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 
-  // Modern Answer Input Styles
+  // Modern Answer Input Styles - compact, minimal screen space
   modernAnswerSection: {
-    backgroundColor: 'rgba(139, 92, 246, 0.1)',
-    marginHorizontal: 16,
-    marginVertical: 12,
+    backgroundColor: '#1E1B4B',
     borderRadius: 12,
-    padding: 16,
-    shadowColor: '#8B5CF6',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 4,
+    paddingTop: 4,
+    paddingHorizontal: 12,
+    paddingBottom: 18,
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 8,
+    overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(139, 92, 246, 0.3)',
+    shadowColor: '#8B5CF6',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
   },
   answerSectionTitle: {
     fontSize: 18,
@@ -3395,29 +3340,35 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  // Modern Submit Button Styles
-  modernSubmitContainer: {
-    marginTop: 16,
+  // Submit + Skip Turn row (side by side, identical size)
+  submitSkipRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 6,
+    marginTop: 6,
   },
+  submitSkipButtonWrapper: {
+    flex: 1,
+    flexBasis: 0,
+    minWidth: 0,
+  },
+  // Modern Submit Button Styles (shared by both for identical dimensions)
   modernSubmitButton: {
-    backgroundColor: '#6D28D9', // Darker purple
-    borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 24,
+    flex: 1,
+    flexBasis: 0,
+    minHeight: 46,
+    backgroundColor: '#6D28D9',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
     alignItems: 'center',
-    shadowColor: '#6D28D9', // Darker purple shadow
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    justifyContent: 'center',
   },
   modernSubmitButtonDisabled: {
-    backgroundColor: '#94A3B8',
-    shadowOpacity: 0.1,
+    backgroundColor: '#475569',
   },
   modernSubmitButtonNotMyTurn: {
-    backgroundColor: '#6B7280', // Grey when not my turn
-    shadowOpacity: 0.1,
+    backgroundColor: '#475569',
   },
   modernSubmitButtonText: {
     fontSize: 16,
@@ -3428,8 +3379,7 @@ const styles = StyleSheet.create({
     color: '#9CA3AF', // Grey text when not my turn
   },
   modernSubmitButtonSubmitted: {
-    backgroundColor: '#10B981', // Green when submitted
-    shadowOpacity: 0.2,
+    backgroundColor: '#059669',
   },
   modernSubmitButtonTextSubmitted: {
     color: '#FFFFFF', // White text when submitted
@@ -3442,7 +3392,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 20,
     alignItems: 'center',
-    marginTop: 8,
     shadowColor: '#6D28D9', // Darker purple shadow
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,

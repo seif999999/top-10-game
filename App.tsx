@@ -1,8 +1,12 @@
 import React, { useRef, useEffect } from 'react';
+import { LogBox } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { NavigationContainer, DarkTheme, useNavigationContainerRef } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+
+// Suppress in-app error/warning overlays on device; logs still appear in Metro terminal only
+LogBox.ignoreAllLogs(true);
 
 // CRITICAL: Must run at app startup so OAuth redirect from auth.expo.io is handled
 WebBrowser.maybeCompleteAuthSession();
@@ -18,6 +22,7 @@ import { ThemedAlertModal } from './src/frontend/components/CrossPlatformAlert';
 import { setupDeepLinking } from './src/frontend/utils/deepLinking';
 import type { RootStackParamList } from './src/shared/types/navigation';
 import { View, Text, StyleSheet } from 'react-native';
+import { IconPreloader } from './src/frontend/components/IconPreloader';
 
 // Initialize i18next — must be imported before any component that uses translations
 import i18n from './src/config/i18n';
@@ -98,6 +103,7 @@ export default function App() {
                     }}
                   >
                     <GlobalUIProvider>
+                      <IconPreloader />
                       <StatusBar style="light" />
                       <AppNavigator />
                     </GlobalUIProvider>
