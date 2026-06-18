@@ -79,13 +79,12 @@ export class AuthRateLimit {
       
       return null;
     } catch (error: any) {
-      // Handle offline mode gracefully - don't block users when offline
       if (error?.code === 'unavailable' || error?.message?.includes('offline')) {
         logger.log('⚠️ Firestore offline, rate limit check skipped (allowing access)');
-        return null; // Fail open when offline
+        return null;
       }
       logger.error('Error getting auth rate limit entry:', error);
-      return null;
+      throw error;
     }
   }
   
@@ -154,10 +153,12 @@ export class AuthRateLimit {
       }
       
       return false;
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.code === 'unavailable' || error?.message?.includes('offline')) {
+        return false;
+      }
       logger.error('Error checking auth rate limit:', error);
-      // On error, don't block (fail open for availability)
-      return false;
+      return true;
     }
   }
   
@@ -166,7 +167,16 @@ export class AuthRateLimit {
    */
   async recordAttempt(identifier: string): Promise<void> {
     try {
-      const record = await AuthRateLimit.getRateLimitEntry(identifier);
+      let record: AuthRateLimitEntry | null = null;
+      try {
+        record = await AuthRateLimit.getRateLimitEntry(identifier);
+      } catch (readError: any) {
+        if (readError?.code === 'unavailable' || readError?.message?.includes('offline')) {
+          return;
+        }
+        logger.error('Error reading auth rate limit entry before recordAttempt:', readError);
+        return;
+      }
       const now = Date.now();
       
       let newCount: number;
@@ -247,7 +257,12 @@ export class AuthRateLimit {
    */
   async getRemainingTime(identifier: string): Promise<number> {
     try {
-      const record = await AuthRateLimit.getRateLimitEntry(identifier);
+      let record: AuthRateLimitEntry | null;
+      try {
+        record = await AuthRateLimit.getRateLimitEntry(identifier);
+      } catch {
+        return 0;
+      }
       if (!record || !record.blockedUntil) return 0;
       
       const now = Date.now();
@@ -269,7 +284,12 @@ export class AuthRateLimit {
    */
   async getRemainingAttempts(identifier: string): Promise<number> {
     try {
-      const record = await AuthRateLimit.getRateLimitEntry(identifier);
+      let record: AuthRateLimitEntry | null;
+      try {
+        record = await AuthRateLimit.getRateLimitEntry(identifier);
+      } catch {
+        return SECURITY_CONFIG.maxLoginAttempts;
+      }
       if (!record) return SECURITY_CONFIG.maxLoginAttempts;
       
       return Math.max(0, SECURITY_CONFIG.maxLoginAttempts - record.count);

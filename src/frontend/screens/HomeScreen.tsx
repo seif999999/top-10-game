@@ -150,14 +150,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       navigateToCustomSlots();
       return;
     }
-    loadInterstitialAd().catch(() => {});
-    const showAdThenNavigate = () => {
-      showInterstitialAd({ onAdClosed: navigateToCustomSlots }).catch(() => navigateToCustomSlots());
-    };
+    // Preload for next time; do not block navigation if the ad is not ready yet.
+    void loadInterstitialAd().catch(() => {});
     if (interstitialLoadState === 'loaded') {
-      showAdThenNavigate();
+      showInterstitialAd({ onAdClosed: navigateToCustomSlots }).catch(() => navigateToCustomSlots());
     } else {
-      setTimeout(showAdThenNavigate, 2500);
+      navigateToCustomSlots();
     }
   }, [playButtonClick, navigation, isPremium, loadInterstitialAd, showInterstitialAd, interstitialLoadState]);
 

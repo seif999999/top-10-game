@@ -1,133 +1,227 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // User profiles - users can only access their own data
     match /userProfiles/{userId} {
       allow read: if request.auth != null && request.auth.uid == userId;
-      // Allow reading public profile data for other users (for leaderboards, etc.)
       allow read: if request.auth != null && resource.data.isPublic == true;
-      
-      // ✅ SECURITY: Write with field validation to prevent data corruption and field injection
-      allow write: if request.auth != null && 
-                      request.auth.uid == userId &&
-                      // Validate coins is number and non-negative (if present)
-                      (!request.resource.data.keys().hasAny(['coins']) ||
-                       (request.resource.data.coins is int &&
-                        request.resource.data.coins >= 0 &&
-                        request.resource.data.coins <= 999999)) &&
-                      // Validate currentStreak is number (if present)
-                      (!request.resource.data.keys().hasAny(['currentStreak']) ||
-                       (request.resource.data.currentStreak is int &&
-                        request.resource.data.currentStreak >= 0)) &&
-                      // Validate currentWeek is number (if present)
-                      (!request.resource.data.keys().hasAny(['currentWeek']) ||
-                       (request.resource.data.currentWeek is int &&
-                        request.resource.data.currentWeek >= 1)) &&
-                      // Prevent field injection - only allow known fields
-                      request.resource.data.keys().hasOnly([
-                        'email', 'displayName', 'createdAt', 'stats', 
-                        'selectedAvatar', 'avatarUrl', 'coins', 'lastUpdated', 'isPublic',
-                        'lastLoginDate', 'currentStreak', 'currentWeek',
-                        'unlockedCustomSlots',
-                        'premiumType', 'premiumExpiresAt', 'premiumPurchasedAt',
-                        'adFree', 'dailyRewardMultiplier', 'hasVIPBadge'
-                      ]);
+
+      function userProfileEconomyKeys() {
+        return [
+          'coins', 'premiumType', 'premiumExpiresAt', 'premiumPurchasedAt',
+          'adFree', 'dailyRewardMultiplier', 'hasVIPBadge'
+        ];
+      }
+
+      function userProfileAllowedKeysOnCreate() {
+        return [
+          'email', 'displayName', 'createdAt', 'stats', 'selectedAvatar', 'avatarUrl',
+          'lastUpdated', 'isPublic', 'lastLoginDate', 'currentStreak', 'currentWeek',
+          'unlockedCustomSlots', 'soundEnabled', 'musicEnabled', 'language'
+        ];
+      }
+
+      function userProfileMutableKeysOnUpdate() {
+        return [
+          'email', 'displayName', 'stats', 'selectedAvatar', 'avatarUrl',
+          'lastUpdated', 'isPublic', 'lastLoginDate', 'currentStreak', 'currentWeek',
+          'unlockedCustomSlots', 'soundEnabled', 'musicEnabled', 'language',
+          'coins', 'premiumType', 'premiumExpiresAt', 'premiumPurchasedAt',
+          'adFree', 'dailyRewardMultiplier', 'hasVIPBadge'
+        ];
+      }
+
+      function prevCoins() {
+        return resource.data.keys().hasAll(['coins']) ? resource.data.coins : 0;
+      }
+
+      function userProfileEconomyGuards() {
+        let changed = request.resource.data.diff(resource.data).changedKeys();
+        return !changed.hasAny(userProfileEconomyKeys()) || (
+          (!changed.hasAny(['coins']) || (
+            (request.resource.data.coins is int || request.resource.data.coins is float) &&
+            request.resource.data.coins >= 0 &&
+            request.resource.data.coins <= prevCoins() + 1000000 &&
+            request.resource.data.coins >= prevCoins() - 1000000
+          )) &&
+          (!changed.hasAny(['premiumType']) || (
+            request.resource.data.premiumType == null ||
+            request.resource.data.premiumType in ['monthly', 'quarterly', 'yearly']
+          )) &&
+          (!changed.hasAny(['dailyRewardMultiplier']) || (
+            request.resource.data.dailyRewardMultiplier == null ||
+            request.resource.data.dailyRewardMultiplier == 1 ||
+            request.resource.data.dailyRewardMultiplier == 2
+          )) &&
+          (!changed.hasAny(['adFree']) || request.resource.data.adFree is bool) &&
+          (!changed.hasAny(['hasVIPBadge']) || request.resource.data.hasVIPBadge is bool)
+        );
+      }
+
+      function userProfileCreateValid() {
+        return request.auth != null &&
+               request.auth.uid == userId &&
+               (
+                 (
+                   !request.resource.data.keys().hasAny(userProfileEconomyKeys()) &&
+                   request.resource.data.keys().hasOnly(userProfileAllowedKeysOnCreate())
+                 ) ||
+                 (
+                   request.resource.data.keys().hasOnly(['coins', 'lastUpdated']) &&
+                   request.resource.data.coins >= 0 &&
+                   request.resource.data.coins <= 1000000
+                 )
+               );
+      }
+
+      function userProfileUpdateValid() {
+        let changed = request.resource.data.diff(resource.data).changedKeys();
+        return request.auth != null &&
+               request.auth.uid == userId &&
+               changed.hasOnly(userProfileMutableKeysOnUpdate()) &&
+               userProfileEconomyGuards();
+      }
+
+      allow create: if userProfileCreateValid();
+      allow update: if userProfileUpdateValid();
+      allow delete: if false;
     }
-    
-    // User mission progress (subcollection under userProfiles)
-    // Explicit rule for the single document used by missionService
+
     match /userProfiles/{userId}/missions/progress {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
-    
-    // Coin transaction history (subcollection under userProfiles)
+
     match /userProfiles/{userId}/coinTransactions/{txId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId &&
+        request.resource.data.keys().hasOnly(['amount', 'type', 'reason', 'timestamp']) &&
+        request.resource.data.type in ['earned', 'spent'] &&
+        (request.resource.data.amount is int || request.resource.data.amount is float) &&
+        request.resource.data.amount >= -500000 &&
+        request.resource.data.amount <= 500000;
+      allow update: if false;
+      allow delete: if request.auth != null && request.auth.uid == userId;
     }
-    
-    // Multiplayer games - authenticated users only with proper validation
+
     match /multiplayerGames/{roomCode} {
-      // Allow read if:
-      // 1. Room doesn't exist (for checking availability), OR
-      // 2. User is already a participant in the room, OR
-      // 3. Room is in 'lobby' status (open for joining)
-      allow read: if request.auth != null && 
+      allow read: if request.auth != null &&
                      (resource == null ||
-                      request.auth.uid in resource.data.players || 
+                      request.auth.uid in resource.data.players ||
                       resource.data.hostId == request.auth.uid ||
                       resource.data.status == 'lobby');
       allow create: if request.auth != null && validateRoomCreation();
       allow update: if request.auth != null && validateRoomUpdate();
       allow delete: if request.auth != null && resource.data.hostId == request.auth.uid;
     }
-    
-    // Action logs - rate limit service writes audit logs (userId must match auth)
+
     match /actionLogs/{logId} {
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
       allow read, update, delete: if false;
     }
-    
-    // Rate limits - allow writes for authentication rate limiting (before user is authenticated)
-    // and for authenticated users to track their own rate limits only
+
     match /rateLimits/{documentId} {
-      // Allow read for authenticated users or for password reset / auth rate limit checks (unauthenticated)
-      allow read: if request.auth != null || 
-                     documentId.matches('.*_password_reset') ||
+      function rateLimitAuthFieldsValid() {
+        return request.resource.data.keys().hasAll(['identifier', 'count', 'lastAttempt', 'type']) &&
+          request.resource.data.keys().hasOnly(['identifier', 'count', 'lastAttempt', 'type', 'blockedUntil']) &&
+          request.resource.data.type == 'authentication' &&
+          request.resource.data.identifier is string &&
+          request.resource.data.count is int &&
+          request.resource.data.count >= 0 &&
+          request.resource.data.count <= 10000;
+      }
+
+      function rateLimitPasswordResetFieldsValid() {
+        return request.resource.data.keys().hasAll(['userId', 'actionType', 'attempts', 'firstAttempt', 'lastAttempt']) &&
+          request.resource.data.keys().hasOnly(
+            ['userId', 'actionType', 'attempts', 'firstAttempt', 'lastAttempt', 'blockedUntil', 'metadata']) &&
+          request.resource.data.actionType == 'passwordReset' &&
+          request.resource.data.userId is string &&
+          documentId == request.resource.data.userId + '_passwordReset' &&
+          request.resource.data.attempts is int &&
+          request.resource.data.attempts >= 0 &&
+          request.resource.data.attempts <= 100000;
+      }
+
+      function rateLimitAuthenticatedActionWrite() {
+        return request.auth != null &&
+          request.resource.data.userId == request.auth.uid &&
+          documentId == request.resource.data.userId + '_' + request.resource.data.actionType &&
+          request.resource.data.actionType is string;
+      }
+
+      allow read: if request.auth != null ||
+                     documentId.matches('.*_passwordReset') ||
                      documentId.matches('auth_.*');
-      // Unauthenticated: auth_* (login rate limit) and *_password_reset (password reset by email)
-      // Authenticated: only allow writing docs where userId in document matches request.auth.uid
-      allow write: if documentId.matches('auth_.*') || 
-                      documentId.matches('.*_password_reset') || 
-                      (request.auth != null && request.resource.data.userId == request.auth.uid);
+      allow create, update: if
+        (request.auth == null && documentId.matches('auth_.*') && rateLimitAuthFieldsValid()) ||
+        (request.auth == null && documentId.matches('.*_passwordReset') && rateLimitPasswordResetFieldsValid()) ||
+        (request.auth != null &&
+          !documentId.matches('auth_.*') &&
+          !documentId.matches('.*_passwordReset') &&
+          rateLimitAuthenticatedActionWrite());
+      allow delete: if
+        (documentId.matches('auth_.*') && request.auth != null && resource.data.type == 'authentication') ||
+        (request.auth != null &&
+          !documentId.matches('auth_.*') &&
+          !documentId.matches('.*_passwordReset') &&
+          resource.data.userId == request.auth.uid);
     }
-    
-    // Security events - write-only for logging, no read access (admin-only via backend)
+
+    function securityEventCreateValid() {
+      return request.resource.data.keys().hasAll(['userId', 'eventType', 'severity', 'description', 'metadata', 'resolved', 'timestamp']) &&
+        request.resource.data.resolved == false &&
+        request.resource.data.severity in ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] &&
+        (
+          (request.auth != null &&
+            request.resource.data.userId == request.auth.uid &&
+            request.resource.data.eventType is string) ||
+          (request.auth == null &&
+            request.resource.data.eventType == 'AUTHENTICATION_FAILURE' &&
+            request.resource.data.userId is string &&
+            request.resource.data.severity == 'MEDIUM')
+        );
+    }
+
     match /securityEvents/{eventId} {
-      allow write: if request.auth != null; // Authenticated users can log security events
-      allow read: if false; // No client-side reads (admin-only via backend)
+      allow create: if securityEventCreateValid();
+      allow read, update, delete: if false;
     }
-    
-    // Security alerts - write-only for alerting, no read access (admin-only via backend)
+
     match /securityAlerts/{alertId} {
-      allow write: if request.auth != null; // Authenticated users can create alerts
-      allow read: if false; // No client-side reads (admin-only via backend)
+      allow create: if request.auth != null &&
+        request.resource.data.keys().hasOnly(['eventId', 'alertType', 'message', 'severity', 'createdAt', 'acknowledged']) &&
+        request.resource.data.alertType is string &&
+        request.resource.data.message is string &&
+        request.resource.data.severity in ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] &&
+        request.resource.data.acknowledged == false;
+      allow read, update, delete: if false;
     }
-    
-    // Privacy policy acceptances - users can only access their own acceptance records
+
     match /privacyPolicyAcceptances/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
-    
-    // Time sync docs - temporary documents for time synchronization, allow authenticated writes
+
     match /timeSyncDocs/{docId} {
-      allow read, write: if request.auth != null; // Authenticated users can sync time
+      allow read, create, update: if request.auth != null &&
+        docId.matches('^' + request.auth.uid + '_.+') &&
+        request.resource.data.keys().hasOnly(['timestamp', 'clientTime']);
+      allow delete: if request.auth != null && docId.matches('^' + request.auth.uid + '_.+');
     }
-    
-    // Custom questions - users can only access their own custom questions
-    // Note: Currently stored in AsyncStorage, but if moved to Firestore, add rules here
-    // match /customQuestions/{userId} {
-    //   allow read, write: if request.auth != null && request.auth.uid == userId;
-    // }
-    
-    // Test collection - only allow in development (remove in production)
+
     match /test/{document=**} {
-      allow read, write: if false; // Disabled for security
+      allow read, write: if false;
     }
-    
-    // Validation functions
+
     function validateRoomCreation() {
       return request.resource.data.hostId == request.auth.uid &&
              request.resource.data.players[request.auth.uid].isHost == true &&
              request.resource.data.status == 'lobby';
     }
-    
+
     function validateRoomUpdate() {
-      // Allow updates if user is already a participant (can update game state, leave, etc.)
-      let isParticipant = request.auth.uid in resource.data.players ||
-                          resource.data.hostId == request.auth.uid;
-      
-      // Allow joining only: room in lobby, hostId unchanged, and only adding self to players
-      // (prevents a client from overwriting hostId/players or adding fake participants)
+      let isHost = request.auth.uid == resource.data.hostId;
+      let isParticipant = request.auth.uid in resource.data.players;
+      let affected = request.resource.data.diff(resource.data).changedKeys();
+
       let oldPlayers = resource.data.players.keys();
       let newPlayers = request.resource.data.players.keys();
       let onlyAddingSelf = resource.data.status == 'lobby' &&
@@ -137,11 +231,17 @@ service cloud.firestore {
                            newPlayers.hasAll(oldPlayers) &&
                            newPlayers.size() == oldPlayers.size() + 1;
       let isJoining = onlyAddingSelf;
-      
-      return isParticipant || isJoining;
+
+      let hostLockedKeys = [
+        'hostId', 'questions', 'category', 'roomCode', 'createdAt', 'maxPlayers'
+      ];
+
+      return request.resource.data.hostId == resource.data.hostId &&
+        (isHost || !affected.hasAny(hostLockedKeys)) &&
+        !(resource.data.status == 'lobby' && request.resource.data.status == 'playing' && !isHost) &&
+        (isParticipant || isJoining);
     }
-    
-    // Deny all other access
+
     match /{document=**} {
       allow read, write: if false;
     }

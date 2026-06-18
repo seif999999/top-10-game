@@ -223,39 +223,37 @@ export const startNewGame = async (
   }
   
   logger.log(`🎮 startNewGame called with category: "${category}", players: ${players}, totalRounds: ${totalRounds}, selectedQuestion: ${selectedQuestion ? 'YES' : 'NO'}`);
-  
-  // Get questions for this specific category
-  const questions = await getQuestionsByCategory(category);
-  if (!questions || !Array.isArray(questions)) {
-    logger.error(`❌ Invalid questions returned for category: ${category}`);
-    throw new AppError({ code: 'GAME_INVALID_QUESTIONS', message: `Invalid questions returned for category: ${category}`, userMessage: 'Unable to load questions for this category.' });
-  }
-  
-  logger.log(`🎮 Found ${questions.length} questions for category "${category}"`);
-  
-  if (questions.length === 0) {
-    logger.error(`❌ No questions found for category: ${category}`);
-    throw new AppError({ code: 'GAME_NO_QUESTIONS', message: `No questions found for category: ${category}`, userMessage: 'No questions available for this category.' });
-  }
-  
-  let shuffledQuestions;
-  let currentQuestion;
-  
+
+  let shuffledQuestions: GameQuestion[];
+  let currentQuestion: GameQuestion | null;
+
   if (selectedQuestion) {
-    // If a specific question is selected, use it directly
+    // Single selected question (e.g. single-player from QuestionSelection) — skip loading the whole category list.
     logger.log(`🎮 Using selected question: "${selectedQuestion.title}"`);
     currentQuestion = selectedQuestion;
-    shuffledQuestions = [selectedQuestion]; // Only one question for single question mode
-    totalRounds = 1; // Force single question mode
+    shuffledQuestions = [selectedQuestion];
+    totalRounds = 1;
   } else {
-    // Shuffle questions for random selection mode
+    const questions = await getQuestionsByCategory(category);
+    if (!questions || !Array.isArray(questions)) {
+      logger.error(`❌ Invalid questions returned for category: ${category}`);
+      throw new AppError({ code: 'GAME_INVALID_QUESTIONS', message: `Invalid questions returned for category: ${category}`, userMessage: 'Unable to load questions for this category.' });
+    }
+
+    logger.log(`🎮 Found ${questions.length} questions for category "${category}"`);
+
+    if (questions.length === 0) {
+      logger.error(`❌ No questions found for category: ${category}`);
+      throw new AppError({ code: 'GAME_NO_QUESTIONS', message: `No questions found for category: ${category}`, userMessage: 'No questions available for this category.' });
+    }
+
     shuffledQuestions = shuffleQuestions(questions);
     if (!shuffledQuestions || !Array.isArray(shuffledQuestions)) {
       logger.error(`❌ Failed to shuffle questions for category: ${category}`);
       throw new AppError({ code: 'GAME_SHUFFLE_FAILED', message: `Failed to shuffle questions for category: ${category}`, userMessage: 'Unable to prepare game questions.' });
     }
     currentQuestion = shuffledQuestions[0] || null;
-    logger.log(`🎮 Shuffled questions for "${category}":`, shuffledQuestions.map(q => q.title));
+    logger.log(`🎮 Shuffled questions for "${category}":`, shuffledQuestions.map((q) => q.title));
   }
   
   // Adjust totalRounds to match available questions

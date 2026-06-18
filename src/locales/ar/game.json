@@ -57,6 +57,7 @@
     "disconnected": "غير متصل",
     "unknown": "غير معروف",
     "roomClosed": "الغرفة مغلقة",
+    "roomClosedByHostMessage": "أغلق المضيف اللعبة. لم تعد الغرفة متاحة.",
     "gameEnded": "انتهت اللعبة",
     "roomNotFound": "الغرفة غير موجودة",
     "roomNotFoundMessage": "هذه الغرفة لم تعد موجودة. يرجى إنشاء أو الانضمام إلى غرفة مختلفة.",

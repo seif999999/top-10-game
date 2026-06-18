@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { AuthContextType, User } from '../../shared/types';
-import { signInWithEmail, signUpWithEmail, signOutUser, subscribeToAuthChanges, getCurrentUser, verifyAuthPersistence, resetPassword as resetPasswordService, signInWithGoogle, updateUserProfile as updateUserProfileService, forceReAuthentication } from '../../backend/services/auth';
+import { signInWithEmail, signUpWithEmail, signOutUser, subscribeToAuthChanges, getCurrentUser, verifyAuthPersistence, resetPassword as resetPasswordService, signInWithGoogle, updateUserProfile as updateUserProfileService, forceReAuthentication, isUserProfileHydratedInSession } from '../../backend/services/auth';
 import { AuthService } from '../../backend/services/authService';
 import { UserProfileService } from '../../backend/services/userProfileService';
 import LocalAvatarStorage from '../../backend/services/localAvatarStorage';
@@ -17,6 +17,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [pendingAction, setPendingAction] = useState<boolean>(false);
+  const [thirdPartyAuthInProgress, setThirdPartyAuthInProgress] = useState<boolean>(false);
   const [welcomeCoinsMessage, setWelcomeCoinsMessage] = useState<string | null>(null);
   const unsubscribeRef = useRef<(() => void) | null>(null);
 
@@ -42,9 +43,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     const initializeAuth = async () => {
       try {
-        // Add a small delay to allow Firebase to fully initialize
-        await new Promise(resolve => setTimeout(resolve, 1500));
-
         // Independent: persistence check vs resolving current user + profile (getCurrentUser does not use verify result)
         const [persistenceWorking, currentUser] = await Promise.all([
           verifyAuthPersistence(),
@@ -56,30 +54,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         
         if (currentUser) {
-          // Load fresh data from Firestore to ensure we have the latest
           try {
-            const userProfileService = UserProfileService.getInstance();
-            let profile = await userProfileService.getUserProfile(currentUser.id);
-            // New users (no profile yet): initialize with 0 coins; no welcome/migration bonuses
-            if (!profile) {
-              try {
-                await CoinService.getInstance().initializeCoins(currentUser.id);
-                profile = await userProfileService.getUserProfile(currentUser.id);
-              } catch (coinError) {
-                logger.warn('⚠️ AuthContext: initializeCoins on first load failed', coinError);
-              }
-            }
-            const freshUser = profile
-              ? { ...profile, email: currentUser.email || profile.email }
-              : currentUser;
-            if (freshUser && freshUser.id === currentUser.id) {
-              logger.log('✅ AuthContext: Fresh user data loaded, using Firestore data as source of truth');
-              setUser(freshUser);
-              syncAuthService(freshUser);
-            } else {
-              logger.log('⚠️ AuthContext: Fresh fetch failed or user mismatch, using current user');
+            // getCurrentUser() already read Firestore when a profile doc exists — avoid a second identical read
+            if (isUserProfileHydratedInSession(currentUser)) {
+              logger.log('✅ AuthContext: Using user from getCurrentUser (profile already loaded)');
               setUser(currentUser);
               syncAuthService(currentUser);
+            } else {
+              const userProfileService = UserProfileService.getInstance();
+              let profile = await userProfileService.getUserProfile(currentUser.id);
+              if (!profile) {
+                try {
+                  await CoinService.getInstance().initializeCoins(currentUser.id);
+                  profile = await userProfileService.getUserProfile(currentUser.id);
+                } catch (coinError) {
+                  logger.warn('⚠️ AuthContext: initializeCoins on first load failed', coinError);
+                }
+              }
+              const freshUser = profile
+                ? { ...profile, email: currentUser.email || profile.email }
+                : currentUser;
+              if (freshUser && freshUser.id === currentUser.id) {
+                logger.log('✅ AuthContext: Fresh user data loaded, using Firestore data as source of truth');
+                setUser(freshUser);
+                syncAuthService(freshUser);
+              } else {
+                logger.log('⚠️ AuthContext: Fresh fetch failed or user mismatch, using current user');
+                setUser(currentUser);
+                syncAuthService(currentUser);
+              }
             }
           } catch (freshError) {
             logger.warn('⚠️ AuthContext: Failed to fetch fresh profile, using current user:', freshError);
@@ -201,15 +204,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await signInWithEmail(email, password);
       logger.log('✅ DEBUG: AuthContext signInWithEmail successful');
 
+      // Single Firestore profile read (hydrated + session). Auth listener may still refresh once; avoids duplicating AuthService.getUserProfileWithAvatar path.
       try {
-        const freshUser = await getUserProfileWithAvatar();
+        const freshUser = await getCurrentUser();
         if (freshUser) {
-          logger.log('✅ AuthContext: Fresh user data loaded:', freshUser.email);
+          logger.log('✅ AuthContext: Profile merged via getCurrentUser:', freshUser.email);
           setUser(freshUser);
           syncAuthService(freshUser);
         }
       } catch (profileError) {
-        logger.warn('⚠️ AuthContext: Failed to fetch fresh profile, will rely on auth state listener:', profileError);
+        logger.warn('⚠️ AuthContext: Failed to fetch profile after sign-in, listener will retry:', profileError);
       }
     } catch (error) {
       throw buildAuthError(error, {
@@ -222,12 +226,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       logger.log('🔍 DEBUG: AuthContext setPendingAction(false)');
       setPendingAction(false);
     }
-  }, [getUserProfileWithAvatar]);
+  }, []);
 
   const signInWithGoogleAuth = useCallback(async (idToken: string) => {
     setPendingAction(true);
     try {
       await signInWithGoogle(idToken);
+      try {
+        const freshUser = await getCurrentUser();
+        if (freshUser) {
+          setUser(freshUser);
+          syncAuthService(freshUser);
+        }
+      } catch (profileError) {
+        logger.warn('⚠️ AuthContext: Profile fetch after Google sign-in failed, listener will retry:', profileError);
+      }
     } finally {
       setPendingAction(false);
     }
@@ -518,6 +531,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       user,
       loading,
       pendingAction,
+      thirdPartyAuthInProgress,
+      setThirdPartyAuthInProgress,
       welcomeCoinsMessage,
       clearWelcomeCoinsMessage,
       signIn,
@@ -533,6 +548,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       user,
       loading,
       pendingAction,
+      thirdPartyAuthInProgress,
       welcomeCoinsMessage,
       clearWelcomeCoinsMessage,
       signIn,

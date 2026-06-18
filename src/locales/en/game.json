@@ -57,6 +57,7 @@
     "disconnected": "disconnected",
     "unknown": "unknown",
     "roomClosed": "Room Closed",
+    "roomClosedByHostMessage": "The host has closed the game. The room is no longer available.",
     "gameEnded": "Game Ended",
     "roomNotFound": "Room Not Found",
     "roomNotFoundMessage": "This room no longer exists. Please create or join a different room.",

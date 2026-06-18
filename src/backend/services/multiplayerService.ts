@@ -559,13 +559,49 @@ class MultiplayerService {
         
         logger.log(`✅ HOST_LEAVING: Game terminated and host removed from room ${roomCode}`);
       } else {
-        // Regular player leaving - game continues for others
-        logger.log(`👤 PLAYER_LEAVING: Player ${playerId} is leaving room ${roomCode}`);
-        
-        await updateDoc(roomRef, {
-          [`players.${playerId}`]: deleteField(),
-          lastActivity: serverTimestamp()
-        });
+        // Regular player leaving: during an active game, end the session for everyone (same hub exit UX)
+        const inActiveGame: boolean =
+          roomData.gamePhase === 'question' ||
+          roomData.gamePhase === 'answers' ||
+          roomData.gamePhase === 'results';
+
+        if (inActiveGame) {
+          logger.log(`👤 PLAYER_LEAVING: Player ${playerId} left during active game — terminating room ${roomCode}`);
+          const remainingPlayerIds = Object.keys(roomData.players).filter(id => id !== playerId);
+          if (remainingPlayerIds.length === 0) {
+            await deleteDoc(roomRef);
+            await RateLimitService.recordAction(playerId, 'leaveRoom', { roomCode }).catch(() => {});
+            logger.log(`✅ Player ${playerId} left (room deleted, no other players)`);
+            return;
+          }
+          await runTransaction(db, async (transaction) => {
+            const tRef = doc(db, COLLECTIONS.MULTIPLAYER_GAMES, roomCode);
+            const snap = await transaction.get(tRef);
+            if (!snap.exists()) {
+              throw new Error('Room not found during termination');
+            }
+            transaction.update(tRef, {
+              status: 'finished',
+              gamePhase: 'finished',
+              lastActivity: serverTimestamp(),
+              systemMessage: {
+                type: 'game_terminated',
+                message: 'A player left the game, so the game has been terminated.',
+                timestamp: serverTimestamp(),
+              },
+            });
+          });
+          await updateDoc(roomRef, {
+            [`players.${playerId}`]: deleteField(),
+            lastActivity: serverTimestamp(),
+          });
+        } else {
+          logger.log(`👤 PLAYER_LEAVING: Player ${playerId} is leaving room ${roomCode}`);
+          await updateDoc(roomRef, {
+            [`players.${playerId}`]: deleteField(),
+            lastActivity: serverTimestamp(),
+          });
+        }
       }
 
       await RateLimitService.recordAction(playerId, 'leaveRoom', { roomCode }).catch(() => {});

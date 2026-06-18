@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
 import type { StyleProp, ViewStyle } from 'react-native';
 import { COLORS, SPACING } from '../design-system';
 import { logger } from '../../backend/utils/logger';
+import { getCachedAvatarUri } from '../utils/avatarCache';
 
 interface AvatarDisplayProps {
   avatarId?: string | null;
@@ -51,12 +52,36 @@ const AvatarDisplay: React.FC<AvatarDisplayProps> = ({
 }) => {
   const avatarSize = typeof size === 'number' ? size : AVATAR_SIZES[size];
   const avatarUrl = avatarId ? getAvatarUrl(avatarId) : null;
+  const [resolvedAvatarUri, setResolvedAvatarUri] = useState<string | null>(avatarUrl);
+
+  useEffect(() => {
+    let active = true;
+
+    const resolveAvatarUri = async () => {
+      if (!avatarUrl) {
+        if (active) setResolvedAvatarUri(null);
+        return;
+      }
+
+      // Fast path while cache lookup/download runs.
+      if (active) setResolvedAvatarUri(avatarUrl);
+      const cachedUri = await getCachedAvatarUri(avatarUrl);
+      if (active) {
+        setResolvedAvatarUri(cachedUri);
+      }
+    };
+
+    void resolveAvatarUri();
+    return () => {
+      active = false;
+    };
+  }, [avatarUrl]);
 
   const renderAvatar = () => {
-    if (avatarUrl) {
+    if (resolvedAvatarUri) {
       return (
         <Image
-          source={{ uri: avatarUrl }}
+          source={{ uri: resolvedAvatarUri }}
           style={[
             styles.avatarImage,
             {
@@ -68,7 +93,7 @@ const AvatarDisplay: React.FC<AvatarDisplayProps> = ({
           resizeMode="contain"
           onLoad={() => {}}
           onError={(error) => {
-            logger.log('DiceBear avatar error:', error.nativeEvent.error, 'URL:', avatarUrl);
+            logger.log('DiceBear avatar error:', error.nativeEvent.error, 'URL:', resolvedAvatarUri);
           }}
         />
       );

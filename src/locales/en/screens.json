@@ -296,7 +296,6 @@
       "howItWorks": "How it works:",
       "bullet1": "Create a room for up to 8 players",
       "bullet2": "Share the room code with your friends",
-      "bullet3": "Host controls the game and questions",
       "bullet4": "Players compete for the top score"
     },
     "createRoomScreen": {
@@ -378,6 +377,7 @@
       "leaveRoomMessage": "Are you sure you want to leave this room? This will end the room session.",
       "removedFromRoomTitle": "Removed from Room",
       "removedFromRoomMessage": "You have been removed from the room by the host.",
+      "roomClosedByHostFallback": "The host has closed the game. The room is no longer available.",
       "notEnoughPlayersTitle": "Not Enough Players",
       "notEnoughPlayersMessage": "You need at least 2 players to start the game",
       "startGameConfirmTitle": "Start Game",

@@ -1,74 +1,131 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet, Animated, Easing } from 'react-native';
+import React, { useEffect, useMemo, useRef } from 'react';
+import { View, StyleSheet, Animated, Easing } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING, TYPOGRAPHY } from '../design-system';
 import useAppTranslation from '../../hooks/useTranslation';
 
 interface LoadingPageProps {
-  /** Message displayed below the spinner. Falls back to translated default. */
+  /** Used for screen readers only (e.g. "Signing you in…"). Visible text is always "Loading". */
   message?: string;
 }
+
+const CHAR_LIFT = 44; // ~2.75rem at default density
+const STAGGER_MS = 50;
+const UP_MS = 600;
+const DOWN_MS = 800;
+const LOOP_GAP_MS = 1000;
+
+/** Per-character loop inspired by staggered letter loading (native Animated; iOS/Android). */
+const AnimatedLoadingChar: React.FC<{
+  char: string;
+  index: number;
+}> = ({ char, index }) => {
+  const translateY = useRef(new Animated.Value(0)).current;
+  const rotate = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.delay(index * STAGGER_MS),
+        Animated.parallel([
+          Animated.timing(translateY, {
+            toValue: -CHAR_LIFT,
+            duration: UP_MS,
+            useNativeDriver: true,
+            easing: Easing.out(Easing.cubic),
+          }),
+          Animated.timing(rotate, {
+            toValue: 1,
+            duration: UP_MS,
+            useNativeDriver: true,
+            easing: Easing.inOut(Easing.circle),
+          }),
+        ]),
+        Animated.timing(translateY, {
+          toValue: 0,
+          duration: DOWN_MS,
+          useNativeDriver: true,
+          easing: Easing.out(Easing.bounce),
+        }),
+        Animated.delay(LOOP_GAP_MS),
+        Animated.parallel([
+          Animated.timing(translateY, { toValue: 0, duration: 0, useNativeDriver: true }),
+          Animated.timing(rotate, { toValue: 0, duration: 0, useNativeDriver: true }),
+        ]),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [index, translateY, rotate]);
+
+  const rotateStr = rotate.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['-360deg', '0deg'],
+  });
+
+  const displayChar = char === ' ' ? '\u00A0' : char;
+
+  return (
+    <Animated.Text
+      style={[
+        styles.char,
+        {
+          transform: [{ translateY }, { rotate: rotateStr }],
+        },
+      ]}
+      accessibilityElementsHidden
+      importantForAccessibility="no"
+    >
+      {displayChar}
+    </Animated.Text>
+  );
+};
 
 /**
  * LoadingPage — full-screen blocking loading overlay.
  *
- * - Centered spinner with a short message.
- * - Blocks all user interaction (pointerEvents="none" on content behind).
- * - Accessible: announces itself as busy to screen readers.
- * - Subtle fade-in animation so it doesn't flash on fast loads.
+ * - Always shows animated purple “Loading” (localized via common.loading).
+ * - Contextual `message` is only for accessibility.
  */
 const LoadingPage: React.FC<LoadingPageProps> = ({ message }) => {
   const { t } = useAppTranslation();
-  const displayMessage = message ?? t('loadingMessage');
+  const accessibilityLabel = message ?? t('loadingMessage');
+  const loadingWord = t('loading');
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  const chars = useMemo(() => Array.from(loadingWord), [loadingWord]);
 
   useEffect(() => {
-    // Fade in
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 250,
       useNativeDriver: true,
       easing: Easing.out(Easing.ease),
     }).start();
-
-    // Gentle pulse on the icon
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.1,
-          duration: 1000,
-          useNativeDriver: true,
-          easing: Easing.inOut(Easing.ease),
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 1000,
-          useNativeDriver: true,
-          easing: Easing.inOut(Easing.ease),
-        }),
-      ]),
-    ).start();
-  }, [fadeAnim, pulseAnim]);
+  }, [fadeAnim]);
 
   return (
     <Animated.View
       style={[styles.overlay, { opacity: fadeAnim }]}
       accessibilityRole="alert"
-      accessibilityLabel={displayMessage}
+      accessibilityLabel={accessibilityLabel}
       accessibilityLiveRegion="assertive"
-      // @ts-ignore — React Native supports aria-busy on Views
+      // @ts-expect-error RN web supports aria-busy on Views
       aria-busy={true}
-      // Block interaction with anything behind the overlay
       pointerEvents="auto"
     >
+      <LinearGradient
+        colors={['#1a1a2e', '#16213e', '#0f0f1e']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
       <View style={styles.card}>
-        <Animated.Text style={[styles.icon, { transform: [{ scale: pulseAnim }] }]}>
-          🎮
-        </Animated.Text>
-
-        <ActivityIndicator size="large" color={COLORS.primary} style={styles.spinner} />
-
-        <Text style={styles.message}>{displayMessage}</Text>
+        <View style={styles.charRow}>
+          {chars.map((char, i) => (
+            <AnimatedLoadingChar key={`${i}-${char}`} char={char} index={i} />
+          ))}
+        </View>
       </View>
     </Animated.View>
   );
@@ -78,7 +135,6 @@ const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 9999,
-    backgroundColor: COLORS.background,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -86,21 +142,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: SPACING['2xl'],
     paddingVertical: SPACING['3xl'],
-    gap: SPACING.lg,
+    maxWidth: '92%',
   },
-  icon: {
-    fontSize: 48,
-    marginBottom: SPACING.sm,
+  charRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    alignItems: 'flex-end',
   },
-  spinner: {
-    marginVertical: SPACING.md,
-  },
-  message: {
-    color: COLORS.textSecondary,
-    fontSize: TYPOGRAPHY.fontSize.base,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
-    textAlign: 'center',
-    lineHeight: TYPOGRAPHY.fontSize.base * TYPOGRAPHY.lineHeight.relaxed,
+  char: {
+    color: COLORS.primary,
+    fontSize: TYPOGRAPHY.fontSize['2xl'] ?? 24,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    letterSpacing: 1,
+    lineHeight: (TYPOGRAPHY.fontSize['2xl'] ?? 24) * 1.2,
   },
 });
 

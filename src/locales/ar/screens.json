@@ -296,7 +296,6 @@
       "howItWorks": "كيف يعمل:",
       "bullet1": "أنشئ غرفة لما يصل إلى 8 لاعبين",
       "bullet2": "شارك رمز الغرفة مع أصدقائك",
-      "bullet3": "المضيف يتحكم في اللعبة والأسئلة",
       "bullet4": "يتنافس اللاعبون على أعلى نتيجة"
     },
     "createRoomScreen": {
@@ -378,6 +377,7 @@
       "leaveRoomMessage": "هل أنت متأكد أنك تريد مغادرة هذه الغرفة؟ سيؤدي ذلك إلى إنهاء جلسة الغرفة.",
       "removedFromRoomTitle": "تمت إزالتك من الغرفة",
       "removedFromRoomMessage": "تمت إزالتك من الغرفة بواسطة المضيف.",
+      "roomClosedByHostFallback": "أغلق المضيف اللعبة. لم تعد الغرفة متاحة.",
       "notEnoughPlayersTitle": "لاعبون غير كافيين",
       "notEnoughPlayersMessage": "تحتاج إلى لاعبين على الأقل لبدء اللعبة",
       "startGameConfirmTitle": "ابدأ اللعبة",

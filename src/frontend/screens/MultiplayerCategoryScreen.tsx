@@ -17,11 +17,10 @@ import { COLORS, SPACING, ANIMATIONS } from '../design-system';
 import useAppTranslation, { useTranslationHelpers } from '../../hooks/useTranslation';
 import i18n from '../../config/i18n';
 import { logger } from '../../backend/utils/logger';
-import { getQuestionsByCategory, getRandomQuestion, getCategories } from '../../backend/services/questionsService';
+import { getQuestionsByCategory, getRandomQuestion, getCategories, gameQuestionToRoomQuestion } from '../../backend/services/questionsService';
 import { ROUND_TIMER_OPTIONS } from '../../shared/types/teams';
 import type { RootStackParamList } from '../../shared/types/navigation';
 import type { GameQuestion } from '../../shared/types';
-import type { LegacyQuestion } from '../../shared/types/game';
 import CustomQuestionService from '../../backend/services/customQuestionService';
 import ThemedAlert from '../utils/themedAlert';
 import { CATEGORY_CAROUSEL } from '../constants/categoryCarousel';
@@ -353,18 +352,10 @@ const MultiplayerCategoryScreen: React.FC<MultiplayerCategoryScreenProps> = () =
           setIsLoadingRandom(false);
           return;
         }
-        const toLegacy = (q: GameQuestion): LegacyQuestion => ({
-          id: q.id,
-          text: q.title,
-          answers: q.answers.map(a => a.text),
-          category: q.category,
-          difficulty: q.difficulty,
-        });
-        const legacyQuestion = toLegacy(question);
+        const roomQuestion = gameQuestionToRoomQuestion(question);
         setCategory(question.category);
-        setQuestions([legacyQuestion]);
-        const roomCode = await createRoom(question.category, [legacyQuestion]);
-        await new Promise(r => setTimeout(r, 500));
+        setQuestions([roomQuestion]);
+        const roomCode = await createRoom(question.category, [roomQuestion]);
         navigation.replace('RoomLobby', { roomCode });
       } catch (error) {
         clearError(); // Errors logged server-side only

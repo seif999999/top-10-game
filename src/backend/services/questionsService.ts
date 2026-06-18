@@ -289,6 +289,23 @@ export const shuffleQuestions = (questions: GameQuestion[]): GameQuestion[] => {
 };
 
 /**
+ * Convert a GameQuestion from the question bank into unified Question for multiplayer.
+ * Preserves rank + aliases (string[] legacy conversion drops them — see MultiplayerQuestionsScreen).
+ */
+export const gameQuestionToRoomQuestion = (q: GameQuestion): Question => ({
+  id: q.id,
+  text: q.title,
+  category: q.category,
+  difficulty: q.difficulty,
+  answers: q.answers.map((a) => ({
+    id: `${q.id}_answer_${a.rank}`,
+    text: a.text,
+    rank: a.rank,
+    aliases: a.aliases ?? [],
+  })),
+});
+
+/**
  * Normalize a legacy question with string[] answers to the new Question format
  * This is the key migration function for data structure unification
  */

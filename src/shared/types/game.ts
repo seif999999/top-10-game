@@ -117,7 +117,7 @@ export type RoomData = {
   
   // System messages for broadcasting events
   systemMessage?: {
-    type: 'host_migrated' | 'room_terminated' | 'game_terminated';
+    type: 'host_migrated' | 'room_terminated' | 'game_terminated' | 'room_closed';
     message: string;
     timestamp: number | Timestamp; // Firestore serverTimestamp
     newHostId?: string;

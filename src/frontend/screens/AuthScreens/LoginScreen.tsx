@@ -17,13 +17,12 @@ import useAppTranslation from '../../../hooks/useTranslation';
 type Props = LoginScreenProps;
 
 const LoginScreen: React.FC<Props> = ({ navigation }) => {
-  const { signIn, loading } = useAuth();
+  const { signIn, loading, pendingAction } = useAuth();
   const { t: tScreens } = useAppTranslation('screens');
   const { t: tErrors } = useAppTranslation('errors');
   const { isRTL } = useAppTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [localLoading, setLocalLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const [firebaseError, setFirebaseError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -71,7 +70,8 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
       sanitizedPassword = password;
     }
     
-    setLocalLoading(true);
+    // Do not set local loading before signIn: signIn sets pendingAction synchronously on entry.
+    // A prior local-only loading flag caused one frame of login UI before AppNavigator showed LoadingPage.
     try {
       await signIn(sanitizedEmail, sanitizedPassword);
     } catch (error) {
@@ -82,12 +82,10 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
       });
       setFirebaseError(appError.userMessage ?? appError.message);
       logger.error('Login error:', appError);
-    } finally {
-      setLocalLoading(false);
     }
   };
 
-  const isLoading = loading || localLoading;
+  const isLoading = loading || pendingAction;
 
   return (
     <SafeAreaView style={styles.container}>

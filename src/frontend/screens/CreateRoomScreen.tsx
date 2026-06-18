@@ -19,10 +19,12 @@ import { RESPONSIVE } from '../utils/responsive';
 import { Question } from '../../backend/services/multiplayerService';
 import { AuthService } from '../../backend/services/authService';
 import { sampleQuestions } from '../../backend/data/sampleQuestions';
+import { gameQuestionToRoomQuestion } from '../../backend/services/questionsService';
 import CategoryCarousel, { Category } from '../components/CategoryCarousel';
 import type { LegacyQuestion } from '../../shared/types/game';
 import type { RootStackParamList } from '../../shared/types/navigation';
 import useAppTranslation from '../../hooks/useTranslation';
+import { useAudio } from '../contexts/AudioContext';
 
 type SampleQuestion = typeof sampleQuestions[number];
 
@@ -46,6 +48,7 @@ const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
   } = useMultiplayer();
   const authService = AuthService.getInstance();
   const { t, isRTL } = useAppTranslation('screens');
+  const { playButtonClick } = useAudio();
 
   // Get unique categories from sample questions
   const availableCategories = [...new Set(sampleQuestions.map(q => q.category))];
@@ -128,14 +131,6 @@ const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
     setQuestions([]);
   };
 
-  const toLegacyQuestion = (gameQuestion: SampleQuestion): LegacyQuestion => ({
-    id: gameQuestion.id,
-    text: gameQuestion.title,
-    answers: gameQuestion.answers.map(answer => answer.text),
-    category: gameQuestion.category,
-    difficulty: gameQuestion.difficulty
-  });
-
   const handleQuestionSelect = (questionId: string) => {
     setSelectedQuestionId(questionId);
     
@@ -145,7 +140,7 @@ const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
     );
     
     if (selectedQuestion) {
-      setQuestions([toLegacyQuestion(selectedQuestion)]);
+      setQuestions([gameQuestionToRoomQuestion(selectedQuestion)]);
     }
   };
 
@@ -164,18 +159,21 @@ const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
     // Check if it's a LegacyQuestion (answers is string[]) vs Question (answers is Answer[])
     // Cast to union type to allow proper type narrowing
     const questionsArray = selectedQuestions as Array<Question | LegacyQuestion>;
-    const validQuestions = questionsArray.filter((question): question is LegacyQuestion => {
+    const validQuestions = questionsArray.filter((question): question is Question => {
       if (!Array.isArray(question.answers) || question.answers.length === 0) {
         return false;
       }
-      // LegacyQuestion has string[] answers, Question has Answer[] answers
-      // Check if first answer is a string (LegacyQuestion) vs object (Question)
       const firstAnswer = question.answers[0];
-      if (typeof firstAnswer !== 'string') {
+      if (typeof firstAnswer === 'string') {
         return false;
       }
-      return question.answers.every((answer): answer is string => 
-        typeof answer === 'string' && answer.trim() !== ''
+      return question.answers.every(
+        (a) =>
+          typeof a === 'object' &&
+          a !== null &&
+          'text' in a &&
+          typeof (a as { text: string }).text === 'string' &&
+          (a as { text: string }).text.trim() !== ''
       );
     });
 
@@ -185,6 +183,7 @@ const CreateRoomScreen: React.FC<CreateRoomScreenProps> = () => {
     }
 
     try {
+      void playButtonClick();
       // Ensure user is authenticated before creating room
       await authService.ensureAuthenticated();
       

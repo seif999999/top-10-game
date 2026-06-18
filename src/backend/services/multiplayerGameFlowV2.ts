@@ -807,13 +807,18 @@ export async function hostEndGame(
         });
       }
       
-      // Close the room
+      // Close the room — broadcast so clients show "room closed" then leaderboard / hub
       const updates = {
         status: 'closed' as const,
         gamePhase: 'finished' as const,
-        lastActivity: serverTimestamp()
+        lastActivity: serverTimestamp(),
+        systemMessage: {
+          type: 'room_closed' as const,
+          message: 'The host has closed the game. The room is no longer available.',
+          timestamp: serverTimestamp(),
+        },
       };
-      
+
       transaction.update(roomRef, updates);
       
       logger.log(`✅ HOST_END_GAME: Room closed by host`);

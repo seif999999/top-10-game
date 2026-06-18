@@ -15,12 +15,12 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING } from '../design-system';
 import useAppTranslation from '../../hooks/useTranslation';
-import { getQuestionsByCategory } from '../../backend/services/questionsService';
+import { getQuestionsByCategory, gameQuestionToRoomQuestion } from '../../backend/services/questionsService';
 import { useMultiplayer } from '../contexts/MultiplayerContext';
 import { logger } from '../../backend/utils/logger';
 import CustomQuestionService from '../../backend/services/customQuestionService';
 import type { GameQuestion } from '../../shared/types';
-import type { LegacyQuestion } from '../../shared/types/game';
+import type { Question } from '../../shared/types/game';
 import type { RootStackParamList } from '../../shared/types/navigation';
 
 const MultiplayerQuestionsScreen: React.FC = () => {
@@ -64,14 +64,6 @@ const MultiplayerQuestionsScreen: React.FC = () => {
     }
   };
 
-  const toLegacyQuestion = (question: GameQuestion): LegacyQuestion => ({
-    id: question.id,
-    text: question.title,
-    answers: question.answers.map(answer => answer.text),
-    category: question.category,
-    difficulty: question.difficulty
-  });
-
   const handleQuestionSelect = async (question: GameQuestion) => {
     // Prevent multiple simultaneous room creations
     if (creatingRoomForQuestion || loading) {
@@ -80,18 +72,15 @@ const MultiplayerQuestionsScreen: React.FC = () => {
     }
 
     logger.log('🎯 Question selected, creating room:', question.title);
-    setQuestions([toLegacyQuestion(question)]);
+    const roomQuestion: Question = gameQuestionToRoomQuestion(question);
+    setQuestions([roomQuestion]);
     setCreatingRoomForQuestion(question.id || question.title);
 
     try {
-      const convertedQuestions: LegacyQuestion[] = [toLegacyQuestion(question)];
       logger.log('🔄 Creating room with category:', categoryName);
-      const roomCode = await createRoom(categoryName, convertedQuestions);
+      const roomCode = await createRoom(categoryName, [roomQuestion]);
       logger.log('✅ Room created successfully:', roomCode);
-      
-      // Add a small delay to ensure room is fully initialized in Firestore
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
+
       logger.log('🚀 Navigating to RoomLobby with roomCode:', roomCode);
       // Use replace to avoid accidental back-gesture firing to Questions screen
       navigation.replace('RoomLobby', { 

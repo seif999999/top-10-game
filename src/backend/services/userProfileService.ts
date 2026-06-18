@@ -130,6 +130,7 @@ export class UserProfileService {
       
       const userRef = doc(db, COLLECTIONS.USER_PROFILES, user.id);
       
+      // Economy / premium fields are not written from the client — Firestore rules block them (Admin SDK / Cloud Functions only).
       const profileData = {
         email: user.email,
         displayName: user.displayName,
@@ -137,13 +138,6 @@ export class UserProfileService {
         stats: user.stats,
         selectedAvatar: user.selectedAvatar,
         avatarUrl: user.avatarUrl,
-        coins: user.coins ?? 0, // Include coins in profile data
-        adFree: user.adFree ?? false,
-        premiumType: user.premiumType,
-        premiumExpiresAt: user.premiumExpiresAt,
-        premiumPurchasedAt: user.premiumPurchasedAt,
-        dailyRewardMultiplier: user.dailyRewardMultiplier ?? 1,
-        hasVIPBadge: user.hasVIPBadge ?? false,
         lastUpdated: serverTimestamp(),
       };
 

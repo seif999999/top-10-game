@@ -13,6 +13,11 @@ export interface InterstitialAdLoaderProps {
   minimumInterval?: number;
   /** When true, never show (e.g. during active gameplay). */
   gameplayActive?: boolean;
+  /**
+   * When true, call onAdClosed if the ad cannot be shown (SDK not ready, load failed, frequency cap).
+   * Use for pre-game gates so the app does not wait when no creative is available.
+   */
+  completeIfCannotShow?: boolean;
 }
 
 /**
@@ -24,6 +29,7 @@ const InterstitialAdLoader: React.FC<InterstitialAdLoaderProps> = ({
   onAdClosed,
   minimumInterval = DEFAULT_MINIMUM_INTERVAL_MS,
   gameplayActive = false,
+  completeIfCannotShow = false,
 }) => {
   const {
     isPremium,
@@ -61,9 +67,18 @@ const InterstitialAdLoader: React.FC<InterstitialAdLoaderProps> = ({
     }
 
     if (triggerAttemptedRef.current) return;
-    if (isPremium || gameplayActive || !isAdReady) {
-      if (trigger && (isPremium || gameplayActive)) {
+    if (isPremium || gameplayActive) {
+      if (trigger) {
         logger.log('InterstitialAdLoader: skip (premium or gameplay active)');
+      }
+      return;
+    }
+
+    if (!isAdReady) {
+      if (completeIfCannotShow) {
+        triggerAttemptedRef.current = true;
+        logger.log('InterstitialAdLoader: completeIfCannotShow (SDK not ready)');
+        onAdClosed?.();
       }
       return;
     }
@@ -74,18 +89,31 @@ const InterstitialAdLoader: React.FC<InterstitialAdLoaderProps> = ({
       now - lastInterstitialShownAt < minimumInterval
     ) {
       logger.log('InterstitialAdLoader: skip (frequency cap)');
+      if (completeIfCannotShow) {
+        triggerAttemptedRef.current = true;
+        onAdClosed?.();
+      }
       return;
     }
 
     if (interstitialLoadState !== 'loaded') {
+      if (completeIfCannotShow && interstitialLoadState === 'failed') {
+        triggerAttemptedRef.current = true;
+        logger.log('InterstitialAdLoader: completeIfCannotShow (load failed)');
+        onAdClosed?.();
+      }
       return;
     }
 
     triggerAttemptedRef.current = true;
     logger.log('InterstitialAdLoader: showing interstitial');
     showInterstitialAd({ onAdClosed }).catch(() => {
-      triggerAttemptedRef.current = false;
       logger.warn('InterstitialAdLoader: show failed (silent)');
+      if (completeIfCannotShow) {
+        onAdClosed?.();
+      } else {
+        triggerAttemptedRef.current = false;
+      }
     });
   }, [
     trigger,
@@ -96,6 +124,29 @@ const InterstitialAdLoader: React.FC<InterstitialAdLoaderProps> = ({
     minimumInterval,
     interstitialLoadState,
     showInterstitialAd,
+    onAdClosed,
+    completeIfCannotShow,
+  ]);
+
+  // Creative stuck in loading/unloaded — unblock after a short wait without cutting off a successful load
+  useEffect(() => {
+    if (!completeIfCannotShow || !trigger || isPremium || gameplayActive) return;
+    if (!isAdReady || interstitialLoadState === 'failed' || interstitialLoadState === 'loaded') return;
+
+    const t = setTimeout(() => {
+      if (triggerAttemptedRef.current) return;
+      triggerAttemptedRef.current = true;
+      logger.log('InterstitialAdLoader: completeIfCannotShow (load timeout)');
+      onAdClosed?.();
+    }, 2000);
+    return () => clearTimeout(t);
+  }, [
+    completeIfCannotShow,
+    trigger,
+    isPremium,
+    gameplayActive,
+    isAdReady,
+    interstitialLoadState,
     onAdClosed,
   ]);
 

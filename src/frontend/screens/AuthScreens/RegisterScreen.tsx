@@ -16,7 +16,7 @@ import useAppTranslation from '../../../hooks/useTranslation';
 type Props = RegisterScreenProps;
 
 const RegisterScreen: React.FC<Props> = ({ navigation }) => {
-  const { signUp, loading } = useAuth();
+  const { signUp, loading, pendingAction } = useAuth();
   const { t: tScreens } = useAppTranslation('screens');
   const { t: tErrors } = useAppTranslation('errors');
   const { isRTL } = useAppTranslation();
@@ -24,7 +24,6 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
-  const [localLoading, setLocalLoading] = useState(false);
   const [errors, setErrors] = useState<{ displayName?: string; email?: string; password?: string; confirmPassword?: string }>({});
   const [showPassword, setShowPassword] = useState(false);
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
@@ -126,7 +125,6 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
       sanitizedDisplayName = displayName.trim();
     }
     
-    setLocalLoading(true);
     try {
       await signUp(sanitizedEmail, sanitizedPassword, sanitizedDisplayName);
     } catch (error) {
@@ -137,12 +135,10 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
       });
       logger.error('SignUp error:', appError);
       ThemedAlert.error(tErrors('auth.registrationFailedTitle'), appError.userMessage ?? appError.message);
-    } finally {
-      setLocalLoading(false);
     }
   };
 
-  const isLoading = loading || localLoading;
+  const isLoading = loading || pendingAction;
 
   return (
     <SafeAreaView style={styles.container}>

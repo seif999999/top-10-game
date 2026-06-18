@@ -24,6 +24,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { COLORS, SPACING, TYPOGRAPHY, ACCESSIBILITY } from '../../backend/utils/constants';
 import { Player } from '../../backend/services/multiplayerService';
 import useAppTranslation from '../../hooks/useTranslation';
+import { showCrossPlatformAlert } from '../components/CrossPlatformAlert';
 
 const { width } = Dimensions.get('window');
 
@@ -34,6 +35,7 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
   const insets = useSafeAreaInsets();
   const { t, isRTL } = useAppTranslation('screens');
   const { t: tCommon } = useAppTranslation('common');
+  const { t: tGame } = useAppTranslation('game');
   const { user } = useAuth();
   const { 
     currentRoom,
@@ -58,6 +60,7 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
 
   // Track voluntary leave to avoid false kick detection
   const isLeavingRef = useRef(false);
+  const hostClosedRoomAlertShownRef = useRef<Set<string>>(new Set());
   // Proactive reset: when host sees room in playing/finished, reset to lobby so Start works without error path
   const hasProactiveResetRef = useRef<string | null>(null);
   // Grace period: prevent leave immediately after mount (avoids phantom back/gesture firing right after navigation)
@@ -108,7 +111,7 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
               cleanup();
               navigation.reset({
                 index: 0,
-                routes: [{ name: 'Home' as never }, { name: 'MultiplayerMenu' as never }],
+                routes: [{ name: 'MultiplayerMenu' as never }],
               });
             },
           },
@@ -116,6 +119,35 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
       );
     }
   }, [currentRoom, user?.id]);
+
+  /** Host ended game from lobby — non-host sees "room closed" then returns to multiplayer hub */
+  useEffect(() => {
+    if (!currentRoom?.roomCode || isLeavingRef.current) return;
+    if (currentRoom.status !== 'closed') return;
+    const key = `${currentRoom.roomCode}:closed`;
+    if (hostClosedRoomAlertShownRef.current.has(key)) return;
+    hostClosedRoomAlertShownRef.current.add(key);
+    const msg =
+      currentRoom.systemMessage?.message ||
+      t('multiplayer.roomLobby.roomClosedByHostFallback');
+    showCrossPlatformAlert({
+      title: tGame('multiplayer.roomClosed'),
+      message: msg,
+      buttons: [
+        {
+          text: tCommon('ok'),
+          onPress: () => {
+            resetAll();
+            cleanup();
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'MultiplayerMenu' as never }],
+            });
+          },
+        },
+      ],
+    });
+  }, [currentRoom?.status, currentRoom?.roomCode, currentRoom?.systemMessage?.message, resetAll, cleanup, navigation, t, tCommon, tGame]);
 
   useEffect(() => {
     if (error) {
@@ -177,10 +209,14 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
               try {
                 isLeavingRef.current = true; // Prevent kick detection from firing
                 await leaveRoom();
-                navigation.goBack();
+                resetAll();
+                cleanup();
+                navigation.navigate('MultiplayerMenu' as never);
               } catch (error) {
                 logger.error('Error leaving room:', error);
-                navigation.goBack();
+                resetAll();
+                cleanup();
+                navigation.navigate('MultiplayerMenu' as never);
               }
             }
           }
@@ -190,7 +226,7 @@ const RoomLobbyScreen: React.FC<RoomLobbyScreenProps> = () => {
     });
 
     return () => backHandler.remove();
-  }, [leaveRoom, navigation, canLeaveRoom]);
+  }, [leaveRoom, navigation, canLeaveRoom, resetAll, cleanup]);
 
   const handleLeaveRoom = useCallback(async () => {
     if (!canLeaveRoom()) {
@@ -643,6 +679,9 @@ const styles = StyleSheet.create({
   },
   statusFinished: {
     color: COLORS.muted,
+  },
+  statusClosed: {
+    color: COLORS.error,
   },
   playersSection: {
     backgroundColor: COLORS.surface,

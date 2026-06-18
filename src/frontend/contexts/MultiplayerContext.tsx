@@ -26,7 +26,7 @@ interface MultiplayerState {
   
   // System Messages
   systemMessage: {
-    type: 'host_migrated' | 'room_terminated' | 'game_terminated' | null;
+    type: 'host_migrated' | 'room_terminated' | 'game_terminated' | 'room_closed' | null;
     message: string;
     timestamp?: number | Timestamp;
     newHostId?: string;
@@ -76,7 +76,7 @@ type MultiplayerAction =
   | { type: 'SET_NAVIGATION_CALLBACK'; payload: ((params: RootStackParamList['GameScreen']) => void) | null }
   | { type: 'SET_HOST_MIGRATION_NOTIFICATION'; payload: { type: 'host_migrated' | 'room_terminated' | null; newHostName?: string; message?: string } }
   | { type: 'CLEAR_HOST_MIGRATION_NOTIFICATION' }
-  | { type: 'SET_SYSTEM_MESSAGE'; payload: { type: 'host_migrated' | 'room_terminated' | 'game_terminated' | null; message: string; timestamp?: number | Timestamp; newHostId?: string; newHostName?: string } }
+  | { type: 'SET_SYSTEM_MESSAGE'; payload: { type: 'host_migrated' | 'room_terminated' | 'game_terminated' | 'room_closed' | null; message: string; timestamp?: number | Timestamp; newHostId?: string; newHostName?: string } }
   | { type: 'CLEAR_SYSTEM_MESSAGE' }
   | { type: 'RESET_ALL' }
   | { type: 'RESET_SELECTIONS' };
@@ -243,7 +243,7 @@ interface MultiplayerContextType {
   
   // System Messages
   systemMessage: {
-    type: 'host_migrated' | 'room_terminated' | 'game_terminated' | null;
+    type: 'host_migrated' | 'room_terminated' | 'game_terminated' | 'room_closed' | null;
     message: string;
     timestamp?: number | Timestamp;
     newHostId?: string;
@@ -375,7 +375,7 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
   }, [state.currentRoom?.roomCode, user?.id]);
 
   // Actions
-  const createRoom = async (category: string, questions: Question[]): Promise<string> => {
+  const createRoom = async (category: string, questions: Array<Question | LegacyQuestion>): Promise<string> => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
@@ -584,15 +584,7 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
           userMessage: 'Room not found.'
         });
       }
-      
-      if (!state.isHost) {
-        throw new AppError({
-          code: 'MP_HOST_ONLY',
-          message: 'Only the host can end the game',
-          userMessage: 'Only the host can end the game.'
-        });
-      }
-      
+
       if (!user?.id) {
         throw new AppError({
           code: 'MP_AUTH_REQUIRED',
@@ -600,7 +592,23 @@ export const MultiplayerProvider: React.FC<{ children: ReactNode }> = ({ childre
           userMessage: 'Please sign in to end the game.'
         });
       }
-      
+
+      if (state.currentRoom.hostId !== user.id) {
+        throw new AppError({
+          code: 'MP_HOST_ONLY',
+          message: 'Only the host can end the game',
+          userMessage: 'Only the host can end the game.'
+        });
+      }
+
+      if (!state.isHost) {
+        throw new AppError({
+          code: 'MP_HOST_ONLY',
+          message: 'Only the host can end the game',
+          userMessage: 'Only the host can end the game.'
+        });
+      }
+
       logger.log('🏁 END_GAME: Host ending game...');
       await multiplayerService.endGameV2(state.currentRoom.roomCode, user.id);
       logger.log('✅ END_GAME: Game ended successfully');

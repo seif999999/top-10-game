@@ -66,20 +66,19 @@ export class ExternalModerationService {
         }
       }
 
-      // If all providers fail, default to approved (fail open)
       return {
-        approved: true,
-        confidence: 0.5,
+        approved: false,
+        confidence: 0,
         categories: [],
-        reason: 'All moderation providers failed, defaulting to approved'
+        reason: 'All moderation providers failed or returned no result; blocking for safety'
       };
     } catch (error) {
       logger.error('External moderation service error:', error);
       return {
-        approved: true,
-        confidence: 0.3,
+        approved: false,
+        confidence: 0,
         categories: [],
-        reason: 'External moderation service error, defaulting to approved'
+        reason: 'External moderation service error; blocking for safety'
       };
     }
   }

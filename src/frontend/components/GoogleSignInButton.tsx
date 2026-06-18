@@ -24,13 +24,14 @@ const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
 }) => {
   const { t } = useAppTranslation('components');
   const { isRTL } = useAppTranslation();
-  const { signInWithGoogle } = useAuth();
+  const { signInWithGoogle, setThirdPartyAuthInProgress } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleGoogleSignIn = async () => {
     if (isLoading) return;
 
     setIsLoading(true);
+    setThirdPartyAuthInProgress(true);
     try {
       logger.log('🔐 GoogleSignInButton: Starting Google OAuth flow...');
       
@@ -72,6 +73,7 @@ const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
       }
     } finally {
       logger.log('🔐 GoogleSignInButton: Setting loading to false');
+      setThirdPartyAuthInProgress(false);
       setIsLoading(false);
     }
   };

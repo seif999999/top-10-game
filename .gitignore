@@ -1,4 +1,9 @@
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+#
+# Secrets & local env (never commit)
+# - test/k6-config.env — k6 credentials (see test/k6.env.example)
+# - firebase-debug.log — Firebase CLI debug output
+# - *.env.local / service-account*.json — local keys and GCP service accounts
 
 # dependencies
 node_modules/
@@ -37,7 +42,9 @@ audit-report.json
 # local env files
 .env
 .env*.local
+*.env.local
 test/k6-config.env
+service-account*.json
 
 # Google/Firebase config with API keys - do not commit (use .env or EAS secrets)
 google-services.json

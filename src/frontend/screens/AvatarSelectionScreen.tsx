@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { logger } from '../../backend/utils/logger';
 import ThemedAlert from '../utils/themedAlert';
 import useAppTranslation from '../../hooks/useTranslation';
+import { getCachedAvatarUri } from '../utils/avatarCache';
 
 interface AvatarOption {
   id: string;
@@ -82,6 +83,36 @@ const AvatarSelectionScreen: React.FC = () => {
   const { user, updateUserAvatar } = useAuth();
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(user?.selectedAvatar || null);
   const [isLoading, setIsLoading] = useState(false);
+  const [cachedAvatarUrls, setCachedAvatarUrls] = useState<Record<string, string>>({});
+
+  const avatarSourceMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    AVATAR_OPTIONS.forEach((avatar) => {
+      map[avatar.id] = cachedAvatarUrls[avatar.id] || avatar.url;
+    });
+    return map;
+  }, [cachedAvatarUrls]);
+
+  useEffect(() => {
+    let active = true;
+    const warmAvatarCache = async () => {
+      await Promise.all(
+        AVATAR_OPTIONS.map(async (avatar) => {
+          const uri = await getCachedAvatarUri(avatar.url);
+          if (!active) return;
+          setCachedAvatarUrls((prev) => {
+            if (prev[avatar.id] === uri) return prev;
+            return { ...prev, [avatar.id]: uri };
+          });
+        })
+      );
+    };
+
+    void warmAvatarCache();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleAvatarSelect = (avatarId: string) => {
     setSelectedAvatar(avatarId);
@@ -127,14 +158,14 @@ const AvatarSelectionScreen: React.FC = () => {
           isSelected && styles.selectedAvatarContainer
         ]}>
           <Image
-            source={{ uri: avatar.url }}
+            source={{ uri: avatarSourceMap[avatar.id] }}
             style={styles.avatarImage}
             resizeMode="contain"
             onLoad={() => {
-              logger.log('Avatar selection loaded:', avatar.name, avatar.url);
+              logger.log('Avatar selection loaded:', avatar.name, avatarSourceMap[avatar.id]);
             }}
             onError={(error) => {
-              logger.log('Avatar selection image error:', error.nativeEvent.error, 'URL:', avatar.url);
+              logger.log('Avatar selection image error:', error.nativeEvent.error, 'URL:', avatarSourceMap[avatar.id]);
             }}
           />
           {isSelected && (

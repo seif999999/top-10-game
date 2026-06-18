@@ -235,12 +235,11 @@ export class RateLimitService {
       };
     } catch (error) {
       logger.error('Rate limit check error:', error);
-      // On error, allow the action but log it
       return {
-        allowed: true,
+        allowed: false,
         remainingAttempts: 0,
-        resetTime: Date.now() + 60000, // 1 minute default
-        error: 'Rate limit check failed, allowing action'
+        resetTime: Date.now() + 60000,
+        error: 'Rate limit check failed; request blocked for security.',
       };
     }
   }
@@ -311,15 +310,7 @@ export class RateLimitService {
       }
     } catch (error) {
       logger.error('Get or create rate limit entry error:', error);
-      // Return default entry on error
-      return {
-        userId,
-        actionType,
-        attempts: 0,
-        firstAttempt: new Date(),
-        lastAttempt: new Date(),
-        metadata
-      };
+      throw error;
     }
   }
 
@@ -464,9 +455,10 @@ export class RateLimitService {
     } catch (error) {
       logger.error('Get rate limit status error:', error);
       return {
-        allowed: true,
+        allowed: false,
         remainingAttempts: 0,
-        resetTime: Date.now() + 60000
+        resetTime: Date.now() + 60000,
+        error: 'Rate limit status unavailable; request blocked for security.',
       };
     }
   }

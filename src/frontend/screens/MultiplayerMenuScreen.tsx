@@ -13,6 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING } from '../../backend/utils/constants';
 import useAppTranslation from '../../hooks/useTranslation';
 import BannerAd from '../components/ads/BannerAd';
+import { useAudio } from '../contexts/AudioContext';
 
 const { width, height } = Dimensions.get('window');
 
@@ -24,12 +25,15 @@ const MultiplayerMenuScreen: React.FC<MultiplayerMenuScreenProps> = () => {
   const { t } = useAppTranslation('screens');
   const { t: tCommon } = useAppTranslation('common');
   const { isRTL } = useAppTranslation();
+  const { playButtonClick } = useAudio();
 
   const handleCreateRoom = () => {
+    void playButtonClick();
     navigation.navigate('MultiplayerCategory' as never);
   };
 
   const handleJoinRoom = () => {
+    void playButtonClick();
     navigation.navigate('JoinRoom' as never);
   };
 
@@ -140,10 +144,6 @@ const MultiplayerMenuScreen: React.FC<MultiplayerMenuScreenProps> = () => {
             <View style={[styles.infoItem, isRTL && styles.rtlRow]}>
               <View style={[styles.infoBulletDot, isRTL && { marginRight: 0, marginLeft: SPACING.md }]} />
               <Text style={[styles.infoText, isRTL && styles.rtlText]}>{t('multiplayer.menu.bullet2')}</Text>
-            </View>
-            <View style={[styles.infoItem, isRTL && styles.rtlRow]}>
-              <View style={[styles.infoBulletDot, isRTL && { marginRight: 0, marginLeft: SPACING.md }]} />
-              <Text style={[styles.infoText, isRTL && styles.rtlText]}>{t('multiplayer.menu.bullet3')}</Text>
             </View>
             <View style={[styles.infoItem, isRTL && styles.rtlRow]}>
               <View style={[styles.infoBulletDot, isRTL && { marginRight: 0, marginLeft: SPACING.md }]} />

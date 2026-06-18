@@ -2,6 +2,7 @@
 // Handles client-server time drift and provides accurate time remaining calculations
 
 import { doc, setDoc, getDoc, serverTimestamp, deleteDoc, Timestamp } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 import { db } from './firebase';
 import { logger } from '../utils/logger';
 import { AppError } from '../../shared/errors';
@@ -81,12 +82,21 @@ async function computeServerTimeOffset(): Promise<number> {
  * Sample server time by writing and reading a timestamp
  */
 async function sampleServerTime(): Promise<number> {
+  const uid = getAuth().currentUser?.uid;
+  if (!uid) {
+    throw new AppError({
+      code: 'TIMESYNC_NO_AUTH',
+      message: 'Time sync requires a signed-in user',
+      userMessage: 'Unable to sync time right now.',
+    });
+  }
+
   const clientTimeBefore = Date.now();
-  
-  // ✅ SECURITY: Create a temporary document with secure random ID
+
+  // Doc ID is scoped to the signed-in user so rules can restrict writes (see firestore.rules timeSyncDocs).
   const { generateSecureId } = await import('../utils/secureRandom');
   const tempId = await generateSecureId('temp');
-  const tempRef = doc(db, COLLECTIONS.TIME_SYNC_DOCS, tempId);
+  const tempRef = doc(db, COLLECTIONS.TIME_SYNC_DOCS, `${uid}_${tempId}`);
   await setDoc(tempRef, { 
     timestamp: serverTimestamp(),
     clientTime: clientTimeBefore 

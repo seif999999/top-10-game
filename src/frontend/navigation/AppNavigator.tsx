@@ -34,12 +34,15 @@ import ShopScreen from '../screens/ShopScreen';
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const AppNavigator: React.FC = () => {
-  const { user, loading } = useAuth();
-  const { isRTL } = useAppTranslation();
+  const { user, loading, pendingAction, thirdPartyAuthInProgress } = useAuth();
+  const { isRTL, t: tCommon } = useAppTranslation();
 
-  // Block routing until auth init finishes (keeps MultiplayerProvider mounted under AuthProvider)
-  if (loading) {
-    return <LoadingPage message="Signing you in…" />;
+  const authStackBusy =
+    !user && (pendingAction || thirdPartyAuthInProgress);
+
+  // Initial bootstrap, or sign-in / Google OAuth while logged out — full-screen loader (not the login form).
+  if (loading || authStackBusy) {
+    return <LoadingPage message={tCommon('loadingMessage')} />;
   }
 
   return (

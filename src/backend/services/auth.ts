@@ -30,6 +30,26 @@ import {
 
 export type AuthListenerUnsubscribe = () => void;
 
+/**
+ * Marks User objects whose Firestore profile was already merged in this session.
+ * AuthContext can skip a duplicate getUserProfile on cold start when this is set.
+ */
+export const USER_PROFILE_HYDRATED_IN_SESSION = Symbol.for('top10game.userProfileHydrated');
+
+function markUserProfileHydrated(user: User): User {
+  Object.defineProperty(user, USER_PROFILE_HYDRATED_IN_SESSION, {
+    value: true,
+    enumerable: false,
+    configurable: true,
+  });
+  return user;
+}
+
+export function isUserProfileHydratedInSession(user: User | null | undefined): boolean {
+  if (!user || typeof user !== 'object') return false;
+  return (user as unknown as Record<symbol, boolean>)[USER_PROFILE_HYDRATED_IN_SESSION] === true;
+}
+
 // Re-export for backwards compatibility
 export { authRateLimit } from './authRateLimit';
 export { sessionManager, clearAuthStorage, clearUserData } from './sessionManager';
@@ -71,9 +91,9 @@ export const signInWithEmail = async (email: string, password: string): Promise<
 
   try {
     const cred = await signInWithEmailAndPassword(auth, email, password);
-    
-    // Reset rate limiting on successful login
-    await authRateLimit.reset(email);
+
+    // Reset rate limiting on successful login (non-blocking — saves a round-trip before returning)
+    void authRateLimit.reset(email).catch((e) => logger.warn('authRateLimit.reset failed', e));
     
     // Start session management
     sessionManager.startSession(cred.user.uid, () => {
@@ -221,12 +241,12 @@ export const getCurrentUser = async (): Promise<User | null> => {
           // ✅ SECURITY: Email only logged in dev mode
           const displayInfo = userProfile.displayName || (__DEV__ ? userProfile.email : 'User');
           logger.log('✅ User profile loaded from Firestore:', displayInfo);
-          const user = {
+          const user = markUserProfileHydrated({
             ...userProfile,
             email: fbUser.email || userProfile.email || '',
-            displayName: userProfile.displayName || fbUser.displayName || undefined
-          };
-          
+            displayName: userProfile.displayName || fbUser.displayName || undefined,
+          });
+
           // Store session for persistence
           await storeUserSession(user);
           return user;
@@ -491,11 +511,11 @@ export const subscribeToAuthChanges = (cb: (user: User | null) => void): AuthLis
           logger.log('✅ User profile loaded from Firestore:', displayInfo);
           // Ensure displayName falls back to Firebase user's displayName if not set in Firestore
           // Always use email from Firebase Auth user, not from Firestore
-          const userWithFallbackDisplayName = {
+          const userWithFallbackDisplayName = markUserProfileHydrated({
             ...userProfile,
             email: fbUser.email || userProfile.email || '',
-            displayName: userProfile.displayName || fbUser.displayName || undefined
-          };
+            displayName: userProfile.displayName || fbUser.displayName || undefined,
+          });
           cb(userWithFallbackDisplayName);
         } else {
           logger.log('⚠️ No user profile found in Firestore, using Firebase user data');

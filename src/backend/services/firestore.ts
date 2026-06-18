@@ -9,7 +9,7 @@ export const createUserProfile = async (userId: string, userData: Partial<UserPr
     ...userData,
     createdAt: serverTimestamp(),
     stats: userData.stats ?? { gamesPlayed: 0, wins: 0, totalScore: 0, averageScore: 0 },
-    coins: userData.coins ?? 0 // Default to 0 coins for new users
+    // coins: not set here — Firestore rules block client writes to coins; balance defaults to 0 in app reads
   }, { merge: true });
 };
 

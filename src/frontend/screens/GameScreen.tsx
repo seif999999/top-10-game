@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Platform, Animated, BackHandler, KeyboardAvoidingView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Platform, Animated, BackHandler, KeyboardAvoidingView, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ThemedAlert from '../utils/themedAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -25,7 +25,7 @@ import type { Answer } from '../../shared/types/game';
 import { FEATURES } from '../../backend/config/featureFlags';
 import { InputValidator } from '../../backend/utils/inputValidator';
 import { RateLimitService } from '../../backend/services/rateLimitService';
-import { findMatchingAnswer } from '../../backend/services/multiplayerGameFlowV2';
+import { findMatchingAnswer, calculatePoints } from '../../backend/services/multiplayerGameFlowV2';
 import { logger } from '../../backend/utils/logger';
 import { incrementGameCompletionCount } from '../../backend/utils/gameCompletionStorage';
 import InterstitialAdLoader from '../components/ads/InterstitialAdLoader';
@@ -36,9 +36,25 @@ import { CoinService } from '../../backend/services/CoinService';
 import { getMultiplayerFinalRankAndScore } from './game';
 import { useInterstitialTimer } from '../hooks/useInterstitialTimer';
 import DoubleRewardAd from '../components/ads/DoubleRewardAd';
+import LoadingPage from '../components/LoadingPage';
 
 
 type AnswerLike = string | QuestionAnswer | Answer;
+
+function makeTerminationAckKey(
+  roomCode: string,
+  msg: { type?: string | null; timestamp?: unknown }
+): string {
+  if (!msg.type) return '';
+  let ts = '';
+  const raw = msg.timestamp;
+  if (raw != null && typeof raw === 'object' && raw !== null && 'seconds' in raw) {
+    ts = String((raw as { seconds: number }).seconds);
+  } else if (raw != null) {
+    ts = String(raw);
+  }
+  return `${roomCode}:${msg.type}:${ts}`;
+}
 
 const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   const { roomId, categoryId, isMultiplayer, selectedQuestion, teamConfig, customQuestion, isCustomQuestion } = route.params;
@@ -126,6 +142,11 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   const hasGrantedGameCompletionCoinsRef = useRef(false);
   /** When host quits, leaderboard data is captured before leaveRoom; overlay uses this when multiplayerState is reset */
   const hostExitLeaderboardDataRef = useRef<Array<{ playerId: string; playerName: string; score: number; rank: number; selectedAvatar?: string }> | null>(null);
+  /** True after we have been in a multiplayer room this session (detects room doc deleted / unsubscribe leaving state null) */
+  const multiplayerHadRoomRef = useRef(false);
+  /** User tapped OK on room/game closed alert — then show leaderboard */
+  const dismissedTerminationAckRef = useRef<Set<string>>(new Set());
+  const pendingTerminationAlertKeyRef = useRef<string | null>(null);
   const [isAnswerSubmitted, setIsAnswerSubmitted] = useState(false);
   const [submittedAnswers, setSubmittedAnswers] = useState<string[]>([]);
   const [showQuestionComplete, setShowQuestionComplete] = useState(false);
@@ -165,6 +186,16 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   
   // Track points earned for current answer
   const [pointsEarned, setPointsEarned] = useState<number | null>(null);
+  const answerFeedbackDismissRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const FEEDBACK_ON_SCREEN_MS = 2200;
+
+  const clearAnswerFeedbackTimer = useCallback(() => {
+    if (answerFeedbackDismissRef.current !== null) {
+      clearTimeout(answerFeedbackDismissRef.current);
+      answerFeedbackDismissRef.current = null;
+    }
+  }, []);
+
   // Answer section height for ScrollView padding (prevents content from being hidden behind it)
   const [answerSectionHeight, setAnswerSectionHeight] = useState(0);
 
@@ -370,10 +401,13 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     setTriggerPreGameAd(true);
   }, [isPremium]);
 
-  // Timeout: if pre-game ad doesn't show within 5s, proceed anyway
+  // Last-resort unblock (pre-game InterstitialAdLoader should complete sooner via completeIfCannotShow)
   useEffect(() => {
     if (preGameReady) return;
-    const t = setTimeout(() => setPreGameReady(true), 5000);
+    const t = setTimeout(() => {
+      setPreGameReady(true);
+      setTriggerPreGameAd(false);
+    }, 8000);
     return () => clearTimeout(t);
   }, [preGameReady]);
 
@@ -472,19 +506,59 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
           // Host exit or early termination - show leaderboard with current scores
           playGameEnd();
         }
-        setShowGameEndRanking(true);
+        const sm = multiplayerState.systemMessage;
+        const termKey =
+          sm &&
+          multiplayerState.roomCode &&
+          (sm.type === 'room_closed' || sm.type === 'game_terminated')
+            ? makeTerminationAckKey(multiplayerState.roomCode, sm)
+            : '';
+        const needsTerminationAck = !!termKey && !dismissedTerminationAckRef.current.has(termKey);
+        if (!needsTerminationAck) {
+          setShowGameEndRanking(true);
+        }
         setShowMultiplayerLeaderboard(false);
         setShowResults(false);
         setShowAnswers(false);
       }
     }
-  }, [isMultiplayerMode, multiplayerState?.gamePhase, multiplayerState?.status, multiplayerState?.turnStartTime, multiplayerState?.revealedAnswers?.length, multiplayerState?.scores, multiplayerState?.players, user?.id, categoryId]);
+  }, [
+    isMultiplayerMode,
+    multiplayerState?.gamePhase,
+    multiplayerState?.status,
+    multiplayerState?.systemMessage?.type,
+    multiplayerState?.systemMessage?.timestamp,
+    multiplayerState?.roomCode,
+    multiplayerState?.turnStartTime,
+    multiplayerState?.revealedAnswers?.length,
+    multiplayerState?.scores,
+    multiplayerState?.players,
+    user?.id,
+    categoryId,
+  ]);
+
+  useEffect(() => {
+    if (isMultiplayerMode && multiplayerState?.roomCode) {
+      multiplayerHadRoomRef.current = true;
+    }
+  }, [isMultiplayerMode, multiplayerState?.roomCode]);
+
+  /** Room removed while on game screen (e.g. deleted) — send player to multiplayer hub */
+  useEffect(() => {
+    if (!isMultiplayerMode) return;
+    if (!multiplayerHadRoomRef.current) return;
+    if (multiplayerState) return;
+    if (showGameEndRanking || showMultiplayerLeaderboard) return;
+    logger.log('🚪 Multiplayer room no longer available; navigating to MultiplayerMenu');
+    forceDisconnect();
+    navigation.navigate('MultiplayerMenu' as never);
+  }, [isMultiplayerMode, multiplayerState, showGameEndRanking, showMultiplayerLeaderboard, forceDisconnect, navigation]);
 
   // Timeout for multiplayer game loading - simplified dependencies
   useEffect(() => {
     if (isMultiplayerMode && multiplayerState?.gamePhase === 'lobby') {
       const timeout = setTimeout(() => {
-        navigation.goBack();
+        navigation.navigate('MultiplayerMenu' as never);
       }, 10000); // 10 second timeout
 
       return () => clearTimeout(timeout);
@@ -594,10 +668,13 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   // Reset feedback state when question changes
   useEffect(() => {
     if (isMultiplayerMode && multiplayerState?.currentQuestionIndex !== undefined) {
+      clearAnswerFeedbackTimer();
       setPointsEarned(null);
       setLastAnswerResult(null);
     }
-  }, [isMultiplayerMode, multiplayerState?.currentQuestionIndex]);
+  }, [isMultiplayerMode, multiplayerState?.currentQuestionIndex, clearAnswerFeedbackTimer]);
+
+  useEffect(() => () => clearAnswerFeedbackTimer(), [clearAnswerFeedbackTimer]);
 
   // Check if question is complete and show success message - simplified dependencies
   useEffect(() => {
@@ -761,13 +838,48 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
             }
           ]
         });
-      } else if (systemMessage.type === 'game_terminated') {
-        // Game terminated (e.g. host left) - leaderboard is shown by gamePhase effect, just clear message
-        logger.log('🔔 GAME_TERMINATED: Leaderboard will be shown, clearing system message');
-        clearSystemMessage();
       }
     }
-  }, [isMultiplayerMode, systemMessage, clearSystemMessage, forceDisconnect, navigation]);
+  }, [isMultiplayerMode, systemMessage, clearSystemMessage, forceDisconnect, navigation, tGame, tCommon]);
+
+  /** After host closes room or game is terminated: message first, then leaderboard */
+  useEffect(() => {
+    if (!isMultiplayerMode) return;
+    if (multiplayerState?.gamePhase !== 'finished') return;
+    const t = systemMessage.type;
+    if (t !== 'room_closed' && t !== 'game_terminated') return;
+    const roomCode = multiplayerState?.roomCode;
+    if (!roomCode) return;
+    const key = makeTerminationAckKey(roomCode, systemMessage);
+    if (!key || dismissedTerminationAckRef.current.has(key)) return;
+    if (pendingTerminationAlertKeyRef.current === key) return;
+    pendingTerminationAlertKeyRef.current = key;
+    showCrossPlatformAlert({
+      title: tGame('multiplayer.roomClosed'),
+      message: systemMessage.message || tGame('multiplayer.roomClosedByHostMessage'),
+      buttons: [
+        {
+          text: tCommon('ok'),
+          onPress: () => {
+            dismissedTerminationAckRef.current.add(key);
+            pendingTerminationAlertKeyRef.current = null;
+            clearSystemMessage();
+            setShowGameEndRanking(true);
+          },
+        },
+      ],
+    });
+  }, [
+    isMultiplayerMode,
+    multiplayerState?.gamePhase,
+    multiplayerState?.roomCode,
+    systemMessage.type,
+    systemMessage.message,
+    systemMessage.timestamp,
+    clearSystemMessage,
+    tGame,
+    tCommon,
+  ]);
 
   // Monitor player disconnections and handle host migration
   const previousPlayersRef = useRef<string[]>([]);
@@ -902,12 +1014,26 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   );
 
   const proceedWithMultiplayerExit = async (isHost: boolean) => {
+    const inActiveGame =
+      multiplayerState &&
+      (multiplayerState.gamePhase === 'question' ||
+        multiplayerState.gamePhase === 'answers' ||
+        multiplayerState.gamePhase === 'results');
+
     if (isHost) {
       hostExitLeaderboardDataRef.current = getMultiplayerLeaderboardData();
       try {
         await leaveRoom();
       } catch (e) {
         logger.warn('leaveRoom failed on host quit', e);
+      }
+      setShowGameEndRanking(true);
+    } else if (inActiveGame) {
+      hostExitLeaderboardDataRef.current = getMultiplayerLeaderboardData();
+      try {
+        await leaveRoom();
+      } catch (e) {
+        logger.warn('leaveRoom failed on player quit (active game)', e);
       }
       setShowGameEndRanking(true);
     } else {
@@ -1001,93 +1127,15 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     }
   }, [isMultiplayerMode, handleExitGame]);
 
-const handleEndGame = () => {
-  if (Platform.OS === 'web') {
-    const message = isMultiplayerMode 
-      ? tGame('exit.exitMultiplayerMessage')
-      : tGame('exit.endGameMessage');
-    const confirmed = window.confirm(message);
-    if (confirmed) {
-      if (isMultiplayerMode) {
-        proceedWithMultiplayerExit(isMultiplayerHost);
-      } else {
-        endGame();
-        // For single player, navigate away without showing results modal
-        resetGame();
-        navigation.dispatch(
-          CommonActions.reset({
-            index: 1,
-            routes: [
-              { name: 'Home' },
-              { name: 'Categories', params: { gameMode: 'single' } }
-            ]
-          })
-        );
-      }
-    }
-  } else {
-    // Mobile version
-    const message = isMultiplayerMode 
-      ? tGame('exit.exitMultiplayerMessage')
-      : tGame('exit.endGameMessage');
-    const title = isMultiplayerMode ? tGame('exit.title') : tGame('exit.endGameTitle');
-    const buttonText = isMultiplayerMode ? tGame('actions.exit') : tGame('actions.endGame');
-    
-    // Use error style (red outline) for single player, warning style (yellow outline) for multiplayer
-    if (isMultiplayerMode) {
-      ThemedAlert.warning(
-        title,
-        message,
-        [
-          { text: tCommon('cancel'), style: 'cancel' },
-          { 
-            text: buttonText, 
-            style: 'destructive', 
-            onPress: () => {
-              proceedWithMultiplayerExit(isMultiplayerHost);
-            }
-          }
-        ]
-      );
-    } else {
-      ThemedAlert.error(
-        title,
-        message,
-        [
-          { text: tCommon('cancel'), style: 'cancel' },
-          { 
-            text: buttonText, 
-            style: 'destructive', 
-            onPress: () => {
-              endGame();
-              // For single player, navigate away without showing results modal
-              resetGame();
-              navigation.dispatch(
-                CommonActions.reset({
-                  index: 1,
-                  routes: [
-                    { name: 'Home' },
-                    { name: 'Categories', params: { gameMode: 'single' } }
-                  ]
-                })
-              );
-            }
-          }
-        ]
-      );
-    }
-  }
-};
-
-
            const handlePlayAgain = () => {
       setShowResults(false);
       setShowGameEndRanking(false);
       if (isMultiplayerMode) {
         forceDisconnect();
-      } else {
-        resetGame();
+        navigation.navigate('MultiplayerMenu' as never);
+        return;
       }
+      resetGame();
       navigation.navigate('Home');
     };
 
@@ -1096,16 +1144,22 @@ const handleEndGame = () => {
       setShowGameEndRanking(false);
       if (isMultiplayerMode) {
         forceDisconnect();
-      } else {
-        resetGame();
+        navigation.navigate('MultiplayerMenu' as never);
+        return;
       }
+      resetGame();
       navigation.navigate('Home');
     };
 
   const handleQuitMultiplayerGame = async () => {
     logger.log('🚪 Quitting multiplayer game...');
+    const inActiveGame =
+      multiplayerState &&
+      (multiplayerState.gamePhase === 'question' ||
+        multiplayerState.gamePhase === 'answers' ||
+        multiplayerState.gamePhase === 'results');
+
     if (isMultiplayerHost) {
-      // Host: terminate game, show leaderboard, then leave on Continue
       hostExitLeaderboardDataRef.current = getMultiplayerLeaderboardData();
       try {
         await leaveRoom();
@@ -1113,8 +1167,16 @@ const handleEndGame = () => {
         logger.warn('leaveRoom failed on host quit', e);
       }
       setShowGameEndRanking(true);
+    } else if (inActiveGame) {
+      hostExitLeaderboardDataRef.current = getMultiplayerLeaderboardData();
+      setShowMultiplayerLeaderboard(false);
+      try {
+        await leaveRoom();
+      } catch (e) {
+        logger.warn('leaveRoom failed on player quit (active game)', e);
+      }
+      setShowGameEndRanking(true);
     } else {
-      // Player: just leave, game continues for others
       setShowMultiplayerLeaderboard(false);
       try {
         await leaveRoom();
@@ -1343,6 +1405,8 @@ const handleEndGame = () => {
       })
     ]).start();
 
+    let glowDir: -1 | 0 | 1 = 0;
+
     try {
       if (isMultiplayerMode) {
         if (hasSubmittedThisTurn) {
@@ -1358,8 +1422,6 @@ const handleEndGame = () => {
         }
         
         logger.log('📝 Submitting multiplayer answer:', sanitizedAnswer);
-        
-        // Use V2 answer submission system
         logger.log('🔧 CALLING SERVICE - submitAnswerV2:', {
           roomCode: multiplayerState?.roomCode || '',
           playerId: user?.id || '',
@@ -1372,83 +1434,100 @@ const handleEndGame = () => {
           sanitizedAnswer
         );
         
-        // 🎯 SUBMIT ANSWER - SERVICE RESULT DEBUG LOGGING
         logger.log('🎯 SUBMIT ANSWER - SERVICE RESULT:', {
           success: result.success,
           points: result.points,
           error: result.error,
           roundEnded: result.roundEnded,
-          matchedAnswer: 'N/A' // Service doesn't return matchedAnswer
         });
         
+        clearAnswerFeedbackTimer();
+
         if (result.success) {
           setMultiplayerAnswer('');
-          setHasSubmittedThisTurn(true); // Mark that player has submitted this turn
-          // The answer is already added to multiplayerSubmittedAnswers by the context
-          
-          // Show feedback based on whether points were earned (correct answer)
-          if (result.points && result.points > 0) {
-            setLastAnswerResult('correct');
-            setPointsEarned(result.points);
-            playSuccess(); // Play success sound for correct answer
+          setHasSubmittedThisTurn(true);
+
+          const correct = (result.points ?? 0) > 0;
+          setLastAnswerResult(correct ? 'correct' : 'incorrect');
+          setPointsEarned(correct ? (result.points ?? 0) : 0);
+          glowDir = correct ? 1 : -1;
+          if (correct) {
+            playSuccess();
           } else {
-            setLastAnswerResult('incorrect');
-            setPointsEarned(0);
-            playError(); // Play error sound for wrong answer
+            playError();
           }
-          
-          // If round ended, show message
+
           if (result.roundEnded) {
             logger.log(`🏁 Round ended! Moving to answers phase.`);
-            // The game phase will automatically change to 'answers' via the multiplayer context
           }
         } else {
-          // Show error feedback
           setLastAnswerResult('incorrect');
+          setPointsEarned(0);
+          glowDir = -1;
+          playError();
           logger.log(`❌ Answer submission failed: ${result.error || 'Failed to submit answer'}`);
         }
       } else {
-        logger.log('📝 Submitting single-player answer:', sanitizedAnswer);
-        logger.log('📝 Before submission - Score:', getPlayerScore('You'));
-        submitAnswer('You', sanitizedAnswer);
-        logger.log('📝 After submission - Score:', getPlayerScore('You'));
-        setAnswer('');
-        
-        // Determine answer result and show feedback
-        const isCorrect = checkAnswerCorrectness(sanitizedAnswer);
-        setLastAnswerResult(isCorrect ? 'correct' : 'incorrect');
-        
-        // Play sound based on answer correctness
-        if (isCorrect) {
-          playSuccess();
-        } else {
+        const answers = currentQuestion?.answers;
+        const gs = gameState;
+        if (!answers?.length || !gs) {
+          logger.log('❌ Single-player submit: missing question or game state');
+          return;
+        }
+
+        const existingRound = gs.rounds?.find((r) => r.roundNumber === gs.currentRound);
+        const revealedAnswers = answers.map((a) =>
+          existingRound?.playerAnswers?.some((pa) => pa.rank === a.rank)
+            ? { answerId: a.text, playerId: '', points: 0 }
+            : null
+        );
+        const spMatch = findMatchingAnswer(sanitizedAnswer.trim(), answers, revealedAnswers);
+
+        clearAnswerFeedbackTimer();
+
+        if (!spMatch) {
+          setLastAnswerResult('incorrect');
+          setPointsEarned(0);
+          glowDir = -1;
           playError();
+        } else {
+          logger.log('📝 Submitting single-player answer:', sanitizedAnswer);
+          submitAnswer('You', sanitizedAnswer);
+          setAnswer('');
+          setLastAnswerResult('correct');
+          const pts =
+            typeof spMatch.answer.points === 'number'
+              ? spMatch.answer.points
+              : calculatePoints(spMatch.answer.rank);
+          setPointsEarned(pts);
+          glowDir = 1;
+          playSuccess();
         }
       }
       
-      setSubmittedAnswers(prev => [...prev, sanitizedAnswer]);
+      setSubmittedAnswers((prev) => [...prev, sanitizedAnswer]);
       setIsAnswerSubmitted(true);
-      
-      // Animate answer input based on result - use setTimeout to ensure state is updated
-      setTimeout(() => {
+
+      if (glowDir !== 0) {
+        answerInputGlow.stopAnimation();
         Animated.timing(answerInputGlow, {
-          toValue: lastAnswerResult === 'correct' ? 1 : -1,
-          duration: ANIMATIONS.duration.normal,
+          toValue: glowDir,
+          duration: 180,
           useNativeDriver: false,
         }).start();
-      }, 100); // Small delay to ensure state is updated
-      
-      // Reset feedback after delay - green/red answer shown for 4s then fades
-      const FEEDBACK_DURATION_MS = 4000;
-      setTimeout(() => {
+      }
+
+      answerFeedbackDismissRef.current = setTimeout(() => {
+        answerFeedbackDismissRef.current = null;
         setIsAnswerSubmitted(false);
         setLastAnswerResult(null);
+        setPointsEarned(null);
         Animated.timing(answerInputGlow, {
           toValue: 0,
-          duration: ANIMATIONS.duration.normal,
+          duration: 180,
           useNativeDriver: false,
         }).start();
-      }, FEEDBACK_DURATION_MS);
+      }, FEEDBACK_ON_SCREEN_MS);
     } catch (error) {
       logger.error('❌ Error submitting answer:', error);
     }
@@ -1481,55 +1560,34 @@ const handleEndGame = () => {
     }
   };
 
-  // Helper function to check if an answer is correct
-  const checkAnswerCorrectness = (answer: string): boolean => {
-    if (!currentQuestion?.answers || !answer || typeof answer !== 'string') return false;
-    
-    const normalizedAnswer = answer.toLowerCase().trim();
-    if (!Array.isArray(currentQuestion.answers)) {
-      logger.warn('⚠️ currentQuestion.answers is not an array:', currentQuestion.answers);
-      return false;
-    }
-    
-    return currentQuestion.answers.some((correctAnswer: AnswerLike) => {
-      if (!correctAnswer) return false;
-      if (typeof correctAnswer === 'string') {
-        return correctAnswer.toLowerCase().trim() === normalizedAnswer;
-      }
+  const singlePlayerLoading =
+    !isMultiplayerMode && (!gameState || !currentQuestion);
 
-      const answerText = correctAnswer.text;
-      if (!answerText) return false;
+  const multiplayerWaitingForGame =
+    isMultiplayerMode &&
+    !showGameEndRanking &&
+    (!multiplayerState || !currentQuestion || multiplayerState.gamePhase === 'lobby');
 
-      return answerText.toLowerCase().trim() === normalizedAnswer ||
-        ('normalized' in correctAnswer && (correctAnswer as { normalized?: string }).normalized?.toLowerCase().trim() === normalizedAnswer) ||
-        ('aliases' in correctAnswer && Array.isArray((correctAnswer as { aliases?: string[] }).aliases) && 
-         ((correctAnswer as { aliases?: string[] }).aliases || []).some((alias: string) => 
-           alias && typeof alias === 'string' && alias.toLowerCase().trim() === normalizedAnswer
-         ));
-    });
-  };
+  if (singlePlayerLoading) {
+    return <LoadingPage message={tGame('multiplayer.loadingGame')} />;
+  }
 
-  if ((!isMultiplayerMode && (!gameState || !currentQuestion)) || 
-      (isMultiplayerMode && (!multiplayerState || !currentQuestion || multiplayerState.gamePhase === 'lobby'))) {
+  if (multiplayerWaitingForGame) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>
-            {isMultiplayerMode ? tGame('multiplayer.waitingForGameStart') : tGame('multiplayer.loadingGame')}
+            {tGame('multiplayer.waitingForGameStart')}
           </Text>
-          {isMultiplayerMode && (
-            <>
-              <Text style={styles.connectionStatus}>
-                {tGame('multiplayer.statusLabel')}: {multiplayerConnectionStatus || tGame('multiplayer.disconnected')}
-              </Text>
-              <Text style={styles.connectionStatus}>
-                {tGame('multiplayer.gamePhaseLabel')}: {multiplayerState?.gamePhase || tGame('multiplayer.unknown')}
-              </Text>
-              <Text style={styles.connectionStatus}>
-                {tGame('multiplayer.questionsLabel')}: {multiplayerState?.questions?.length || 0}
-              </Text>
-            </>
-          )}
+          <Text style={styles.connectionStatus}>
+            {tGame('multiplayer.statusLabel')}: {multiplayerConnectionStatus || tGame('multiplayer.disconnected')}
+          </Text>
+          <Text style={styles.connectionStatus}>
+            {tGame('multiplayer.gamePhaseLabel')}: {multiplayerState?.gamePhase || tGame('multiplayer.unknown')}
+          </Text>
+          <Text style={styles.connectionStatus}>
+            {tGame('multiplayer.questionsLabel')}: {multiplayerState?.questions?.length || 0}
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -1545,7 +1603,11 @@ const handleEndGame = () => {
       {/* Header - hidden in multiplayer (back button scrolls with content) */}
       {!isMultiplayerMode && (
         <View style={gameScreenHeaderStyle}>
-          <View style={styles.headerLeft} />
+          <View style={styles.headerLeft}>
+            <TouchableOpacity onPress={handleBackButton} style={styles.backButton} accessibilityRole="button" accessibilityLabel={tCommon('back')}>
+              <Text style={styles.backButtonArrow}>{isRTL ? '→' : '←'}</Text>
+            </TouchableOpacity>
+          </View>
           <View style={styles.headerCenter} />
           <View style={styles.headerRight} />
         </View>
@@ -1811,16 +1873,6 @@ const handleEndGame = () => {
                )}
             </View>
 
-            {/* End Game Button - Single Player Only */}
-            {!isMultiplayerMode && (
-              <TouchableOpacity 
-                style={styles.endGameButton} 
-                onPress={handleEndGame}
-              >
-                <Text style={styles.endGameButtonText}>{tGame('actions.endGame')}</Text>
-              </TouchableOpacity>
-            )}
-
           </View>
         )}
 
@@ -2030,14 +2082,26 @@ const handleEndGame = () => {
         {/* Answer Input Section - Always visible */}
         {(() => {
           const shouldShowAnswer = !questionIsComplete && 
-            ((isMultiplayerMode && multiplayerState?.gamePhase !== 'finished') ||
+            ((isMultiplayerMode &&
+              !!multiplayerState &&
+              multiplayerState.gamePhase !== 'finished' &&
+              !showGameEndRanking) ||
              (!isMultiplayerMode && gameState?.gamePhase !== 'finished')) && 
             !(!isMultiplayerMode && isTeamMode);
           
           return shouldShowAnswer;
         })() && (
           <View 
-            style={[styles.modernAnswerSection, { paddingBottom: Math.max(20, insets.bottom + 10) }]}
+            style={[
+              styles.modernAnswerSection,
+              isMultiplayerMode && styles.modernAnswerSectionMultiplayer,
+              {
+                paddingBottom: Math.max(
+                  isMultiplayerMode ? 28 : 20,
+                  insets.bottom + (isMultiplayerMode ? 18 : 10)
+                ),
+              },
+            ]}
             onLayout={(e) => setAnswerSectionHeight(e.nativeEvent.layout.height)}
           >
             <Animated.View style={[
@@ -2120,32 +2184,6 @@ const handleEndGame = () => {
                </View>
                )}
              </View>
-             
-             {/* Answer Feedback Indicator */}
-             {lastAnswerResult && (
-               <Animated.View 
-                 style={[
-                   styles.feedbackIndicator,
-                   {
-                     backgroundColor: lastAnswerResult === 'correct' ? COLORS.successGlow : COLORS.errorGlow,
-                     borderColor: lastAnswerResult === 'correct' ? COLORS.success : COLORS.error,
-                     opacity: answerInputGlow.interpolate({
-                       inputRange: [-1, 0, 1],
-                       outputRange: [1, 0, 1]
-                     })
-                   }
-                 ]}
-               >
-                 <Text style={[
-                   styles.feedbackText,
-                   { color: lastAnswerResult === 'correct' ? COLORS.success : COLORS.error }
-                 ]}>
-                   {lastAnswerResult === 'correct' 
-                     ? `Correct! +${pointsEarned || 0} points` 
-                     : 'Wrong Answer'}
-              </Text>
-               </Animated.View>
-             )}
           </View>
         )}
 
@@ -2161,6 +2199,33 @@ const handleEndGame = () => {
           onHide={hideToast}
         />
 
+        <Modal
+          visible={lastAnswerResult !== null}
+          transparent
+          animationType="none"
+          statusBarTranslucent
+          presentationStyle="overFullScreen"
+          onRequestClose={() => {}}
+        >
+          <View style={styles.answerFeedbackOverlay} pointerEvents="none">
+            <View
+              style={[
+                styles.answerFeedbackBubble,
+                lastAnswerResult === 'correct'
+                  ? styles.answerFeedbackBubbleCorrect
+                  : styles.answerFeedbackBubbleWrong,
+              ]}
+            >
+              <Text style={styles.answerFeedbackMainText}>
+                {lastAnswerResult === 'correct' ? 'Correct!' : 'Wrong answer'}
+              </Text>
+              {lastAnswerResult === 'correct' && (
+                <Text style={styles.answerFeedbackPointsText}>+{pointsEarned ?? 0} points</Text>
+              )}
+            </View>
+          </View>
+        </Modal>
+
         {/* Pre-game ad: before every game (single-player + multiplayer, unless premium) */}
         <InterstitialAdLoader
           trigger={triggerPreGameAd}
@@ -2170,6 +2235,7 @@ const handleEndGame = () => {
           }}
           gameplayActive={false}
           minimumInterval={0}
+          completeIfCannotShow
         />
         
         {/* Game enter interstitial handled in useEffect above */}
@@ -2711,25 +2777,49 @@ const styles = StyleSheet.create({
      bottom: 0,
      zIndex: 999,
    },
-   feedbackIndicator: {
-     marginTop: SPACING.sm,
-     paddingVertical: 6,
-     paddingHorizontal: SPACING.sm,
-     borderRadius: 8,
-     borderWidth: 1,
-     alignItems: 'center',
-     justifyContent: 'center',
-     shadowOffset: { width: 0, height: 4 },
-     shadowRadius: 8,
-     elevation: 4,
-   },
-   feedbackText: {
-     fontSize: 16,
-           fontWeight: '600',
-     fontFamily: TYPOGRAPHY.fontFamily.primary,
-     letterSpacing: 0.5,
-     textAlign: 'center'
-   },
+  answerFeedbackOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.38)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.lg,
+  },
+  answerFeedbackBubble: {
+    maxWidth: 320,
+    paddingVertical: SPACING.xl,
+    paddingHorizontal: SPACING.xl,
+    borderRadius: 18,
+    alignItems: 'center',
+    borderWidth: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
+    elevation: 16,
+  },
+  answerFeedbackBubbleCorrect: {
+    backgroundColor: 'rgba(5, 150, 105, 0.96)',
+    borderColor: COLORS.success,
+  },
+  answerFeedbackBubbleWrong: {
+    backgroundColor: 'rgba(185, 28, 28, 0.96)',
+    borderColor: COLORS.error,
+  },
+  answerFeedbackMainText: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '800',
+    textAlign: 'center',
+    fontFamily: TYPOGRAPHY.fontFamily.primary,
+  },
+  answerFeedbackPointsText: {
+    color: 'rgba(255, 255, 255, 0.95)',
+    fontSize: 17,
+    fontWeight: '700',
+    marginTop: SPACING.sm,
+    textAlign: 'center',
+    fontFamily: TYPOGRAPHY.fontFamily.primary,
+  },
    // Team mode styles
    teamLeaderboard: {
      backgroundColor: '#1E293B',
@@ -3212,23 +3302,6 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
-  endGameButton: {
-    backgroundColor: COLORS.error,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.errorDark,
-    marginTop: SPACING.lg,
-    marginHorizontal: SPACING.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  endGameButtonText: {
-    color: COLORS.white,
-    fontSize: 16,
-    fontWeight: '700',
-  },
   answerCard: {
     width: '48%',
     backgroundColor: 'rgba(139, 92, 246, 0.2)', // More solid purple background
@@ -3331,6 +3404,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 4,
+  },
+  /** Slightly taller bottom panel in multiplayer — more breathing room below buttons */
+  modernAnswerSectionMultiplayer: {
+    paddingTop: SPACING.sm,
+    paddingHorizontal: 14,
+    marginBottom: 14,
   },
   answerSectionTitle: {
     fontSize: 18,

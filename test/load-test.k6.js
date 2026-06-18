@@ -18,6 +18,20 @@ import { Trend } from 'k6/metrics';
 
 const API_KEY = (__ENV.FIREBASE_API_KEY || '').trim();
 const PROJECT_ID = (__ENV.FIREBASE_PROJECT_ID || '').trim();
+
+// Safety: never run load tests against production Firebase
+(() => {
+  const pid = PROJECT_ID.toLowerCase();
+  if (
+    !PROJECT_ID ||
+    (!pid.includes('loadtest') && !pid.includes('test'))
+  ) {
+    throw new Error(
+      'Safety check failed: this script must only run against a test Firebase project, not production'
+    );
+  }
+})();
+
 const TEST_PASSWORD = (__ENV.K6_TEST_USER_PASSWORD || '').trim();
 
 const EMAILS_RAW = __ENV.K6_TEST_USER_EMAILS || __ENV.K6_TEST_USER_EMAIL || '';

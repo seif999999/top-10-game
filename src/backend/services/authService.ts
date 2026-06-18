@@ -43,8 +43,14 @@ export class AuthService {
     try {
       logger.log('🔍 AuthService.ensureAuthenticated: Starting authentication check...');
       
-      // Check if user is already authenticated in AuthService
-      if (this.currentUser) {
+      // Reject cached user if it no longer matches Firebase (e.g. account switch race)
+      const firebaseUserEarly = auth.currentUser;
+      if (this.currentUser && firebaseUserEarly && this.currentUser.id !== firebaseUserEarly.uid) {
+        logger.warn('⚠️ AuthService.ensureAuthenticated: Cached user id ≠ Firebase uid, clearing cache');
+        this.currentUser = null;
+      }
+
+      if (this.currentUser && firebaseUserEarly && this.currentUser.id === firebaseUserEarly.uid) {
         logger.log('✅ AuthService.ensureAuthenticated: User already authenticated in AuthService:', this.currentUser.email);
         return this.currentUser.id;
       }
@@ -123,7 +129,7 @@ export class AuthService {
    * Get the current user ID
    */
   public getCurrentUserId(): string | null {
-    return this.currentUser?.id || null;
+    return auth.currentUser?.uid ?? this.currentUser?.id ?? null;
   }
 
   /**
@@ -135,10 +141,35 @@ export class AuthService {
 
   /**
    * Sync with external user state (e.g., from AuthContext)
-   * This helps resolve race conditions between AuthService and AuthContext
+   * Firebase Auth uid is source of truth — never adopt a React user whose id ≠ auth.currentUser.uid.
    */
   public syncWithUser(user: User | null): void {
-    if (user && (!this.currentUser || this.currentUser.id !== user.id)) {
+    const fu = auth.currentUser;
+
+    if (fu && this.currentUser && this.currentUser.id !== fu.uid) {
+      logger.warn('⚠️ AuthService: Clearing stale currentUser (id mismatch vs Firebase)', {
+        staleId: this.currentUser.id,
+        firebaseUid: fu.uid,
+      });
+      this.currentUser = null;
+    }
+
+    if (user == null) {
+      if (!fu) {
+        this.currentUser = null;
+      }
+      return;
+    }
+
+    if (fu && user.id !== fu.uid) {
+      logger.warn('⚠️ AuthService: Skipping sync — AuthContext user id does not match Firebase', {
+        contextUserId: user.id,
+        firebaseUid: fu.uid,
+      });
+      return;
+    }
+
+    if (!this.currentUser || this.currentUser.id !== user.id) {
       logger.log('🔄 AuthService: Syncing with external user state:', user.email);
       this.currentUser = user;
     }
@@ -210,20 +241,28 @@ export class AuthService {
    */
   public async updateUserAvatar(selectedAvatar: string | undefined): Promise<void> {
     try {
-      if (!this.currentUser) {
+      const fu = auth.currentUser;
+      if (!fu) {
         throw new Error('No user is currently signed in');
       }
 
-      // Update Firestore profile
-      await UserProfileService.updateUserAvatar(this.currentUser.id, selectedAvatar);
-      
-      // Update local user state
+      await UserProfileService.updateUserAvatar(fu.uid, selectedAvatar);
+
+      if (!this.currentUser || this.currentUser.id !== fu.uid) {
+        this.currentUser = {
+          id: fu.uid,
+          email: fu.email ?? '',
+          displayName: fu.displayName ?? undefined,
+          createdAt: fu.metadata?.creationTime ? new Date(fu.metadata.creationTime) : undefined,
+          stats: undefined,
+        };
+      }
       this.currentUser.selectedAvatar = selectedAvatar;
       if (!selectedAvatar) {
         this.currentUser.avatarUrl = undefined;
       }
-      
-      logger.log(`Avatar updated for user ${this.currentUser.id}: ${selectedAvatar || 'none'}`);
+
+      logger.log(`Avatar updated for user ${fu.uid}: ${selectedAvatar || 'none'}`);
     } catch (error) {
       logger.error('Error updating user avatar:', error);
       throw error;
@@ -234,23 +273,45 @@ export class AuthService {
    * Get user profile with avatar data from Firestore
    */
   public async getUserProfileWithAvatar(): Promise<User | null> {
+    const fu = auth.currentUser;
+    if (!fu) {
+      return null;
+    }
+
+    if (this.currentUser && this.currentUser.id !== fu.uid) {
+      this.currentUser = null;
+    }
+
     try {
-      if (!this.currentUser) {
-        return null;
+      const profile = await UserProfileService.getUserProfile(fu.uid);
+
+      if (profile) {
+        this.currentUser = {
+          ...profile,
+          email: fu.email || profile.email || '',
+          displayName: profile.displayName || fu.displayName || undefined,
+        };
+        return this.currentUser;
       }
 
-      // Get profile from Firestore (includes avatar data)
-      const profile = await UserProfileService.getUserProfile(this.currentUser.id);
-      
-      if (profile) {
-        // Update local user state with Firestore data
-        this.currentUser = profile;
-      }
-      
+      this.currentUser = {
+        id: fu.uid,
+        email: fu.email ?? '',
+        displayName: fu.displayName ?? undefined,
+        createdAt: fu.metadata?.creationTime ? new Date(fu.metadata.creationTime) : undefined,
+        stats: undefined,
+      };
       return this.currentUser;
     } catch (error) {
       logger.error('Error getting user profile with avatar:', error);
-      return this.currentUser; // Return local state if Firestore fails
+      this.currentUser = {
+        id: fu.uid,
+        email: fu.email ?? '',
+        displayName: fu.displayName ?? undefined,
+        createdAt: fu.metadata?.creationTime ? new Date(fu.metadata.creationTime) : undefined,
+        stats: undefined,
+      };
+      return this.currentUser;
     }
   }
 

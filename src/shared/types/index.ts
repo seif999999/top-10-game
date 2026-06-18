@@ -154,6 +154,9 @@ export type AuthContextType = {
   user: User | null;
   loading: boolean;
   pendingAction: boolean;
+  /** True while native Google OAuth sheet / picker is visible (before Firebase). Drives full-screen loading on auth stack. */
+  thirdPartyAuthInProgress: boolean;
+  setThirdPartyAuthInProgress: (value: boolean) => void;
   /** One-time message after receiving welcome coins (e.g. "Welcome! You've received 100 coins to get started!"). Clear after showing. */
   welcomeCoinsMessage: string | null;
   clearWelcomeCoinsMessage: () => void;

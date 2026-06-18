@@ -21,6 +21,7 @@ import { COLORS, SPACING, TYPOGRAPHY, ACCESSIBILITY } from '../../backend/utils/
 import { AuthService } from '../../backend/services/authService';
 import { logger } from '../../backend/utils/logger';
 import useAppTranslation from '../../hooks/useTranslation';
+import { useAudio } from '../contexts/AudioContext';
 
 interface JoinRoomScreenProps {}
 
@@ -42,6 +43,7 @@ const JoinRoomScreen: React.FC<JoinRoomScreenProps> = () => {
   const { t } = useAppTranslation('screens');
   const { t: tCommon } = useAppTranslation('common');
   const { isRTL } = useAppTranslation();
+  const { playButtonClick } = useAudio();
 
   const [roomCode, setRoomCode] = useState(joinRoomCode);
   const [isValidCode, setIsValidCode] = useState(false);
@@ -77,6 +79,7 @@ const JoinRoomScreen: React.FC<JoinRoomScreenProps> = () => {
     }
 
     try {
+      void playButtonClick();
       logger.log('🎯 Attempting to join room:', normalizedCode);
       
       // Ensure user is authenticated before joining room
