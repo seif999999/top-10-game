@@ -43,6 +43,9 @@ test/k6-config.env
 google-services.json
 GoogleService-Info.plist
 
+# Sentry build auth token — create locally from https://sentry.io (never commit)
+android/sentry.properties
+
 # typescript
 *.tsbuildinfo
 
