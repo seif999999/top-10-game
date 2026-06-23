@@ -86,7 +86,11 @@
   "answers": {
     "title": "Answers",
     "noAnswers": "No answers available",
-    "yourAnswers": "Your Answers:"
+    "yourAnswers": "Your Answers:",
+    "correctGuesses": "Correct",
+    "incorrectGuesses": "Incorrect guesses",
+    "alreadyTried": "You already tried that answer",
+    "noAttemptsYet": "No guesses yet"
   },
   "questionComplete": {
     "title": "Question Complete!",

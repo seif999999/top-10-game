@@ -86,7 +86,11 @@
   "answers": {
     "title": "الإجابات",
     "noAnswers": "لا توجد إجابات متاحة",
-    "yourAnswers": "إجاباتك:"
+    "yourAnswers": "إجاباتك:",
+    "correctGuesses": "صحيحة",
+    "incorrectGuesses": "تخمينات خاطئة",
+    "alreadyTried": "لقد جرّبت هذه الإجابة بالفعل",
+    "noAttemptsYet": "لا توجد تخمينات بعد"
   },
   "questionComplete": {
     "title": "اكتمل السؤال!",

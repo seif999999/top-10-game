@@ -8,11 +8,12 @@ export type MissionDifficulty = 'easy' | 'medium' | 'hard' | 'legendary';
 export type MissionCategory = 
   | 'streak'        // Answer streaks, win streaks
   | 'score'         // Score-based achievements  
-  | 'games'         // Game count achievements
+  | 'local'         // Local host / single-player achievements
+  | 'games'         // Deprecated alias — use local or multiplayer
   | 'accuracy'      // Accuracy-based achievements
   | 'speed'         // Time-based achievements
-  | 'multiplayer'   // Multiplayer-specific achievements
-  | 'exploration'   // Category exploration
+  | 'multiplayer'   // Online multiplayer achievements
+  | 'exploration'   // Category exploration (deprecated — use local/multiplayer splits)
   | 'daily'         // Daily activity achievements
   | 'special';      // Special/unique achievements
 
@@ -48,6 +49,12 @@ export interface UserMissions {
   missions: { [missionId: string]: MissionProgress };
   totalCoinsEarned: number;
   lastUpdated: Date;
+  /** Categories played in local / single-player games */
+  localCategoriesPlayed?: string[];
+  /** Categories played in online multiplayer games */
+  multiplayerCategoriesPlayed?: string[];
+  /** @deprecated Use localCategoriesPlayed / multiplayerCategoriesPlayed */
+  categoriesPlayed?: string[];
 }
 
 /**

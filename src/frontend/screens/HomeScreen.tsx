@@ -14,7 +14,7 @@ import AvatarIcon from '../components/AvatarIcon';
 import CoinDisplay from '../components/CoinDisplay';
 import BannerAd from '../components/ads/BannerAd';
 import DailyRewardModal from '../components/DailyRewardModal';
-import { SinglePlayerIcon, MultiplayerIcon, CreateIcon } from '../components/GameIcons';
+import { SinglePlayerIcon, MultiplayerIcon, PublicGamesIcon, CreateIcon } from '../components/GameIcons';
 import { CategoryImagePreloader } from '../utils/categoryImages';
 import { getStreakInfo, StreakInfo } from '../../backend/services/dailyRewardService';
 import { missionService } from '../../backend/services/missionService';
@@ -142,6 +142,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     playButtonClick();
     navigation.navigate('MultiplayerMenu');
   }, [playButtonClick, navigation]);
+
+  const handlePublicGames = useCallback(() => {
+    playButtonClick();
+    Alert.alert('Coming soon');
+  }, [playButtonClick]);
 
   const handleCreateYourOwn = useCallback(() => {
     playButtonClick();
@@ -336,6 +341,32 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                 <View style={styles.gameModeText}>
                   <Text style={[styles.gameModeTitle, isRTL && styles.rtlText]}>{tScreens('home.multiplayer')}</Text>
                   <Text style={[styles.gameModeSubtitle, isRTL && styles.rtlText]}>{tScreens('home.multiplayerDesc')}</Text>
+                </View>
+                <Text style={styles.arrow}>{isRTL ? '←' : '→'}</Text>
+              </View>
+            </LinearGradient>
+          </GameModeCard>
+
+          {/* Public Games Card */}
+          <GameModeCard
+            onPress={handlePublicGames}
+            cardStyle={styles.gameModeCard}
+          >
+            <LinearGradient
+              colors={['#6D28D9', '#8B5CF6']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.cardGradient}
+            >
+              <View style={styles.cardGlassOverlay} />
+
+              <View style={[styles.gameModeContent, isRTL && styles.rtlRow]}>
+                <View style={[styles.iconContainer, isRTL && { marginRight: 0, marginLeft: SPACING.lg }]}>
+                  <PublicGamesIcon size={48} primaryColor="#FFFFFF" />
+                </View>
+                <View style={styles.gameModeText}>
+                  <Text style={[styles.gameModeTitle, isRTL && styles.rtlText]}>Public Games</Text>
+                  <Text style={[styles.gameModeSubtitle, isRTL && styles.rtlText]}>Browse open games and play online soon</Text>
                 </View>
                 <Text style={styles.arrow}>{isRTL ? '←' : '→'}</Text>
               </View>

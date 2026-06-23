@@ -14,6 +14,17 @@ export interface GameStats {
   totalAnswers: number;
   favoriteCategories: string[];
   lastPlayedDate: string;
+  wins: number;
+  losses: number;
+  multiplayerWins: number;
+  multiplayerLosses: number;
+  localGamesHosted: number;
+  multiplayerGames: number;
+  fastestAnswerTime: number | null;
+  longestCorrectStreak: number;
+  currentCorrectStreak: number;
+  /** Prevents duplicate completion processing for the same game session */
+  recordedCompletionKeys?: string[];
 }
 
 export interface GameHistory {
@@ -24,6 +35,8 @@ export interface GameHistory {
   totalQuestions: number;
   date: string;
   timeTaken: number;
+  isMultiplayer?: boolean;
+  isWinner?: boolean;
 }
 
 export interface UserPreferences {
@@ -35,6 +48,34 @@ export interface UserPreferences {
   defaultTimer: number;
   theme: 'dark' | 'light';
 }
+
+const createDefaultGameStats = (userId: string): GameStats => ({
+  userId,
+  totalGames: 0,
+  totalScore: 0,
+  averageScore: 0,
+  bestScore: 0,
+  correctAnswers: 0,
+  totalAnswers: 0,
+  favoriteCategories: [],
+  lastPlayedDate: '',
+  wins: 0,
+  losses: 0,
+  multiplayerWins: 0,
+  multiplayerLosses: 0,
+  localGamesHosted: 0,
+  multiplayerGames: 0,
+  fastestAnswerTime: null,
+  longestCorrectStreak: 0,
+  currentCorrectStreak: 0,
+  recordedCompletionKeys: [],
+});
+
+const mergeGameStats = (stats: Partial<GameStats> | undefined, userId: string): GameStats => ({
+  ...createDefaultGameStats(userId),
+  ...stats,
+  userId,
+});
 
 const STORAGE_KEYS = {
   GAME_STATS: 'game_stats',
@@ -51,6 +92,7 @@ export const saveGameStats = async (userId: string, gameResults: GameResults): P
   try {
     const existingStats = await getPlayerStats(userId);
     const newStats: GameStats = {
+      ...existingStats,
       userId,
       totalGames: existingStats.totalGames + 1,
       totalScore: existingStats.totalScore + gameResults.finalScores[userId],
@@ -62,8 +104,7 @@ export const saveGameStats = async (userId: string, gameResults: GameResults): P
       totalAnswers: existingStats.totalAnswers + gameResults.roundResults.reduce((total: number, round: GameRound) => {
         return total + (round.playerAnswers?.length || 0);
       }, 0),
-      favoriteCategories: existingStats.favoriteCategories,
-      lastPlayedDate: new Date().toISOString()
+      lastPlayedDate: new Date().toISOString(),
     };
 
     const allStats = await getAllGameStats();
@@ -81,30 +122,23 @@ export const saveGameStats = async (userId: string, gameResults: GameResults): P
 export const getPlayerStats = async (userId: string): Promise<GameStats> => {
   try {
     const allStats = await getAllGameStats();
-    return allStats[userId] || {
-      userId,
-      totalGames: 0,
-      totalScore: 0,
-      averageScore: 0,
-      bestScore: 0,
-      correctAnswers: 0,
-      totalAnswers: 0,
-      favoriteCategories: [],
-      lastPlayedDate: ''
-    };
+    return mergeGameStats(allStats[userId], userId);
   } catch (error) {
     logger.error('Error getting player stats:', error);
-    return {
-      userId,
-      totalGames: 0,
-      totalScore: 0,
-      averageScore: 0,
-      bestScore: 0,
-      correctAnswers: 0,
-      totalAnswers: 0,
-      favoriteCategories: [],
-      lastPlayedDate: ''
-    };
+    return createDefaultGameStats(userId);
+  }
+};
+
+/**
+ * Persist player statistics
+ */
+export const savePlayerStats = async (userId: string, stats: GameStats): Promise<void> => {
+  try {
+    const allStats = await getAllGameStats();
+    allStats[userId] = mergeGameStats(stats, userId);
+    await AsyncStorage.setItem(STORAGE_KEYS.GAME_STATS, JSON.stringify(allStats));
+  } catch (error) {
+    logger.error('Error saving player stats:', error);
   }
 };
 

@@ -158,6 +158,69 @@ export const MultiplayerIcon: React.FC<IconProps> = ({
 };
 
 /**
+ * Public Games Icon
+ * Centered white globe
+ */
+export const PublicGamesIcon: React.FC<IconProps> = ({
+  size = 80,
+  primaryColor = '#FFFFFF',
+}) => {
+  const scale = size / 80;
+  const globeSize = 50;
+
+  return (
+    <View style={[styles.iconContainer, { width: size, height: size }]}>
+      <View style={[styles.publicGlobe, { transform: [{ scale }] }]}>
+        <View
+          style={[
+            styles.publicGlobeOutline,
+            {
+              width: globeSize,
+              height: globeSize,
+              borderRadius: globeSize / 2,
+              borderColor: primaryColor,
+            },
+          ]}
+        />
+        <View
+          style={[
+            styles.publicGlobeMeridian,
+            {
+              width: globeSize * 0.36,
+              height: globeSize,
+              borderRadius: globeSize * 0.18,
+              borderColor: primaryColor,
+            },
+          ]}
+        />
+        <View
+          style={[
+            styles.publicGlobeLatitude,
+            {
+              width: globeSize,
+              height: globeSize * 0.4,
+              borderRadius: globeSize / 2,
+              borderColor: primaryColor,
+            },
+          ]}
+        />
+        <View
+          style={[
+            styles.publicGlobeLatitudeSmall,
+            {
+              width: globeSize,
+              height: globeSize * 0.16,
+              borderRadius: globeSize / 2,
+              borderColor: primaryColor,
+            },
+          ]}
+        />
+      </View>
+    </View>
+  );
+};
+
+/**
  * Create Your Own Icon
  * Pencil and paper - creativity theme
  */
@@ -476,6 +539,34 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 2,
   },
+
+  // ========== PUBLIC GAMES ICON STYLES ==========
+  publicGlobe: {
+    width: 50,
+    height: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  publicGlobeOutline: {
+    position: 'absolute',
+    borderWidth: 2.5,
+    backgroundColor: 'transparent',
+  },
+  publicGlobeMeridian: {
+    position: 'absolute',
+    borderWidth: 2,
+    backgroundColor: 'transparent',
+  },
+  publicGlobeLatitude: {
+    position: 'absolute',
+    borderWidth: 2,
+    backgroundColor: 'transparent',
+  },
+  publicGlobeLatitudeSmall: {
+    position: 'absolute',
+    borderWidth: 2,
+    backgroundColor: 'transparent',
+  },
   
   // ========== CREATE ICON STYLES ==========
   createPaper: {
@@ -641,6 +732,7 @@ const styles = StyleSheet.create({
 export default {
   SinglePlayerIcon,
   MultiplayerIcon,
+  PublicGamesIcon,
   CreateIcon,
   HowToPlayIcon,
   ShuffleIcon,

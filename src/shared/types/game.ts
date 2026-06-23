@@ -110,6 +110,11 @@ export type RoomData = {
     }
   };
   
+  // Per-player normalized guesses for the current question (multiplayer duplicate guard)
+  playerGuessesThisQuestion?: {
+    [playerId: string]: string[];
+  };
+  
   // Metadata
   maxPlayers: number;
   isPrivate: boolean;

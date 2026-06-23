@@ -36,6 +36,7 @@
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/native": "^6.1.17",
     "@react-navigation/native-stack": "^6.9.26",
+    "@sentry/react-native": "^8.15.0",
     "@types/react-native": "~0.69.1",
     "expo": "~54.0.31",
     "expo-auth-session": "~7.0.8",

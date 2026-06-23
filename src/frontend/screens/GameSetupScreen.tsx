@@ -23,6 +23,7 @@ import CustomQuestionService from '../../backend/services/customQuestionService'
 import { getCategories } from '../../backend/services/questionsService';
 import { InputValidator } from '../../backend/utils/inputValidator';
 import useAppTranslation from '../../hooks/useTranslation';
+import HowToPlayHelpButton from '../components/HowToPlayHelpButton';
 
 import { CATEGORY_CAROUSEL } from '../constants/categoryCarousel';
 import { categoryImages, CategoryImagePreloader } from '../utils/categoryImages';
@@ -495,7 +496,7 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
           <View style={styles.headerContent}>
             <Text style={styles.headerTitle}>{tScreens('screens:gameSetup.title')}</Text>
           </View>
-          <View style={styles.headerPlaceholder} />
+          <HowToPlayHelpButton mode="singlePlayer" />
         </View>
 
         <KeyboardAvoidingView
@@ -778,7 +779,7 @@ const GameSetupScreen: React.FC<CategoriesScreenProps> = ({ navigation, route })
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>{tScreens('screens:gameSetup.categoriesTitle')}</Text>
         </View>
-        <View style={styles.headerPlaceholder} />
+        <HowToPlayHelpButton mode="multiplayer" />
       </View>
       <View style={styles.placeholderContent}>
         <Text style={styles.placeholderText}>{tScreens('screens:gameSetup.multiplayerCategorySelection')}</Text>

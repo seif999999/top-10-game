@@ -13,6 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING } from '../../backend/utils/constants';
 import useAppTranslation from '../../hooks/useTranslation';
 import BannerAd from '../components/ads/BannerAd';
+import HowToPlayHelpButton from '../components/HowToPlayHelpButton';
 
 const { width, height } = Dimensions.get('window');
 
@@ -63,7 +64,7 @@ const MultiplayerMenuScreen: React.FC<MultiplayerMenuScreenProps> = () => {
         <View style={styles.headerContent}>
           <Text style={styles.title}>{t('multiplayer.title')}</Text>
         </View>
-        <View style={styles.placeholder} />
+        <HowToPlayHelpButton mode="multiplayer" />
       </View>
 
       {/* Content */}

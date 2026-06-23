@@ -12,15 +12,137 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SPACING } from '../../backend/utils/constants';
 import useAppTranslation from '../../hooks/useTranslation';
 
+export type HowToPlayMode = 'general' | 'singlePlayer' | 'multiplayer';
+
 const { width, height } = Dimensions.get('window');
 
 interface HowToPlayModalProps {
   visible: boolean;
   onClose: () => void;
+  mode?: HowToPlayMode;
 }
 
-const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ visible, onClose }) => {
+const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ visible, onClose, mode = 'general' }) => {
   const { t, isRTL } = useAppTranslation('components');
+  const isModeSpecific = mode === 'singlePlayer' || mode === 'multiplayer';
+  const modeKey = mode === 'singlePlayer' || mode === 'multiplayer' ? mode : null;
+
+  const renderModeFlow = () => {
+    if (!modeKey) return null;
+    const steps = [
+      t(`howToPlay.modes.${modeKey}.step1`),
+      t(`howToPlay.modes.${modeKey}.step2`),
+      t(`howToPlay.modes.${modeKey}.step3`),
+      t(`howToPlay.modes.${modeKey}.step4`),
+      t(`howToPlay.modes.${modeKey}.step5`),
+      t(`howToPlay.modes.${modeKey}.step6`),
+    ].filter(Boolean);
+
+    return (
+      <>
+        <View style={styles.section}>
+          <View style={[styles.sectionHeader, isRTL && styles.rtlRow]}>
+            <Text style={[styles.sectionIcon, isRTL && styles.sectionIconRTL]}>🎯</Text>
+            <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+              {t(`howToPlay.modes.${modeKey}.flowTitle`)}
+            </Text>
+          </View>
+          <View style={[styles.bulletList, isRTL && styles.bulletListRTL]}>
+            {steps.map((step, index) => (
+              <View key={`${modeKey}-step-${index}`} style={[styles.bulletItem, isRTL && styles.rtlRow]}>
+                <View style={[styles.bulletDot, isRTL && styles.bulletDotRTL]} />
+                <Text style={[styles.bulletText, isRTL && styles.rtlText]}>{step}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <View style={[styles.sectionHeader, isRTL && styles.rtlRow]}>
+            <Text style={[styles.sectionIcon, isRTL && styles.sectionIconRTL]}>⭐</Text>
+            <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+              {t(`howToPlay.modes.${modeKey}.scoringTitle`)}
+            </Text>
+          </View>
+          <View style={[styles.bulletList, isRTL && styles.bulletListRTL]}>
+            <View style={[styles.bulletItem, isRTL && styles.rtlRow]}>
+              <View style={[styles.bulletDot, isRTL && styles.bulletDotRTL]} />
+              <Text style={[styles.bulletText, isRTL && styles.rtlText]}>{t('howToPlay.rank1Point')}</Text>
+            </View>
+            <View style={[styles.bulletItem, isRTL && styles.rtlRow]}>
+              <View style={[styles.bulletDot, isRTL && styles.bulletDotRTL]} />
+              <Text style={[styles.bulletText, isRTL && styles.rtlText]}>{t('howToPlay.rank10Points')}</Text>
+            </View>
+            <View style={[styles.bulletItem, isRTL && styles.rtlRow]}>
+              <View style={[styles.bulletDot, isRTL && styles.bulletDotRTL]} />
+              <Text style={[styles.bulletText, isRTL && styles.rtlText]}>
+                {t(`howToPlay.modes.${modeKey}.winCondition`)}
+              </Text>
+            </View>
+          </View>
+        </View>
+      </>
+    );
+  };
+
+  const renderGeneralContent = () => (
+    <>
+      <View style={styles.section}>
+        <View style={[styles.sectionHeader, isRTL && styles.rtlRow]}>
+          <Text style={[styles.sectionIcon, isRTL && styles.sectionIconRTL]}>📄</Text>
+          <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>{t('howToPlay.gameRules')}</Text>
+        </View>
+        <View style={[styles.bulletList, isRTL && styles.bulletListRTL]}>
+          <View style={[styles.bulletItem, isRTL && styles.rtlRow]}>
+            <View style={[styles.bulletDot, isRTL && styles.bulletDotRTL]} />
+            <Text style={[styles.bulletText, isRTL && styles.rtlText]}>{t('howToPlay.chooseCategory')}</Text>
+          </View>
+          <View style={[styles.bulletItem, isRTL && styles.rtlRow]}>
+            <View style={[styles.bulletDot, isRTL && styles.bulletDotRTL]} />
+            <Text style={[styles.bulletText, isRTL && styles.rtlText]}>{t('howToPlay.guessTop10')}</Text>
+          </View>
+          <View style={[styles.bulletItem, isRTL && styles.rtlRow]}>
+            <View style={[styles.bulletDot, isRTL && styles.bulletDotRTL]} />
+            <Text style={[styles.bulletText, isRTL && styles.rtlText]}>{t('howToPlay.rank1Point')}</Text>
+          </View>
+          <View style={[styles.bulletItem, isRTL && styles.rtlRow]}>
+            <View style={[styles.bulletDot, isRTL && styles.bulletDotRTL]} />
+            <Text style={[styles.bulletText, isRTL && styles.rtlText]}>{t('howToPlay.rank10Points')}</Text>
+          </View>
+          <View style={[styles.bulletItem, isRTL && styles.rtlRow]}>
+            <View style={[styles.bulletDot, isRTL && styles.bulletDotRTL]} />
+            <Text style={[styles.bulletText, isRTL && styles.rtlText]}>{t('howToPlay.mostPointsWins')}</Text>
+          </View>
+          <View style={[styles.bulletItem, isRTL && styles.rtlRow]}>
+            <View style={[styles.bulletDot, isRTL && styles.bulletDotRTL]} />
+            <Text style={[styles.bulletText, isRTL && styles.rtlText]}>{t('howToPlay.strategicAdvantage')}</Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <View style={[styles.sectionHeader, isRTL && styles.rtlRow]}>
+          <Text style={[styles.sectionIcon, isRTL && styles.sectionIconRTL]}>🎮</Text>
+          <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>{t('howToPlay.gameModes')}</Text>
+        </View>
+        <View style={[styles.gameModeList, isRTL && styles.bulletListRTL]}>
+          <View style={styles.gameModeItem}>
+            <Text style={[styles.gameModeTitle, isRTL && styles.rtlText]}>{t('howToPlay.singlePlayer')}</Text>
+            <Text style={[styles.gameModeSubtitle, isRTL && styles.rtlText]}>{t('howToPlay.singlePlayerDesc')}</Text>
+          </View>
+          <View style={styles.gameModeItem}>
+            <Text style={[styles.gameModeTitle, isRTL && styles.rtlText]}>{t('howToPlay.multiplayer')}</Text>
+            <Text style={[styles.gameModeSubtitle, isRTL && styles.rtlText]}>{t('howToPlay.multiplayerDesc')}</Text>
+          </View>
+          <View style={styles.gameModeItem}>
+            <Text style={[styles.gameModeTitle, isRTL && styles.rtlText]}>{t('howToPlay.custom')}</Text>
+            <Text style={[styles.gameModeSubtitle, isRTL && styles.rtlText]}>{t('howToPlay.customDesc')}</Text>
+          </View>
+        </View>
+      </View>
+    </>
+  );
+
   return (
     <Modal
       visible={visible}
@@ -30,9 +152,12 @@ const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ visible, onClose }) => 
     >
       <View style={styles.overlay}>
         <View style={styles.modalContainer}>
-          {/* Header */}
           <View style={[styles.header, isRTL && styles.rtlRow]}>
-            <Text style={[styles.title, isRTL && styles.rtlText]}>{t('howToPlay.title')}</Text>
+            <Text style={[styles.title, isRTL && styles.rtlText]}>
+              {isModeSpecific && modeKey
+                ? t(`howToPlay.modes.${modeKey}.title`)
+                : t('howToPlay.title')}
+            </Text>
           </View>
 
           <ScrollView 
@@ -41,64 +166,9 @@ const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ visible, onClose }) => 
             showsVerticalScrollIndicator={false}
             nestedScrollEnabled={true}
           >
-            {/* Game Rules Section */}
-            <View style={styles.section}>
-              <View style={[styles.sectionHeader, isRTL && styles.rtlRow]}>
-                <Text style={[styles.sectionIcon, isRTL && styles.sectionIconRTL]}>📄</Text>
-                <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>{t('howToPlay.gameRules')}</Text>
-              </View>
-              <View style={[styles.bulletList, isRTL && styles.bulletListRTL]}>
-                <View style={[styles.bulletItem, isRTL && styles.rtlRow]}>
-                  <View style={[styles.bulletDot, isRTL && styles.bulletDotRTL]} />
-                  <Text style={[styles.bulletText, isRTL && styles.rtlText]}>{t('howToPlay.chooseCategory')}</Text>
-                </View>
-                <View style={[styles.bulletItem, isRTL && styles.rtlRow]}>
-                  <View style={[styles.bulletDot, isRTL && styles.bulletDotRTL]} />
-                  <Text style={[styles.bulletText, isRTL && styles.rtlText]}>{t('howToPlay.guessTop10')}</Text>
-                </View>
-                <View style={[styles.bulletItem, isRTL && styles.rtlRow]}>
-                  <View style={[styles.bulletDot, isRTL && styles.bulletDotRTL]} />
-                  <Text style={[styles.bulletText, isRTL && styles.rtlText]}>{t('howToPlay.rank1Point')}</Text>
-                </View>
-                <View style={[styles.bulletItem, isRTL && styles.rtlRow]}>
-                  <View style={[styles.bulletDot, isRTL && styles.bulletDotRTL]} />
-                  <Text style={[styles.bulletText, isRTL && styles.rtlText]}>{t('howToPlay.rank10Points')}</Text>
-                </View>
-                <View style={[styles.bulletItem, isRTL && styles.rtlRow]}>
-                  <View style={[styles.bulletDot, isRTL && styles.bulletDotRTL]} />
-                  <Text style={[styles.bulletText, isRTL && styles.rtlText]}>{t('howToPlay.mostPointsWins')}</Text>
-                </View>
-                <View style={[styles.bulletItem, isRTL && styles.rtlRow]}>
-                  <View style={[styles.bulletDot, isRTL && styles.bulletDotRTL]} />
-                  <Text style={[styles.bulletText, isRTL && styles.rtlText]}>{t('howToPlay.strategicAdvantage')}</Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Game Modes Section */}
-            <View style={styles.section}>
-              <View style={[styles.sectionHeader, isRTL && styles.rtlRow]}>
-                <Text style={[styles.sectionIcon, isRTL && styles.sectionIconRTL]}>🎮</Text>
-                <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>{t('howToPlay.gameModes')}</Text>
-              </View>
-              <View style={[styles.gameModeList, isRTL && styles.bulletListRTL]}>
-                <View style={styles.gameModeItem}>
-                  <Text style={[styles.gameModeTitle, isRTL && styles.rtlText]}>{t('howToPlay.singlePlayer')}</Text>
-                  <Text style={[styles.gameModeSubtitle, isRTL && styles.rtlText]}>{t('howToPlay.singlePlayerDesc')}</Text>
-                </View>
-                <View style={styles.gameModeItem}>
-                  <Text style={[styles.gameModeTitle, isRTL && styles.rtlText]}>{t('howToPlay.multiplayer')}</Text>
-                  <Text style={[styles.gameModeSubtitle, isRTL && styles.rtlText]}>{t('howToPlay.multiplayerDesc')}</Text>
-                </View>
-                <View style={styles.gameModeItem}>
-                  <Text style={[styles.gameModeTitle, isRTL && styles.rtlText]}>{t('howToPlay.custom')}</Text>
-                  <Text style={[styles.gameModeSubtitle, isRTL && styles.rtlText]}>{t('howToPlay.customDesc')}</Text>
-                </View>
-              </View>
-            </View>
+            {isModeSpecific ? renderModeFlow() : renderGeneralContent()}
           </ScrollView>
 
-          {/* Got it Button */}
           <TouchableOpacity onPress={onClose} style={styles.gotItButton} activeOpacity={0.9}>
             <LinearGradient
               colors={['#4F46E5', '#8B5CF6']}

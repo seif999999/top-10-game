@@ -5,6 +5,7 @@ import {
   updateProfile,
   onAuthStateChanged,
   sendPasswordResetEmail,
+  type ActionCodeSettings,
   User as FirebaseUser,
   AuthError,
   GoogleAuthProvider,
@@ -144,8 +145,22 @@ export const resetPassword = async (email: string): Promise<void> => {
     if (auth) {
       auth.languageCode = 'en';
     }
-    
-    await sendPasswordResetEmail(auth, email);
+
+    const authDomain = auth?.config?.authDomain || process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || '';
+    const actionCodeSettings: ActionCodeSettings = {
+      // Firebase uses this continue URL when generating a mobile-first reset link.
+      url: `https://${authDomain}/reset-password`,
+      handleCodeInApp: true,
+      iOS: {
+        bundleId: 'com.top10game.app',
+      },
+      android: {
+        packageName: 'com.top10game.app',
+        installApp: true,
+      },
+    };
+
+    await sendPasswordResetEmail(auth, email, actionCodeSettings);
     logger.log('✅ DEBUG: Password reset email sent successfully');
   } catch (error) {
     logger.error('❌ DEBUG: Password reset error:', error);

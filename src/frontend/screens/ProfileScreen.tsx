@@ -17,6 +17,8 @@ import { logger } from '../../backend/utils/logger';
 import { toAppError } from '../../shared/errors';
 import useAppTranslation from '../../hooks/useTranslation';
 import { EmailService } from '../../backend/services/emailService';
+import { getPlayerStatistics, PlayerStatistics } from '../../backend/services/statsService';
+import { useFocusEffect } from '@react-navigation/native';
 
 
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
@@ -34,6 +36,31 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [feedbackText, setFeedbackText] = useState('');
   const [isFeedbackSending, setIsFeedbackSending] = useState(false);
+  const [playerStats, setPlayerStats] = useState<PlayerStatistics | null>(null);
+  const [isStatsLoading, setIsStatsLoading] = useState(false);
+
+  const loadPlayerStatistics = useCallback(async () => {
+    if (!user?.id) {
+      setPlayerStats(null);
+      return;
+    }
+    setIsStatsLoading(true);
+    try {
+      const stats = await getPlayerStatistics(user.id);
+      setPlayerStats(stats);
+    } catch (error) {
+      logger.error('ProfileScreen: failed to load player statistics', error);
+      setPlayerStats(null);
+    } finally {
+      setIsStatsLoading(false);
+    }
+  }, [user?.id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadPlayerStatistics();
+    }, [loadPlayerStatistics])
+  );
 
   useEffect(() => {
     if (user?.displayName) {
@@ -232,6 +259,46 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     return tScreens('profile.memberSince', { date: formatted });
   };
 
+  const formatFastestAnswer = (seconds: number | null) => {
+    if (seconds == null) return tScreens('profile.statistics.notAvailable');
+    return tScreens('profile.statistics.seconds', { count: seconds });
+  };
+
+  type StatItem = { label: string; value: string };
+  type StatSection = { title: string; items: StatItem[] };
+
+  const statSections: StatSection[] = [
+    {
+      title: tScreens('profile.statistics.overallTitle'),
+      items: [
+        { label: tScreens('profile.statistics.gamesPlayed'), value: String(playerStats?.totalGames ?? 0) },
+        { label: tScreens('profile.statistics.highScore'), value: String(playerStats?.bestScore ?? 0) },
+        { label: tScreens('profile.statistics.totalScore'), value: String(playerStats?.totalScore ?? 0) },
+        { label: tScreens('profile.statistics.accuracy'), value: `${playerStats?.accuracy ?? 0}%` },
+        { label: tScreens('profile.statistics.fastestAnswer'), value: formatFastestAnswer(playerStats?.fastestAnswerTime ?? null) },
+        { label: tScreens('profile.statistics.longestCorrectStreak'), value: String(playerStats?.longestCorrectStreak ?? 0) },
+        { label: tScreens('profile.statistics.currentCorrectStreak'), value: String(playerStats?.currentCorrectStreak ?? 0) },
+      ],
+    },
+    {
+      title: tScreens('profile.statistics.localHostTitle'),
+      items: [
+        { label: tScreens('profile.statistics.localGamesHosted'), value: String(playerStats?.localGamesHosted ?? 0) },
+      ],
+    },
+    {
+      title: tScreens('profile.statistics.multiplayerTitle'),
+      items: [
+        { label: tScreens('profile.statistics.multiplayerGames'), value: String(playerStats?.multiplayerGames ?? 0) },
+        { label: tScreens('profile.statistics.gamesWon'), value: String(playerStats?.multiplayerWins ?? 0) },
+        { label: tScreens('profile.statistics.gamesLost'), value: String(playerStats?.multiplayerLosses ?? 0) },
+        { label: tScreens('profile.statistics.winRate'), value: `${playerStats?.winRate ?? 0}%` },
+        { label: tScreens('profile.statistics.currentWinStreak'), value: String(playerStats?.currentStreak ?? 0) },
+        { label: tScreens('profile.statistics.bestWinStreak'), value: String(playerStats?.bestStreak ?? 0) },
+      ],
+    },
+  ];
+
   return (
     <SafeAreaView style={styles.container}>
       <LinearGradient
@@ -316,6 +383,33 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               {getMemberSinceText()}
             </Text>
           )}
+        </View>
+
+        {/* Statistics Section */}
+        <View style={styles.statisticsSection}>
+          <Text style={styles.sectionTitle}>{tScreens('profile.statistics.title')}</Text>
+          <Text style={[styles.statisticsSubtitle, isRTL && styles.rtlText]}>
+            {tScreens('profile.statistics.subtitle')}
+          </Text>
+          <View style={styles.statisticsCard}>
+            {isStatsLoading ? (
+              <Text style={styles.statisticsLoadingText}>{tCommon('loading')}</Text>
+            ) : (
+              statSections.map((section) => (
+                <View key={section.title} style={styles.statisticsGroup}>
+                  <Text style={[styles.statisticsGroupTitle, isRTL && styles.rtlText]}>{section.title}</Text>
+                  <View style={styles.statisticsGrid}>
+                    {section.items.map((item) => (
+                      <View key={`${section.title}-${item.label}`} style={styles.statItem}>
+                        <Text style={[styles.statValue, isRTL && styles.rtlText]}>{item.value}</Text>
+                        <Text style={[styles.statLabel, isRTL && styles.rtlText]}>{item.label}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              ))
+            )}
+          </View>
         </View>
 
         {/* Settings Section */}
@@ -685,6 +779,63 @@ const styles = StyleSheet.create({
   memberSince: {
     color: '#9CA3AF',
     fontSize: 14,
+  },
+  statisticsSection: {
+    marginBottom: SPACING.xl,
+  },
+  statisticsSubtitle: {
+    color: '#9CA3AF',
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: SPACING.md,
+  },
+  statisticsCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 16,
+    padding: SPACING.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  statisticsLoadingText: {
+    color: '#9CA3AF',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  statisticsGroup: {
+    marginBottom: SPACING.lg,
+  },
+  statisticsGroupTitle: {
+    color: '#C4B5FD',
+    fontSize: 13,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginBottom: SPACING.sm,
+  },
+  statisticsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.md,
+  },
+  statItem: {
+    width: '47%',
+    backgroundColor: 'rgba(139, 92, 246, 0.12)',
+    borderRadius: 12,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.2)',
+  },
+  statValue: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  statLabel: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    lineHeight: 16,
   },
   settingsSection: {
     marginTop: SPACING.xl,

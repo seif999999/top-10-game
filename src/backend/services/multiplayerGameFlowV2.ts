@@ -319,6 +319,17 @@ Room: ${roomCode}`);
           userMessage: 'All answers have been revealed for this question.'
         });
       }
+
+      const normalizedGuess = answerText.toLowerCase().trim();
+      const guessHistory = room.playerGuessesThisQuestion || {};
+      const playerGuesses = guessHistory[playerId] || [];
+      if (normalizedGuess && playerGuesses.includes(normalizedGuess)) {
+        throw new AppError({
+          code: 'DUPLICATE_GUESS',
+          message: 'Duplicate guess',
+          userMessage: 'You already tried that answer'
+        });
+      }
       
       // Find matching answer
       const currentQuestion = room.questions[room.currentQuestionIndex];
@@ -479,8 +490,12 @@ Available answers count: ${currentQuestion?.answers?.length || 0}`);
       });
       
       // Simplified updates to reduce transaction conflicts
+      const updatedGuessHistory = { ...guessHistory };
+      updatedGuessHistory[playerId] = [...playerGuesses, normalizedGuess];
+
       let updates: Record<string, unknown> = {
-        lastActivity: serverTimestamp()
+        lastActivity: serverTimestamp(),
+        playerGuessesThisQuestion: updatedGuessHistory,
       };
       
       // Only update scores if there are points to award
@@ -517,6 +532,7 @@ Available answers count: ${currentQuestion?.answers?.length || 0}`);
             currentAnswers: nextQuestion.answers,
             revealedAnswers: Array(10).fill(null),
             answersSubmittedCount: 0,
+            playerGuessesThisQuestion: {},
             // Reset turn system for new question
             currentTurnIndex: 0,
             currentPlayerId: room.turnOrder[0],
@@ -595,6 +611,9 @@ Should have updated:
       return result;
     } catch (error) {
       lastError = error;
+      if (error instanceof AppError) {
+        return { success: false, error: error.userMessage || error.message };
+      }
       logger.error(`❌ SUBMIT_ANSWER: Transaction failed:`, {
         error,
         message: error instanceof Error ? error.message : 'Unknown error',
@@ -625,6 +644,13 @@ Should have updated:
     }
 
     const room = roomSnap.data() as RoomData;
+
+    const normalizedGuess = answerText.toLowerCase().trim();
+    const guessHistory = room.playerGuessesThisQuestion || {};
+    const playerGuesses = guessHistory[playerId] || [];
+    if (normalizedGuess && playerGuesses.includes(normalizedGuess)) {
+      return { success: false, error: 'You already tried that answer' };
+    }
 
     const currentQuestion = room.questions[room.currentQuestionIndex];
     if (!currentQuestion) {
@@ -659,7 +685,11 @@ Should have updated:
         currentTurnIndex: nextTurnIndex,
         currentPlayerId: nextPlayerId,
         turnStartTime: serverTimestamp(),
-        lastActivity: serverTimestamp()
+        lastActivity: serverTimestamp(),
+        playerGuessesThisQuestion: {
+          ...guessHistory,
+          [playerId]: [...playerGuesses, normalizedGuess],
+        },
       };
 
       const newAnswersSubmittedCount = room.answersSubmittedCount + 1;
@@ -674,6 +704,7 @@ Should have updated:
           updates.currentAnswers = nextQuestion.answers;
           updates.revealedAnswers = Array(10).fill(null);
           updates.answersSubmittedCount = 0;
+          updates.playerGuessesThisQuestion = {};
           updates.currentTurnIndex = 0;
           updates.currentPlayerId = room.turnOrder[0];
         }
@@ -690,7 +721,11 @@ Should have updated:
       currentTurnIndex: nextTurnIndex,
       currentPlayerId: nextPlayerId,
       turnStartTime: serverTimestamp(),
-      lastActivity: serverTimestamp()
+      lastActivity: serverTimestamp(),
+      playerGuessesThisQuestion: {
+        ...guessHistory,
+        [playerId]: [...playerGuesses, normalizedGuess],
+      },
     });
     return { success: true, points: 0 };
   } catch (fallbackError) {

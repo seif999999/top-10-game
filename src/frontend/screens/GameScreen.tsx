@@ -30,12 +30,14 @@ import { logger } from '../../backend/utils/logger';
 import { incrementGameCompletionCount } from '../../backend/utils/gameCompletionStorage';
 import InterstitialAdLoader from '../components/ads/InterstitialAdLoader';
 import useAppTranslation from '../../hooks/useTranslation';
-import { updateGameStats } from '../../backend/services/statsService';
+import { updateGameStats, recordAnswerStats } from '../../backend/services/statsService';
 import { useAd } from '../contexts/AdContext';
 import { CoinService } from '../../backend/services/CoinService';
 import { getMultiplayerFinalRankAndScore } from './game';
 import { useInterstitialTimer } from '../hooks/useInterstitialTimer';
 import DoubleRewardAd from '../components/ads/DoubleRewardAd';
+import AttemptedAnswersList from '../components/AttemptedAnswersList';
+import { AttemptRecord, isDuplicateGuess, appendAttempt } from '../utils/answerAttempts';
 
 
 type AnswerLike = string | QuestionAnswer | Answer;
@@ -122,12 +124,12 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
   const [rewardsDoubled, setRewardsDoubled] = useState(false);
   /** Frozen coin amount for game-end overlay so the displayed value doesn't change while overlay is visible */
   const gameEndCoinsDisplayRef = useRef<number | null>(null);
-  /** Guard: grant game-completion coins only once per game so balance matches the 50 shown */
-  const hasGrantedGameCompletionCoinsRef = useRef(false);
+  /** Guard: grant rewards, stats, and mission progress only once per game completion */
+  const hasProcessedGameCompletionRef = useRef(false);
   /** When host quits, leaderboard data is captured before leaveRoom; overlay uses this when multiplayerState is reset */
   const hostExitLeaderboardDataRef = useRef<Array<{ playerId: string; playerName: string; score: number; rank: number; selectedAvatar?: string }> | null>(null);
   const [isAnswerSubmitted, setIsAnswerSubmitted] = useState(false);
-  const [submittedAnswers, setSubmittedAnswers] = useState<string[]>([]);
+  const [attemptedAnswers, setAttemptedAnswers] = useState<AttemptRecord[]>([]);
   const [showQuestionComplete, setShowQuestionComplete] = useState(false);
   const [showAnswers, setShowAnswers] = useState(false);
   const [showGameEndRanking, setShowGameEndRanking] = useState(false);
@@ -293,6 +295,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
       const shouldStartNewGame = !gameState || gameState.category !== categoryId;
       
       if (shouldStartNewGame) {
+         hasProcessedGameCompletionRef.current = false;
          // Reset any existing game first
          if (gameState) {
            resetGame();
@@ -407,7 +410,9 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
           ? revealedAnswers.filter(ra => ra !== null).length 
           : 0;
         const isNaturalCompletion = revealedAnswersCount >= 10;
-        if (isNaturalCompletion) {
+        if (isNaturalCompletion && !hasProcessedGameCompletionRef.current) {
+          hasProcessedGameCompletionRef.current = true;
+          const completionKey = `mp-${roomId}`;
           // Process missions and full rewards only when all 10 answers revealed
           if (user?.id && multiplayerState?.scores && multiplayerState?.players) {
             const rankResult = getMultiplayerFinalRankAndScore(
@@ -427,7 +432,8 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
                 true,
                 isWinner,
                 finalRank,
-                playerCount
+                playerCount,
+                completionKey
               ).catch((e) => logger.warn('GameScreen: multiplayer updateGameStats failed', e));
             }
           }
@@ -438,8 +444,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
           const placementReward = rankResult?.finalRank != null
             ? (rankResult.finalRank === 1 ? 30 : rankResult.finalRank === 2 ? 20 : 10)
             : 10;
-          if (user?.id && !hasGrantedGameCompletionCoinsRef.current) {
-            hasGrantedGameCompletionCoinsRef.current = true;
+          if (user?.id) {
             getGameReward(placementReward).then((reward) => {
               logger.log('GameScreen: multiplayer reward', { placement: rankResult?.finalRank, placementReward, reward, gamesPlayedToday: 'see dailyGameCap log' });
               CoinService.getInstance()
@@ -448,13 +453,13 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
                   getUserProfileWithAvatar?.();
                 })
                 .catch((e) => {
-                  hasGrantedGameCompletionCoinsRef.current = false;
+                  hasProcessedGameCompletionRef.current = false;
                   logger.warn('GameScreen: addCoins for multiplayer game completion failed', e);
                 });
               incrementDailyGameCount().catch(() => {});
               setLastGameCoinsEarned(reward);
             }).catch((e) => {
-              hasGrantedGameCompletionCoinsRef.current = false;
+              hasProcessedGameCompletionRef.current = false;
               logger.warn('GameScreen: getGameReward failed, using placement reward', e);
               CoinService.getInstance()
                 .addCoins(user.id, placementReward, 'Multiplayer game completed')
@@ -462,13 +467,11 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
                 .catch((err) => logger.warn('GameScreen: addCoins for multiplayer failed', err));
               setLastGameCoinsEarned(placementReward);
             });
-          } else if (user?.id) {
-            getGameReward(placementReward).then(setLastGameCoinsEarned).catch(() => setLastGameCoinsEarned(placementReward));
           }
           incrementGameCompletionCount().then((newCount) => {
             logger.log('Interstitial ad frequency: game_completion_count (multiplayer)', newCount);
           }).catch((e) => logger.warn('GameScreen: incrementGameCompletionCount failed', e));
-        } else {
+        } else if (!isNaturalCompletion) {
           // Host exit or early termination - show leaderboard with current scores
           playGameEnd();
         }
@@ -596,8 +599,16 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
     if (isMultiplayerMode && multiplayerState?.currentQuestionIndex !== undefined) {
       setPointsEarned(null);
       setLastAnswerResult(null);
+      setAttemptedAnswers([]);
     }
   }, [isMultiplayerMode, multiplayerState?.currentQuestionIndex]);
+
+  // Reset attempted answers when single-player question changes
+  useEffect(() => {
+    if (!isMultiplayerMode && gameState?.currentRound !== undefined) {
+      setAttemptedAnswers([]);
+    }
+  }, [isMultiplayerMode, gameState?.currentRound]);
 
   // Check if question is complete and show success message - simplified dependencies
   useEffect(() => {
@@ -623,7 +634,12 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
         // Show results modal for multiplayer games
         setShowGameEndRanking(true);
         setShowResults(true);
-      } else {
+      } else if (!hasProcessedGameCompletionRef.current) {
+        hasProcessedGameCompletionRef.current = true;
+        const completionKey = gameState?.gameId
+          ? `sp-${gameState.gameId}`
+          : `sp-${gameState.category || 'unknown'}-${Date.now()}`;
+
         // Single player or team mode: process missions (credit coins) and show game-end popup
         let score = 0;
         let correctAnswers = 0;
@@ -632,7 +648,6 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
         let category = gameState.category || '';
 
         if (isTeamMode && teamGameState) {
-          // Team mode: derive score and stats from team game state
           const totalAssigned = Object.keys(teamGameState.answerAssignments).length;
           correctAnswers = totalAssigned;
           totalQuestions = Math.max(gameState.currentQuestion?.answers?.length ?? 10, totalAssigned);
@@ -652,34 +667,28 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
         }
 
         if (user?.id) {
-          // Daily cap: first 8 games get full reward (20), then 5 coins. Grant exactly once per game.
-          if (!hasGrantedGameCompletionCoinsRef.current) {
-            hasGrantedGameCompletionCoinsRef.current = true;
-            getGameReward(GAME_COMPLETION_COIN_REWARD).then((reward) => {
-              logger.log('GameScreen: single-player reward', { reward, gamesPlayedToday: 'see dailyGameCap log' });
-              CoinService.getInstance()
-                .addCoins(user.id, reward, 'Game completed')
-                .then(() => {
-                  getUserProfileWithAvatar?.();
-                })
-                .catch((e) => {
-                  hasGrantedGameCompletionCoinsRef.current = false;
-                  logger.warn('GameScreen: addCoins for game completion failed', e);
-                });
-              incrementDailyGameCount().catch(() => {});
-              setLastGameCoinsEarned(reward);
-            }).catch((e) => {
-              hasGrantedGameCompletionCoinsRef.current = false;
-              logger.warn('GameScreen: getGameReward failed, using base reward', e);
-              CoinService.getInstance()
-                .addCoins(user.id, GAME_COMPLETION_COIN_REWARD, 'Game completed')
-                .then(() => getUserProfileWithAvatar?.())
-                .catch((err) => logger.warn('GameScreen: addCoins for game completion failed', err));
-              setLastGameCoinsEarned(GAME_COMPLETION_COIN_REWARD);
-            });
-          } else {
-            getGameReward(GAME_COMPLETION_COIN_REWARD).then(setLastGameCoinsEarned).catch(() => setLastGameCoinsEarned(GAME_COMPLETION_COIN_REWARD));
-          }
+          getGameReward(GAME_COMPLETION_COIN_REWARD).then((reward) => {
+            logger.log('GameScreen: single-player reward', { reward, gamesPlayedToday: 'see dailyGameCap log' });
+            CoinService.getInstance()
+              .addCoins(user.id, reward, 'Game completed')
+              .then(() => {
+                getUserProfileWithAvatar?.();
+              })
+              .catch((e) => {
+                hasProcessedGameCompletionRef.current = false;
+                logger.warn('GameScreen: addCoins for game completion failed', e);
+              });
+            incrementDailyGameCount().catch(() => {});
+            setLastGameCoinsEarned(reward);
+          }).catch((e) => {
+            hasProcessedGameCompletionRef.current = false;
+            logger.warn('GameScreen: getGameReward failed, using base reward', e);
+            CoinService.getInstance()
+              .addCoins(user.id, GAME_COMPLETION_COIN_REWARD, 'Game completed')
+              .then(() => getUserProfileWithAvatar?.())
+              .catch((err) => logger.warn('GameScreen: addCoins for game completion failed', err));
+            setLastGameCoinsEarned(GAME_COMPLETION_COIN_REWARD);
+          });
           updateGameStats(
             user.id,
             score,
@@ -688,7 +697,10 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
             totalQuestions,
             totalTime,
             false,
-            false
+            false,
+            undefined,
+            undefined,
+            completionKey
           ).catch((e) => logger.warn('GameScreen: updateGameStats failed', e));
         } else {
           setLastGameCoinsEarned(GAME_COMPLETION_COIN_REWARD);
@@ -700,7 +712,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation, route }) => {
         // Post-game ad is shown when user presses Continue (see onHide below)
       }
     }
-  }, [gameState?.gamePhase, gameState?.category, gameState?.currentQuestion, showResults, isMultiplayerMode, isTeamMode, teamGameState, getGameResults, user?.id]);
+  }, [gameState?.gamePhase, gameState?.gameId, gameState?.category, gameState?.currentQuestion, showResults, isMultiplayerMode, isTeamMode, teamGameState, getGameResults, user?.id]);
 
   // Reset interstitial trigger after ad closed or fallback (e.g. ad not loaded)
   useEffect(() => {
@@ -1329,6 +1341,11 @@ const handleEndGame = () => {
 
     const sanitizedAnswer = answerValidation.sanitized;
 
+    if (isDuplicateGuess(sanitizedAnswer, attemptedAnswers)) {
+      showToast('warning', tGame('answers.alreadyTried'));
+      return;
+    }
+
     // Button press animation
     Animated.sequence([
       Animated.timing(submitButtonScale, {
@@ -1383,13 +1400,22 @@ const handleEndGame = () => {
         
         if (result.success) {
           setMultiplayerAnswer('');
-          setHasSubmittedThisTurn(true); // Mark that player has submitted this turn
-          // The answer is already added to multiplayerSubmittedAnswers by the context
+          setHasSubmittedThisTurn(true);
+          const isCorrectAnswer = !!(result.points && result.points > 0);
+          setAttemptedAnswers((prev) => appendAttempt(prev, sanitizedAnswer, isCorrectAnswer));
           
+          const turnLimit = multiplayerState?.turnTimeLimit || 60;
+          const answerTimeTaken = Math.max(0, turnLimit - multiplayerTimeRemaining);
+          if (user?.id) {
+            recordAnswerStats(user.id, isCorrectAnswer, answerTimeTaken).catch((e) =>
+              logger.warn('GameScreen: recordAnswerStats failed (multiplayer)', e)
+            );
+          }
+
           // Show feedback based on whether points were earned (correct answer)
-          if (result.points && result.points > 0) {
+          if (isCorrectAnswer) {
             setLastAnswerResult('correct');
-            setPointsEarned(result.points);
+            setPointsEarned(result.points ?? 0);
             playSuccess(); // Play success sound for correct answer
           } else {
             setLastAnswerResult('incorrect');
@@ -1403,22 +1429,35 @@ const handleEndGame = () => {
             // The game phase will automatically change to 'answers' via the multiplayer context
           }
         } else {
-          // Show error feedback
           setLastAnswerResult('incorrect');
           logger.log(`❌ Answer submission failed: ${result.error || 'Failed to submit answer'}`);
+          if (result.error?.toLowerCase().includes('already tried')) {
+            showToast('warning', tGame('answers.alreadyTried'));
+          }
         }
       } else {
         logger.log('📝 Submitting single-player answer:', sanitizedAnswer);
-        logger.log('📝 Before submission - Score:', getPlayerScore('You'));
-        submitAnswer('You', sanitizedAnswer);
-        logger.log('📝 After submission - Score:', getPlayerScore('You'));
-        setAnswer('');
-        
-        // Determine answer result and show feedback
         const isCorrect = checkAnswerCorrectness(sanitizedAnswer);
+        setAttemptedAnswers((prev) => appendAttempt(prev, sanitizedAnswer, isCorrect));
+
+        if (isCorrect) {
+          logger.log('📝 Before submission - Score:', getPlayerScore('You'));
+          submitAnswer('You', sanitizedAnswer);
+          logger.log('📝 After submission - Score:', getPlayerScore('You'));
+        }
+
+        setAnswer('');
+
+        const answerTimeTaken = gameState?.roundStartTime
+          ? Math.floor((Date.now() - gameState.roundStartTime) / 1000)
+          : 0;
+        if (user?.id) {
+          recordAnswerStats(user.id, isCorrect, answerTimeTaken).catch((e) =>
+            logger.warn('GameScreen: recordAnswerStats failed (single player)', e)
+          );
+        }
         setLastAnswerResult(isCorrect ? 'correct' : 'incorrect');
         
-        // Play sound based on answer correctness
         if (isCorrect) {
           playSuccess();
         } else {
@@ -1426,7 +1465,6 @@ const handleEndGame = () => {
         }
       }
       
-      setSubmittedAnswers(prev => [...prev, sanitizedAnswer]);
       setIsAnswerSubmitted(true);
       
       // Animate answer input based on result - use setTimeout to ensure state is updated
@@ -1843,17 +1881,7 @@ const handleEndGame = () => {
         )}
 
 
-        {/* Submitted Answers Section */}
-        {(isMultiplayerMode ? multiplayerSubmittedAnswers : submittedAnswers).length > 0 && (
-          <View style={styles.submittedAnswersSection}>
-            <Text style={styles.submittedAnswersTitle}>{tGame('answers.yourAnswers')}</Text>
-            {(isMultiplayerMode ? multiplayerSubmittedAnswers : submittedAnswers).map((answer, index) => (
-              <Text key={index} style={styles.submittedAnswer}>
-                • {answer}
-              </Text>
-            ))}
-          </View>
-        )}
+        <AttemptedAnswersList attempts={attemptedAnswers} />
 
       </ScrollView>
 
@@ -1880,7 +1908,7 @@ const handleEndGame = () => {
             submittedAnswers={isMultiplayerMode ? [] : getCurrentRoundAnswers()}
             onHide={() => {
               gameEndCoinsDisplayRef.current = null;
-              hasGrantedGameCompletionCoinsRef.current = false;
+              hasProcessedGameCompletionRef.current = false;
               hostExitLeaderboardDataRef.current = null;
               setShowGameEndRanking(false);
               const navigateAwayMultiplayer = () => {

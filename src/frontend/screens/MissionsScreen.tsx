@@ -44,6 +44,7 @@ const DIFFICULTY_COLORS: Record<MissionDifficulty, { bg: string; border: string;
 const CATEGORY_ICONS: Record<MissionCategory, string> = {
   streak: '🔥',
   score: '🏆',
+  local: '🏠',
   games: '🎮',
   accuracy: '🎯',
   speed: '⚡',
@@ -207,7 +208,7 @@ const MissionCard = React.memo<MissionCardProps>(({ mission, progress, index, on
   );
 });
 
-type FilterType = 'all' | 'in_progress' | 'completed' | MissionDifficulty;
+type FilterType = 'all' | 'in_progress' | 'completed' | MissionDifficulty | 'local' | 'multiplayer';
 
 const MissionsScreen: React.FC<MissionsScreenProps> = ({ navigation }) => {
   const { t: tScreens, isRTL } = useAppTranslation('screens');
@@ -272,6 +273,7 @@ const MissionsScreen: React.FC<MissionsScreenProps> = ({ navigation }) => {
       if (filter === 'all') return true;
       if (filter === 'in_progress') return !m.progress.isCompleted;
       if (filter === 'completed') return m.progress.isCompleted;
+      if (filter === 'local' || filter === 'multiplayer') return m.category === filter;
       return m.difficulty === filter;
     });
   }, [missions, filter]);
@@ -290,6 +292,8 @@ const MissionsScreen: React.FC<MissionsScreenProps> = ({ navigation }) => {
 
   const filters: { key: FilterType; label: string; color: string }[] = useMemo(() => [
     { key: 'all', label: tScreens('missions.all'), color: '#6B7280' },
+    { key: 'local', label: tScreens('missions.local'), color: '#8B5CF6' },
+    { key: 'multiplayer', label: tScreens('missions.multiplayer'), color: '#3B82F6' },
     { key: 'in_progress', label: tScreens('missions.inProgress'), color: '#3B82F6' },
     { key: 'completed', label: tScreens('missions.completed'), color: '#10B981' },
     { key: 'easy', label: tScreens('missions.easy'), color: '#10B981' },

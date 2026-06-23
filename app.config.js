@@ -29,6 +29,9 @@ const skAdNetworkItems = ADMOB_SKADNETWORK_IDS.map((id) => ({
   SKAdNetworkIdentifier: id,
 }));
 
+const FIREBASE_AUTH_DOMAIN =
+  process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || 'top10-game-f9219.firebaseapp.com';
+
 module.exports = () => ({
   expo: {
     name: 'Top10Game',
@@ -40,6 +43,14 @@ module.exports = () => ({
     assetBundlePatterns: ['**/*'],
     
     plugins: [
+      [
+        '@sentry/react-native/expo',
+        {
+          url: 'https://de.sentry.io/',
+          project: 'react-native',
+          organization: 'top10game',
+        },
+      ],
       [
         'expo-build-properties',
         {
@@ -69,6 +80,7 @@ module.exports = () => ({
     // Platform-specific configurations
     ios: {
       bundleIdentifier: 'com.top10game.app',
+      associatedDomains: [`applinks:${FIREBASE_AUTH_DOMAIN}`],
       googleServicesFile: './GoogleService-Info.plist',
       infoPlist: {
         CFBundleURLTypes: [
@@ -117,6 +129,11 @@ module.exports = () => ({
           data: [
             {
               scheme: 'top10game'
+            },
+            {
+              scheme: 'https',
+              host: FIREBASE_AUTH_DOMAIN,
+              pathPrefix: '/__/auth/action'
             }
           ],
           category: ['BROWSABLE', 'DEFAULT']

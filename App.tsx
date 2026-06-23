@@ -26,6 +26,26 @@ import { IconPreloader } from './src/frontend/components/IconPreloader';
 
 // Initialize i18next — must be imported before any component that uses translations
 import i18n from './src/config/i18n';
+import * as Sentry from '@sentry/react-native';
+
+const navigationIntegration = Sentry.reactNavigationIntegration();
+
+Sentry.init({
+  dsn: 'https://2218add77c6c7748aad41b6de8765405@o4511586706128896.ingest.de.sentry.io/4511586724479056',
+
+  // Adds more context data to events (IP address, cookies, user, etc.)
+  // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
+  sendDefaultPii: true,
+
+  enableLogs: true,
+
+  integrations: [navigationIntegration],
+
+  // Session replay + feedback need a new native dev build (EAS). Enable after rebuilding.
+  // replaysSessionSampleRate: 0.1,
+  // replaysOnErrorSampleRate: 1,
+  // integrations: [navigationIntegration, Sentry.mobileReplayIntegration(), Sentry.feedbackIntegration()],
+});
 
 // Error Boundary Component
 // Uses the i18n instance directly (not hooks) because it renders above LanguageProvider.
@@ -39,8 +59,13 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
     return { hasError: true, message: error?.message };
   }
 
-  componentDidCatch(error: Error) {
-    console.error(error);
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    Sentry.captureException(error, {
+      extra: { componentStack: errorInfo.componentStack },
+    });
+    if (__DEV__) {
+      console.error(error);
+    }
   }
 
   render() {
@@ -60,7 +85,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
   }
 }
 
-export default function App() {
+export default Sentry.wrap(function App() {
   const navigationRef = useNavigationContainerRef<RootStackParamList>();
   const deepLinkCleanupRef = useRef<{ remove: () => void } | null>(null);
 
@@ -85,6 +110,7 @@ export default function App() {
                     <NavigationContainer
                     ref={navigationRef}
                     onReady={() => {
+                      navigationIntegration.registerNavigationContainer(navigationRef);
                       if (navigationRef.current) {
                         deepLinkCleanupRef.current = setupDeepLinking(navigationRef.current);
                       }
@@ -118,7 +144,7 @@ export default function App() {
       </ErrorBoundary>
     </SafeAreaProvider>
   );
-}
+});
 
 const styles = StyleSheet.create({
   safeAreaProvider: {

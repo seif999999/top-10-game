@@ -34,9 +34,6 @@ class MissionService {
   
   // Track consecutive #1 finishes for leaderboard champion mission
   private leaderboardStreaks: { [userId: string]: number } = {};
-  
-  // Track categories played per user
-  private categoriesPlayed: { [userId: string]: Set<string> } = {};
 
   private constructor() {}
 
@@ -67,6 +64,9 @@ class MissionService {
           userId,
           missions: data.missions || {},
           totalCoinsEarned: data.totalCoinsEarned || 0,
+          categoriesPlayed: Array.isArray(data.categoriesPlayed) ? data.categoriesPlayed : [],
+          localCategoriesPlayed: Array.isArray(data.localCategoriesPlayed) ? data.localCategoriesPlayed : [],
+          multiplayerCategoriesPlayed: Array.isArray(data.multiplayerCategoriesPlayed) ? data.multiplayerCategoriesPlayed : [],
           lastUpdated: data.lastUpdated instanceof Timestamp 
             ? data.lastUpdated.toDate() 
             : new Date(data.lastUpdated || Date.now()),
@@ -119,6 +119,9 @@ class MissionService {
       await setDoc(docRef, {
         missions: userMissions.missions,
         totalCoinsEarned: userMissions.totalCoinsEarned,
+        categoriesPlayed: userMissions.categoriesPlayed || [],
+        localCategoriesPlayed: userMissions.localCategoriesPlayed || [],
+        multiplayerCategoriesPlayed: userMissions.multiplayerCategoriesPlayed || [],
         lastUpdated: serverTimestamp(),
       }, { merge: true });
 
@@ -359,13 +362,17 @@ class MissionService {
     
     if (!gameCompleted) return updates;
 
-    // Games played missions
-    const currentGames = (userMissions.missions['play_5_games']?.currentValue || 0) + 1;
-    updates.push(this.updateMissionProgress(userMissions, 'play_5_games', currentGames));
-    updates.push(this.updateMissionProgress(userMissions, 'game_veteran_25', currentGames));
-    updates.push(this.updateMissionProgress(userMissions, 'game_master_100', currentGames));
+    if (isMultiplayer) {
+      updates.push(this.updateMissionProgress(userMissions, 'play_5_multiplayer_games', 0, 1));
+      updates.push(this.updateMissionProgress(userMissions, 'multiplayer_veteran_25', 0, 1));
+      updates.push(this.updateMissionProgress(userMissions, 'multiplayer_master_100', 0, 1));
+    } else {
+      updates.push(this.updateMissionProgress(userMissions, 'play_5_local_games', 0, 1));
+      updates.push(this.updateMissionProgress(userMissions, 'local_veteran_25', 0, 1));
+      updates.push(this.updateMissionProgress(userMissions, 'local_master_100', 0, 1));
+    }
 
-    // Score missions (cumulative)
+    // Score missions (cumulative across both modes — gameplay skill, not mode-specific)
     const currentScore = (userMissions.missions['score_500']?.currentValue || 0) + gameCompleted.totalScore;
     updates.push(this.updateMissionProgress(userMissions, 'score_500', currentScore));
     updates.push(this.updateMissionProgress(userMissions, 'score_1000', currentScore));
@@ -384,18 +391,26 @@ class MissionService {
       updates.push(this.updateMissionProgress(userMissions, 'accuracy_perfect', gameCompleted.accuracy));
     }
 
-    // Category exploration
-    if (!this.categoriesPlayed[userId]) {
-      this.categoriesPlayed[userId] = new Set();
+    // Category exploration — separate lists per mode
+    const categoryListKey = isMultiplayer ? 'multiplayerCategoriesPlayed' : 'localCategoriesPlayed';
+    if (!userMissions[categoryListKey]) {
+      userMissions[categoryListKey] = [];
     }
-    this.categoriesPlayed[userId].add(gameCompleted.category);
-    
-    const categoriesCount = this.categoriesPlayed[userId].size;
-    updates.push(this.updateMissionProgress(userMissions, 'play_3_categories', categoriesCount));
-    updates.push(this.updateMissionProgress(userMissions, 'all_categories', categoriesCount));
+    if (!userMissions[categoryListKey]!.includes(gameCompleted.category)) {
+      userMissions[categoryListKey]!.push(gameCompleted.category);
+    }
+    const categoriesCount = userMissions[categoryListKey]!.length;
 
-    // Category master - track games per category
-    const categoryKey = `category_${gameCompleted.category}`;
+    if (isMultiplayer) {
+      updates.push(this.updateMissionProgress(userMissions, 'play_3_multiplayer_categories', categoriesCount));
+      updates.push(this.updateMissionProgress(userMissions, 'all_multiplayer_categories', categoriesCount));
+    } else {
+      updates.push(this.updateMissionProgress(userMissions, 'play_3_local_categories', categoriesCount));
+      updates.push(this.updateMissionProgress(userMissions, 'all_local_categories', categoriesCount));
+    }
+
+    // Category master — track games per category per mode
+    const categoryKey = `${isMultiplayer ? 'mp' : 'local'}_category_${gameCompleted.category}`;
     if (!userMissions.missions[categoryKey]) {
       userMissions.missions[categoryKey] = {
         missionId: categoryKey,
@@ -406,10 +421,14 @@ class MissionService {
       };
     }
     userMissions.missions[categoryKey].currentValue++;
-    
+
+    const categoryMasterMissionId = isMultiplayer ? 'multiplayer_category_master' : 'local_category_master';
     if (userMissions.missions[categoryKey].currentValue >= 10) {
-      updates.push(this.updateMissionProgress(userMissions, 'category_master', 
-        userMissions.missions[categoryKey].currentValue));
+      updates.push(this.updateMissionProgress(
+        userMissions,
+        categoryMasterMissionId,
+        userMissions.missions[categoryKey].currentValue
+      ));
     }
 
     // Multiplayer wins
@@ -586,7 +605,6 @@ class MissionService {
     delete this.cachedMissions[userId];
     delete this.answerStreaks[userId];
     delete this.leaderboardStreaks[userId];
-    delete this.categoriesPlayed[userId];
   }
 }
 

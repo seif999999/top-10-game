@@ -15,6 +15,7 @@ export const categoryImages: Record<string, number> = {
   Food: require('../assets/images/food.webp'),
   Technology: require('../assets/images/technology.jpg'),
   Masry: require('../assets/images/egypt.jpg'),
+  'General Knowledge': require('../assets/images/General Knowldege.png'),
   Custom: require('../assets/images/createyourown.jpg'),
 };
 

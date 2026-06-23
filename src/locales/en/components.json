@@ -69,7 +69,33 @@
     "multiplayerDesc": "Create/join online rooms with code",
     "custom": "Custom",
     "customDesc": "Make your own questions and answers",
-    "gotIt": "Got it!"
+    "gotIt": "Got it!",
+    "modes": {
+      "singlePlayer": {
+        "title": "How Single Player Works",
+        "flowTitle": "Game Flow",
+        "step1": "Swipe through categories and pick one you want to play.",
+        "step2": "Set the number of teams, team names, and turn timer below.",
+        "step3": "Tap Continue to see questions in that category.",
+        "step4": "Choose a question, then teams take turns submitting answers.",
+        "step5": "Correct answers are revealed with their rank on the list.",
+        "step6": "Keep playing until all 10 answers are found or turns end.",
+        "scoringTitle": "Scoring & Winning",
+        "winCondition": "The team with the most points when the game ends wins."
+      },
+      "multiplayer": {
+        "title": "How Multiplayer Works",
+        "flowTitle": "Game Flow",
+        "step1": "Create a room to host, or join with a 6-digit room code.",
+        "step2": "The host picks a category, question, and turn duration.",
+        "step3": "Share the room code so friends can join (up to 8 players).",
+        "step4": "When it is your turn, type an answer and submit before time runs out.",
+        "step5": "Correct answers earn points and appear on the shared board.",
+        "step6": "The host starts the game; everyone competes for the highest score.",
+        "scoringTitle": "Scoring & Winning",
+        "winCondition": "The player with the highest total score when the game ends wins."
+      }
+    }
   },
   "avatarSelection": {
     "title": "Choose Avatar",

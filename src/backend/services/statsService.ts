@@ -1,4 +1,4 @@
-import { saveGameStats, getPlayerStats, saveGameHistory, getGameHistory, GameStats, GameHistory } from './localStorage';
+import { saveGameStats, getPlayerStats, savePlayerStats, saveGameHistory, getGameHistory, GameStats, GameHistory } from './localStorage';
 import { logger } from '../utils/logger';
 import { missionService } from './missionService';
 import { GameEventData, MissionBatchResult } from '../../shared/types/missions';
@@ -16,7 +16,19 @@ export interface GamePerformance {
   recentPerformance: 'improving' | 'declining' | 'stable';
   currentStreak: number;
   bestStreak: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+  multiplayerWins: number;
+  multiplayerLosses: number;
+  localGamesHosted: number;
+  multiplayerGames: number;
+  fastestAnswerTime: number | null;
+  longestCorrectStreak: number;
+  currentCorrectStreak: number;
 }
+
+export type PlayerStatistics = GamePerformance;
 
 export interface CategoryStats {
   category: string;
@@ -41,10 +53,20 @@ export const updateGameStats = async (
   isMultiplayer: boolean = false,
   isWinner: boolean = false,
   finalRank?: number,
-  playerCount?: number
+  playerCount?: number,
+  completionKey?: string
 ): Promise<MissionBatchResult | null> => {
   try {
-    const gameId = `game_${Date.now()}`;
+    const existingStats = await getPlayerStats(userId);
+    if (
+      completionKey &&
+      (existingStats.recordedCompletionKeys || []).includes(completionKey)
+    ) {
+      logger.log('Skipping duplicate game completion stats update', { userId, completionKey });
+      return null;
+    }
+
+    const gameId = completionKey ? `game_${completionKey}` : `game_${Date.now()}`;
     
     // Create game results object
     const gameResults = {
@@ -68,10 +90,37 @@ export const updateGameStats = async (
       correctAnswers,
       totalQuestions,
       date: new Date().toISOString(),
-      timeTaken
+      timeTaken,
+      isMultiplayer,
+      isWinner: isMultiplayer ? isWinner : undefined,
     };
 
     await saveGameHistory(userId, gameHistory);
+
+    const statsAfterSave = await getPlayerStats(userId);
+    const updatedStats: GameStats = { ...statsAfterSave };
+
+    if (isMultiplayer) {
+      updatedStats.multiplayerGames += 1;
+      if (isWinner) {
+        updatedStats.wins += 1;
+        updatedStats.multiplayerWins += 1;
+      } else {
+        updatedStats.losses += 1;
+        updatedStats.multiplayerLosses += 1;
+      }
+    } else {
+      updatedStats.localGamesHosted += 1;
+    }
+
+    if (completionKey) {
+      updatedStats.recordedCompletionKeys = [
+        ...(statsAfterSave.recordedCompletionKeys || []).slice(-99),
+        completionKey,
+      ];
+    }
+
+    await savePlayerStats(userId, updatedStats);
 
     // Process mission events for game completion
     const accuracy = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
@@ -145,6 +194,45 @@ export const processAnswerForMissions = async (
     logger.error('Error processing answer for missions:', error);
     return null;
   }
+};
+
+/**
+ * Track per-answer statistics (correct streak, fastest answer time)
+ */
+export const recordAnswerStats = async (
+  userId: string,
+  isCorrect: boolean,
+  timeTakenSeconds: number
+): Promise<void> => {
+  try {
+    const stats = await getPlayerStats(userId);
+    const normalizedTime = Math.max(0, Math.floor(timeTakenSeconds));
+
+    if (isCorrect) {
+      const nextStreak = stats.currentCorrectStreak + 1;
+      stats.currentCorrectStreak = nextStreak;
+      stats.longestCorrectStreak = Math.max(stats.longestCorrectStreak, nextStreak);
+      if (normalizedTime > 0) {
+        stats.fastestAnswerTime =
+          stats.fastestAnswerTime == null
+            ? normalizedTime
+            : Math.min(stats.fastestAnswerTime, normalizedTime);
+      }
+    } else {
+      stats.currentCorrectStreak = 0;
+    }
+
+    await savePlayerStats(userId, stats);
+  } catch (error) {
+    logger.error('Error recording answer stats:', error);
+  }
+};
+
+/**
+ * Get full player statistics for profile display
+ */
+export const getPlayerStatistics = async (userId: string): Promise<PlayerStatistics> => {
+  return getGamePerformance(userId);
 };
 
 /**
@@ -226,6 +314,47 @@ export const calculateStreaks = (gameHistory: GameHistory[]): { currentStreak: n
 };
 
 /**
+ * Win/loss streaks from online multiplayer games only
+ */
+export const calculateMultiplayerWinStreaks = (
+  gameHistory: GameHistory[]
+): { currentStreak: number; bestStreak: number } => {
+  const multiplayerGames = gameHistory
+    .filter((game) => game.isMultiplayer)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  if (multiplayerGames.length === 0) {
+    return { currentStreak: 0, bestStreak: 0 };
+  }
+
+  let currentStreak = 0;
+  let bestStreak = 0;
+  let tempStreak = 0;
+  let currentStreakSet = false;
+
+  for (let i = 0; i < multiplayerGames.length; i++) {
+    const won = multiplayerGames[i].isWinner === true;
+
+    if (won) {
+      tempStreak += 1;
+      if (!currentStreakSet) {
+        currentStreak = tempStreak;
+        currentStreakSet = true;
+      }
+      bestStreak = Math.max(bestStreak, tempStreak);
+    } else {
+      if (!currentStreakSet) {
+        currentStreak = 0;
+        currentStreakSet = true;
+      }
+      tempStreak = 0;
+    }
+  }
+
+  return { currentStreak, bestStreak };
+};
+
+/**
  * Get best category based on average score
  */
 export const getBestCategory = (gameHistory: GameHistory[]): string => {
@@ -297,9 +426,20 @@ export const getGamePerformance = async (userId: string): Promise<GamePerformanc
 
     // Determine recent performance trend
     const recentPerformance = calculatePerformanceTrend(history);
+    const { currentStreak, bestStreak } = calculateMultiplayerWinStreaks(history);
+    const historyMultiplayer = history.filter((game) => game.isMultiplayer).length;
+    const historyLocal = history.filter((game) => !game.isMultiplayer).length;
+    const multiplayerGames = Math.max(stats.multiplayerGames, historyMultiplayer);
+    const localGamesHosted = Math.max(stats.localGamesHosted, historyLocal);
+    const totalGames = Math.max(stats.totalGames, history.length, localGamesHosted + multiplayerGames);
+    const multiplayerWins = stats.multiplayerWins;
+    const multiplayerLosses = stats.multiplayerLosses;
+    const winRate = multiplayerWins + multiplayerLosses > 0
+      ? Math.round((multiplayerWins / (multiplayerWins + multiplayerLosses)) * 100)
+      : 0;
 
     return {
-      totalGames: stats.totalGames,
+      totalGames,
       totalScore: stats.totalScore,
       averageScore: stats.averageScore,
       bestScore: stats.bestScore,
@@ -309,12 +449,18 @@ export const getGamePerformance = async (userId: string): Promise<GamePerformanc
       bestCategory,
       mostPlayedCategory,
       recentPerformance,
-      // FUTURE ENHANCEMENT: Implement streak calculation logic
-      // Context: Feature placeholder, needs game history tracking to calculate consecutive wins/correct answers
-      // Estimated effort: Medium
-      // See TODOS.md for details
-      currentStreak: 0,
-      bestStreak: 0
+      currentStreak,
+      bestStreak,
+      wins: multiplayerWins,
+      losses: multiplayerLosses,
+      winRate,
+      multiplayerWins,
+      multiplayerLosses,
+      localGamesHosted,
+      multiplayerGames,
+      fastestAnswerTime: stats.fastestAnswerTime,
+      longestCorrectStreak: stats.longestCorrectStreak,
+      currentCorrectStreak: stats.currentCorrectStreak,
     };
   } catch (error) {
     logger.error('Error getting game performance:', error);
@@ -330,7 +476,17 @@ export const getGamePerformance = async (userId: string): Promise<GamePerformanc
       mostPlayedCategory: '',
       recentPerformance: 'stable',
       currentStreak: 0,
-      bestStreak: 0
+      bestStreak: 0,
+      wins: 0,
+      losses: 0,
+      winRate: 0,
+      multiplayerWins: 0,
+      multiplayerLosses: 0,
+      localGamesHosted: 0,
+      multiplayerGames: 0,
+      fastestAnswerTime: null,
+      longestCorrectStreak: 0,
+      currentCorrectStreak: 0,
     };
   }
 };
